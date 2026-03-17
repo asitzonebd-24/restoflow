@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
 import { Role, Business, User, Order, InventoryItem, MenuItem, OrderStatus, ItemStatus, Transaction, Expense, OrderItem, MonthlyBill, BillStatus } from '../types';
 import { BUSINESS_DETAILS, MOCK_USERS, INITIAL_ORDERS, MOCK_INVENTORY, MOCK_MENU, MOCK_EXPENSES } from '../constants';
-import { supabase } from '../supabase';
+import { supabase, isSupabaseConfigured } from '../supabase';
 
 interface AppContextType {
   currentUser: User | null;
@@ -82,6 +82,19 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
+      
+      if (!isSupabaseConfigured) {
+        console.log('Supabase not configured, using mock data.');
+        setTenants([BUSINESS_DETAILS]);
+        setAllUsers(ENHANCED_MOCK_USERS);
+        setAllOrders(INITIAL_ORDERS);
+        setAllInventory(MOCK_INVENTORY);
+        setAllMenu(MOCK_MENU);
+        setAllExpenses(MOCK_EXPENSES);
+        setIsLoading(false);
+        return;
+      }
+
       try {
         const [
           { data: tenantsData },
