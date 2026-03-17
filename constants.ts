@@ -45,9 +45,9 @@ export const MOCK_USERS: User[] = [
 ];
 
 export const MOCK_MENU: MenuItem[] = [
-  { id: 'm1', tenantId: 't1', name: 'Signature Ramen', price: 18.00, category: 'Main', image: 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?q=80&w=200&h=200&auto=format&fit=crop', available: true },
-  { id: 'm2', tenantId: 't1', name: 'Gyoza Dumplings', price: 9.00, category: 'Starter', image: 'https://images.unsplash.com/photo-1496116218417-1a781b1c416c?q=80&w=200&h=200&auto=format&fit=crop', available: true },
-  { id: 'm3', tenantId: 't1', name: 'Matcha Iced Tea', price: 5.50, category: 'Beverage', image: 'https://images.unsplash.com/photo-1582722872445-41ca501ea146?q=80&w=200&h=200&auto=format&fit=crop', available: true },
+  { id: 'm1', tenantId: 't1', name: 'Signature Ramen', price: 18.00, category: 'Main', image: 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?q=80&w=200&h=200&auto=format&fit=crop', isAvailable: true },
+  { id: 'm2', tenantId: 't1', name: 'Gyoza Dumplings', price: 9.00, category: 'Starter', image: 'https://images.unsplash.com/photo-1496116218417-1a781b1c416c?q=80&w=200&h=200&auto=format&fit=crop', isAvailable: true },
+  { id: 'm3', tenantId: 't1', name: 'Matcha Iced Tea', price: 5.50, category: 'Beverage', image: 'https://images.unsplash.com/photo-1582722872445-41ca501ea146?q=80&w=200&h=200&auto=format&fit=crop', isAvailable: true },
 ];
 
 export const MOCK_INVENTORY: InventoryItem[] = [

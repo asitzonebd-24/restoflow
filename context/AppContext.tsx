@@ -1,7 +1,8 @@
 
-import React, { createContext, useContext, useState, ReactNode, useMemo } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
 import { Role, Business, User, Order, InventoryItem, MenuItem, OrderStatus, ItemStatus, Transaction, Expense, OrderItem, MonthlyBill, BillStatus } from '../types';
 import { BUSINESS_DETAILS, MOCK_USERS, INITIAL_ORDERS, MOCK_INVENTORY, MOCK_MENU, MOCK_EXPENSES } from '../constants';
+import { supabase } from '../supabase';
 
 interface AppContextType {
   currentUser: User | null;
@@ -46,6 +47,7 @@ interface AppContextType {
   generateMonthlyBills: (month: string) => void;
   approveBill: (billId: string) => void;
   allUsers: User[];
+  isLoading: boolean;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -67,14 +69,142 @@ const ENHANCED_MOCK_USERS: User[] = [
 
 export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [tenants, setTenants] = useState<Business[]>([BUSINESS_DETAILS]);
-  const [allOrders, setAllOrders] = useState<Order[]>(INITIAL_ORDERS);
-  const [allInventory, setAllInventory] = useState<InventoryItem[]>(MOCK_INVENTORY);
-  const [allMenu, setAllMenu] = useState<MenuItem[]>(MOCK_MENU);
-  const [allUsers, setAllUsers] = useState<User[]>(ENHANCED_MOCK_USERS);
+  const [tenants, setTenants] = useState<Business[]>([]);
+  const [allOrders, setAllOrders] = useState<Order[]>([]);
+  const [allInventory, setAllInventory] = useState<InventoryItem[]>([]);
+  const [allMenu, setAllMenu] = useState<MenuItem[]>([]);
+  const [allUsers, setAllUsers] = useState<User[]>([]);
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
-  const [allExpenses, setAllExpenses] = useState<Expense[]>(MOCK_EXPENSES);
+  const [allExpenses, setAllExpenses] = useState<Expense[]>([]);
   const [monthlyBills, setMonthlyBills] = useState<MonthlyBill[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        const [
+          { data: tenantsData },
+          { data: usersData },
+          { data: menuData },
+          { data: inventoryData },
+          { data: ordersData },
+          { data: transactionsData },
+          { data: expensesData },
+          { data: billsData }
+        ] = await Promise.all([
+          supabase.from('tenants').select('*'),
+          supabase.from('users').select('*'),
+          supabase.from('menu_items').select('*'),
+          supabase.from('inventory_items').select('*'),
+          supabase.from('orders').select('*'),
+          supabase.from('transactions').select('*'),
+          supabase.from('expenses').select('*'),
+          supabase.from('monthly_bills').select('*')
+        ]);
+
+        if (tenantsData && tenantsData.length > 0) {
+          setTenants(tenantsData.map(t => ({
+            ...t,
+            expenseCategories: t.expense_categories,
+            menuCategories: t.menu_categories,
+            customerTokenPrefix: t.customer_token_prefix,
+            nextCustomerToken: t.next_customer_token,
+            customerAppEnabled: t.customer_app_enabled,
+            isActive: t.is_active,
+            monthlyBill: t.monthly_bill,
+            billingDay: t.billing_day,
+            createdAt: t.created_at
+          })));
+        } else {
+          // Seed with mock data if empty
+          setTenants([BUSINESS_DETAILS]);
+        }
+
+        if (usersData && usersData.length > 0) {
+          setAllUsers(usersData.map(u => ({
+            ...u,
+            tenantId: u.tenant_id
+          })));
+        } else {
+          setAllUsers(ENHANCED_MOCK_USERS);
+        }
+
+        if (menuData) {
+          setAllMenu(menuData.map(m => ({
+            ...m,
+            tenantId: m.tenant_id,
+            isAvailable: m.is_available
+          })));
+        }
+
+        if (inventoryData) {
+          setAllInventory(inventoryData.map(i => ({
+            ...i,
+            tenantId: i.tenant_id,
+            minThreshold: i.min_threshold,
+            lastUpdated: i.last_updated
+          })));
+        }
+
+        if (ordersData) {
+          setAllOrders(ordersData.map(o => ({
+            ...o,
+            tenantId: o.tenant_id,
+            tokenNumber: o.token_number,
+            tableNumber: o.table_number,
+            totalAmount: o.total_amount,
+            createdBy: o.created_by,
+            createdAt: o.created_at
+          })));
+        }
+
+        if (transactionsData) {
+          setAllTransactions(transactionsData.map(t => ({
+            ...t,
+            tenantId: t.tenant_id,
+            orderId: t.order_id,
+            paymentMethod: t.payment_method,
+            itemsSummary: t.items_summary,
+            creatorName: t.creator_name,
+            date: t.created_at
+          })));
+        }
+
+        if (expensesData) {
+          setAllExpenses(expensesData.map(e => ({
+            ...e,
+            tenantId: e.tenant_id,
+            recordedBy: e.recorded_by
+          })));
+        }
+
+        if (billsData) {
+          setMonthlyBills(billsData.map(b => ({
+            ...b,
+            tenantId: b.tenant_id,
+            tenantName: b.tenant_name,
+            approvedAt: b.approved_at,
+            createdAt: b.created_at
+          })));
+        }
+
+      } catch (error) {
+        console.error('Error fetching data from Supabase:', error);
+        // Fallback to mock data on error
+        setTenants([BUSINESS_DETAILS]);
+        setAllUsers(ENHANCED_MOCK_USERS);
+        setAllOrders(INITIAL_ORDERS);
+        setAllInventory(MOCK_INVENTORY);
+        setAllMenu(MOCK_MENU);
+        setAllExpenses(MOCK_EXPENSES);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   const business = useMemo(() => {
     if (!currentUser || !currentUser.tenantId) return tenants[0];
@@ -122,13 +252,45 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
   const logout = () => setCurrentUser(null);
 
-  const addOrder = (order: Omit<Order, 'tenantId'>) => setAllOrders(prev => [{ ...order, tenantId: currentUser?.tenantId || '' } as Order, ...prev]);
+  const addOrder = async (order: Omit<Order, 'tenantId'>) => {
+    const tenantId = currentUser?.tenantId || '';
+    const newOrder = { ...order, tenantId } as Order;
+    
+    setAllOrders(prev => [newOrder, ...prev]);
 
-  const updateOrderItems = (orderId: string, items: OrderItem[], totalAmount: number, note?: string) => {
-    setAllOrders(prev => prev.map(o => o.id === orderId ? { ...o, items, totalAmount, note: note ?? o.note } : o));
+    try {
+      await supabase.from('orders').insert({
+        id: newOrder.id,
+        tenant_id: newOrder.tenantId,
+        token_number: newOrder.tokenNumber,
+        table_number: newOrder.tableNumber,
+        items: newOrder.items,
+        status: newOrder.status,
+        total_amount: newOrder.totalAmount,
+        note: newOrder.note,
+        created_by: newOrder.createdBy,
+        created_at: newOrder.createdAt
+      });
+    } catch (error) {
+      console.error('Error adding order to Supabase:', error);
+    }
   };
 
-  const updateOrderStatus = (orderId: string, status: OrderStatus) => {
+  const updateOrderItems = async (orderId: string, items: OrderItem[], totalAmount: number, note?: string) => {
+    setAllOrders(prev => prev.map(o => o.id === orderId ? { ...o, items, totalAmount, note: note ?? o.note } : o));
+
+    try {
+      await supabase.from('orders').update({
+        items,
+        total_amount: totalAmount,
+        note: note
+      }).eq('id', orderId);
+    } catch (error) {
+      console.error('Error updating order items in Supabase:', error);
+    }
+  };
+
+  const updateOrderStatus = async (orderId: string, status: OrderStatus) => {
     setAllOrders(prev => prev.map(o => {
       if (o.id === orderId) {
         const updatedItems = o.items.map(i => ({ ...i, status: status as unknown as ItemStatus }));
@@ -136,9 +298,19 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       }
       return o;
     }));
+
+    try {
+      await supabase.from('orders').update({
+        status,
+        items: allOrders.find(o => o.id === orderId)?.items.map(i => ({ ...i, status: status as unknown as ItemStatus }))
+      }).eq('id', orderId);
+    } catch (error) {
+      console.error('Error updating order status in Supabase:', error);
+    }
   };
 
-  const updateOrderItemStatus = (orderId: string, rowId: string, status: ItemStatus) => {
+  const updateOrderItemStatus = async (orderId: string, rowId: string, status: ItemStatus) => {
+    let updatedOrder: Order | undefined;
     setAllOrders(prev => prev.map(o => {
       if (o.id === orderId) {
         const newItems = o.items.map(i => i.rowId === rowId ? { ...i, status } : i);
@@ -148,79 +320,340 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         if (allReady) newOrderStatus = OrderStatus.READY;
         else if (anyPreparing) newOrderStatus = OrderStatus.PREPARING;
         else newOrderStatus = OrderStatus.PENDING;
-        return { ...o, items: newItems, status: newOrderStatus };
+        updatedOrder = { ...o, items: newItems, status: newOrderStatus };
+        return updatedOrder;
       }
       return o;
     }));
+
+    if (updatedOrder) {
+      try {
+        await supabase.from('orders').update({
+          items: updatedOrder.items,
+          status: updatedOrder.status
+        }).eq('id', orderId);
+      } catch (error) {
+        console.error('Error updating order item status in Supabase:', error);
+      }
+    }
   };
 
-  const updateInventory = (itemId: string, quantityChange: number) => {
+  const updateInventory = async (itemId: string, quantityChange: number) => {
     setAllInventory(prev => prev.map(i => i.id === itemId ? { ...i, quantity: i.quantity + quantityChange } : i));
+
+    try {
+      const item = allInventory.find(i => i.id === itemId);
+      if (item) {
+        await supabase.from('inventory_items').update({
+          quantity: item.quantity + quantityChange,
+          last_updated: new Date().toISOString()
+        }).eq('id', itemId);
+      }
+    } catch (error) {
+      console.error('Error updating inventory in Supabase:', error);
+    }
   };
 
-  const addInventoryItem = (item: Omit<InventoryItem, 'tenantId'>) => setAllInventory(prev => [...prev, { ...item, tenantId: currentUser?.tenantId || '' } as InventoryItem]);
+  const addInventoryItem = async (item: Omit<InventoryItem, 'tenantId'>) => {
+    const tenantId = currentUser?.tenantId || '';
+    const newItem = { ...item, tenantId } as InventoryItem;
+    setAllInventory(prev => [...prev, newItem]);
 
-  const editInventoryItem = (id: string, updates: Partial<InventoryItem>) => {
+    try {
+      await supabase.from('inventory_items').insert({
+        id: newItem.id,
+        tenant_id: newItem.tenantId,
+        name: newItem.name,
+        quantity: newItem.quantity,
+        unit: newItem.unit,
+        min_threshold: newItem.minThreshold,
+        last_updated: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Error adding inventory item to Supabase:', error);
+    }
+  };
+
+  const editInventoryItem = async (id: string, updates: Partial<InventoryItem>) => {
     setAllInventory(prev => prev.map(i => i.id === id ? { ...i, ...updates } : i));
+
+    try {
+      const supabaseUpdates: any = {};
+      if (updates.name) supabaseUpdates.name = updates.name;
+      if (updates.quantity !== undefined) supabaseUpdates.quantity = updates.quantity;
+      if (updates.unit) supabaseUpdates.unit = updates.unit;
+      if (updates.minThreshold !== undefined) supabaseUpdates.min_threshold = updates.minThreshold;
+      supabaseUpdates.last_updated = new Date().toISOString();
+
+      await supabase.from('inventory_items').update(supabaseUpdates).eq('id', id);
+    } catch (error) {
+      console.error('Error editing inventory item in Supabase:', error);
+    }
   };
 
-  const addMenuItem = (item: Omit<MenuItem, 'tenantId'>) => setAllMenu(prev => [...prev, { ...item, tenantId: currentUser?.tenantId || '' } as MenuItem]);
+  const addMenuItem = async (item: Omit<MenuItem, 'tenantId'>) => {
+    const tenantId = currentUser?.tenantId || '';
+    const newItem = { ...item, tenantId } as MenuItem;
+    setAllMenu(prev => [...prev, newItem]);
 
-  const updateMenuItem = (itemId: string, updates: Partial<MenuItem>) => {
+    try {
+      await supabase.from('menu_items').insert({
+        id: newItem.id,
+        tenant_id: newItem.tenantId,
+        name: newItem.name,
+        description: newItem.description,
+        price: newItem.price,
+        category: newItem.category,
+        image: newItem.image,
+        is_available: newItem.isAvailable
+      });
+    } catch (error) {
+      console.error('Error adding menu item to Supabase:', error);
+    }
+  };
+
+  const updateMenuItem = async (itemId: string, updates: Partial<MenuItem>) => {
     setAllMenu(prev => prev.map(i => i.id === itemId ? { ...i, ...updates } : i));
+
+    try {
+      const supabaseUpdates: any = {};
+      if (updates.name) supabaseUpdates.name = updates.name;
+      if (updates.description) supabaseUpdates.description = updates.description;
+      if (updates.price !== undefined) supabaseUpdates.price = updates.price;
+      if (updates.category) supabaseUpdates.category = updates.category;
+      if (updates.image) supabaseUpdates.image = updates.image;
+      if (updates.isAvailable !== undefined) supabaseUpdates.is_available = updates.isAvailable;
+
+      await supabase.from('menu_items').update(supabaseUpdates).eq('id', itemId);
+    } catch (error) {
+      console.error('Error updating menu item in Supabase:', error);
+    }
   };
 
-  const deleteMenuItem = (itemId: string) => setAllMenu(prev => prev.filter(i => i.id !== itemId));
+  const deleteMenuItem = async (itemId: string) => {
+    setAllMenu(prev => prev.filter(i => i.id !== itemId));
 
-  const addMenuCategory = (catName: string) => {
-    setTenants(prev => prev.map(t => t.id === currentUser?.tenantId ? { ...t, menuCategories: [...(t.menuCategories || []), catName] } : t));
+    try {
+      await supabase.from('menu_items').delete().eq('id', itemId);
+    } catch (error) {
+      console.error('Error deleting menu item from Supabase:', error);
+    }
   };
 
-  const renameMenuCategory = (oldName: string, newName: string) => {
-    setTenants(prev => prev.map(t => t.id === currentUser?.tenantId ? { ...t, menuCategories: (t.menuCategories || []).map(c => c === oldName ? newName : c) } : t));
-    setAllMenu(prev => prev.map(item => item.tenantId === currentUser?.tenantId && item.category === oldName ? { ...item, category: newName } : item));
+  const addMenuCategory = async (catName: string) => {
+    const tenantId = currentUser?.tenantId || '';
+    const tenant = tenants.find(t => t.id === tenantId);
+    if (!tenant) return;
+
+    const newCategories = [...(tenant.menuCategories || []), catName];
+    setTenants(prev => prev.map(t => t.id === tenantId ? { ...t, menuCategories: newCategories } : t));
+
+    try {
+      await supabase.from('tenants').update({
+        menu_categories: newCategories
+      }).eq('id', tenantId);
+    } catch (error) {
+      console.error('Error adding menu category to Supabase:', error);
+    }
   };
 
-  const deleteMenuCategory = (catName: string) => {
-    setTenants(prev => prev.map(t => t.id === currentUser?.tenantId ? { ...t, menuCategories: (t.menuCategories || []).filter(c => c !== catName) } : t));
-    setAllMenu(prev => prev.map(item => item.tenantId === currentUser?.tenantId && item.category === catName ? { ...item, category: 'Uncategorized' } : item));
+  const renameMenuCategory = async (oldName: string, newName: string) => {
+    const tenantId = currentUser?.tenantId || '';
+    const tenant = tenants.find(t => t.id === tenantId);
+    if (!tenant) return;
+
+    const newCategories = (tenant.menuCategories || []).map(c => c === oldName ? newName : c);
+    setTenants(prev => prev.map(t => t.id === tenantId ? { ...t, menuCategories: newCategories } : t));
+    setAllMenu(prev => prev.map(item => item.tenantId === tenantId && item.category === oldName ? { ...item, category: newName } : item));
+
+    try {
+      await Promise.all([
+        supabase.from('tenants').update({ menu_categories: newCategories }).eq('id', tenantId),
+        supabase.from('menu_items').update({ category: newName }).eq('tenant_id', tenantId).eq('category', oldName)
+      ]);
+    } catch (error) {
+      console.error('Error renaming menu category in Supabase:', error);
+    }
   };
 
-  const addExpenseCategory = (catName: string) => {
-    setTenants(prev => prev.map(t => t.id === currentUser?.tenantId ? { ...t, expenseCategories: [...t.expenseCategories, catName] } : t));
+  const deleteMenuCategory = async (catName: string) => {
+    const tenantId = currentUser?.tenantId || '';
+    const tenant = tenants.find(t => t.id === tenantId);
+    if (!tenant) return;
+
+    const newCategories = (tenant.menuCategories || []).filter(c => c !== catName);
+    setTenants(prev => prev.map(t => t.id === tenantId ? { ...t, menuCategories: newCategories } : t));
+    setAllMenu(prev => prev.map(item => item.tenantId === tenantId && item.category === catName ? { ...item, category: 'Uncategorized' } : item));
+
+    try {
+      await Promise.all([
+        supabase.from('tenants').update({ menu_categories: newCategories }).eq('id', tenantId),
+        supabase.from('menu_items').update({ category: 'Uncategorized' }).eq('tenant_id', tenantId).eq('category', catName)
+      ]);
+    } catch (error) {
+      console.error('Error deleting menu category in Supabase:', error);
+    }
   };
 
-  const renameExpenseCategory = (oldName: string, newName: string) => {
-    setTenants(prev => prev.map(t => t.id === currentUser?.tenantId ? { ...t, expenseCategories: t.expenseCategories.map(c => c === oldName ? newName : c) } : t));
-    setAllExpenses(prev => prev.map(e => e.tenantId === currentUser?.tenantId && e.category === oldName ? { ...e, category: newName } : e));
+  const addExpenseCategory = async (catName: string) => {
+    const tenantId = currentUser?.tenantId || '';
+    const tenant = tenants.find(t => t.id === tenantId);
+    if (!tenant) return;
+
+    const newCategories = [...tenant.expenseCategories, catName];
+    setTenants(prev => prev.map(t => t.id === tenantId ? { ...t, expenseCategories: newCategories } : t));
+
+    try {
+      await supabase.from('tenants').update({
+        expense_categories: newCategories
+      }).eq('id', tenantId);
+    } catch (error) {
+      console.error('Error adding expense category to Supabase:', error);
+    }
   };
 
-  const deleteExpenseCategory = (catName: string) => {
-    setTenants(prev => prev.map(t => t.id === currentUser?.tenantId ? { ...t, expenseCategories: t.expenseCategories.filter(c => c !== catName) } : t));
-    setAllExpenses(prev => prev.map(e => e.tenantId === currentUser?.tenantId && e.category === catName ? { ...e, category: 'Other' } : e));
+  const renameExpenseCategory = async (oldName: string, newName: string) => {
+    const tenantId = currentUser?.tenantId || '';
+    const tenant = tenants.find(t => t.id === tenantId);
+    if (!tenant) return;
+
+    const newCategories = tenant.expenseCategories.map(c => c === oldName ? newName : c);
+    setTenants(prev => prev.map(t => t.id === tenantId ? { ...t, expenseCategories: newCategories } : t));
+    setAllExpenses(prev => prev.map(e => e.tenantId === tenantId && e.category === oldName ? { ...e, category: newName } : e));
+
+    try {
+      await Promise.all([
+        supabase.from('tenants').update({ expense_categories: newCategories }).eq('id', tenantId),
+        supabase.from('expenses').update({ category: newName }).eq('tenant_id', tenantId).eq('category', oldName)
+      ]);
+    } catch (error) {
+      console.error('Error renaming expense category in Supabase:', error);
+    }
   };
 
-  const addUser = (user: Omit<User, 'tenantId'>) => setAllUsers(prev => [...prev, { ...user, tenantId: currentUser?.tenantId || '' } as User]);
+  const deleteExpenseCategory = async (catName: string) => {
+    const tenantId = currentUser?.tenantId || '';
+    const tenant = tenants.find(t => t.id === tenantId);
+    if (!tenant) return;
 
-  const updateUser = (userId: string, updates: Partial<User>) => {
+    const newCategories = tenant.expenseCategories.filter(c => c !== catName);
+    setTenants(prev => prev.map(t => t.id === tenantId ? { ...t, expenseCategories: newCategories } : t));
+    setAllExpenses(prev => prev.map(e => e.tenantId === tenantId && e.category === catName ? { ...e, category: 'Other' } : e));
+
+    try {
+      await Promise.all([
+        supabase.from('tenants').update({ expense_categories: newCategories }).eq('id', tenantId),
+        supabase.from('expenses').update({ category: 'Other' }).eq('tenant_id', tenantId).eq('category', catName)
+      ]);
+    } catch (error) {
+      console.error('Error deleting expense category in Supabase:', error);
+    }
+  };
+
+  const addUser = async (user: Omit<User, 'tenantId'>) => {
+    const tenantId = currentUser?.tenantId || '';
+    const newUser = { ...user, tenantId } as User;
+    setAllUsers(prev => [...prev, newUser]);
+
+    try {
+      await supabase.from('users').insert({
+        id: newUser.id,
+        tenant_id: newUser.tenantId,
+        name: newUser.name,
+        email: newUser.email,
+        password: newUser.password,
+        mobile: newUser.mobile,
+        role: newUser.role,
+        avatar: newUser.avatar,
+        permissions: newUser.permissions
+      });
+    } catch (error) {
+      console.error('Error adding user to Supabase:', error);
+    }
+  };
+
+  const updateUser = async (userId: string, updates: Partial<User>) => {
     setAllUsers(prev => prev.map(u => u.id === userId ? { ...u, ...updates } : u));
+
+    try {
+      const supabaseUpdates: any = {};
+      if (updates.name) supabaseUpdates.name = updates.name;
+      if (updates.email) supabaseUpdates.email = updates.email;
+      if (updates.password) supabaseUpdates.password = updates.password;
+      if (updates.mobile) supabaseUpdates.mobile = updates.mobile;
+      if (updates.role) supabaseUpdates.role = updates.role;
+      if (updates.avatar) supabaseUpdates.avatar = updates.avatar;
+      if (updates.permissions) supabaseUpdates.permissions = updates.permissions;
+
+      await supabase.from('users').update(supabaseUpdates).eq('id', userId);
+    } catch (error) {
+      console.error('Error updating user in Supabase:', error);
+    }
   };
 
-  const deleteUser = (userId: string) => setAllUsers(prev => prev.filter(u => u.id !== userId));
+  const deleteUser = async (userId: string) => {
+    setAllUsers(prev => prev.filter(u => u.id !== userId));
 
-  const updateBusiness = (updates: Partial<Business>) => {
-    setTenants(prev => prev.map(t => t.id === currentUser?.tenantId ? { ...t, ...updates } : t));
+    try {
+      await supabase.from('users').delete().eq('id', userId);
+    } catch (error) {
+      console.error('Error deleting user from Supabase:', error);
+    }
   };
 
-  const updateTenant = (tenantId: string, updates: Partial<Business>) => {
+  const updateBusiness = async (updates: Partial<Business>) => {
+    const tenantId = currentUser?.tenantId || '';
     setTenants(prev => prev.map(t => t.id === tenantId ? { ...t, ...updates } : t));
+
+    try {
+      const supabaseUpdates: any = {};
+      if (updates.name) supabaseUpdates.name = updates.name;
+      if (updates.logo) supabaseUpdates.logo = updates.logo;
+      if (updates.address) supabaseUpdates.address = updates.address;
+      if (updates.phone) supabaseUpdates.phone = updates.phone;
+      if (updates.currency) supabaseUpdates.currency = updates.currency;
+      if (updates.vatRate !== undefined) supabaseUpdates.vat_rate = updates.vatRate;
+      if (updates.includeVat !== undefined) supabaseUpdates.include_vat = updates.includeVat;
+      if (updates.timezone) supabaseUpdates.timezone = updates.timezone;
+      if (updates.themeColor) supabaseUpdates.theme_color = updates.themeColor;
+      if (updates.customerTokenPrefix) supabaseUpdates.customer_token_prefix = updates.customerTokenPrefix;
+      if (updates.nextCustomerToken !== undefined) supabaseUpdates.next_customer_token = updates.nextCustomerToken;
+      if (updates.customerAppEnabled !== undefined) supabaseUpdates.customer_app_enabled = updates.customerAppEnabled;
+
+      await supabase.from('tenants').update(supabaseUpdates).eq('id', tenantId);
+    } catch (error) {
+      console.error('Error updating business in Supabase:', error);
+    }
   };
 
-  const toggleBusinessStatus = (tenantId: string) => {
+  const updateTenant = async (tenantId: string, updates: Partial<Business>) => {
+    setTenants(prev => prev.map(t => t.id === tenantId ? { ...t, ...updates } : t));
+
+    try {
+      const supabaseUpdates: any = {};
+      if (updates.monthlyBill !== undefined) supabaseUpdates.monthly_bill = updates.monthlyBill;
+      if (updates.isActive !== undefined) supabaseUpdates.is_active = updates.isActive;
+
+      await supabase.from('tenants').update(supabaseUpdates).eq('id', tenantId);
+    } catch (error) {
+      console.error('Error updating tenant in Supabase:', error);
+    }
+  };
+
+  const toggleBusinessStatus = async (tenantId: string) => {
+    const tenant = tenants.find(t => t.id === tenantId);
+    if (!tenant) return;
+
     setTenants(prev => prev.map(t => t.id === tenantId ? { ...t, isActive: !t.isActive } : t));
+
+    try {
+      await supabase.from('tenants').update({ is_active: !tenant.isActive }).eq('id', tenantId);
+    } catch (error) {
+      console.error('Error toggling business status in Supabase:', error);
+    }
   };
 
-  const createBusiness = (businessData: Partial<Business>, ownerData: Partial<User>) => {
+  const createBusiness = async (businessData: Partial<Business>, ownerData: Partial<User>) => {
     const newTenantId = `t-${Date.now()}`;
     const newBusiness: Business = {
       id: newTenantId,
@@ -258,15 +691,100 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
     setTenants(prev => [...prev, newBusiness]);
     setAllUsers(prev => [...prev, newOwner]);
+
+    try {
+      await Promise.all([
+        supabase.from('tenants').insert({
+          id: newBusiness.id,
+          name: newBusiness.name,
+          logo: newBusiness.logo,
+          address: newBusiness.address,
+          phone: newBusiness.phone,
+          currency: newBusiness.currency,
+          vat_rate: newBusiness.vatRate,
+          include_vat: newBusiness.includeVat,
+          timezone: newBusiness.timezone,
+          theme_color: newBusiness.themeColor,
+          expense_categories: newBusiness.expenseCategories,
+          menu_categories: newBusiness.menuCategories,
+          customer_token_prefix: newBusiness.customerTokenPrefix,
+          next_customer_token: newBusiness.nextCustomerToken,
+          customer_app_enabled: newBusiness.customerAppEnabled,
+          is_active: newBusiness.isActive,
+          monthly_bill: newBusiness.monthlyBill,
+          billing_day: newBusiness.billingDay,
+          created_at: newBusiness.createdAt
+        }),
+        supabase.from('users').insert({
+          id: newOwner.id,
+          tenant_id: newOwner.tenantId,
+          name: newOwner.name,
+          email: newOwner.email,
+          password: newOwner.password,
+          mobile: newOwner.mobile,
+          role: newOwner.role,
+          avatar: newOwner.avatar,
+          permissions: newOwner.permissions
+        })
+      ]);
+    } catch (error) {
+      console.error('Error creating business in Supabase:', error);
+    }
   };
 
-  const addTransaction = (transaction: Omit<Transaction, 'tenantId'>) => setAllTransactions(prev => [{ ...transaction, tenantId: currentUser?.tenantId || '' } as Transaction, ...prev]);
+  const addTransaction = async (transaction: Omit<Transaction, 'tenantId'>) => {
+    const tenantId = currentUser?.tenantId || '';
+    const newTransaction = { ...transaction, tenantId } as Transaction;
+    setAllTransactions(prev => [newTransaction, ...prev]);
 
-  const addExpense = (expense: Omit<Expense, 'tenantId'>) => setAllExpenses(prev => [{ ...expense, tenantId: currentUser?.tenantId || '' } as Expense, ...prev]);
+    try {
+      await supabase.from('transactions').insert({
+        id: newTransaction.id,
+        tenant_id: newTransaction.tenantId,
+        order_id: newTransaction.orderId,
+        amount: newTransaction.amount,
+        payment_method: newTransaction.paymentMethod,
+        items_summary: newTransaction.itemsSummary,
+        creator_name: newTransaction.creatorName,
+        created_at: newTransaction.date
+      });
+    } catch (error) {
+      console.error('Error adding transaction to Supabase:', error);
+    }
+  };
 
-  const deleteExpense = (id: string) => setAllExpenses(prev => prev.filter(e => e.id !== id));
+  const addExpense = async (expense: Omit<Expense, 'tenantId'>) => {
+    const tenantId = currentUser?.tenantId || '';
+    const newExpense = { ...expense, tenantId } as Expense;
+    setAllExpenses(prev => [newExpense, ...prev]);
 
-  const generateMonthlyBills = (month: string) => {
+    try {
+      await supabase.from('expenses').insert({
+        id: newExpense.id,
+        tenant_id: newExpense.tenantId,
+        title: newExpense.title,
+        amount: newExpense.amount,
+        category: newExpense.category,
+        date: newExpense.date,
+        note: newExpense.note,
+        recorded_by: newExpense.recordedBy
+      });
+    } catch (error) {
+      console.error('Error adding expense to Supabase:', error);
+    }
+  };
+
+  const deleteExpense = async (id: string) => {
+    setAllExpenses(prev => prev.filter(e => e.id !== id));
+
+    try {
+      await supabase.from('expenses').delete().eq('id', id);
+    } catch (error) {
+      console.error('Error deleting expense from Supabase:', error);
+    }
+  };
+
+  const generateMonthlyBills = async (month: string) => {
     const activeTenants = tenants.filter(t => t.isActive);
     const newBills: MonthlyBill[] = activeTenants.map(tenant => ({
       id: `bill-${tenant.id}-${month.replace(' ', '-')}-${Date.now()}`,
@@ -278,20 +796,45 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       createdAt: new Date().toISOString()
     }));
 
-    // Filter out already generated bills for this month to avoid duplicates
     const filteredNewBills = newBills.filter(nb => 
       !monthlyBills.some(mb => mb.tenantId === nb.tenantId && mb.month === nb.month)
     );
 
     setMonthlyBills(prev => [...prev, ...filteredNewBills]);
+
+    try {
+      if (filteredNewBills.length > 0) {
+        await supabase.from('monthly_bills').insert(filteredNewBills.map(b => ({
+          id: b.id,
+          tenant_id: b.tenantId,
+          tenant_name: b.tenantName,
+          month: b.month,
+          amount: b.amount,
+          status: b.status,
+          created_at: b.createdAt
+        })));
+      }
+    } catch (error) {
+      console.error('Error generating monthly bills in Supabase:', error);
+    }
   };
 
-  const approveBill = (billId: string) => {
+  const approveBill = async (billId: string) => {
+    const approvedAt = new Date().toISOString();
     setMonthlyBills(prev => prev.map(bill => 
       bill.id === billId 
-        ? { ...bill, status: BillStatus.APPROVED, approvedAt: new Date().toISOString() } 
+        ? { ...bill, status: BillStatus.APPROVED, approvedAt } 
         : bill
     ));
+
+    try {
+      await supabase.from('monthly_bills').update({
+        status: BillStatus.APPROVED,
+        approved_at: approvedAt
+      }).eq('id', billId);
+    } catch (error) {
+      console.error('Error approving bill in Supabase:', error);
+    }
   };
 
   return (
@@ -337,7 +880,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       monthlyBills,
       generateMonthlyBills,
       approveBill,
-      allUsers
+      allUsers,
+      isLoading
     }}>
       {children}
     </AppContext.Provider>

@@ -59,10 +59,11 @@ export interface MenuItem {
   id: string;
   tenantId: string;
   name: string;
+  description?: string;
   price: number;
   category: string;
   image?: string;
-  available: boolean;
+  isAvailable: boolean;
 }
 
 export interface OrderItem {

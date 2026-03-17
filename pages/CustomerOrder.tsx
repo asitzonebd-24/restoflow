@@ -20,7 +20,7 @@ export const CustomerOrder = () => {
   const categories = useMemo(() => ['All', ...Array.from(new Set(menu.map(m => m.category)))], [menu]);
 
   const filteredMenu = menu.filter(item => 
-    item.available &&
+    item.isAvailable &&
     (activeCategory === 'All' || item.category === activeCategory) &&
     item.name.toLowerCase().includes(searchTerm.toLowerCase())
   );

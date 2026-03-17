@@ -21,7 +21,7 @@ export const MenuManagement = () => {
     price: 0,
     category: '',
     image: '',
-    available: true
+    isAvailable: true
   });
 
   const categories = useMemo(() => business.menuCategories || [], [business.menuCategories]);
@@ -38,7 +38,7 @@ export const MenuManagement = () => {
       price: 0,
       category: categories[0] || '',
       image: '',
-      available: true
+      isAvailable: true
     });
     setIsModalOpen(true);
   };
@@ -50,7 +50,7 @@ export const MenuManagement = () => {
       price: item.price,
       category: item.category,
       image: item.image || '',
-      available: item.available
+      isAvailable: item.isAvailable
     });
     setIsModalOpen(true);
   };
@@ -179,7 +179,7 @@ export const MenuManagement = () => {
                       ) : (
                         <Utensils size={40} className="text-slate-200" />
                       )}
-                      {!item.available && (
+                      {!item.isAvailable && (
                         <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
                            <span className="text-white text-[10px] font-black uppercase tracking-widest border-2 border-white px-3 py-1 rounded-full">Unavailable</span>
                         </div>
@@ -288,15 +288,15 @@ export const MenuManagement = () => {
                   <div className="col-span-2">
                      <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border-2 border-slate-100">
                         <div className="flex items-center gap-3">
-                           <div className={`w-3 h-3 rounded-full ${formData.available ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`}></div>
+                           <div className={`w-3 h-3 rounded-full ${formData.isAvailable ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'}`}></div>
                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-600">Available to Order</span>
                         </div>
                         <label className="relative inline-flex items-center cursor-pointer">
                           <input 
                              type="checkbox" 
                              className="sr-only peer"
-                             checked={formData.available}
-                             onChange={e => setFormData({...formData, available: e.target.checked})}
+                             checked={formData.isAvailable}
+                             onChange={e => setFormData({...formData, isAvailable: e.target.checked})}
                           />
                           <div className="w-12 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-slate-900"></div>
                         </label>
