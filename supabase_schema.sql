@@ -21,6 +21,10 @@ CREATE TABLE IF NOT EXISTS tenants (
   email TEXT,
   logo TEXT,
   currency TEXT DEFAULT 'USD',
+  vat_rate NUMERIC DEFAULT 0,
+  include_vat BOOLEAN DEFAULT false,
+  timezone TEXT DEFAULT 'UTC',
+  theme_color TEXT DEFAULT '#0f172a',
   expense_categories TEXT[] DEFAULT '{}',
   menu_categories TEXT[] DEFAULT '{}',
   customer_token_prefix TEXT DEFAULT 'T',
@@ -39,7 +43,10 @@ CREATE TABLE IF NOT EXISTS users (
   name TEXT NOT NULL,
   email TEXT NOT NULL,
   password TEXT NOT NULL,
+  mobile TEXT,
   role TEXT NOT NULL,
+  avatar TEXT,
+  permissions TEXT[],
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -90,7 +97,7 @@ CREATE TABLE IF NOT EXISTS transactions (
   tenant_id TEXT REFERENCES tenants(id) ON DELETE CASCADE,
   order_id TEXT REFERENCES orders(id),
   amount NUMERIC NOT NULL,
-  type TEXT NOT NULL, -- 'Income' or 'Expense'
+  type TEXT, -- 'Income' or 'Expense'
   payment_method TEXT,
   items_summary TEXT,
   creator_name TEXT,
@@ -121,6 +128,15 @@ CREATE TABLE IF NOT EXISTS monthly_bills (
   approved_at TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- INSERT DEFAULT DATA FOR MOCK LOGIN COMPATIBILITY
+INSERT INTO tenants (id, name, currency, theme_color, expense_categories, menu_categories, vat_rate, include_vat, timezone)
+VALUES ('t1', 'OmniDine Bistro', '৳', '#0f172a', '{"Inventory", "Maintenance", "Utilities", "Salaries", "Marketing", "Other"}', '{"Main", "Starter", "Beverage", "Dessert"}', 10, true, 'EST')
+ON CONFLICT (id) DO NOTHING;
+
+INSERT INTO users (id, tenant_id, name, email, password, role, permissions, mobile)
+VALUES ('u1', 't1', 'Raj Patel', 'owner@bistro.com', 'password', 'OWNER', '{"Dashboard", "POS", "Kitchen", "Menu", "Billing", "Transactions", "Expenses", "Reports", "Inventory", "Users", "Settings"}', '5550101')
+ON CONFLICT (id) DO NOTHING;
 
 -- Enable Row Level Security (RLS)
 ALTER TABLE tenants ENABLE ROW LEVEL SECURITY;
