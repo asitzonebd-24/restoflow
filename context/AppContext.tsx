@@ -68,7 +68,10 @@ const ENHANCED_MOCK_USERS: User[] = [
 ];
 
 export const AppProvider = ({ children }: { children?: ReactNode }) => {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
+    const savedUser = localStorage.getItem('resto_flow_user');
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
   const [tenants, setTenants] = useState<Business[]>([]);
   const [allOrders, setAllOrders] = useState<Order[]>([]);
   const [allInventory, setAllInventory] = useState<InventoryItem[]>([]);
@@ -258,12 +261,16 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     const user = allUsers.find(u => u.email === email && u.password === password);
     if (user) {
       setCurrentUser(user);
+      localStorage.setItem('resto_flow_user', JSON.stringify(user));
       return true;
     }
     return false;
   };
 
-  const logout = () => setCurrentUser(null);
+  const logout = () => {
+    setCurrentUser(null);
+    localStorage.removeItem('resto_flow_user');
+  };
 
   const addOrder = async (order: Omit<Order, 'tenantId'>) => {
     const tenantId = currentUser?.tenantId || '';

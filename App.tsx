@@ -2,6 +2,7 @@
 import React from 'react';
 import { HashRouter as Router, Routes, Route, Navigate, NavLink, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
+import { isSupabaseConfigured } from './supabase';
 import { Login } from './pages/Login';
 import { Landing } from './pages/Landing';
 import { Dashboard } from './pages/Dashboard';
@@ -138,6 +139,17 @@ const Sidebar = () => {
       </nav>
 
       <div className="pt-4 border-t border-white/20">
+         {/* Connection Status */}
+         <div className="hidden md:flex items-center justify-between px-4 py-2 mb-4 bg-black/20 rounded-lg border border-white/10">
+            <span className="text-[8px] font-bold text-white/40 uppercase tracking-widest">Database</span>
+            <div className="flex items-center gap-2">
+               <div className={`w-1.5 h-1.5 rounded-full ${isSupabaseConfigured ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`}></div>
+               <span className={`text-[8px] font-bold uppercase tracking-widest ${isSupabaseConfigured ? 'text-emerald-400' : 'text-amber-400'}`}>
+                  {isSupabaseConfigured ? 'Supabase' : 'Mock Mode'}
+               </span>
+            </div>
+         </div>
+
          <div className="flex items-center gap-3 px-2 mb-4 justify-center md:justify-start">
             <img src={currentUser.avatar} className="w-8 h-8 rounded-full shrink-0 border-2 border-white/20" />
             <div className="hidden md:block overflow-hidden">
