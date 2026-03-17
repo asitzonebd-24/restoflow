@@ -42,13 +42,13 @@ export const POS = () => {
   const getStatusColorClasses = (status: OrderStatus) => {
     switch(status) {
       case OrderStatus.PENDING: 
-        return { border: 'border-red-100', bg: 'bg-red-500', lightBg: 'bg-red-50', text: 'text-red-600', borderLight: 'border-red-200', icon: 'text-red-500' };
+        return { border: 'border-t-red-500', bg: 'bg-red-500', lightBg: 'bg-red-50', text: 'text-red-600', borderLight: 'border-red-200' };
       case OrderStatus.PREPARING: 
-        return { border: 'border-amber-100', bg: 'bg-amber-500', lightBg: 'bg-amber-50', text: 'text-amber-600', borderLight: 'border-amber-200', icon: 'text-amber-500' };
+        return { border: 'border-t-yellow-500', bg: 'bg-yellow-500', lightBg: 'bg-amber-50', text: 'text-amber-600', borderLight: 'border-amber-200' };
       case OrderStatus.READY: 
-        return { border: 'border-emerald-100', bg: 'bg-emerald-500', lightBg: 'bg-emerald-50', text: 'text-emerald-600', borderLight: 'border-emerald-200', icon: 'text-emerald-500' };
+        return { border: 'border-t-green-500', bg: 'bg-green-500', lightBg: 'bg-emerald-50', text: 'text-emerald-600', borderLight: 'border-emerald-200' };
       default: 
-        return { border: 'border-slate-100', bg: 'bg-slate-900', lightBg: 'bg-slate-50', text: 'text-slate-600', borderLight: 'border-slate-200', icon: 'text-slate-500' };
+        return { border: 'border-t-black', bg: 'bg-black', lightBg: 'bg-slate-50', text: 'text-slate-600', borderLight: 'border-slate-200' };
     }
   };
 
@@ -129,73 +129,67 @@ export const POS = () => {
   const cartCount = cart.reduce((acc, i) => acc + i.quantity, 0);
 
   const StatusBox = ({ label, count, colorClass, activeColor }: { label: string, count: number, colorClass: string, activeColor: string }) => (
-    <div className={`flex flex-col items-center justify-center py-2 px-1 rounded-xl border transition-all ${count > 0 ? activeColor : colorClass}`}>
-      <span className="text-[8px] font-bold uppercase tracking-widest opacity-60 mb-1">{label}</span>
-      <span className="text-sm font-bold">{count}</span>
+    <div className={`flex flex-col items-center justify-center py-1 px-1 rounded-xl border-2 transition-all ${count > 0 ? activeColor : colorClass}`}>
+      <span className="text-[7px] font-black uppercase tracking-widest opacity-80 mb-0.5">{label}</span>
+      <span className="text-sm font-black">{count}</span>
     </div>
   );
 
   const POSCartContent = () => (
     <div className="flex flex-col h-full bg-white">
-      <div className="p-6 border-b border-slate-100 bg-slate-50/50 shrink-0">
-        <div className="flex items-center justify-between mb-1">
-          <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-3">
-             <ShoppingBasket size={24} className="text-slate-400" /> Basket
-          </h2>
-          <span className="px-3 py-1 rounded-lg bg-slate-900 text-white text-[10px] font-bold uppercase tracking-widest">
-            {cartCount} Items
-          </span>
-        </div>
-        <p className="text-xs text-slate-400 font-medium">Review items before sending to kitchen</p>
+      <div className="p-6 border-b-4 border-black bg-slate-50 shrink-0">
+        <h2 className="text-xl font-black uppercase tracking-tighter flex items-center gap-3">
+           <ShoppingBasket size={24} strokeWidth={3} /> Basket
+        </h2>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-4 no-scrollbar">
+      <div className="p-4 md:p-6 space-y-3 h-auto">
         {cart.length === 0 ? (
-          <div className="py-20 flex flex-col items-center justify-center text-slate-300">
-              <ShoppingCart size={48} strokeWidth={1} className="mb-4 opacity-40" />
-              <p className="text-sm font-medium opacity-60 uppercase tracking-widest">No items added</p>
+          <div className="py-20 flex flex-col items-center justify-center text-slate-200">
+              <ShoppingCart size={48} className="mb-4 opacity-50" />
+              <p className="font-black uppercase text-[10px] tracking-[0.3em]">No items added</p>
           </div>
         ) : (
           cart.map(item => (
-            <div key={item.rowId} className="bg-white p-3 rounded-2xl border border-slate-100 flex justify-between items-center hover:border-slate-200 transition-all group">
+            <div key={item.rowId} className="bg-slate-50 p-3 rounded-[1.5rem] border-2 border-black flex justify-between items-center shadow-sm">
               <div className="min-w-0 pr-4">
-                  <h4 className="font-bold text-slate-900 text-sm truncate">{item.name}</h4>
-                  <p className="text-xs font-medium text-slate-400">{currentTenant.currency}{item.price.toFixed(2)}</p>
+                  <h4 className="font-black text-[9px] md:text-[10px] uppercase truncate">{item.name}</h4>
+                  <p className="text-[9px] font-bold text-slate-400">{currentTenant.currency}{item.price.toFixed(0)}</p>
               </div>
-              <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-xl border border-slate-100 group-hover:bg-white transition-colors">
-                  <button onClick={() => updateQuantity(item.rowId, -1)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white text-slate-500 hover:text-red-500 transition-all shadow-sm"><Minus size={12} /></button>
-                  <span className="font-bold text-sm w-6 text-center text-slate-900">{item.quantity}</span>
-                  <button onClick={() => updateQuantity(item.rowId, 1)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-white text-slate-500 hover:text-emerald-500 transition-all shadow-sm"><Plus size={12} /></button>
+              <div className="flex items-center gap-1.5 bg-white p-1 rounded-xl border-2 border-black shadow-inner">
+                  <button onClick={() => updateQuantity(item.rowId, -1)} className="p-1.5 hover:bg-black hover:text-white rounded-lg transition active:scale-90"><Minus size={10} strokeWidth={4}/></button>
+                  <span className="font-black text-[11px] w-6 text-center">{item.quantity}</span>
+                  <button onClick={() => updateQuantity(item.rowId, 1)} className="p-1.5 hover:bg-black hover:text-white rounded-lg transition active:scale-90"><Plus size={10} strokeWidth={4}/></button>
               </div>
             </div>
           ))
         )}
       </div>
 
-      <div className="p-6 border-t border-slate-100 bg-slate-50/30 shrink-0">
+      <div id="staff-note-section" className="p-6 border-t-8 border-black bg-slate-50 shrink-0 transition-all duration-500">
         <div className="space-y-4 mb-6">
-          <label className="text-[10px] font-bold uppercase text-slate-400 tracking-[0.2em] mb-1 block flex items-center gap-2">
+          <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1.5 block flex items-center gap-2">
             <FileText size={12} /> Kitchen Notes
           </label>
           <textarea 
             value={orderNote}
             onChange={(e) => setOrderNote(e.target.value)}
             placeholder="e.g. Extra spicy, No onions..."
-            className="w-full p-4 bg-white border border-slate-200 rounded-2xl text-sm font-medium outline-none focus:ring-2 focus:ring-slate-200 transition-all shadow-inner h-20 resize-none"
+            className="w-full p-4 border-4 border-black rounded-2xl text-[10px] font-black uppercase outline-none focus:bg-white transition-all shadow-inner h-20 resize-none"
           />
         </div>
         
         <div className="flex justify-between items-center mb-6">
-            <span className="font-bold uppercase text-[10px] text-slate-400 tracking-widest">Total Amount</span>
-            <span className="text-3xl font-black text-slate-900 tracking-tight">{currentTenant.currency}{cartTotal.toFixed(2)}</span>
+            <span className="font-black uppercase text-[10px] text-slate-400 tracking-widest leading-none">Subtotal</span>
+            <span className="text-3xl font-black text-slate-900 tracking-tighter leading-none">{currentTenant.currency}{cartTotal.toFixed(0)}</span>
         </div>
 
         <button 
           onClick={createAndSubmitOrder}
           disabled={cart.length === 0 || isTokenDuplicate}
-          className={`w-full py-4 rounded-2xl font-bold uppercase tracking-widest text-xs shadow-lg flex items-center justify-center gap-3 active:scale-95 transition-all disabled:opacity-30 ${isTokenDuplicate ? 'bg-red-500 text-white' : 'bg-slate-900 text-white hover:bg-slate-800 hover:shadow-xl'}`}
+          className={`w-full py-5 rounded-[2rem] font-black uppercase tracking-widest text-[11px] shadow-xl flex items-center justify-center gap-3 active:scale-95 transition disabled:opacity-30 border-4 border-white ${isTokenDuplicate ? 'bg-red-500 text-white' : 'bg-black text-white'}`}
         >
-          {isCreatingNew ? (isTokenDuplicate ? 'Duplicate Token' : 'Send to Kitchen') : 'Update Order'} <ArrowRight size={18} />
+          {isCreatingNew ? (isTokenDuplicate ? 'Duplicate Token' : 'Fire Token') : 'Update Order'} <ArrowRight size={20} strokeWidth={3} />
         </button>
       </div>
     </div>
@@ -203,72 +197,70 @@ export const POS = () => {
 
   if (!selectedOrderId && !isCreatingNew) {
     return (
-      <div className="p-6 md:p-10 h-full bg-slate-50/50 overflow-y-auto no-scrollbar">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
+      <div className="p-4 md:p-8 h-full bg-[#f1f5f9] overflow-y-auto no-scrollbar">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-4">
-              <LayoutGrid className="text-slate-400" size={32} /> Active Terminals
+            <h1 className="text-3xl md:text-4xl font-black text-black tracking-tighter flex items-center gap-4 uppercase">
+              <LayoutGrid className="text-indigo-600" size={36} strokeWidth={3} /> Token Hub
             </h1>
-            <p className="text-slate-400 text-xs font-medium uppercase tracking-widest mt-2 opacity-80">
-              {currentUser?.role === Role.WAITER ? 'Your active service tokens' : 'Global floor tracking & management'}
+            <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.3em] mt-1 opacity-80">
+              {currentUser?.role === Role.WAITER ? 'Your personal active tokens' : 'Global Floor tracking'}
             </p>
           </div>
           <button 
             onClick={startNewOrder}
-            className="w-full md:w-auto bg-slate-900 text-white px-10 py-4 rounded-2xl font-bold uppercase tracking-widest text-xs shadow-xl hover:bg-slate-800 transition-all transform hover:-translate-y-1 active:scale-95 flex items-center justify-center gap-3"
+            className="w-full md:w-auto bg-black text-white px-10 py-5 rounded-[2rem] font-black uppercase tracking-widest shadow-2xl hover:bg-indigo-600 transition-all transform hover:-translate-y-1 active:scale-95 flex items-center justify-center gap-3 border-4 border-white"
           >
-            <Plus size={20} /> New Order
+            <Plus size={24} strokeWidth={3} /> New Token
           </button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 pb-12">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 gap-6 md:gap-8 pb-12">
           {activeOrders.map(order => {
             const pendingCount = order.items.filter(i => i.status === OrderStatus.PENDING).reduce((acc, i) => acc + i.quantity, 0);
             const preparingCount = order.items.filter(i => i.status === OrderStatus.PREPARING).reduce((acc, i) => acc + i.quantity, 0);
             const readyCount = order.items.filter(i => i.status === OrderStatus.READY).reduce((acc, i) => acc + i.quantity, 0);
             const statusColors = getStatusColorClasses(order.status);
             const isOnline = order.tokenNumber.startsWith(currentTenant.customerTokenPrefix || 'WEB') || order.tokenNumber === 'OO';
-            const headerLabel = isOnline ? 'Online Order' : 'Service Token';
+            const headerLabel = isOnline ? 'Online Order' : 'Status Overview';
 
             return (
               <button
                 key={order.id}
                 onClick={() => handleSelectOrder(order)}
-                className="group relative bg-white rounded-3xl p-5 shadow-sm border border-slate-100 hover:border-slate-300 hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 active:scale-95 flex flex-col min-h-[240px]"
+                className={`group relative bg-white rounded-[2.5rem] p-4 shadow-xl border-t-8 ${statusColors.border} border-x-4 border-b-4 border-black hover:border-indigo-600 hover:shadow-indigo-500/10 transition-all duration-300 transform hover:-translate-y-2 active:scale-95 flex flex-col items-center justify-between min-h-[200px] mt-4`}
               >
-                <div className="w-full mb-4">
-                  <div className="flex justify-between items-start mb-4">
-                    <div className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-widest ${statusColors.lightBg} ${statusColors.text} border ${statusColors.borderLight}`}>
-                      {order.status}
-                    </div>
-                    <div className="text-[10px] font-bold text-slate-300 uppercase tracking-widest">{headerLabel}</div>
+                <div className="w-full">
+                  <div className="flex flex-col items-center">
+                    <div className="text-[10px] font-black text-black uppercase tracking-[0.2em] mb-0.5">{headerLabel}</div>
+                    <div className={`h-1.5 w-10 ${statusColors.bg} rounded-full`}></div>
                   </div>
-                  
-                  <div className="flex items-center gap-4 mb-4">
-                    <div className={`w-14 h-14 rounded-2xl ${statusColors.lightBg} flex items-center justify-center font-bold text-2xl ${statusColors.text} border ${statusColors.borderLight} shadow-inner group-hover:scale-110 transition-transform`}>
-                      {order.tokenNumber}
-                    </div>
-                    <div>
-                      <p className="font-bold text-slate-900 text-lg">Table {order.tableNumber || 'N/A'}</p>
-                      <p className="text-[10px] text-slate-400 font-medium uppercase tracking-widest">#{order.id.slice(-4)}</p>
+                  <div className="flex justify-center items-center my-2">
+                    <div className={`px-4 py-2 min-w-[64px] ${statusColors.bg} border-4 border-black rounded-3xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform`}>
+                      <span className="text-white text-xl font-black leading-none">{order.tokenNumber}</span>
                     </div>
                   </div>
+                  {order.tableNumber && (
+                    <div className="flex justify-center mb-2">
+                      <span className="bg-slate-100 text-slate-600 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border-2 border-black">
+                        Table: {order.tableNumber}
+                      </span>
+                    </div>
+                  )}
                 </div>
-
-                <div className="w-full mt-auto">
-                  <div className="grid grid-cols-3 gap-2 mb-5">
-                    <StatusBox label="Pending" count={pendingCount} colorClass="bg-slate-50 border-slate-100 text-slate-300" activeColor="bg-red-50 border-red-100 text-red-600 shadow-sm" />
-                    <StatusBox label="Prep" count={preparingCount} colorClass="bg-slate-50 border-slate-100 text-slate-300" activeColor="bg-amber-50 border-amber-100 text-amber-600 shadow-sm" />
-                    <StatusBox label="Ready" count={readyCount} colorClass="bg-slate-50 border-slate-100 text-slate-300" activeColor="bg-emerald-50 border-emerald-100 text-emerald-600 shadow-sm" />
+                <div className="w-full">
+                  <div className="grid grid-cols-3 gap-1 mb-2">
+                    <StatusBox label="Pending" count={pendingCount} colorClass="bg-slate-50 border-slate-100 text-slate-300" activeColor="bg-red-50 border-red-200 text-red-600 shadow-sm" />
+                    <StatusBox label="Preparing" count={preparingCount} colorClass="bg-slate-50 border-slate-100 text-slate-300" activeColor="bg-amber-50 border-amber-200 text-amber-600 shadow-sm" />
+                    <StatusBox label="Done" count={readyCount} colorClass="bg-slate-50 border-slate-100 text-slate-300" activeColor="bg-emerald-50 border-emerald-200 text-emerald-600 shadow-sm" />
                   </div>
-                  
-                  <div className="pt-4 border-t border-slate-50 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <img src={getWaiterAvatar(order.createdBy)} className="w-6 h-6 rounded-lg border border-slate-100 shadow-sm" alt="W" />
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest truncate max-w-[80px]">{getWaiterName(order.createdBy).split(' ')[0]}</span>
+                  <div className="pt-3 border-t-2 border-black border-dashed flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <img src={getWaiterAvatar(order.createdBy)} className="w-8 h-8 rounded-full border-2 border-black shadow-sm" alt="W" />
+                      <span className="text-[9px] font-black text-black uppercase tracking-widest truncate max-w-[60px]">{getWaiterName(order.createdBy).split(' ')[0]}</span>
                     </div>
-                    <div className="text-sm font-bold text-slate-900">
-                      {currentTenant?.currency}{order.totalAmount.toFixed(2)}
+                    <div className="bg-black text-white px-2 py-1 rounded-xl text-[10px] font-black">
+                      {currentTenant?.currency}{order.totalAmount.toFixed(0)}
                     </div>
                   </div>
                 </div>
@@ -281,57 +273,57 @@ export const POS = () => {
   }
 
   return (
-    <div className="flex flex-col lg:flex-row bg-slate-50/50 min-h-full lg:h-[calc(100vh-64px)] lg:overflow-hidden relative">
-      <div className="flex-1 p-6 md:p-8 lg:overflow-y-auto flex flex-col min-h-0 no-scrollbar">
-        <div className="flex items-center justify-between mb-8 gap-4">
-          <div className="flex items-center gap-6">
+    <div className="flex flex-col lg:flex-row bg-[#f1f5f9] min-h-full lg:h-[calc(100vh-64px)] lg:overflow-hidden relative">
+      <div className="flex-1 p-4 md:p-6 lg:overflow-y-auto flex flex-col min-h-0 no-scrollbar">
+        <div className="flex items-center justify-between mb-6 gap-4">
+          <div className="flex items-center gap-4 md:gap-6">
             <button 
               onClick={() => { setSelectedOrderId(null); setIsCreatingNew(false); }}
-              className="p-4 bg-white rounded-2xl shadow-sm border border-slate-200 text-slate-400 hover:text-slate-900 hover:border-slate-400 transition-all transform active:scale-90"
+              className="p-3 md:p-4 bg-white rounded-2xl md:rounded-3xl shadow-xl border-4 border-black text-black hover:bg-black hover:text-white transition transform active:scale-90"
             >
-              <ArrowLeft size={24} />
+              <ArrowLeft size={20} md:size={24} strokeWidth={4} />
             </button>
             <div className="flex flex-col">
-              <h2 className="text-2xl font-bold text-slate-900 tracking-tight leading-none">
-                {isCreatingNew ? 'New Order Terminal' : `Token ${activeOrders.find(o => o.id === selectedOrderId)?.tokenNumber}`}
+              <h2 className="text-xl md:text-2xl font-black text-black tracking-tighter uppercase leading-none">
+                {isCreatingNew ? 'Token Assignment' : `Token ${activeOrders.find(o => o.id === selectedOrderId)?.tokenNumber}`}
               </h2>
               {isCreatingNew && (
-                <div className="flex items-center gap-4 mt-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Token:</span>
-                    <input 
-                      type="text" 
-                      value={newTokenNum}
-                      onChange={(e) => setNewTokenNum(e.target.value)}
-                      className={`w-12 text-center border-b-2 bg-transparent font-bold text-xl outline-none transition-all ${isTokenDuplicate ? 'border-red-500 text-red-600' : 'border-slate-900 text-slate-900'}`}
-                    />
-                    {isTokenDuplicate && <AlertCircle className="text-red-500" size={14} />}
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Table:</span>
-                    <input 
-                      type="text" 
-                      placeholder="No"
-                      value={newTableNum}
-                      onChange={(e) => setNewTableNum(e.target.value)}
-                      className="w-16 text-center border-b-2 bg-transparent font-bold text-xl outline-none transition-all border-slate-900 text-slate-900"
-                    />
-                  </div>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-[10px] text-gray-400 font-black uppercase">No:</span>
+                  <input 
+                    type="text" 
+                    value={newTokenNum}
+                    onChange={(e) => setNewTokenNum(e.target.value)}
+                    className={`w-12 text-center border-b-2 bg-transparent font-black text-xl outline-none transition-all ${isTokenDuplicate ? 'border-red-500 text-red-600' : 'border-indigo-600 text-indigo-700'}`}
+                  />
+                  {isTokenDuplicate && <AlertCircle className="text-red-500" size={14} />}
+                </div>
+              )}
+              {isCreatingNew && (
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-[10px] text-gray-400 font-black uppercase">Table:</span>
+                  <input 
+                    type="text" 
+                    placeholder="No"
+                    value={newTableNum}
+                    onChange={(e) => setNewTableNum(e.target.value)}
+                    className="w-16 text-center border-b-2 bg-transparent font-black text-xl outline-none transition-all border-indigo-600 text-indigo-700"
+                  />
                 </div>
               )}
             </div>
           </div>
         </div>
 
-        <div className="flex gap-3 mb-8 overflow-x-auto pb-2 shrink-0 no-scrollbar">
+        <div className="flex gap-3 mb-6 overflow-x-auto pb-2 shrink-0 no-scrollbar">
           {categories.map(cat => (
             <button
               key={cat}
               onClick={() => setActiveCategory(cat)}
-              className={`px-6 py-2.5 rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all border shrink-0 ${
+              className={`px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border-4 shrink-0 ${
                 activeCategory === cat 
-                ? 'bg-slate-900 text-white border-slate-900 shadow-lg' 
-                : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'
+                ? 'bg-black text-white border-black shadow-lg scale-105' 
+                : 'bg-white text-gray-500 border-white hover:border-slate-100'
               }`}
             >
               {cat}
@@ -339,50 +331,47 @@ export const POS = () => {
           ))}
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 pb-32">
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 md:gap-4 pb-32">
           {filteredMenu.map(item => (
             <button 
               key={item.id} 
               onClick={() => addToCart(item)}
-              className="bg-white rounded-3xl shadow-sm border border-slate-100 p-5 flex flex-col items-center justify-center text-center transition-all duration-300 transform active:scale-95 hover:border-slate-300 hover:shadow-xl group"
+              className="aspect-square bg-white rounded-[2rem] md:rounded-[2.5rem] shadow-lg border-4 border-black p-3 md:p-4 flex flex-col items-center justify-center text-center transition-all duration-300 transform active:scale-90 hover:border-indigo-500 group"
             >
-              <div className="w-full aspect-square rounded-2xl overflow-hidden mb-4 bg-slate-50 border border-slate-50">
-                <img src={item.image} alt={item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
-              </div>
-              <h3 className="text-sm font-bold text-slate-900 mb-2 line-clamp-2 uppercase tracking-tight group-hover:text-slate-700 transition-colors">
+              <span className="text-[10px] md:text-[12px] font-black text-black line-clamp-2 mb-1.5 uppercase tracking-tighter leading-tight group-hover:text-indigo-600">
                 {item.name}
-              </h3>
-              <span className="text-xs font-bold text-slate-400">
-                {currentTenant?.currency}{item.price.toFixed(2)}
+              </span>
+              <span className="text-[10px] font-black text-white bg-black px-3 py-1 rounded-xl border-2 border-black">
+                {currentTenant?.currency}{item.price.toFixed(0)}
               </span>
             </button>
           ))}
         </div>
 
-        {/* Inline Mobile Basket */}
-        <div className="lg:hidden mt-20 border-t border-slate-200 -mx-6 md:-mx-8">
+        {/* Inline Mobile Basket - Same as Customer Portal */}
+        <div className="lg:hidden mt-20 border-t-8 border-black -mx-4 md:-mx-6">
            <POSCartContent />
         </div>
       </div>
 
       {/* Desktop Sidebar Basket */}
-      <div className="hidden lg:flex w-[400px] bg-white border-l border-slate-200 flex-col shadow-2xl shrink-0 overflow-y-auto no-scrollbar">
+      <div className="hidden lg:flex w-[400px] bg-white border-l-8 border-black flex-col shadow-2xl shrink-0 overflow-y-auto no-scrollbar">
          <POSCartContent />
       </div>
 
-      {/* Mobile Sticky Summary Bar */}
+      {/* Mobile Sticky Summary Bar - Mirrored from Customer Panel */}
       {cartCount > 0 && (
-        <div className="lg:hidden fixed bottom-0 left-20 right-0 bg-white border-t border-slate-200 p-5 flex items-center justify-between z-[120] animate-in slide-in-from-bottom-full shadow-2xl">
+        <div className="lg:hidden fixed bottom-0 left-20 right-0 bg-white border-t-4 border-black p-4 flex items-center justify-between z-[120] animate-in slide-in-from-bottom-full shadow-[0_-12px_40px_rgba(0,0,0,0.15)]">
            <div className="flex flex-col">
-              <span className="text-[8px] font-bold uppercase text-slate-400 tracking-widest mb-1">{cartCount} Items Selected</span>
-              <span className="text-xl font-black text-slate-900 leading-none">{currentTenant.currency}{cartTotal.toFixed(2)}</span>
+              <span className="text-[8px] font-black uppercase text-slate-400 tracking-widest leading-none mb-1">{cartCount} Selections</span>
+              <span className="text-xl font-black text-indigo-600 leading-none">{currentTenant.currency}{cartTotal.toFixed(0)}</span>
            </div>
            <button 
              onClick={createAndSubmitOrder}
              disabled={isTokenDuplicate}
-             className="bg-slate-900 text-white px-8 py-3 rounded-2xl font-bold uppercase tracking-widest text-[10px] shadow-xl active:scale-95 transition flex items-center gap-3"
+             className="bg-black text-white px-8 py-3 rounded-2xl font-black uppercase tracking-widest text-[10px] border-4 border-white shadow-xl active:scale-95 transition flex items-center gap-2"
            >
-             {isCreatingNew ? 'Send to Kitchen' : 'Update'} <ArrowRight size={18} />
+             {isCreatingNew ? 'Fire Token' : 'Update'} <ArrowRight size={16} strokeWidth={3} />
            </button>
         </div>
       )}
