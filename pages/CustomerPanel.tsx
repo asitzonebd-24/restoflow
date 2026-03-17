@@ -1,0 +1,144 @@
+
+import React, { useMemo, useState } from 'react';
+import { useApp } from '../context/AppContext';
+import { OrderStatus } from '../types';
+import { Timer, ShoppingBag, ArrowLeft, Clock, Menu as MenuIcon, User as UserCircle, ShoppingCart, LogOut, X, MapPin, History, LayoutGrid } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
+
+export const CustomerPanel = () => {
+  const { orders, currentUser, business, logout } = useApp();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const myOrders = useMemo(() => {
+    if (!currentUser) return [];
+    return orders.filter(o => o.createdBy === currentUser.id)
+                 .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }, [orders, currentUser]);
+
+  const activeOrders = myOrders.filter(o => o.status !== OrderStatus.COMPLETED && o.status !== OrderStatus.CANCELLED);
+
+  const getStatusDisplay = (status: OrderStatus) => {
+    switch(status) {
+      case OrderStatus.PENDING: 
+        return { label: 'Online Order', color: 'bg-red-500', border: 'border-t-red-500', lightBg: 'bg-red-50', text: 'text-red-600', borderLight: 'border-red-200' };
+      case OrderStatus.PREPARING: 
+        return { label: 'Preparing', color: 'bg-amber-500', border: 'border-t-amber-500', lightBg: 'bg-amber-50', text: 'text-amber-600', borderLight: 'border-amber-200' };
+      case OrderStatus.READY: 
+        return { label: 'Ready!', color: 'bg-emerald-500', border: 'border-t-emerald-500', lightBg: 'bg-emerald-50', text: 'text-emerald-600', borderLight: 'border-emerald-200' };
+      default: 
+        return { label: status, color: 'bg-slate-500', border: 'border-t-slate-500', lightBg: 'bg-slate-50', text: 'text-slate-600', borderLight: 'border-slate-200' };
+    }
+  };
+
+  const isActive = (path: string) => location.pathname === path;
+
+  const StatusBox = ({ label, count, colorClass, activeColor }: { label: string, count: number, colorClass: string, activeColor: string }) => (
+    <div className={`flex flex-col items-center justify-center py-1.5 px-1 rounded-xl border-2 transition-all ${count > 0 ? activeColor : colorClass}`}>
+      <span className="text-[7px] font-black uppercase tracking-widest opacity-80 mb-0.5">{label}</span>
+      <span className="text-sm font-black leading-none">{count}</span>
+    </div>
+  );
+
+  return (
+    <div className="flex h-screen bg-[#f1f5f9] overflow-hidden">
+      <aside className="h-full w-20 md:w-64 bg-black text-white z-[110] border-r-8 border-black flex flex-col items-center md:items-stretch py-8 shrink-0">
+        <div className="flex items-center gap-3 px-4 md:px-8 mb-12">
+           <img src={business.logo} alt="Logo" className="w-10 h-10 rounded-full border-2 border-white" />
+           <h2 className="hidden md:block font-black text-lg uppercase tracking-tighter">OmniDine</h2>
+        </div>
+        <nav className="flex-1 space-y-4 px-2 md:px-6">
+           <button onClick={() => navigate('/order')} className={`w-full flex items-center justify-center md:justify-start gap-4 p-4 md:px-6 md:py-4 rounded-2xl transition font-black uppercase tracking-widest text-[10px] ${isActive('/order') ? 'bg-indigo-600 shadow-xl' : 'bg-white/5 hover:bg-white/10'}`}>
+             <ShoppingBag size={20} /> <span className="hidden md:block">Digital Menu</span>
+           </button>
+           <button onClick={() => navigate('/order/panel')} className={`w-full flex items-center justify-center md:justify-start gap-4 p-4 md:px-6 md:py-4 rounded-2xl transition font-black uppercase tracking-widest text-[10px] ${isActive('/order/panel') ? 'bg-indigo-600 shadow-xl' : 'bg-white/5 hover:bg-white/10'}`}>
+             <Timer size={20} /> <span className="hidden md:block">My Tokens</span>
+           </button>
+           <button onClick={() => navigate('/order/history')} className={`w-full flex items-center justify-center md:justify-start gap-4 p-4 md:px-6 md:py-4 rounded-2xl transition font-black uppercase tracking-widest text-[10px] ${isActive('/order/history') ? 'bg-indigo-600 shadow-xl' : 'bg-white/5 hover:bg-white/10'}`}>
+             <History size={20} /> <span className="hidden md:block">History</span>
+           </button>
+        </nav>
+        <div className="pt-8 border-t border-white/10 mt-auto px-2 md:px-8 flex flex-col items-center md:items-start">
+           <img src={currentUser?.avatar} className="w-10 h-10 rounded-full border-2 border-indigo-500 mb-4" alt="avatar" />
+           <button onClick={logout} className="p-4 md:w-full md:flex md:items-center md:gap-4 md:px-6 md:py-4 rounded-2xl text-red-400 hover:bg-red-400/10 transition font-black uppercase tracking-widest text-[10px]">
+             <LogOut size={20} /> <span className="hidden md:block">Sign Out</span>
+           </button>
+        </div>
+      </aside>
+
+      <div className="flex-1 flex flex-col h-screen overflow-hidden">
+        <header className="bg-white border-b-4 border-black p-4 flex justify-between items-center shadow-sm shrink-0">
+           <h1 className="text-xl font-black uppercase tracking-tighter">Active Tokens</h1>
+           <div className="flex items-center gap-3">
+              <Timer className="text-indigo-600" size={20} />
+              <span className="text-[10px] font-black uppercase tracking-widest">Tracking: {activeOrders.length}</span>
+           </div>
+        </header>
+
+        <div className="flex-1 overflow-y-auto p-4 md:p-12 no-scrollbar">
+          <div className="max-w-6xl mx-auto">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-8 pb-12">
+                 {activeOrders.length === 0 ? (
+                   <div className="col-span-full py-20 px-6 text-center bg-white rounded-[3rem] border-4 border-dashed border-slate-200">
+                      <ShoppingBag size={48} className="mx-auto text-slate-100 mb-6" />
+                      <h3 className="text-slate-300 font-black uppercase text-xl tracking-[0.2em]">No Active Tokens</h3>
+                      <button onClick={() => navigate('/order')} className="bg-black text-white px-10 py-5 rounded-[2rem] font-black uppercase text-[10px] tracking-widest hover:bg-indigo-600 transition shadow-xl border-4 border-white mt-8">Digital Menu</button>
+                   </div>
+                 ) : activeOrders.map(order => {
+                    const pendingCount = order.items.filter(i => i.status === OrderStatus.PENDING).reduce((acc, i) => acc + i.quantity, 0);
+                    const preparingCount = order.items.filter(i => i.status === OrderStatus.PREPARING).reduce((acc, i) => acc + i.quantity, 0);
+                    const readyCount = order.items.filter(i => i.status === OrderStatus.READY).reduce((acc, i) => acc + i.quantity, 0);
+                    const status = getStatusDisplay(order.status);
+                    
+                    // Fixed labeling to avoid hardcoded placeholders
+                    const prefix = business.customerTokenPrefix || 'WEB';
+                    const headerLabel = order.tokenNumber.startsWith(prefix) ? 'Online Order' : 'Store Token';
+
+                    return (
+                        <div
+                            key={order.id}
+                            className={`group relative bg-white rounded-[2rem] md:rounded-[2.5rem] p-5 shadow-xl border-t-8 ${status.border} border-x-4 border-b-4 border-black flex flex-col items-center justify-between min-h-[220px] transition-all duration-300 transform hover:-translate-y-2 animate-in zoom-in-95`}
+                        >
+                            <div className="w-full">
+                                <div className="flex flex-col items-center">
+                                    <div className="text-[10px] font-black text-black uppercase tracking-[0.2em] mb-1">{headerLabel}</div>
+                                    <div className={`h-1.5 w-12 ${status.color} rounded-full`}></div>
+                                </div>
+
+                                <div className="flex justify-center items-center my-4">
+                                    {/* Using a pill shape (px-6) instead of a fixed circle ensures longer tokens fit perfectly */}
+                                    <div className={`px-6 py-2.5 min-w-[80px] ${status.color} border-4 border-black rounded-[2rem] flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform`}>
+                                        <span className="text-white text-xl md:text-2xl font-black leading-none">{order.tokenNumber}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div className="w-full">
+                                <div className="grid grid-cols-3 gap-2 mb-4">
+                                    <StatusBox label="Pending" count={pendingCount} colorClass="bg-slate-50 border-slate-100 text-slate-300" activeColor="bg-red-50 border-red-200 text-red-600 shadow-sm" />
+                                    <StatusBox label="Kitchen" count={preparingCount} colorClass="bg-slate-50 border-slate-100 text-slate-300" activeColor="bg-amber-50 border-amber-200 text-amber-600 shadow-sm" />
+                                    <StatusBox label="Ready" count={readyCount} colorClass="bg-slate-50 border-slate-100 text-slate-300" activeColor="bg-emerald-50 border-emerald-200 text-emerald-600 shadow-sm" />
+                                </div>
+
+                                <div className="pt-4 border-t-2 border-black border-dashed flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <Clock size={14} className="text-slate-300" />
+                                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                                            {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        </span>
+                                    </div>
+                                    <div className="bg-black text-white px-3 py-1.5 rounded-xl text-[10px] font-black shadow-md border-2 border-white">
+                                        {business.currency}{order.totalAmount.toFixed(0)}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                   );
+                 })}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
