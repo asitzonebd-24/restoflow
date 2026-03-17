@@ -420,7 +420,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     setAllInventory(prev => [...prev, newItem]);
 
     try {
-      await supabase.from('inventory_items').insert({
+      const { error } = await supabase.from('inventory_items').insert({
         id: newItem.id,
         tenant_id: newItem.tenantId,
         name: newItem.name,
@@ -429,6 +429,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         min_threshold: newItem.minThreshold,
         last_updated: new Date().toISOString()
       });
+      if (error) throw error;
     } catch (error) {
       console.error('Error adding inventory item to Supabase:', error);
     }
@@ -457,7 +458,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     setAllMenu(prev => [...prev, newItem]);
 
     try {
-      await supabase.from('menu_items').insert({
+      const { error } = await supabase.from('menu_items').insert({
         id: newItem.id,
         tenant_id: newItem.tenantId,
         name: newItem.name,
@@ -467,6 +468,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         image: newItem.image,
         is_available: newItem.isAvailable
       });
+      if (error) throw error;
     } catch (error) {
       console.error('Error adding menu item to Supabase:', error);
     }
@@ -509,9 +511,10 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     setTenants(prev => prev.map(t => t.id === tenantId ? { ...t, menuCategories: newCategories } : t));
 
     try {
-      await supabase.from('tenants').update({
+      const { error } = await supabase.from('tenants').update({
         menu_categories: newCategories
       }).eq('id', tenantId);
+      if (error) throw error;
     } catch (error) {
       console.error('Error adding menu category to Supabase:', error);
     }
