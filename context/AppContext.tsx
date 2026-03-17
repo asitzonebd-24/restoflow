@@ -48,6 +48,11 @@ interface AppContextType {
   approveBill: (billId: string) => void;
   allUsers: User[];
   isLoading: boolean;
+  dbStatus: {
+    isConfigured: boolean;
+    hasTables: boolean;
+    missingTables: string[];
+  };
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -81,6 +86,15 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [allExpenses, setAllExpenses] = useState<Expense[]>([]);
   const [monthlyBills, setMonthlyBills] = useState<MonthlyBill[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [dbStatus, setDbStatus] = useState<{
+    isConfigured: boolean;
+    hasTables: boolean;
+    missingTables: string[];
+  }>({
+    isConfigured: isSupabaseConfigured,
+    hasTables: false,
+    missingTables: []
+  });
 
   useEffect(() => {
     const fetchData = async () => {
@@ -88,6 +102,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       
       if (!isSupabaseConfigured) {
         console.log('Supabase not configured, using mock data.');
+        setDbStatus(prev => ({ ...prev, isConfigured: false }));
         setTenants([BUSINESS_DETAILS]);
         setAllUsers(ENHANCED_MOCK_USERS);
         setAllOrders(INITIAL_ORDERS);
@@ -99,16 +114,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       }
 
       try {
-        const [
-          { data: tenantsData },
-          { data: usersData },
-          { data: menuData },
-          { data: inventoryData },
-          { data: ordersData },
-          { data: transactionsData },
-          { data: expensesData },
-          { data: billsData }
-        ] = await Promise.all([
+        const results = await Promise.all([
           supabase.from('tenants').select('*'),
           supabase.from('users').select('*'),
           supabase.from('menu_items').select('*'),
@@ -118,6 +124,40 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
           supabase.from('expenses').select('*'),
           supabase.from('monthly_bills').select('*')
         ]);
+
+        const errors = results.map((r, i) => r.error ? { table: ['tenants', 'users', 'menu_items', 'inventory_items', 'orders', 'transactions', 'expenses', 'monthly_bills'][i], error: r.error } : null).filter(Boolean);
+        
+        if (errors.length > 0) {
+          console.error('Supabase tables missing or inaccessible:', errors);
+          setDbStatus(prev => ({ 
+            ...prev, 
+            hasTables: false, 
+            missingTables: errors.map(e => e?.table || '') 
+          }));
+          
+          // Fallback to mock data if tables are missing
+          setTenants([BUSINESS_DETAILS]);
+          setAllUsers(ENHANCED_MOCK_USERS);
+          setAllOrders(INITIAL_ORDERS);
+          setAllInventory(MOCK_INVENTORY);
+          setAllMenu(MOCK_MENU);
+          setAllExpenses(MOCK_EXPENSES);
+          setIsLoading(false);
+          return;
+        }
+
+        setDbStatus(prev => ({ ...prev, hasTables: true, missingTables: [] }));
+
+        const [
+          { data: tenantsData },
+          { data: usersData },
+          { data: menuData },
+          { data: inventoryData },
+          { data: ordersData },
+          { data: transactionsData },
+          { data: expensesData },
+          { data: billsData }
+        ] = results;
 
         if (tenantsData && tenantsData.length > 0) {
           setTenants(tenantsData.map(t => ({
@@ -901,7 +941,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       generateMonthlyBills,
       approveBill,
       allUsers,
-      isLoading
+      isLoading,
+      dbStatus
     }}>
       {children}
     </AppContext.Provider>

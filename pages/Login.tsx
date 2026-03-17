@@ -6,7 +6,7 @@ import { Role } from '../types';
 import { LogIn, ChefHat, Mail, Lock, AlertCircle, Utensils, ArrowRight } from 'lucide-react';
 
 export const Login = () => {
-  const { login, business, users, addUser } = useApp();
+  const { login, business, dbStatus } = useApp();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [staffError, setStaffError] = useState('');
@@ -56,6 +56,20 @@ export const Login = () => {
                <h2 className="text-4xl font-black text-slate-900 uppercase tracking-tighter mb-2">Staff Login</h2>
                <p className="text-slate-400 text-xs font-bold uppercase tracking-widest">Enter your credentials to access the terminal</p>
             </div>
+
+            {(!dbStatus.isConfigured || !dbStatus.hasTables) && (
+              <div className="mb-8 p-5 bg-amber-50 border-2 border-amber-100 text-amber-700 rounded-[1.5rem] flex flex-col gap-2 animate-in slide-in-from-top-2">
+                <div className="flex items-center gap-3">
+                  <AlertCircle size={20} className="shrink-0" />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Demo Mode Active</span>
+                </div>
+                <p className="text-[9px] font-bold opacity-80 leading-relaxed">
+                  {!dbStatus.isConfigured 
+                    ? "Supabase is not configured. Changes will not be saved." 
+                    : "Database tables are missing. Please run the SQL schema in Supabase to enable saving."}
+                </p>
+              </div>
+            )}
 
             {staffError && (
               <div className="mb-8 p-5 bg-red-50 border-2 border-red-100 text-red-600 rounded-[1.5rem] flex items-center gap-4 text-[10px] font-black uppercase animate-in slide-in-from-top-2">

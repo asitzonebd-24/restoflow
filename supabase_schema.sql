@@ -118,11 +118,26 @@ ALTER TABLE expenses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE monthly_bills ENABLE ROW LEVEL SECURITY;
 
 -- Create basic RLS policies (Allow all for now for simplicity, can be hardened later)
+DROP POLICY IF EXISTS "Allow all access to tenants" ON tenants;
 CREATE POLICY "Allow all access to tenants" ON tenants FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "Allow all access to users" ON users;
 CREATE POLICY "Allow all access to users" ON users FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "Allow all access to menu_items" ON menu_items;
 CREATE POLICY "Allow all access to menu_items" ON menu_items FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "Allow all access to inventory_items" ON inventory_items;
 CREATE POLICY "Allow all access to inventory_items" ON inventory_items FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "Allow all access to orders" ON orders;
 CREATE POLICY "Allow all access to orders" ON orders FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "Allow all access to transactions" ON transactions;
 CREATE POLICY "Allow all access to transactions" ON transactions FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "Allow all access to expenses" ON expenses;
 CREATE POLICY "Allow all access to expenses" ON expenses FOR ALL USING (true);
+
+DROP POLICY IF EXISTS "Allow all access to monthly_bills" ON monthly_bills;
 CREATE POLICY "Allow all access to monthly_bills" ON monthly_bills FOR ALL USING (true);
