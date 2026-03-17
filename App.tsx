@@ -35,140 +35,144 @@ const Sidebar = () => {
   const isActive = (path: string) => location.pathname === path;
 
   const navItemClass = (path: string) => `
-    flex items-center gap-3 px-3 py-3 md:px-4 rounded-xl transition-all duration-200 mb-1 justify-center md:justify-start group
+    flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 mb-1 justify-center md:justify-start group
     ${isActive(path) 
-      ? 'bg-white text-slate-900 shadow-md font-bold' 
-      : 'text-white/70 hover:bg-white/10 hover:text-white'}
+      ? 'bg-white/15 text-white shadow-sm font-semibold' 
+      : 'text-white/60 hover:bg-white/5 hover:text-white'}
   `;
 
   const permissions = currentUser.permissions || [];
 
   return (
     <div 
-      className="w-20 md:w-64 h-screen flex flex-col p-2 md:p-4 text-white transition-all duration-300 shrink-0"
+      className="w-20 md:w-64 h-screen flex flex-col p-3 md:p-5 text-white transition-all duration-300 shrink-0 shadow-2xl z-20"
       style={{ backgroundColor: business.themeColor }}
     >
-      <div className="flex items-center gap-3 px-2 py-4 mb-6 border-b border-white/20 justify-center md:justify-start overflow-hidden">
-        <img src={business.logo} alt="Logo" className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-white p-1 shrink-0" />
+      <div className="flex items-center gap-3 px-2 py-6 mb-8 border-b border-white/10 justify-center md:justify-start overflow-hidden">
+        <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center p-1.5 shrink-0 border border-white/10 shadow-inner">
+          <img src={business.logo} alt="Logo" className="w-full h-full object-contain rounded-lg" />
+        </div>
         <div className="hidden md:block truncate">
-          <h2 className="font-bold text-lg leading-tight truncate">{business.name}</h2>
-          <p className="text-xs text-white/60">{currentUser.role === Role.SUPER_ADMIN ? 'Portal Admin' : 'Staff Terminal'}</p>
+          <h2 className="font-bold text-base leading-tight truncate tracking-tight">{business.name}</h2>
+          <p className="text-[10px] text-white/40 font-medium uppercase tracking-widest mt-0.5">
+            {currentUser.role === Role.SUPER_ADMIN ? 'Portal Admin' : 'Staff Terminal'}
+          </p>
         </div>
       </div>
 
-      <nav className="flex-1 overflow-y-auto no-scrollbar">
+      <nav className="flex-1 overflow-y-auto no-scrollbar space-y-0.5">
         {currentUser.role === Role.SUPER_ADMIN && (
-          <>
+          <div className="mb-6">
+            <p className="hidden md:block px-4 mb-2 text-[10px] font-bold text-white/30 uppercase tracking-[0.2em]">Administration</p>
             <NavLink to="/portal" className={navItemClass('/portal')} title="Portal">
-              <ShieldCheck size={20} className="shrink-0" /> <span className="hidden md:block">Portal</span>
+              <ShieldCheck size={18} className="shrink-0" /> <span className="hidden md:block text-sm">Portal</span>
             </NavLink>
             <NavLink to="/pending-bills" className={navItemClass('/pending-bills')} title="Pending Bills">
-              <FileText size={20} className="shrink-0" /> <span className="hidden md:block">Pending Bills</span>
+              <FileText size={18} className="shrink-0" /> <span className="hidden md:block text-sm">Pending Bills</span>
             </NavLink>
             <NavLink to="/approved-bills" className={navItemClass('/approved-bills')} title="Approved Bills">
-              <CheckCircle size={20} className="shrink-0" /> <span className="hidden md:block">Approved Bills</span>
+              <CheckCircle size={18} className="shrink-0" /> <span className="hidden md:block text-sm">Approved Bills</span>
             </NavLink>
-          </>
+          </div>
         )}
 
-        {permissions.includes('Dashboard') && (
-          <NavLink to="/dashboard" className={navItemClass('/dashboard')} title="Dashboard">
-            <LayoutDashboard size={20} className="shrink-0" /> <span className="hidden md:block">Dashboard</span>
-          </NavLink>
-        )}
-        
-        {permissions.includes('POS') && (
-          <NavLink to="/pos" className={navItemClass('/pos')} title="Terminal">
-            <UtensilsCrossed size={20} className="shrink-0" /> <span className="hidden md:block">Terminal</span>
-          </NavLink>
-        )}
+        <div className="mb-6">
+          <p className="hidden md:block px-4 mb-2 text-[10px] font-bold text-white/30 uppercase tracking-[0.2em]">Operations</p>
+          {permissions.includes('Dashboard') && (
+            <NavLink to="/dashboard" className={navItemClass('/dashboard')} title="Dashboard">
+              <LayoutDashboard size={18} className="shrink-0" /> <span className="hidden md:block text-sm">Dashboard</span>
+            </NavLink>
+          )}
+          
+          {permissions.includes('POS') && (
+            <NavLink to="/pos" className={navItemClass('/pos')} title="Terminal">
+              <UtensilsCrossed size={18} className="shrink-0" /> <span className="hidden md:block text-sm">Terminal</span>
+            </NavLink>
+          )}
 
-        {permissions.includes('Kitchen') && (
-          <NavLink to="/kitchen" className={navItemClass('/kitchen')} title="Kitchen">
-            <ChefHat size={20} className="shrink-0" /> <span className="hidden md:block">Kitchen</span>
-          </NavLink>
-        )}
+          {permissions.includes('Kitchen') && (
+            <NavLink to="/kitchen" className={navItemClass('/kitchen')} title="Kitchen">
+              <ChefHat size={18} className="shrink-0" /> <span className="hidden md:block text-sm">Kitchen</span>
+            </NavLink>
+          )}
+        </div>
 
-        {permissions.includes('Menu') && (
-          <NavLink to="/menu" className={navItemClass('/menu')} title="Menu">
-            <MenuIcon size={20} className="shrink-0" /> <span className="hidden md:block">Menu</span>
-          </NavLink>
-        )}
+        <div className="mb-6">
+          <p className="hidden md:block px-4 mb-2 text-[10px] font-bold text-white/30 uppercase tracking-[0.2em]">Management</p>
+          {permissions.includes('Menu') && (
+            <NavLink to="/menu" className={navItemClass('/menu')} title="Menu">
+              <MenuIcon size={18} className="shrink-0" /> <span className="hidden md:block text-sm">Menu</span>
+            </NavLink>
+          )}
 
-        {permissions.includes('Billing') && (
-          <NavLink to="/billing" className={navItemClass('/billing')} title="Billing">
-            <Receipt size={20} className="shrink-0" /> <span className="hidden md:block">Billing</span>
-          </NavLink>
-        )}
+          {permissions.includes('Billing') && (
+            <NavLink to="/billing" className={navItemClass('/billing')} title="Billing">
+              <Receipt size={18} className="shrink-0" /> <span className="hidden md:block text-sm">Billing</span>
+            </NavLink>
+          )}
 
-        {permissions.includes('Transactions') && (
-          <NavLink to="/transactions" className={navItemClass('/transactions')} title="History">
-            <History size={20} className="shrink-0" /> <span className="hidden md:block">History</span>
-          </NavLink>
-        )}
+          {permissions.includes('Inventory') && (
+            <NavLink to="/inventory" className={navItemClass('/inventory')} title="Inventory">
+              <Package size={18} className="shrink-0" /> <span className="hidden md:block text-sm">Inventory</span>
+            </NavLink>
+          )}
+        </div>
 
-        {permissions.includes('Expenses') && (
-          <NavLink to="/expenses" className={navItemClass('/expenses')} title="Expenses">
-            <Wallet size={20} className="shrink-0" /> <span className="hidden md:block">Expenses</span>
-          </NavLink>
-        )}
+        <div className="mb-6">
+          <p className="hidden md:block px-4 mb-2 text-[10px] font-bold text-white/30 uppercase tracking-[0.2em]">Finance & Staff</p>
+          {permissions.includes('Transactions') && (
+            <NavLink to="/transactions" className={navItemClass('/transactions')} title="History">
+              <History size={18} className="shrink-0" /> <span className="hidden md:block text-sm">History</span>
+            </NavLink>
+          )}
 
-        {permissions.includes('Inventory') && (
-           <NavLink to="/inventory" className={navItemClass('/inventory')} title="Inventory">
-            <Package size={20} className="shrink-0" /> <span className="hidden md:block">Inventory</span>
-          </NavLink>
-        )}
+          {permissions.includes('Expenses') && (
+            <NavLink to="/expenses" className={navItemClass('/expenses')} title="Expenses">
+              <Wallet size={18} className="shrink-0" /> <span className="hidden md:block text-sm">Expenses</span>
+            </NavLink>
+          )}
 
-        {permissions.includes('Reports') && (
-          <NavLink to="/reports" className={navItemClass('/reports')} title="Reports">
-            <PieChart size={20} className="shrink-0" /> <span className="hidden md:block">Reports</span>
-          </NavLink>
-        )}
+          {permissions.includes('Reports') && (
+            <NavLink to="/reports" className={navItemClass('/reports')} title="Reports">
+              <PieChart size={18} className="shrink-0" /> <span className="hidden md:block text-sm">Reports</span>
+            </NavLink>
+          )}
 
-        {permissions.includes('Users') && (
-          <NavLink to="/users" className={navItemClass('/users')} title="Staff">
-            <UsersIcon size={20} className="shrink-0" /> <span className="hidden md:block">Staff</span>
-          </NavLink>
-        )}
-
-        {permissions.includes('Settings') && (
-          <NavLink to="/settings" className={navItemClass('/settings')} title="Settings">
-            <Settings size={20} className="shrink-0" /> <span className="hidden md:block">Settings</span>
-          </NavLink>
-        )}
+          {permissions.includes('Users') && (
+            <NavLink to="/users" className={navItemClass('/users')} title="Staff">
+              <UsersIcon size={18} className="shrink-0" /> <span className="hidden md:block text-sm">Staff</span>
+            </NavLink>
+          )}
+        </div>
       </nav>
 
-      <div className="pt-4 border-t border-white/20">
+      <div className="pt-6 border-t border-white/10 space-y-4">
          {/* Connection Status */}
-         <div className="hidden md:flex flex-col gap-2 px-4 py-3 mb-4 bg-black/20 rounded-xl border border-white/10">
+         <div className="hidden md:flex flex-col gap-2 px-4 py-3 bg-white/5 rounded-2xl border border-white/5">
             <div className="flex items-center justify-between">
-               <span className="text-[8px] font-bold text-white/40 uppercase tracking-widest">Database</span>
+               <span className="text-[8px] font-bold text-white/30 uppercase tracking-widest">Database</span>
                <div className="flex items-center gap-2">
                   <div className={`w-1.5 h-1.5 rounded-full ${dbStatus.isConfigured ? (dbStatus.hasTables ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400') : 'bg-red-400'}`}></div>
                   <span className={`text-[8px] font-bold uppercase tracking-widest ${dbStatus.isConfigured ? (dbStatus.hasTables ? 'text-emerald-400' : 'text-amber-400') : 'text-red-400'}`}>
-                     {dbStatus.isConfigured ? (dbStatus.hasTables ? 'Connected' : 'Tables Missing') : 'Not Configured'}
+                     {dbStatus.isConfigured ? (dbStatus.hasTables ? 'Live' : 'Sync Error') : 'Offline'}
                   </span>
                </div>
             </div>
-            {!dbStatus.hasTables && dbStatus.isConfigured && (
-              <p className="text-[7px] text-amber-200/60 font-medium leading-tight">
-                Tables missing in Supabase. Run the SQL schema to enable saving.
-              </p>
-            )}
          </div>
 
-         <div className="flex items-center gap-3 px-2 mb-4 justify-center md:justify-start">
-            <img src={currentUser.avatar} className="w-8 h-8 rounded-full shrink-0 border-2 border-white/20" />
+         <div className="flex items-center gap-3 px-2 justify-center md:justify-start">
+            <img src={currentUser.avatar} className="w-10 h-10 rounded-xl shrink-0 border border-white/10 shadow-lg" />
             <div className="hidden md:block overflow-hidden">
-               <p className="text-sm font-bold truncate">{currentUser.name}</p>
-               <p className="text-[10px] text-white/60 truncate uppercase">{currentUser.role}</p>
+               <p className="text-sm font-bold truncate tracking-tight">{currentUser.name}</p>
+               <p className="text-[10px] text-white/40 font-medium truncate uppercase tracking-widest">{currentUser.role}</p>
             </div>
          </div>
+         
          <button 
            onClick={logout}
-           className="w-full flex items-center gap-2 px-2 md:px-4 py-3 rounded-xl text-white/80 hover:bg-white/10 transition text-sm justify-center md:justify-start font-bold uppercase tracking-widest text-[10px]"
+           className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-white/60 hover:bg-white/10 hover:text-white transition-all text-sm justify-center md:justify-start font-semibold"
          >
-           <LogOut size={16} className="shrink-0" /> <span className="hidden md:block">Sign Out</span>
+           <LogOut size={18} className="shrink-0" /> <span className="hidden md:block">Sign Out</span>
          </button>
       </div>
     </div>
