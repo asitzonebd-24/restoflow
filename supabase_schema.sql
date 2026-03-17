@@ -3,18 +3,18 @@
 
 -- UNCOMMENT THE LINES BELOW IF YOU WANT TO COMPLETELY RESET YOUR DATABASE
 -- WARNING: THIS WILL DELETE ALL YOUR DATA!
--- DROP TABLE IF EXISTS monthly_bills CASCADE;
--- DROP TABLE IF EXISTS expenses CASCADE;
--- DROP TABLE IF EXISTS transactions CASCADE;
--- DROP TABLE IF EXISTS orders CASCADE;
--- DROP TABLE IF EXISTS inventory_items CASCADE;
--- DROP TABLE IF EXISTS menu_items CASCADE;
--- DROP TABLE IF EXISTS users CASCADE;
--- DROP TABLE IF EXISTS tenants CASCADE;
+DROP TABLE IF EXISTS monthly_bills CASCADE;
+DROP TABLE IF EXISTS expenses CASCADE;
+DROP TABLE IF EXISTS transactions CASCADE;
+DROP TABLE IF EXISTS orders CASCADE;
+DROP TABLE IF EXISTS inventory_items CASCADE;
+DROP TABLE IF EXISTS menu_items CASCADE;
+DROP TABLE IF EXISTS users CASCADE;
+DROP TABLE IF EXISTS tenants CASCADE;
 
 -- 1. Tenants Table
 CREATE TABLE IF NOT EXISTS tenants (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   address TEXT,
   phone TEXT,
@@ -34,8 +34,8 @@ CREATE TABLE IF NOT EXISTS tenants (
 
 -- 2. Users Table
 CREATE TABLE IF NOT EXISTS users (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE,
+  id TEXT PRIMARY KEY,
+  tenant_id TEXT REFERENCES tenants(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   email TEXT NOT NULL,
   password TEXT NOT NULL,
@@ -45,8 +45,8 @@ CREATE TABLE IF NOT EXISTS users (
 
 -- 3. Menu Items Table
 CREATE TABLE IF NOT EXISTS menu_items (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE,
+  id TEXT PRIMARY KEY,
+  tenant_id TEXT REFERENCES tenants(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   description TEXT,
   price NUMERIC NOT NULL,
@@ -58,35 +58,37 @@ CREATE TABLE IF NOT EXISTS menu_items (
 
 -- 4. Inventory Items Table
 CREATE TABLE IF NOT EXISTS inventory_items (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE,
+  id TEXT PRIMARY KEY,
+  tenant_id TEXT REFERENCES tenants(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   quantity NUMERIC DEFAULT 0,
   unit TEXT NOT NULL,
   min_threshold NUMERIC DEFAULT 0,
+  supplier TEXT,
+  price_per_unit NUMERIC DEFAULT 0,
   last_updated TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- 5. Orders Table
 CREATE TABLE IF NOT EXISTS orders (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE,
+  id TEXT PRIMARY KEY,
+  tenant_id TEXT REFERENCES tenants(id) ON DELETE CASCADE,
   token_number TEXT NOT NULL,
   table_number TEXT,
   items JSONB NOT NULL,
   status TEXT NOT NULL,
   total_amount NUMERIC NOT NULL,
   note TEXT,
-  created_by UUID REFERENCES users(id),
+  created_by TEXT REFERENCES users(id),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- 6. Transactions Table
 CREATE TABLE IF NOT EXISTS transactions (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE,
-  order_id UUID REFERENCES orders(id),
+  id TEXT PRIMARY KEY,
+  tenant_id TEXT REFERENCES tenants(id) ON DELETE CASCADE,
+  order_id TEXT REFERENCES orders(id),
   amount NUMERIC NOT NULL,
   type TEXT NOT NULL, -- 'Income' or 'Expense'
   payment_method TEXT,
@@ -97,19 +99,21 @@ CREATE TABLE IF NOT EXISTS transactions (
 
 -- 7. Expenses Table
 CREATE TABLE IF NOT EXISTS expenses (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE,
+  id TEXT PRIMARY KEY,
+  tenant_id TEXT REFERENCES tenants(id) ON DELETE CASCADE,
   title TEXT NOT NULL,
   amount NUMERIC NOT NULL,
   category TEXT NOT NULL,
+  date TEXT,
+  note TEXT,
   recorded_by TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- 8. Monthly Bills Table
 CREATE TABLE IF NOT EXISTS monthly_bills (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE,
+  id TEXT PRIMARY KEY,
+  tenant_id TEXT REFERENCES tenants(id) ON DELETE CASCADE,
   tenant_name TEXT,
   month TEXT NOT NULL,
   amount NUMERIC NOT NULL,
