@@ -1,7 +1,7 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate, NavLink, useLocation } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { AppProvider, useApp } from './context/AppContext';
 import { isSupabaseConfigured } from './supabase';
 import { Login } from './pages/Login';
@@ -25,9 +25,9 @@ import { SuperAdmin } from './pages/SuperAdmin';
 import { PendingBills } from './pages/PendingBills';
 import { ApprovedBills } from './pages/ApprovedBills';
 import { Role } from './types';
-import { LayoutDashboard, UtensilsCrossed, ChefHat, Receipt, Package, LogOut, Settings, Users as UsersIcon, History, Wallet, PieChart, Menu as MenuIcon, User as UserCircle, ShieldCheck, PowerOff, FileText, CheckCircle } from 'lucide-react';
+import { LayoutDashboard, UtensilsCrossed, ChefHat, Receipt, Package, LogOut, Settings, Users as UsersIcon, History, Wallet, PieChart, Menu as MenuIcon, User as UserCircle, ShieldCheck, PowerOff, FileText, CheckCircle, Menu, X } from 'lucide-react';
 
-const Sidebar = () => {
+const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) => {
   const { business, currentUser, logout } = useApp();
   const location = useLocation();
 
@@ -36,143 +36,111 @@ const Sidebar = () => {
   const isActive = (path: string) => location.pathname === path;
 
   const navItemClass = (path: string) => `
-    flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-300 mb-1 justify-center md:justify-start group relative
+    flex items-center justify-center w-12 h-12 rounded-2xl transition-all duration-300 mb-4 group relative
     ${isActive(path) 
-      ? 'bg-white text-slate-900 shadow-sm font-bold' 
-      : 'text-white/60 hover:bg-white/10 hover:text-white'}
+      ? 'bg-white text-[#1a1a37] shadow-xl' 
+      : 'text-white/40 hover:bg-white/10 hover:text-white'}
   `;
 
   const permissions = currentUser.permissions || [];
 
   return (
-    <div 
-      className="w-20 md:w-72 h-screen flex flex-col p-4 text-white transition-all duration-500 shrink-0 z-20 shadow-2xl"
-      style={{ backgroundColor: business.themeColor }}
-    >
-      <div className="flex items-center gap-4 px-2 py-8 mb-8 border-b border-white/10 justify-center md:justify-start overflow-hidden">
-        <div className="w-12 h-12 rounded-2xl bg-white/15 flex items-center justify-center p-2 shrink-0 border border-white/10 shadow-inner backdrop-blur-md">
-          <img src={business.logo} alt="Logo" className="w-full h-full object-contain rounded-lg" />
-        </div>
-        <div className="hidden md:block truncate">
-          <h2 className="font-bold text-lg leading-tight truncate tracking-tight">{business.name}</h2>
-          <p className="text-[10px] text-white/40 font-bold uppercase tracking-[0.2em] mt-1">
-            Staff Terminal
-          </p>
-        </div>
-      </div>
-
-      <nav className="flex-1 overflow-y-auto no-scrollbar space-y-1 pr-2">
-        {currentUser.role === Role.SUPER_ADMIN && (
-          <div className="mb-8">
-            <p className="hidden md:block px-4 mb-3 text-[10px] font-bold text-white/20 uppercase tracking-[0.3em]">System</p>
-            <NavLink to="/portal" className={navItemClass('/portal')} title="Portal">
-              <ShieldCheck size={18} className="shrink-0" /> <span className="hidden md:block text-xs uppercase tracking-widest">Portal</span>
-              {isActive('/portal') && <motion.div layoutId="active-pill" className="absolute left-0 w-1 h-6 bg-slate-900 rounded-r-full hidden md:block" />}
-            </NavLink>
-            <NavLink to="/pending-bills" className={navItemClass('/pending-bills')} title="Pending Bills">
-              <FileText size={18} className="shrink-0" /> <span className="hidden md:block text-xs uppercase tracking-widest">Pending</span>
-            </NavLink>
-            <NavLink to="/approved-bills" className={navItemClass('/approved-bills')} title="Approved Bills">
-              <CheckCircle size={18} className="shrink-0" /> <span className="hidden md:block text-xs uppercase tracking-widest">Approved</span>
-            </NavLink>
-          </div>
+    <>
+      {/* Mobile Overlay */}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[65] md:hidden"
+          />
         )}
+      </AnimatePresence>
 
-        <div className="mb-8">
-          <p className="hidden md:block px-4 mb-3 text-[10px] font-bold text-white/20 uppercase tracking-[0.3em]">Operations</p>
-          {permissions.includes('Dashboard') && (
-            <NavLink to="/dashboard" className={navItemClass('/dashboard')} title="Dashboard">
-              <LayoutDashboard size={18} className="shrink-0" /> <span className="hidden md:block text-xs uppercase tracking-widest">Overview</span>
-              {isActive('/dashboard') && <motion.div layoutId="active-pill" className="absolute left-0 w-1 h-6 bg-slate-900 rounded-r-full hidden md:block" />}
-            </NavLink>
-          )}
-          
-          {permissions.includes('POS') && (
-            <NavLink to="/pos" className={navItemClass('/pos')} title="Terminal">
-              <UtensilsCrossed size={18} className="shrink-0" /> <span className="hidden md:block text-xs uppercase tracking-widest">Terminal</span>
-              {isActive('/pos') && <motion.div layoutId="active-pill" className="absolute left-0 w-1 h-6 bg-slate-900 rounded-r-full hidden md:block" />}
-            </NavLink>
-          )}
-
-          {permissions.includes('Kitchen') && (
-            <NavLink to="/kitchen" className={navItemClass('/kitchen')} title="Kitchen">
-              <ChefHat size={18} className="shrink-0" /> <span className="hidden md:block text-xs uppercase tracking-widest">Kitchen</span>
-              {isActive('/kitchen') && <motion.div layoutId="active-pill" className="absolute left-0 w-1 h-6 bg-slate-900 rounded-r-full hidden md:block" />}
-            </NavLink>
-          )}
-        </div>
-
-        <div className="mb-8">
-          <p className="hidden md:block px-4 mb-3 text-[10px] font-bold text-white/20 uppercase tracking-[0.3em]">Resources</p>
-          {permissions.includes('Menu') && (
-            <NavLink to="/menu" className={navItemClass('/menu')} title="Menu">
-              <MenuIcon size={18} className="shrink-0" /> <span className="hidden md:block text-xs uppercase tracking-widest">Menu</span>
-            </NavLink>
-          )}
-
-          {permissions.includes('Billing') && (
-            <NavLink to="/billing" className={navItemClass('/billing')} title="Billing">
-              <Receipt size={18} className="shrink-0" /> <span className="hidden md:block text-xs uppercase tracking-widest">Billing</span>
-            </NavLink>
-          )}
-
-          {permissions.includes('Inventory') && (
-            <NavLink to="/inventory" className={navItemClass('/inventory')} title="Inventory">
-              <Package size={18} className="shrink-0" /> <span className="hidden md:block text-xs uppercase tracking-widest">Stock</span>
-            </NavLink>
-          )}
-        </div>
-
-        <div className="mb-8">
-          <p className="hidden md:block px-4 mb-3 text-[10px] font-bold text-white/20 uppercase tracking-[0.3em]">Admin</p>
-          {permissions.includes('Transactions') && (
-            <NavLink to="/transactions" className={navItemClass('/transactions')} title="History">
-              <History size={18} className="shrink-0" /> <span className="hidden md:block text-xs uppercase tracking-widest">History</span>
-            </NavLink>
-          )}
-
-          {permissions.includes('Expenses') && (
-            <NavLink to="/expenses" className={navItemClass('/expenses')} title="Expenses">
-              <Wallet size={18} className="shrink-0" /> <span className="hidden md:block text-xs uppercase tracking-widest">Expenses</span>
-            </NavLink>
-          )}
-
-          {permissions.includes('Reports') && (
-            <NavLink to="/reports" className={navItemClass('/reports')} title="Reports">
-              <PieChart size={18} className="shrink-0" /> <span className="hidden md:block text-xs uppercase tracking-widest">Analytics</span>
-            </NavLink>
-          )}
-
-          {permissions.includes('Users') && (
-            <NavLink to="/users" className={navItemClass('/users')} title="Staff">
-              <UsersIcon size={18} className="shrink-0" /> <span className="hidden md:block text-xs uppercase tracking-widest">Staff</span>
-            </NavLink>
-          )}
-        </div>
-      </nav>
-
-      <div className="pt-6 border-t border-white/10 space-y-6">
-         <div className="flex items-center gap-4 px-2 justify-center md:justify-start">
-            <img src={currentUser.avatar} className="w-10 h-10 rounded-2xl shrink-0 border border-white/10 shadow-xl" />
-            <div className="hidden md:block overflow-hidden">
-               <p className="text-sm font-bold truncate tracking-tight">{currentUser.name}</p>
-               <p className="text-[10px] text-white/40 font-bold truncate uppercase tracking-widest">{currentUser.role}</p>
+      <div 
+        className={`fixed md:relative top-0 left-0 h-screen flex flex-col items-center py-8 text-white transition-all duration-500 shrink-0 z-[70] shadow-2xl w-20 print:hidden ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
+        style={{ background: '#11112b' }}
+      >
+        <div className="mb-12">
+            <div className="w-12 h-12 rounded-full border-2 border-white/20 p-1">
+              <img src={currentUser.avatar || `https://ui-avatars.com/api/?name=${currentUser.name}&background=random`} alt="User" className="w-full h-full object-cover rounded-full" />
             </div>
-         </div>
-         
-         <button 
-           onClick={logout}
-           className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-white/40 hover:bg-rose-500/20 hover:text-rose-200 transition-all text-[10px] justify-center md:justify-start font-bold uppercase tracking-widest"
-         >
-           <LogOut size={18} className="shrink-0" /> <span className="hidden md:block">Sign Out</span>
-         </button>
+        </div>
+
+        <nav className="flex-1 flex flex-col items-center no-scrollbar">
+            {permissions.includes('Dashboard') && (
+              <NavLink to="/dashboard" onClick={() => onClose()} className={navItemClass('/dashboard')} title="Dashboard">
+                <LayoutDashboard size={22} />
+              </NavLink>
+            )}
+            
+            {permissions.includes('POS') && (
+              <NavLink to="/pos" onClick={() => onClose()} className={navItemClass('/pos')} title="Terminal">
+                <UtensilsCrossed size={22} />
+              </NavLink>
+            )}
+
+            {permissions.includes('Kitchen') && (
+              <NavLink to="/kitchen" onClick={() => onClose()} className={navItemClass('/kitchen')} title="Kitchen">
+                <ChefHat size={22} />
+              </NavLink>
+            )}
+
+            <div className="w-10 h-px bg-white/10 my-4" />
+
+            {permissions.includes('Menu') && (
+              <NavLink to="/menu" onClick={() => onClose()} className={navItemClass('/menu')} title="Menu">
+                <MenuIcon size={22} />
+              </NavLink>
+            )}
+
+            {permissions.includes('Billing') && (
+              <NavLink to="/billing" onClick={() => onClose()} className={navItemClass('/billing')} title="Billing">
+                <Receipt size={22} />
+              </NavLink>
+            )}
+
+            {permissions.includes('Transactions') && (
+              <NavLink to="/transactions" onClick={() => onClose()} className={navItemClass('/transactions')} title="History">
+                <History size={22} />
+              </NavLink>
+            )}
+
+            {permissions.includes('Inventory') && (
+              <NavLink to="/inventory" onClick={() => onClose()} className={navItemClass('/inventory')} title="Inventory">
+                <Package size={22} />
+              </NavLink>
+            )}
+
+            {permissions.includes('Reports') && (
+              <NavLink to="/reports" onClick={() => onClose()} className={navItemClass('/reports')} title="Reports">
+                <PieChart size={22} />
+              </NavLink>
+            )}
+        </nav>
+
+        <div className="mt-auto space-y-4 flex flex-col items-center">
+            <NavLink to="/settings" onClick={() => onClose()} className={navItemClass('/settings')} title="Settings">
+                <Settings size={22} />
+            </NavLink>
+            <button 
+                onClick={logout}
+                className="w-12 h-12 flex items-center justify-center rounded-2xl text-white/40 hover:bg-rose-500/20 hover:text-rose-500 transition-all"
+                title="Logout"
+            >
+                <LogOut size={22} />
+            </button>
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 
 const ProtectedLayout = ({ children, allowedRoles }: { children?: React.ReactNode, allowedRoles?: Role[] }) => {
   const { currentUser, business } = useApp();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
   if (!currentUser) return <Navigate to="/login" replace />;
   
@@ -211,8 +179,25 @@ const ProtectedLayout = ({ children, allowedRoles }: { children?: React.ReactNod
   
   return (
     <div className={`flex h-screen bg-slate-50 overflow-hidden ${isCustomer ? 'flex-col' : 'flex-row'}`}>
-      <Sidebar />
-      <main className="flex-1 overflow-auto">
+      {!isCustomer && (
+        <>
+          <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+          {/* Mobile Header */}
+          <div className="fixed top-0 left-0 right-0 h-16 bg-white border-b border-slate-200 flex items-center px-4 z-[60] md:hidden print:hidden">
+            <button 
+              onClick={() => setIsSidebarOpen(true)}
+              className="p-2 hover:bg-slate-100 rounded-xl transition-colors"
+            >
+              <Menu size={24} className="text-slate-600" />
+            </button>
+            <div className="ml-4 flex items-center gap-3">
+              <img src={business.logo} alt="Logo" className="w-8 h-8 object-contain rounded-lg" />
+              <span className="font-bold text-slate-900 truncate max-w-[150px]">{business.name}</span>
+            </div>
+          </div>
+        </>
+      )}
+      <main className={`flex-1 overflow-auto ${!isCustomer ? 'pt-16 md:pt-0' : ''}`}>
         {children}
       </main>
     </div>

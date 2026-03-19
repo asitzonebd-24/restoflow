@@ -21,7 +21,10 @@ export const CustomerHistory = () => {
   return (
     <div className="flex h-screen bg-[#f1f5f9] overflow-hidden">
       {/* Sidebar - Fixed Rail */}
-      <aside className="h-full w-20 md:w-64 bg-black text-white z-[110] border-r-8 border-indigo-500/20 flex flex-col items-center md:items-stretch py-8 shrink-0 shadow-2xl shadow-indigo-500/10">
+      <aside 
+        className="h-full w-20 md:w-64 text-white z-[110] border-r-8 border-indigo-500/20 flex flex-col items-center md:items-stretch py-8 shrink-0 shadow-2xl shadow-indigo-500/10"
+        style={{ background: 'linear-gradient(180deg, #1d1d3f 0%, #11112b 100%)' }}
+      >
         <div className="flex items-center gap-3 px-4 md:px-8 mb-12">
            <img src={business.logo} alt="Logo" className="w-10 h-10 rounded-full border-2 border-white" />
            <h2 className="hidden md:block font-black text-lg uppercase tracking-tighter">OmniDine</h2>

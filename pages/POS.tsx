@@ -36,6 +36,7 @@ export const POS = () => {
   const [newTokenNum, setNewTokenNum] = useState('');
   const [newTableNum, setNewTableNum] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [isCartOpen, setIsCartOpen] = useState(false);
 
   const categories = useMemo(() => ['All', ...Array.from(new Set(menu.map(m => m.category)))], [menu]);
 
@@ -65,13 +66,13 @@ export const POS = () => {
   const getStatusStyles = (status: OrderStatus) => {
     switch(status) {
       case OrderStatus.PENDING: 
-        return { bg: 'bg-rose-50', text: 'text-rose-600', border: 'border-rose-100', dot: 'bg-rose-500' };
+        return { bg: 'bg-rose-50', text: 'text-rose-600', border: 'border-rose-200', dot: 'bg-rose-500', topBorder: 'bg-rose-500' };
       case OrderStatus.PREPARING: 
-        return { bg: 'bg-amber-50', text: 'text-amber-600', border: 'border-amber-100', dot: 'bg-amber-500' };
+        return { bg: 'bg-amber-50', text: 'text-amber-600', border: 'border-amber-200', dot: 'bg-amber-500', topBorder: 'bg-amber-500' };
       case OrderStatus.READY: 
-        return { bg: 'bg-emerald-50', text: 'text-emerald-600', border: 'border-emerald-100', dot: 'bg-emerald-500' };
+        return { bg: 'bg-emerald-50', text: 'text-emerald-600', border: 'border-emerald-200', dot: 'bg-emerald-500', topBorder: 'bg-emerald-500' };
       default: 
-        return { bg: 'bg-slate-50', text: 'text-slate-600', border: 'border-slate-100', dot: 'bg-slate-500' };
+        return { bg: 'bg-slate-50', text: 'text-slate-600', border: 'border-slate-200', dot: 'bg-slate-500', topBorder: 'bg-slate-500' };
     }
   };
 
@@ -159,23 +160,48 @@ export const POS = () => {
   const cartTotal = cart.reduce((sum, i) => sum + (i.price * i.quantity), 0);
   const cartCount = cart.reduce((acc, i) => acc + i.quantity, 0);
 
-  const StatusBadge = ({ label, count, styles }: { label: string, count: number, styles: any }) => (
-    <div className={`flex flex-col items-center justify-center p-2 rounded-2xl border transition-all ${count > 0 ? `${styles.bg} ${styles.border} ${styles.text}` : 'bg-slate-50 border-slate-100 text-slate-300'}`}>
-      <span className="text-[8px] font-bold uppercase tracking-widest mb-1 opacity-60">{label}</span>
-      <span className="text-sm font-bold">{count}</span>
+  const StatusBadge = ({ label, count, styles, active }: { label: string, count: number, styles: any, active?: boolean }) => (
+    <div className={`flex flex-col items-center justify-center p-3 rounded-2xl border-2 transition-all ${active ? `${styles.bg} ${styles.border} ${styles.text} border-current` : 'bg-slate-50/50 border-slate-100 text-slate-300'}`}>
+      <span className="text-[7px] font-black uppercase tracking-widest mb-1 opacity-60">{label}</span>
+      <span className="text-lg font-black">{count}</span>
     </div>
   );
 
-  const POSCartContent = () => (
+  const POSCartContent = ({ onClose }: { onClose?: () => void }) => (
     <div className="flex flex-col h-full bg-white border-l-2 border-indigo-500 shadow-2xl shadow-indigo-100">
       <div className="p-6 md:p-8 border-b border-slate-100 bg-slate-50/30 shrink-0">
         <div className="flex items-center justify-between mb-2">
-          <h2 className="text-lg font-bold text-slate-900 tracking-tight flex items-center gap-3">
-             <ShoppingBasket size={20} className="text-indigo-500" /> Order Basket
-          </h2>
-          <span className="px-3 py-1.5 rounded-xl bg-slate-900 text-white text-[10px] font-bold uppercase tracking-widest shadow-sm">
-            {cartCount} Items
-          </span>
+          <div className="flex flex-col">
+            <h2 className="text-lg font-bold text-slate-900 tracking-tight flex items-center gap-3">
+               <ShoppingBasket size={20} className="text-indigo-500" /> Order Basket
+            </h2>
+            {isCreatingNew ? (
+              newTableNum && (
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1 ml-8">
+                  Table: {newTableNum}
+                </span>
+              )
+            ) : (
+              selectedOrderId && (
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1 ml-8">
+                  Table: {orders.find(o => o.id === selectedOrderId)?.tableNumber || 'N/A'}
+                </span>
+              )
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="px-3 py-1.5 rounded-xl bg-slate-900 text-white text-[10px] font-bold uppercase tracking-widest shadow-sm">
+              {cartCount} Items
+            </span>
+            {onClose && (
+              <button 
+                onClick={onClose}
+                className="lg:hidden w-8 h-8 flex items-center justify-center rounded-xl bg-slate-100 text-slate-500 hover:bg-rose-50 hover:text-rose-500 transition-all"
+              >
+                <X size={18} />
+              </button>
+            )}
+          </div>
         </div>
         <p className="text-xs text-slate-400 font-medium">Review selection before processing</p>
       </div>
@@ -249,33 +275,31 @@ export const POS = () => {
 
   if (!selectedOrderId && !isCreatingNew) {
     return (
-      <div className="p-6 md:p-10 h-full bg-slate-50/50 overflow-y-auto no-scrollbar">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
+      <div className="p-4 md:p-10 h-full bg-slate-50/50 overflow-y-auto no-scrollbar">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 md:mb-10 gap-6">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-4">
-              <LayoutGrid className="text-indigo-500" size={32} /> Active Terminals
+            <h1 className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-4">
+              <LayoutGrid className="text-indigo-500" size={28} /> Active Terminals
             </h1>
-            <p className="text-slate-400 text-xs font-medium uppercase tracking-widest mt-2 opacity-80">
+            <p className="text-slate-400 text-[10px] font-medium uppercase tracking-widest mt-2 opacity-80">
               {currentUser?.role === Role.WAITER ? 'Your active service tokens' : 'Global floor tracking & management'}
             </p>
           </div>
           <button 
             onClick={startNewOrder}
-            className="w-full md:w-auto bg-slate-900 text-white px-8 py-4 rounded-2xl font-bold uppercase tracking-widest text-[10px] shadow-xl shadow-indigo-200 hover:bg-slate-800 transition-all transform hover:-translate-y-1 active:scale-95 flex items-center justify-center gap-3 border-2 border-indigo-500"
+            className="w-full md:w-auto bg-slate-900 text-white px-6 py-3.5 rounded-2xl font-bold uppercase tracking-widest text-[10px] shadow-xl shadow-indigo-200 hover:bg-slate-800 transition-all transform hover:-translate-y-1 active:scale-95 flex items-center justify-center gap-3 border-2 border-indigo-500"
           >
-            <Plus size={20} /> New Order
+            <Plus size={18} /> New Order
           </button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 pb-12">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-6 pb-12">
           <AnimatePresence mode="popLayout">
             {activeOrders.map(order => {
               const pendingCount = order.items.filter(i => i.status === OrderStatus.PENDING).reduce((acc, i) => acc + i.quantity, 0);
               const preparingCount = order.items.filter(i => i.status === OrderStatus.PREPARING).reduce((acc, i) => acc + i.quantity, 0);
               const readyCount = order.items.filter(i => i.status === OrderStatus.READY).reduce((acc, i) => acc + i.quantity, 0);
               const statusStyles = getStatusStyles(order.status);
-              const isOnline = order.tokenNumber.startsWith(currentTenant.customerTokenPrefix || 'WEB') || order.tokenNumber === 'OO';
-              const headerLabel = isOnline ? 'Online Order' : 'Service Token';
 
               return (
                 <motion.button
@@ -285,44 +309,48 @@ export const POS = () => {
                   exit={{ opacity: 0, scale: 0.95 }}
                   key={order.id}
                   onClick={() => handleSelectOrder(order)}
-                  className={`group relative bg-white rounded-[2rem] p-6 shadow-xl border-2 transition-all duration-300 text-left flex flex-col min-h-[260px] hover:scale-[1.02] ${
-                    order.status === OrderStatus.PENDING ? 'border-rose-500 shadow-rose-100' :
-                    order.status === OrderStatus.PREPARING ? 'border-amber-500 shadow-amber-100' :
-                    'border-emerald-500 shadow-emerald-100'
-                  }`}
+                  className="group relative bg-white rounded-[2rem] shadow-2xl border-4 border-black transition-all duration-300 text-left flex flex-col min-h-[280px] hover:scale-[1.02] overflow-hidden"
                 >
-                  <div className="flex justify-between items-start mb-6">
-                    <div className={`px-3 py-1 rounded-lg text-[9px] font-bold uppercase tracking-widest ${statusStyles.bg} ${statusStyles.text} border ${statusStyles.border} flex items-center gap-2`}>
-                      <div className={`w-1.5 h-1.5 rounded-full ${statusStyles.dot}`}></div>
-                      {order.status}
-                    </div>
-                    <div className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">{headerLabel}</div>
-                  </div>
+                  {/* Top Border Bar */}
+                  <div className={`absolute top-0 left-0 right-0 h-4 ${statusStyles.topBorder}`}></div>
                   
-                  <div className="flex items-center gap-4 mb-6">
-                    <div className={`w-14 h-14 rounded-2xl ${statusStyles.bg} flex items-center justify-center font-bold text-2xl ${statusStyles.text} border ${statusStyles.border} shadow-inner group-hover:scale-110 transition-transform`}>
-                      {order.tokenNumber}
+                  <div className="relative z-10 flex flex-col h-full p-4 pt-8">
+                    <div className="text-center mb-3">
+                      <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-900 mb-1">Status Overview</p>
+                      <div className={`w-8 h-1.5 mx-auto rounded-full ${statusStyles.topBorder}`}></div>
                     </div>
-                    <div>
-                      <p className="font-bold text-slate-900 text-lg">Table {order.tableNumber || 'N/A'}</p>
-                      <p className="text-[10px] text-slate-400 font-medium uppercase tracking-widest">Ref: #{order.id.slice(-4).toUpperCase()}</p>
-                    </div>
-                  </div>
 
-                  <div className="mt-auto space-y-4">
-                    <div className="grid grid-cols-3 gap-2">
-                      <StatusBadge label="Pending" count={pendingCount} styles={getStatusStyles(OrderStatus.PENDING)} />
-                      <StatusBadge label="Prep" count={preparingCount} styles={getStatusStyles(OrderStatus.PREPARING)} />
-                      <StatusBadge label="Ready" count={readyCount} styles={getStatusStyles(OrderStatus.READY)} />
-                    </div>
-                    
-                    <div className="pt-4 border-t border-slate-50 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <img src={getWaiterAvatar(order.createdBy)} className="w-6 h-6 rounded-lg border border-slate-100" alt="W" />
-                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest truncate max-w-[80px]">{getWaiterName(order.createdBy).split(' ')[0]}</span>
+                    {/* Token Number Pill (Exactly like image) */}
+                    <div className="flex justify-center mb-4 relative">
+                      <div className={`w-12 h-12 rounded-full border-2 border-black flex items-center justify-center font-black text-xl text-white shadow-xl ${statusStyles.topBorder}`}>
+                        {order.tokenNumber}
                       </div>
-                      <div className="text-sm font-bold text-slate-900">
-                        {currentTenant?.currency}{order.totalAmount.toFixed(2)}
+                      {order.tableNumber && (
+                        <div className="absolute -top-1 -right-1 bg-black text-white text-[9px] font-black px-2 py-0.5 rounded-full border-2 border-white shadow-lg">
+                          T-{order.tableNumber}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Status Grid */}
+                    <div className="grid grid-cols-3 gap-2 mb-6">
+                      <StatusBadge label="Pending" count={pendingCount} styles={getStatusStyles(OrderStatus.PENDING)} active={order.status === OrderStatus.PENDING} />
+                      <StatusBadge label="Preparing" count={preparingCount} styles={getStatusStyles(OrderStatus.PREPARING)} active={order.status === OrderStatus.PREPARING} />
+                      <StatusBadge label="Done" count={readyCount} styles={getStatusStyles(OrderStatus.READY)} active={order.status === OrderStatus.READY} />
+                    </div>
+
+                    {/* Dashed Divider */}
+                    <div className="border-t-2 border-dashed border-black mb-6"></div>
+
+                    {/* Footer */}
+                    <div className="mt-auto flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <img src={getWaiterAvatar(order.createdBy)} className="w-10 h-10 rounded-full border-2 border-black object-cover" alt="W" />
+                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-900">{getWaiterName(order.createdBy).split(' ')[0].toUpperCase()}</span>
+                      </div>
+                      <div className="bg-black text-white px-5 py-2.5 rounded-full font-black text-sm flex items-center gap-1 shadow-lg">
+                        <span className="text-xs">{currentTenant?.currency}</span>
+                        {order.totalAmount.toFixed(0)}
                       </div>
                     </div>
                   </div>
@@ -342,42 +370,42 @@ export const POS = () => {
   }
 
   return (
-    <div className="flex flex-col lg:flex-row bg-slate-50/50 h-full overflow-hidden">
+    <div className="flex flex-col lg:flex-row bg-slate-50/50 h-[calc(100vh-64px)] md:h-full overflow-hidden">
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden border-r border-slate-100">
         {/* POS Header */}
-        <div className="p-6 md:p-8 bg-white border-b border-slate-100 shrink-0">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
-            <div className="flex items-center gap-6">
+        <div className="p-4 md:p-8 bg-white border-b border-slate-100 shrink-0">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-6 mb-6 md:mb-8">
+            <div className="flex items-center gap-4 md:gap-6">
               <button 
                 onClick={() => { setSelectedOrderId(null); setIsCreatingNew(false); }}
-                className="w-12 h-12 bg-white rounded-2xl shadow-xl shadow-indigo-100 border-2 border-indigo-500 text-indigo-500 hover:bg-indigo-50 transition-all flex items-center justify-center active:scale-90"
+                className="w-10 h-10 md:w-12 md:h-12 bg-white rounded-2xl shadow-xl shadow-indigo-100 border-2 border-indigo-500 text-indigo-500 hover:bg-indigo-50 transition-all flex items-center justify-center active:scale-90"
               >
-                <ArrowLeft size={20} />
+                <ArrowLeft size={18} />
               </button>
               <div>
-                <h2 className="text-xl font-bold text-slate-900 tracking-tight">
+                <h2 className="text-lg md:text-xl font-bold text-slate-900 tracking-tight">
                   {isCreatingNew ? 'New Order Terminal' : `Token #${activeOrders.find(o => o.id === selectedOrderId)?.tokenNumber}`}
                 </h2>
                 {isCreatingNew && (
-                  <div className="flex items-center gap-6 mt-2">
+                  <div className="flex items-center gap-4 md:gap-6 mt-1 md:mt-2">
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Token:</span>
+                      <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Token:</span>
                       <input 
                         type="text" 
                         value={newTokenNum}
                         onChange={(e) => setNewTokenNum(e.target.value)}
-                        className={`w-10 text-center border-b-2 bg-transparent font-bold text-lg outline-none transition-all ${isTokenDuplicate ? 'border-rose-500 text-rose-600' : 'border-slate-900 text-slate-900'}`}
+                        className={`w-8 text-center border-b-2 bg-transparent font-bold text-base outline-none transition-all ${isTokenDuplicate ? 'border-rose-500 text-rose-600' : 'border-slate-900 text-slate-900'}`}
                       />
-                      {isTokenDuplicate && <AlertCircle className="text-rose-500" size={14} />}
+                      {isTokenDuplicate && <AlertCircle className="text-rose-500" size={12} />}
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Table:</span>
+                      <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Table:</span>
                       <input 
                         type="text" 
                         placeholder="No"
                         value={newTableNum}
                         onChange={(e) => setNewTableNum(e.target.value)}
-                        className="w-12 text-center border-b-2 bg-transparent font-bold text-lg outline-none transition-all border-slate-900 text-slate-900"
+                        className="w-10 text-center border-b-2 bg-transparent font-bold text-base outline-none transition-all border-slate-900 text-slate-900"
                       />
                     </div>
                   </div>
@@ -386,23 +414,23 @@ export const POS = () => {
             </div>
             
             <div className="relative w-full md:w-72 group">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={16} />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={14} />
                 <input 
                     type="text" 
                     placeholder="Search menu..." 
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-11 pr-4 py-3 bg-white border-2 border-indigo-500 rounded-2xl text-xs font-medium focus:outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all shadow-xl shadow-indigo-100"
+                    className="w-full pl-11 pr-4 py-2.5 bg-white border-2 border-indigo-500 rounded-2xl text-xs font-medium focus:outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all shadow-xl shadow-indigo-100"
                 />
             </div>
           </div>
 
-          <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
+          <div className="flex gap-2 md:gap-3 overflow-x-auto pb-2 no-scrollbar">
             {categories.map(cat => (
               <button
                 key={cat}
                 onClick={() => setActiveCategory(cat)}
-                className={`px-6 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all border-2 shrink-0 ${
+                className={`px-4 md:px-6 py-2 md:py-2.5 rounded-xl text-[9px] md:text-[10px] font-bold uppercase tracking-widest transition-all border-2 shrink-0 ${
                   activeCategory === cat 
                   ? 'bg-slate-900 text-white border-slate-900 shadow-xl shadow-slate-200' 
                   : 'bg-white text-slate-400 border-slate-100 hover:border-indigo-500 hover:text-indigo-500'
@@ -415,8 +443,8 @@ export const POS = () => {
         </div>
 
         {/* Menu Grid */}
-        <div className="flex-1 overflow-y-auto p-6 md:p-8 no-scrollbar">
-          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+        <div className="flex-1 overflow-y-auto p-4 md:p-8 no-scrollbar">
+          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-6">
             <AnimatePresence mode="popLayout">
               {filteredMenu.map(item => (
                 <motion.button 
@@ -486,10 +514,15 @@ export const POS = () => {
             exit={{ y: 100 }}
             className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 p-6 flex items-center justify-between z-[50] shadow-[0_-10px_40px_rgba(0,0,0,0.1)]"
           >
-            <div className="flex flex-col">
-                <span className="text-[9px] font-bold uppercase text-slate-400 tracking-widest mb-1">{cartCount} Items Selected</span>
+            <button 
+              onClick={() => setIsCartOpen(true)}
+              className="flex flex-col text-left"
+            >
+                <span className="text-[9px] font-bold uppercase text-slate-400 tracking-widest mb-1 flex items-center gap-1">
+                  <ShoppingCart size={10} /> {cartCount} Items Selected
+                </span>
                 <span className="text-2xl font-bold text-slate-900 leading-none">{currentTenant.currency}{cartTotal.toFixed(2)}</span>
-            </div>
+            </button>
             <button 
               onClick={createAndSubmitOrder}
               disabled={isTokenDuplicate}
@@ -497,6 +530,28 @@ export const POS = () => {
             >
               {isCreatingNew ? 'Send to Kitchen' : 'Update'} <ArrowRight size={18} />
             </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Mobile Cart Overlay */}
+      <AnimatePresence>
+        {isCartOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="lg:hidden fixed inset-0 z-[100] bg-slate-900/40 backdrop-blur-sm"
+          >
+            <motion.div 
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="absolute right-0 top-0 bottom-0 w-[85%] max-w-md"
+            >
+              <POSCartContent onClose={() => setIsCartOpen(false)} />
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
