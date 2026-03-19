@@ -63,7 +63,7 @@ const ENHANCED_MOCK_USERS: User[] = [
   ...MOCK_USERS,
   {
     id: 'u-cust',
-    tenantId: 't1',
+    tenantId: '01',
     name: 'Guest Customer',
     email: 'guest@customer.com',
     password: 'password',
@@ -731,7 +731,15 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   const createBusiness = async (businessData: Partial<Business>, ownerData: Partial<User>) => {
-    const newTenantId = `t-${Date.now()}`;
+    // Generate numeric ID starting at 01
+    const numericIds = tenants
+      .map(t => parseInt(t.id))
+      .filter(id => !isNaN(id))
+      .sort((a, b) => b - a);
+    
+    const nextId = numericIds.length > 0 ? numericIds[0] + 1 : 1;
+    const newTenantId = nextId < 10 ? `0${nextId}` : `${nextId}`;
+
     const newBusiness: Business = {
       id: newTenantId,
       name: businessData.name || 'New Restaurant',

@@ -2,7 +2,7 @@
 import { Role, Business, User, MenuItem, InventoryItem, Order, OrderStatus, Expense } from './types';
 
 export const BUSINESS_DETAILS: Business = {
-  id: 't1',
+  id: '01',
   name: 'OmniDine Bistro',
   logo: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?q=80&w=200&h=200&auto=format&fit=crop',
   address: '77 Culinary Ave, Food District, NY 10001',
@@ -35,33 +35,33 @@ export const MOCK_USERS: User[] = [
     permissions: ['Portal']
   },
   { 
-    id: 'u1', tenantId: 't1', name: 'Raj Patel', email: 'owner@bistro.com', password: 'password', mobile: '5550101', role: Role.OWNER, avatar: 'https://i.pravatar.cc/150?u=1',
+    id: 'u1', tenantId: '01', name: 'Raj Patel', email: 'owner@bistro.com', password: 'password', mobile: '5550101', role: Role.OWNER, avatar: 'https://i.pravatar.cc/150?u=1',
     permissions: ALL_PERMISSIONS 
   },
   { 
-    id: 'u2', tenantId: 't1', name: 'Mike Waiter', email: 'waiter@bistro.com', password: 'password', mobile: '5550102', role: Role.WAITER, avatar: 'https://i.pravatar.cc/150?u=3',
+    id: 'u2', tenantId: '01', name: 'Mike Waiter', email: 'waiter@bistro.com', password: 'password', mobile: '5550102', role: Role.WAITER, avatar: 'https://i.pravatar.cc/150?u=3',
     permissions: ['POS']
   },
   { 
-    id: 'u3', tenantId: 't1', name: 'Chef Gordon', email: 'kitchen@bistro.com', password: 'password', mobile: '5550103', role: Role.KITCHEN, avatar: 'https://i.pravatar.cc/150?u=4',
+    id: 'u3', tenantId: '01', name: 'Chef Gordon', email: 'kitchen@bistro.com', password: 'password', mobile: '5550103', role: Role.KITCHEN, avatar: 'https://i.pravatar.cc/150?u=4',
     permissions: ['Kitchen']
   }
 ];
 
 export const MOCK_MENU: MenuItem[] = [
-  { id: 'm1', tenantId: 't1', name: 'Signature Ramen', price: 18.00, category: 'Main', image: 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?q=80&w=200&h=200&auto=format&fit=crop', isAvailable: true },
-  { id: 'm2', tenantId: 't1', name: 'Gyoza Dumplings', price: 9.00, category: 'Starter', image: 'https://images.unsplash.com/photo-1496116218417-1a781b1c416c?q=80&w=200&h=200&auto=format&fit=crop', isAvailable: true },
-  { id: 'm3', tenantId: 't1', name: 'Matcha Iced Tea', price: 5.50, category: 'Beverage', image: 'https://images.unsplash.com/photo-1582722872445-41ca501ea146?q=80&w=200&h=200&auto=format&fit=crop', isAvailable: true },
+  { id: 'm1', tenantId: '01', name: 'Signature Ramen', price: 18.00, category: 'Main', image: 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?q=80&w=200&h=200&auto=format&fit=crop', isAvailable: true },
+  { id: 'm2', tenantId: '01', name: 'Gyoza Dumplings', price: 9.00, category: 'Starter', image: 'https://images.unsplash.com/photo-1496116218417-1a781b1c416c?q=80&w=200&h=200&auto=format&fit=crop', isAvailable: true },
+  { id: 'm3', tenantId: '01', name: 'Matcha Iced Tea', price: 5.50, category: 'Beverage', image: 'https://images.unsplash.com/photo-1582722872445-41ca501ea146?q=80&w=200&h=200&auto=format&fit=crop', isAvailable: true },
 ];
 
 export const MOCK_INVENTORY: InventoryItem[] = [
-  { id: 'i1', tenantId: 't1', name: 'Flour', unit: 'kg', quantity: 50, minThreshold: 10, supplier: 'Grain Co', pricePerUnit: 2 },
+  { id: 'i1', tenantId: '01', name: 'Flour', unit: 'kg', quantity: 50, minThreshold: 10, supplier: 'Grain Co', pricePerUnit: 2 },
 ];
 
 export const INITIAL_ORDERS: Order[] = [
   {
     id: 'o1',
-    tenantId: 't1',
+    tenantId: '01',
     tokenNumber: '12',
     items: [
       { rowId: 'row-1', itemId: 'm1', name: 'Signature Ramen', quantity: 2, price: 18.00, status: OrderStatus.PREPARING }

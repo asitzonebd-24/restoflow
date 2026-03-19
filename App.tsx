@@ -230,7 +230,6 @@ const AppContent = () => {
   return (
     <Routes>
       <Route path="/" element={currentUser ? <Navigate to={getDefaultRedirect()} /> : <Landing />} />
-      <Route path="/t/:tenantId" element={<TenantLanding />} />
       <Route path="/login" element={currentUser ? <Navigate to={getDefaultRedirect()} /> : <Login />} />
       <Route path="/order/auth" element={currentUser ? <Navigate to="/order" /> : <CustomerAuth />} />
       
@@ -264,6 +263,7 @@ const AppContent = () => {
       <Route path="/reports" element={<ProtectedLayout><Reports /></ProtectedLayout>} />
       <Route path="/users" element={<ProtectedLayout><UsersPage /></ProtectedLayout>} />
       <Route path="/settings" element={<ProtectedLayout><SettingsPage /></ProtectedLayout>} />
+      <Route path="/:tenantId" element={<TenantLanding />} />
     </Routes>
   );
 }

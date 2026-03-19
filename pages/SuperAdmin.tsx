@@ -14,7 +14,7 @@ export const SuperAdmin = () => {
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const copyLink = (id: string) => {
-    const link = `${window.location.origin}/#/t/${id}`;
+    const link = `${window.location.origin}/#/${id}`;
     navigator.clipboard.writeText(link);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
