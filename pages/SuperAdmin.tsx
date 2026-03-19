@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Business, Role } from '../types';
-import { Plus, Building2, User, Mail, Phone, Globe, MapPin, Search, ExternalLink, Calendar, Power, PowerOff, DollarSign, Edit3, Save, X as CloseIcon, AlertTriangle } from 'lucide-react';
+import { Plus, Building2, User, Mail, Phone, Globe, MapPin, Search, ExternalLink, Calendar, Power, PowerOff, DollarSign, Edit3, Save, X as CloseIcon, AlertTriangle, Copy, Check } from 'lucide-react';
 
 export const SuperAdmin = () => {
   const { tenants, createBusiness, currentUser, toggleBusinessStatus, updateTenant, allUsers } = useApp();
@@ -11,6 +11,14 @@ export const SuperAdmin = () => {
   const [billAmount, setBillAmount] = useState<number>(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const copyLink = (id: string) => {
+    const link = `${window.location.origin}/#/t/${id}`;
+    navigator.clipboard.writeText(link);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
   
   const [newBusiness, setNewBusiness] = useState({
     name: '',
@@ -138,9 +146,18 @@ export const SuperAdmin = () => {
                       <img src={tenant.logo} className="w-10 h-10 rounded-full object-cover border border-slate-200" />
                       <div>
                         <p className="font-bold text-slate-900">{tenant.name}</p>
-                        <p className="text-xs text-slate-500 flex items-center gap-1">
-                          <MapPin size={12} /> {tenant.address || 'No address'}
-                        </p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <p className="text-[9px] font-bold text-indigo-500 uppercase tracking-widest bg-indigo-50 px-2 py-0.5 rounded">
+                            ID: {tenant.id}
+                          </p>
+                          <button 
+                            onClick={() => copyLink(tenant.id)}
+                            className="flex items-center gap-1 text-[9px] font-bold text-slate-400 hover:text-indigo-600 transition uppercase tracking-widest"
+                          >
+                            {copiedId === tenant.id ? <Check size={10} /> : <Copy size={10} />}
+                            {copiedId === tenant.id ? 'Copied' : 'Copy Link'}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </td>

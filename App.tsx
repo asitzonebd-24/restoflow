@@ -22,6 +22,7 @@ import { CustomerAuth } from './pages/CustomerAuth';
 import { CustomerPanel } from './pages/CustomerPanel';
 import { CustomerHistory } from './pages/CustomerHistory';
 import { SuperAdmin } from './pages/SuperAdmin';
+import { TenantLanding } from './pages/TenantLanding';
 import { PendingBills } from './pages/PendingBills';
 import { ApprovedBills } from './pages/ApprovedBills';
 import { Role } from './types';
@@ -229,6 +230,7 @@ const AppContent = () => {
   return (
     <Routes>
       <Route path="/" element={currentUser ? <Navigate to={getDefaultRedirect()} /> : <Landing />} />
+      <Route path="/t/:tenantId" element={<TenantLanding />} />
       <Route path="/login" element={currentUser ? <Navigate to={getDefaultRedirect()} /> : <Login />} />
       <Route path="/order/auth" element={currentUser ? <Navigate to="/order" /> : <CustomerAuth />} />
       

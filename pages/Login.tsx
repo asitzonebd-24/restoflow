@@ -1,22 +1,31 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Role } from '../types';
 import { LogIn, ChefHat, Mail, Lock, AlertCircle, Utensils, ArrowRight } from 'lucide-react';
 
 export const Login = () => {
-  const { login, business, dbStatus } = useApp();
+  const { login, business, dbStatus, setCurrentTenantId } = useApp();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [staffError, setStaffError] = useState('');
   
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const tenantId = searchParams.get('tenantId');
+
+  useEffect(() => {
+    if (tenantId) {
+      setCurrentTenantId(tenantId);
+    }
+    return () => setCurrentTenantId(null);
+  }, [tenantId, setCurrentTenantId]);
 
   const handleStaffSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setStaffError('');
-    const success = login(email, password);
+    const success = login(email, password, tenantId);
     if (!success) {
       setStaffError('Access denied. Please check your credentials.');
     }

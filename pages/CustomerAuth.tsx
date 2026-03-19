@@ -1,15 +1,24 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Role, User } from '../types';
 import { ArrowRight, Lock, User as UserIcon, Phone, Mail, Utensils, MapPin } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 export const CustomerAuth = () => {
-  const { business, login, addUser, users } = useApp();
+  const { business, login, addUser, users, setCurrentTenantId } = useApp();
   const [isRegistering, setIsRegistering] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const tenantId = searchParams.get('tenantId');
+
+  useEffect(() => {
+    if (tenantId) {
+      setCurrentTenantId(tenantId);
+    }
+    return () => setCurrentTenantId(null);
+  }, [tenantId, setCurrentTenantId]);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -38,11 +47,11 @@ export const CustomerAuth = () => {
           avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.name)}&background=indigo&color=fff`
         };
         addUser(newUser);
-        login(newUser.email, formData.password);
+        login(newUser.email, formData.password, tenantId);
       } else {
-        const user = users.find(u => (u.email === formData.email || u.mobile === formData.mobile) && u.password === formData.password);
+        const user = users.find(u => (u.email === formData.email || u.mobile === formData.mobile) && u.password === formData.password && (!tenantId || u.tenantId === tenantId));
         if (user) {
-          login(user.email, formData.password);
+          login(user.email, formData.password, tenantId);
         } else {
           alert("Invalid credentials. Please try again or create an account.");
           setLoading(false);

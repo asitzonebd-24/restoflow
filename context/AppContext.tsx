@@ -11,7 +11,7 @@ interface AppContextType {
   orders: Order[];
   inventory: InventoryItem[];
   menu: MenuItem[];
-  login: (email: string, password: string) => boolean;
+  login: (email: string, password: string, tenantId?: string | null) => boolean;
   logout: () => void;
   addOrder: (order: Omit<Order, 'tenantId'>) => void;
   updateOrderItems: (orderId: string, items: OrderItem[], totalAmount: number, note?: string) => void;
@@ -36,6 +36,8 @@ interface AppContextType {
   updateBusiness: (updates: Partial<Business>) => void;
   updateTenant: (tenantId: string, updates: Partial<Business>) => void;
   currentTenant: Business;
+  currentTenantId: string | null;
+  setCurrentTenantId: (id: string | null) => void;
   createBusiness: (businessData: Partial<Business>, ownerData: Partial<User>) => void;
   toggleBusinessStatus: (tenantId: string) => void;
   transactions: Transaction[];
@@ -77,6 +79,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     const savedUser = localStorage.getItem('resto_flow_user');
     return savedUser ? JSON.parse(savedUser) : null;
   });
+  const [currentTenantId, setCurrentTenantId] = useState<string | null>(null);
   const [tenants, setTenants] = useState<Business[]>([]);
   const [allOrders, setAllOrders] = useState<Order[]>([]);
   const [allInventory, setAllInventory] = useState<InventoryItem[]>([]);
@@ -264,42 +267,47 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   }, []);
 
   const business = useMemo(() => {
-    if (!currentUser || !currentUser.tenantId) return tenants[0];
-    return tenants.find(t => t.id === currentUser.tenantId) || tenants[0];
-  }, [currentUser, tenants]);
+    const targetId = currentUser?.tenantId || currentTenantId;
+    if (!targetId) return tenants[0] || BUSINESS_DETAILS;
+    return tenants.find(t => t.id === targetId) || tenants[0] || BUSINESS_DETAILS;
+  }, [currentUser, tenants, currentTenantId]);
 
-  const orders = useMemo(() => 
-    allOrders.filter(o => o.tenantId === currentUser?.tenantId), 
-    [allOrders, currentUser]
-  );
+  const orders = useMemo(() => {
+    const targetId = currentUser?.tenantId || currentTenantId;
+    return allOrders.filter(o => o.tenantId === targetId);
+  }, [allOrders, currentUser, currentTenantId]);
 
-  const inventory = useMemo(() => 
-    allInventory.filter(i => i.tenantId === currentUser?.tenantId), 
-    [allInventory, currentUser]
-  );
+  const inventory = useMemo(() => {
+    const targetId = currentUser?.tenantId || currentTenantId;
+    return allInventory.filter(i => i.tenantId === targetId);
+  }, [allInventory, currentUser, currentTenantId]);
 
-  const menu = useMemo(() => 
-    allMenu.filter(m => m.tenantId === currentUser?.tenantId), 
-    [allMenu, currentUser]
-  );
+  const menu = useMemo(() => {
+    const targetId = currentUser?.tenantId || currentTenantId;
+    return allMenu.filter(m => m.tenantId === targetId);
+  }, [allMenu, currentUser, currentTenantId]);
 
-  const users = useMemo(() => 
-    allUsers.filter(u => u.tenantId === currentUser?.tenantId || u.role === Role.SUPER_ADMIN), 
-    [allUsers, currentUser]
-  );
+  const users = useMemo(() => {
+    const targetId = currentUser?.tenantId || currentTenantId;
+    return allUsers.filter(u => u.tenantId === targetId || u.role === Role.SUPER_ADMIN);
+  }, [allUsers, currentUser, currentTenantId]);
 
-  const transactions = useMemo(() => 
-    allTransactions.filter(t => t.tenantId === currentUser?.tenantId), 
-    [allTransactions, currentUser]
-  );
+  const transactions = useMemo(() => {
+    const targetId = currentUser?.tenantId || currentTenantId;
+    return allTransactions.filter(t => t.tenantId === targetId);
+  }, [allTransactions, currentUser, currentTenantId]);
 
-  const expenses = useMemo(() => 
-    allExpenses.filter(e => e.tenantId === currentUser?.tenantId), 
-    [allExpenses, currentUser]
-  );
+  const expenses = useMemo(() => {
+    const targetId = currentUser?.tenantId || currentTenantId;
+    return allExpenses.filter(e => e.tenantId === targetId);
+  }, [allExpenses, currentUser, currentTenantId]);
 
-  const login = (email: string, password: string): boolean => {
-    const user = allUsers.find(u => u.email === email && u.password === password);
+  const login = (email: string, password: string, tenantId?: string | null): boolean => {
+    const user = allUsers.find(u => 
+      u.email === email && 
+      u.password === password && 
+      (!tenantId || u.tenantId === tenantId || u.role === Role.SUPER_ADMIN)
+    );
     if (user) {
       setCurrentUser(user);
       localStorage.setItem('resto_flow_user', JSON.stringify(user));
@@ -945,6 +953,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       updateBusiness,
       updateTenant,
       currentTenant: business,
+      currentTenantId,
+      setCurrentTenantId,
       createBusiness,
       toggleBusinessStatus,
       transactions,
