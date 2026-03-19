@@ -11,7 +11,7 @@ export const BUSINESS_DETAILS: Business = {
   vatRate: 10,
   includeVat: true,
   timezone: 'EST',
-  themeColor: '#0f172a',
+  themeColor: '#000000',
   expenseCategories: ['Inventory', 'Maintenance', 'Utilities', 'Salaries', 'Marketing', 'Other'],
   menuCategories: ['Main', 'Starter', 'Beverage', 'Dessert'],
   customerTokenPrefix: 'WEB',
@@ -28,6 +28,10 @@ const ALL_PERMISSIONS = ['Dashboard', 'POS', 'Kitchen', 'Menu', 'Billing', 'Tran
 export const MOCK_USERS: User[] = [
   {
     id: 'sa1', name: 'Super Admin', email: 'admin@portal.com', password: 'admin', mobile: '0000000', role: Role.SUPER_ADMIN, avatar: 'https://i.pravatar.cc/150?u=sa',
+    permissions: ['Portal']
+  },
+  {
+    id: 'sa-user', name: 'Super Admin (User)', email: 'asitzonebd@gmail.com', password: 'admin', mobile: '0000000', role: Role.SUPER_ADMIN, avatar: 'https://i.pravatar.cc/150?u=sau',
     permissions: ['Portal']
   },
   { 

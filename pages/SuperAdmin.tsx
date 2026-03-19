@@ -87,19 +87,19 @@ export const SuperAdmin = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+        <div className="bg-white p-6 rounded-2xl border-2 border-indigo-500 shadow-lg shadow-indigo-100 transition-all hover:scale-105">
           <p className="text-slate-500 text-sm font-medium mb-1">Total Restaurants</p>
           <h3 className="text-3xl font-bold text-slate-900">{tenants.length}</h3>
         </div>
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+        <div className="bg-white p-6 rounded-2xl border-2 border-emerald-500 shadow-lg shadow-emerald-100 transition-all hover:scale-105">
           <p className="text-slate-500 text-sm font-medium mb-1">Active</p>
           <h3 className="text-3xl font-bold text-emerald-600">{tenants.filter(t => t.isActive).length}</h3>
         </div>
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+        <div className="bg-white p-6 rounded-2xl border-2 border-rose-500 shadow-lg shadow-rose-100 transition-all hover:scale-105">
           <p className="text-slate-500 text-sm font-medium mb-1">Deactivated</p>
           <h3 className="text-3xl font-bold text-red-600">{tenants.filter(t => !t.isActive).length}</h3>
         </div>
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+        <div className="bg-white p-6 rounded-2xl border-2 border-indigo-500 shadow-lg shadow-indigo-100 transition-all hover:scale-105">
           <p className="text-slate-500 text-sm font-medium mb-1">Monthly Revenue</p>
           <h3 className="text-3xl font-bold text-indigo-600">
             ৳{tenants.filter(t => t.isActive).reduce((sum, t) => sum + t.monthlyBill, 0)}
@@ -107,13 +107,13 @@ export const SuperAdmin = () => {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex items-center gap-3">
-          <Search size={20} className="text-slate-400" />
+      <div className="bg-white rounded-2xl border-2 border-indigo-500 shadow-xl overflow-hidden shadow-indigo-100">
+        <div className="p-4 border-b border-indigo-100 bg-slate-50/50 flex items-center gap-3 group">
+          <Search size={20} className="text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
           <input 
             type="text" 
             placeholder="Search restaurants by name or address..."
-            className="bg-transparent border-none focus:ring-0 flex-1 text-sm"
+            className="bg-transparent border-none focus:ring-0 flex-1 text-sm font-medium"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -211,8 +211,8 @@ export const SuperAdmin = () => {
 
       {showModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+          <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 border-2 border-indigo-500 shadow-indigo-100">
+            <div className="p-6 border-b border-indigo-100 flex items-center justify-between bg-slate-50/50">
               <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
                 <Building2 className="text-indigo-600" />
                 Register New Restaurant

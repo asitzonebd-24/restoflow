@@ -127,7 +127,7 @@ export const Reports = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
-                <div className="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-xl border-b-8 border-emerald-500 border-x-2 border-t-2 border-slate-900 flex flex-col justify-between transition-transform hover:-translate-y-1">
+                <div className="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-xl border-2 border-emerald-500 flex flex-col justify-between transition-all hover:-translate-y-1 hover:shadow-2xl shadow-emerald-100">
                     <div className="flex items-start justify-between mb-4">
                         <div className="p-3 md:p-4 bg-emerald-50 text-emerald-600 rounded-[1.5rem] border-2 border-emerald-100">
                             <TrendingUp size={24} md:size={28} strokeWidth={3} />
@@ -141,7 +141,7 @@ export const Reports = () => {
                     </div>
                 </div>
 
-                <div className="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-xl border-b-8 border-red-500 border-x-2 border-t-2 border-slate-900 flex flex-col justify-between transition-transform hover:-translate-y-1">
+                <div className="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-xl border-2 border-rose-500 flex flex-col justify-between transition-all hover:-translate-y-1 hover:shadow-2xl shadow-rose-100">
                     <div className="flex items-start justify-between mb-4">
                         <div className="p-3 md:p-4 bg-red-50 text-red-600 rounded-[1.5rem] border-2 border-red-100">
                             <TrendingDown size={24} md:size={28} strokeWidth={3} />
@@ -155,7 +155,7 @@ export const Reports = () => {
                     </div>
                 </div>
 
-                <div className="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-xl border-b-8 border-indigo-500 border-x-2 border-t-2 border-slate-900 flex flex-col justify-between transition-transform hover:-translate-y-1 md:col-span-2 lg:col-span-1">
+                <div className="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-xl border-2 border-indigo-500 flex flex-col justify-between transition-all hover:-translate-y-1 hover:shadow-2xl md:col-span-2 lg:col-span-1 shadow-indigo-100">
                     <div className="flex items-start justify-between mb-4">
                         <div className="p-3 md:p-4 bg-indigo-50 text-indigo-600 rounded-[1.5rem] border-2 border-indigo-100">
                             <DollarSign size={24} md:size={28} strokeWidth={3} />
@@ -171,7 +171,7 @@ export const Reports = () => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 pb-12">
-                <div className="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-xl border-4 border-slate-900">
+                <div className="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-xl border-2 border-indigo-500 shadow-indigo-100">
                     <div className="flex items-center gap-3 mb-8">
                         <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600">
                             <Calendar size={20} strokeWidth={3} />
@@ -209,7 +209,7 @@ export const Reports = () => {
                     </div>
                 </div>
 
-                <div className="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-xl border-4 border-slate-900">
+                <div className="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-xl border-2 border-amber-500 shadow-amber-100">
                     <div className="flex items-center gap-3 mb-8">
                         <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center text-amber-600">
                             <PieChartIcon size={20} strokeWidth={3} />

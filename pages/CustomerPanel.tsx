@@ -42,7 +42,7 @@ export const CustomerPanel = () => {
 
   return (
     <div className="flex h-screen bg-[#f1f5f9] overflow-hidden">
-      <aside className="h-full w-20 md:w-64 bg-black text-white z-[110] border-r-8 border-black flex flex-col items-center md:items-stretch py-8 shrink-0">
+      <aside className="h-full w-20 md:w-64 bg-slate-900 text-white z-[110] border-r-4 border-indigo-500 flex flex-col items-center md:items-stretch py-8 shrink-0 shadow-2xl shadow-indigo-100">
         <div className="flex items-center gap-3 px-4 md:px-8 mb-12">
            <img src={business.logo} alt="Logo" className="w-10 h-10 rounded-full border-2 border-white" />
            <h2 className="hidden md:block font-black text-lg uppercase tracking-tighter">OmniDine</h2>
@@ -67,7 +67,7 @@ export const CustomerPanel = () => {
       </aside>
 
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
-        <header className="bg-white border-b-4 border-black p-4 flex justify-between items-center shadow-sm shrink-0">
+        <header className="bg-white border-b-4 border-indigo-500 p-4 flex justify-between items-center shadow-xl shadow-indigo-100 shrink-0">
            <h1 className="text-xl font-black uppercase tracking-tighter">Active Tokens</h1>
            <div className="flex items-center gap-3">
               <Timer className="text-indigo-600" size={20} />
@@ -97,7 +97,11 @@ export const CustomerPanel = () => {
                     return (
                         <div
                             key={order.id}
-                            className={`group relative bg-white rounded-[2rem] md:rounded-[2.5rem] p-5 shadow-xl border-t-8 ${status.border} border-x-4 border-b-4 border-black flex flex-col items-center justify-between min-h-[220px] transition-all duration-300 transform hover:-translate-y-2 animate-in zoom-in-95`}
+                            className={`group relative bg-white rounded-[2rem] md:rounded-[2.5rem] p-5 shadow-xl border-t-8 border-x-4 border-b-4 transition-all duration-300 transform hover:-translate-y-2 animate-in zoom-in-95 ${
+                                order.status === OrderStatus.PENDING ? 'border-rose-500 shadow-rose-100' :
+                                order.status === OrderStatus.PREPARING ? 'border-amber-500 shadow-amber-100' :
+                                'border-emerald-500 shadow-emerald-100'
+                            }`}
                         >
                             <div className="w-full">
                                 <div className="flex flex-col items-center">
@@ -120,14 +124,14 @@ export const CustomerPanel = () => {
                                     <StatusBox label="Ready" count={readyCount} colorClass="bg-slate-50 border-slate-100 text-slate-300" activeColor="bg-emerald-50 border-emerald-200 text-emerald-600 shadow-sm" />
                                 </div>
 
-                                <div className="pt-4 border-t-2 border-black border-dashed flex items-center justify-between">
+                                <div className="pt-4 border-t-2 border-slate-200 border-dashed flex items-center justify-between">
                                     <div className="flex items-center gap-2">
                                         <Clock size={14} className="text-slate-300" />
                                         <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
                                             {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                         </span>
                                     </div>
-                                    <div className="bg-black text-white px-3 py-1.5 rounded-xl text-[10px] font-black shadow-md border-2 border-white">
+                                    <div className="bg-slate-900 text-white px-3 py-1.5 rounded-xl text-[10px] font-black shadow-md border-2 border-indigo-500">
                                         {business.currency}{order.totalAmount.toFixed(0)}
                                     </div>
                                 </div>

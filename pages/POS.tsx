@@ -2,7 +2,29 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { MenuItem, OrderItem, Order, OrderStatus, Role } from '../types';
-import { ShoppingCart, Plus, Minus, ChefHat, Send, FileText, Hash, LayoutGrid, ArrowLeft, User as UserIcon, CheckCircle2, AlertCircle, ShoppingBag, X, ArrowRight, ShoppingBasket } from 'lucide-react';
+import { 
+  ShoppingCart, 
+  Plus, 
+  Minus, 
+  ChefHat, 
+  Send, 
+  FileText, 
+  Hash, 
+  LayoutGrid, 
+  ArrowLeft, 
+  User as UserIcon, 
+  CheckCircle2, 
+  AlertCircle, 
+  ShoppingBag, 
+  X, 
+  ArrowRight, 
+  ShoppingBasket,
+  Search,
+  Clock,
+  ChevronRight,
+  Utensils
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export const POS = () => {
   const { menu, currentTenant, currentUser, addOrder, updateOrderItems, orders, users } = useApp();
@@ -13,6 +35,7 @@ export const POS = () => {
   const [isCreatingNew, setIsCreatingNew] = useState(false);
   const [newTokenNum, setNewTokenNum] = useState('');
   const [newTableNum, setNewTableNum] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
 
   const categories = useMemo(() => ['All', ...Array.from(new Set(menu.map(m => m.category)))], [menu]);
 
@@ -39,16 +62,16 @@ export const POS = () => {
     return user ? user.avatar : `https://ui-avatars.com/api/?name=W&background=random`;
   };
 
-  const getStatusColorClasses = (status: OrderStatus) => {
+  const getStatusStyles = (status: OrderStatus) => {
     switch(status) {
       case OrderStatus.PENDING: 
-        return { border: 'border-t-red-500', bg: 'bg-red-500', lightBg: 'bg-red-50', text: 'text-red-600', borderLight: 'border-red-200' };
+        return { bg: 'bg-rose-50', text: 'text-rose-600', border: 'border-rose-100', dot: 'bg-rose-500' };
       case OrderStatus.PREPARING: 
-        return { border: 'border-t-yellow-500', bg: 'bg-yellow-500', lightBg: 'bg-amber-50', text: 'text-amber-600', borderLight: 'border-amber-200' };
+        return { bg: 'bg-amber-50', text: 'text-amber-600', border: 'border-amber-100', dot: 'bg-amber-500' };
       case OrderStatus.READY: 
-        return { border: 'border-t-green-500', bg: 'bg-green-500', lightBg: 'bg-emerald-50', text: 'text-emerald-600', borderLight: 'border-emerald-200' };
+        return { bg: 'bg-emerald-50', text: 'text-emerald-600', border: 'border-emerald-100', dot: 'bg-emerald-500' };
       default: 
-        return { border: 'border-t-black', bg: 'bg-black', lightBg: 'bg-slate-50', text: 'text-slate-600', borderLight: 'border-slate-200' };
+        return { bg: 'bg-slate-50', text: 'text-slate-600', border: 'border-slate-100', dot: 'bg-slate-500' };
     }
   };
 
@@ -72,6 +95,7 @@ export const POS = () => {
   };
 
   const addToCart = (item: MenuItem) => {
+    if (item.stock !== undefined && item.stock !== null && item.stock <= 0) return;
     setCart(prev => [
       ...prev, 
       { 
@@ -124,257 +148,358 @@ export const POS = () => {
     setNewTableNum('');
   };
 
-  const filteredMenu = activeCategory === 'All' ? menu : menu.filter(m => m.category === activeCategory);
+  const filteredMenu = useMemo(() => {
+    return menu.filter(m => {
+      const matchesCategory = activeCategory === 'All' || m.category === activeCategory;
+      const matchesSearch = m.name.toLowerCase().includes(searchTerm.toLowerCase());
+      return matchesCategory && matchesSearch;
+    });
+  }, [menu, activeCategory, searchTerm]);
+
   const cartTotal = cart.reduce((sum, i) => sum + (i.price * i.quantity), 0);
   const cartCount = cart.reduce((acc, i) => acc + i.quantity, 0);
 
-  const StatusBox = ({ label, count, colorClass, activeColor }: { label: string, count: number, colorClass: string, activeColor: string }) => (
-    <div className={`flex flex-col items-center justify-center py-1 px-1 rounded-xl border-2 transition-all ${count > 0 ? activeColor : colorClass}`}>
-      <span className="text-[7px] font-black uppercase tracking-widest opacity-80 mb-0.5">{label}</span>
-      <span className="text-sm font-black">{count}</span>
+  const StatusBadge = ({ label, count, styles }: { label: string, count: number, styles: any }) => (
+    <div className={`flex flex-col items-center justify-center p-2 rounded-2xl border transition-all ${count > 0 ? `${styles.bg} ${styles.border} ${styles.text}` : 'bg-slate-50 border-slate-100 text-slate-300'}`}>
+      <span className="text-[8px] font-bold uppercase tracking-widest mb-1 opacity-60">{label}</span>
+      <span className="text-sm font-bold">{count}</span>
     </div>
   );
 
   const POSCartContent = () => (
-    <div className="flex flex-col h-full bg-white">
-      <div className="p-6 border-b-4 border-black bg-slate-50 shrink-0">
-        <h2 className="text-xl font-black uppercase tracking-tighter flex items-center gap-3">
-           <ShoppingBasket size={24} strokeWidth={3} /> Basket
-        </h2>
+    <div className="flex flex-col h-full bg-white border-l-2 border-indigo-500 shadow-2xl shadow-indigo-100">
+      <div className="p-6 md:p-8 border-b border-slate-100 bg-slate-50/30 shrink-0">
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-lg font-bold text-slate-900 tracking-tight flex items-center gap-3">
+             <ShoppingBasket size={20} className="text-indigo-500" /> Order Basket
+          </h2>
+          <span className="px-3 py-1.5 rounded-xl bg-slate-900 text-white text-[10px] font-bold uppercase tracking-widest shadow-sm">
+            {cartCount} Items
+          </span>
+        </div>
+        <p className="text-xs text-slate-400 font-medium">Review selection before processing</p>
       </div>
 
-      <div className="p-4 md:p-6 space-y-3 h-auto">
-        {cart.length === 0 ? (
-          <div className="py-20 flex flex-col items-center justify-center text-slate-200">
-              <ShoppingCart size={48} className="mb-4 opacity-50" />
-              <p className="font-black uppercase text-[10px] tracking-[0.3em]">No items added</p>
-          </div>
-        ) : (
-          cart.map(item => (
-            <div key={item.rowId} className="bg-slate-50 p-3 rounded-[1.5rem] border-2 border-black flex justify-between items-center shadow-sm">
-              <div className="min-w-0 pr-4">
-                  <h4 className="font-black text-[9px] md:text-[10px] uppercase truncate">{item.name}</h4>
-                  <p className="text-[9px] font-bold text-slate-400">{currentTenant.currency}{item.price.toFixed(0)}</p>
-              </div>
-              <div className="flex items-center gap-1.5 bg-white p-1 rounded-xl border-2 border-black shadow-inner">
-                  <button onClick={() => updateQuantity(item.rowId, -1)} className="p-1.5 hover:bg-black hover:text-white rounded-lg transition active:scale-90"><Minus size={10} strokeWidth={4}/></button>
-                  <span className="font-black text-[11px] w-6 text-center">{item.quantity}</span>
-                  <button onClick={() => updateQuantity(item.rowId, 1)} className="p-1.5 hover:bg-black hover:text-white rounded-lg transition active:scale-90"><Plus size={10} strokeWidth={4}/></button>
-              </div>
-            </div>
-          ))
-        )}
+      <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-4 no-scrollbar">
+        <AnimatePresence mode="popLayout">
+          {cart.length === 0 ? (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="py-20 flex flex-col items-center justify-center text-slate-300"
+            >
+                <ShoppingCart size={48} strokeWidth={1} className="mb-4 opacity-20" />
+                <p className="text-[10px] font-bold uppercase tracking-widest opacity-40">Basket is empty</p>
+            </motion.div>
+          ) : (
+            cart.map(item => (
+              <motion.div 
+                layout
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                key={item.rowId} 
+                className="bg-white p-4 rounded-2xl border border-slate-100 flex justify-between items-center hover:border-slate-200 transition-all group shadow-sm"
+              >
+                <div className="min-w-0 pr-4">
+                    <h4 className="font-bold text-slate-900 text-sm truncate">{item.name}</h4>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{currentTenant.currency}{item.price.toFixed(2)}</p>
+                </div>
+                <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-xl border border-slate-100 group-hover:bg-white transition-colors">
+                    <button onClick={() => updateQuantity(item.rowId, -1)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-500 transition-all"><Minus size={14} /></button>
+                    <span className="font-bold text-sm w-8 text-center text-slate-900">{item.quantity}</span>
+                    <button onClick={() => updateQuantity(item.rowId, 1)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-emerald-50 text-slate-400 hover:text-emerald-500 transition-all"><Plus size={14} /></button>
+                </div>
+              </motion.div>
+            ))
+          )}
+        </AnimatePresence>
       </div>
 
-      <div id="staff-note-section" className="p-6 border-t-8 border-black bg-slate-50 shrink-0 transition-all duration-500">
-        <div className="space-y-4 mb-6">
-          <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1.5 block flex items-center gap-2">
+      <div className="p-6 md:p-8 border-t border-slate-100 bg-slate-50/30 shrink-0 space-y-6">
+        <div className="space-y-3">
+          <label className="text-[10px] font-bold uppercase text-slate-400 tracking-widest flex items-center gap-2 ml-1">
             <FileText size={12} /> Kitchen Notes
           </label>
           <textarea 
             value={orderNote}
             onChange={(e) => setOrderNote(e.target.value)}
-            placeholder="e.g. Extra spicy, No onions..."
-            className="w-full p-4 border-4 border-black rounded-2xl text-[10px] font-black uppercase outline-none focus:bg-white transition-all shadow-inner h-20 resize-none"
+            placeholder="Special instructions..."
+            className="w-full p-4 bg-white border-2 border-indigo-500 rounded-2xl text-xs font-medium outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all shadow-xl shadow-indigo-100 h-24 resize-none"
           />
         </div>
         
-        <div className="flex justify-between items-center mb-6">
-            <span className="font-black uppercase text-[10px] text-slate-400 tracking-widest leading-none">Subtotal</span>
-            <span className="text-3xl font-black text-slate-900 tracking-tighter leading-none">{currentTenant.currency}{cartTotal.toFixed(0)}</span>
-        </div>
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+              <span className="font-bold uppercase text-[10px] text-slate-400 tracking-widest">Total Amount</span>
+              <span className="text-3xl font-bold text-slate-900 tracking-tight">{currentTenant.currency}{cartTotal.toFixed(2)}</span>
+          </div>
 
-        <button 
-          onClick={createAndSubmitOrder}
-          disabled={cart.length === 0 || isTokenDuplicate}
-          className={`w-full py-5 rounded-[2rem] font-black uppercase tracking-widest text-[11px] shadow-xl flex items-center justify-center gap-3 active:scale-95 transition disabled:opacity-30 border-4 border-white ${isTokenDuplicate ? 'bg-red-500 text-white' : 'bg-black text-white'}`}
-        >
-          {isCreatingNew ? (isTokenDuplicate ? 'Duplicate Token' : 'Fire Token') : 'Update Order'} <ArrowRight size={20} strokeWidth={3} />
-        </button>
+          <button 
+            onClick={createAndSubmitOrder}
+            disabled={cart.length === 0 || isTokenDuplicate}
+            className={`w-full py-4 rounded-2xl font-bold uppercase tracking-widest text-[10px] shadow-xl flex items-center justify-center gap-3 active:scale-95 transition-all disabled:opacity-30 border-2 ${isTokenDuplicate ? 'bg-rose-500 text-white border-rose-600 shadow-rose-100' : 'bg-slate-900 text-white hover:bg-slate-800 border-indigo-500 shadow-indigo-100'}`}
+          >
+            {isCreatingNew ? (isTokenDuplicate ? 'Duplicate Token' : 'Send to Kitchen') : 'Update Order'} <ArrowRight size={18} />
+          </button>
+        </div>
       </div>
     </div>
   );
 
   if (!selectedOrderId && !isCreatingNew) {
     return (
-      <div className="p-4 md:p-8 h-full bg-[#f1f5f9] overflow-y-auto no-scrollbar">
+      <div className="p-6 md:p-10 h-full bg-slate-50/50 overflow-y-auto no-scrollbar">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
           <div>
-            <h1 className="text-3xl md:text-4xl font-black text-black tracking-tighter flex items-center gap-4 uppercase">
-              <LayoutGrid className="text-indigo-600" size={36} strokeWidth={3} /> Token Hub
+            <h1 className="text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-4">
+              <LayoutGrid className="text-indigo-500" size={32} /> Active Terminals
             </h1>
-            <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.3em] mt-1 opacity-80">
-              {currentUser?.role === Role.WAITER ? 'Your personal active tokens' : 'Global Floor tracking'}
+            <p className="text-slate-400 text-xs font-medium uppercase tracking-widest mt-2 opacity-80">
+              {currentUser?.role === Role.WAITER ? 'Your active service tokens' : 'Global floor tracking & management'}
             </p>
           </div>
           <button 
             onClick={startNewOrder}
-            className="w-full md:w-auto bg-black text-white px-10 py-5 rounded-[2rem] font-black uppercase tracking-widest shadow-2xl hover:bg-indigo-600 transition-all transform hover:-translate-y-1 active:scale-95 flex items-center justify-center gap-3 border-4 border-white"
+            className="w-full md:w-auto bg-slate-900 text-white px-8 py-4 rounded-2xl font-bold uppercase tracking-widest text-[10px] shadow-xl shadow-indigo-200 hover:bg-slate-800 transition-all transform hover:-translate-y-1 active:scale-95 flex items-center justify-center gap-3 border-2 border-indigo-500"
           >
-            <Plus size={24} strokeWidth={3} /> New Token
+            <Plus size={20} /> New Order
           </button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-6 gap-6 md:gap-8 pb-12">
-          {activeOrders.map(order => {
-            const pendingCount = order.items.filter(i => i.status === OrderStatus.PENDING).reduce((acc, i) => acc + i.quantity, 0);
-            const preparingCount = order.items.filter(i => i.status === OrderStatus.PREPARING).reduce((acc, i) => acc + i.quantity, 0);
-            const readyCount = order.items.filter(i => i.status === OrderStatus.READY).reduce((acc, i) => acc + i.quantity, 0);
-            const statusColors = getStatusColorClasses(order.status);
-            const isOnline = order.tokenNumber.startsWith(currentTenant.customerTokenPrefix || 'WEB') || order.tokenNumber === 'OO';
-            const headerLabel = isOnline ? 'Online Order' : 'Status Overview';
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6 pb-12">
+          <AnimatePresence mode="popLayout">
+            {activeOrders.map(order => {
+              const pendingCount = order.items.filter(i => i.status === OrderStatus.PENDING).reduce((acc, i) => acc + i.quantity, 0);
+              const preparingCount = order.items.filter(i => i.status === OrderStatus.PREPARING).reduce((acc, i) => acc + i.quantity, 0);
+              const readyCount = order.items.filter(i => i.status === OrderStatus.READY).reduce((acc, i) => acc + i.quantity, 0);
+              const statusStyles = getStatusStyles(order.status);
+              const isOnline = order.tokenNumber.startsWith(currentTenant.customerTokenPrefix || 'WEB') || order.tokenNumber === 'OO';
+              const headerLabel = isOnline ? 'Online Order' : 'Service Token';
 
-            return (
-              <button
-                key={order.id}
-                onClick={() => handleSelectOrder(order)}
-                className={`group relative bg-white rounded-[2.5rem] p-4 shadow-xl border-t-8 ${statusColors.border} border-x-4 border-b-4 border-black hover:border-indigo-600 hover:shadow-indigo-500/10 transition-all duration-300 transform hover:-translate-y-2 active:scale-95 flex flex-col items-center justify-between min-h-[200px] mt-4`}
-              >
-                <div className="w-full">
-                  <div className="flex flex-col items-center">
-                    <div className="text-[10px] font-black text-black uppercase tracking-[0.2em] mb-0.5">{headerLabel}</div>
-                    <div className={`h-1.5 w-10 ${statusColors.bg} rounded-full`}></div>
+              return (
+                <motion.button
+                  layout
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  key={order.id}
+                  onClick={() => handleSelectOrder(order)}
+                  className={`group relative bg-white rounded-[2rem] p-6 shadow-xl border-2 transition-all duration-300 text-left flex flex-col min-h-[260px] hover:scale-[1.02] ${
+                    order.status === OrderStatus.PENDING ? 'border-rose-500 shadow-rose-100' :
+                    order.status === OrderStatus.PREPARING ? 'border-amber-500 shadow-amber-100' :
+                    'border-emerald-500 shadow-emerald-100'
+                  }`}
+                >
+                  <div className="flex justify-between items-start mb-6">
+                    <div className={`px-3 py-1 rounded-lg text-[9px] font-bold uppercase tracking-widest ${statusStyles.bg} ${statusStyles.text} border ${statusStyles.border} flex items-center gap-2`}>
+                      <div className={`w-1.5 h-1.5 rounded-full ${statusStyles.dot}`}></div>
+                      {order.status}
+                    </div>
+                    <div className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">{headerLabel}</div>
                   </div>
-                  <div className="flex justify-center items-center my-2">
-                    <div className={`px-4 py-2 min-w-[64px] ${statusColors.bg} border-4 border-black rounded-3xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform`}>
-                      <span className="text-white text-xl font-black leading-none">{order.tokenNumber}</span>
+                  
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className={`w-14 h-14 rounded-2xl ${statusStyles.bg} flex items-center justify-center font-bold text-2xl ${statusStyles.text} border ${statusStyles.border} shadow-inner group-hover:scale-110 transition-transform`}>
+                      {order.tokenNumber}
+                    </div>
+                    <div>
+                      <p className="font-bold text-slate-900 text-lg">Table {order.tableNumber || 'N/A'}</p>
+                      <p className="text-[10px] text-slate-400 font-medium uppercase tracking-widest">Ref: #{order.id.slice(-4).toUpperCase()}</p>
                     </div>
                   </div>
-                  {order.tableNumber && (
-                    <div className="flex justify-center mb-2">
-                      <span className="bg-slate-100 text-slate-600 px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border-2 border-black">
-                        Table: {order.tableNumber}
-                      </span>
+
+                  <div className="mt-auto space-y-4">
+                    <div className="grid grid-cols-3 gap-2">
+                      <StatusBadge label="Pending" count={pendingCount} styles={getStatusStyles(OrderStatus.PENDING)} />
+                      <StatusBadge label="Prep" count={preparingCount} styles={getStatusStyles(OrderStatus.PREPARING)} />
+                      <StatusBadge label="Ready" count={readyCount} styles={getStatusStyles(OrderStatus.READY)} />
                     </div>
-                  )}
-                </div>
-                <div className="w-full">
-                  <div className="grid grid-cols-3 gap-1 mb-2">
-                    <StatusBox label="Pending" count={pendingCount} colorClass="bg-slate-50 border-slate-100 text-slate-300" activeColor="bg-red-50 border-red-200 text-red-600 shadow-sm" />
-                    <StatusBox label="Preparing" count={preparingCount} colorClass="bg-slate-50 border-slate-100 text-slate-300" activeColor="bg-amber-50 border-amber-200 text-amber-600 shadow-sm" />
-                    <StatusBox label="Done" count={readyCount} colorClass="bg-slate-50 border-slate-100 text-slate-300" activeColor="bg-emerald-50 border-emerald-200 text-emerald-600 shadow-sm" />
-                  </div>
-                  <div className="pt-3 border-t-2 border-black border-dashed flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <img src={getWaiterAvatar(order.createdBy)} className="w-8 h-8 rounded-full border-2 border-black shadow-sm" alt="W" />
-                      <span className="text-[9px] font-black text-black uppercase tracking-widest truncate max-w-[60px]">{getWaiterName(order.createdBy).split(' ')[0]}</span>
-                    </div>
-                    <div className="bg-black text-white px-2 py-1 rounded-xl text-[10px] font-black">
-                      {currentTenant?.currency}{order.totalAmount.toFixed(0)}
+                    
+                    <div className="pt-4 border-t border-slate-50 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <img src={getWaiterAvatar(order.createdBy)} className="w-6 h-6 rounded-lg border border-slate-100" alt="W" />
+                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest truncate max-w-[80px]">{getWaiterName(order.createdBy).split(' ')[0]}</span>
+                      </div>
+                      <div className="text-sm font-bold text-slate-900">
+                        {currentTenant?.currency}{order.totalAmount.toFixed(2)}
+                      </div>
                     </div>
                   </div>
-                </div>
-              </button>
-            );
-          })}
+                </motion.button>
+              );
+            })}
+          </AnimatePresence>
+          {activeOrders.length === 0 && (
+            <div className="col-span-full py-20 flex flex-col items-center justify-center text-slate-300">
+                <ShoppingBag size={64} strokeWidth={1} className="mb-4 opacity-20" />
+                <p className="text-sm font-medium uppercase tracking-widest opacity-40">No active orders</p>
+            </div>
+          )}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col lg:flex-row bg-[#f1f5f9] min-h-full lg:h-[calc(100vh-64px)] lg:overflow-hidden relative">
-      <div className="flex-1 p-4 md:p-6 lg:overflow-y-auto flex flex-col min-h-0 no-scrollbar">
-        <div className="flex items-center justify-between mb-6 gap-4">
-          <div className="flex items-center gap-4 md:gap-6">
-            <button 
-              onClick={() => { setSelectedOrderId(null); setIsCreatingNew(false); }}
-              className="p-3 md:p-4 bg-white rounded-2xl md:rounded-3xl shadow-xl border-4 border-black text-black hover:bg-black hover:text-white transition transform active:scale-90"
-            >
-              <ArrowLeft size={20} md:size={24} strokeWidth={4} />
-            </button>
-            <div className="flex flex-col">
-              <h2 className="text-xl md:text-2xl font-black text-black tracking-tighter uppercase leading-none">
-                {isCreatingNew ? 'Token Assignment' : `Token ${activeOrders.find(o => o.id === selectedOrderId)?.tokenNumber}`}
-              </h2>
-              {isCreatingNew && (
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-[10px] text-gray-400 font-black uppercase">No:</span>
-                  <input 
-                    type="text" 
-                    value={newTokenNum}
-                    onChange={(e) => setNewTokenNum(e.target.value)}
-                    className={`w-12 text-center border-b-2 bg-transparent font-black text-xl outline-none transition-all ${isTokenDuplicate ? 'border-red-500 text-red-600' : 'border-indigo-600 text-indigo-700'}`}
-                  />
-                  {isTokenDuplicate && <AlertCircle className="text-red-500" size={14} />}
-                </div>
-              )}
-              {isCreatingNew && (
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-[10px] text-gray-400 font-black uppercase">Table:</span>
-                  <input 
-                    type="text" 
-                    placeholder="No"
-                    value={newTableNum}
-                    onChange={(e) => setNewTableNum(e.target.value)}
-                    className="w-16 text-center border-b-2 bg-transparent font-black text-xl outline-none transition-all border-indigo-600 text-indigo-700"
-                  />
-                </div>
-              )}
+    <div className="flex flex-col lg:flex-row bg-slate-50/50 h-full overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden border-r border-slate-100">
+        {/* POS Header */}
+        <div className="p-6 md:p-8 bg-white border-b border-slate-100 shrink-0">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
+            <div className="flex items-center gap-6">
+              <button 
+                onClick={() => { setSelectedOrderId(null); setIsCreatingNew(false); }}
+                className="w-12 h-12 bg-white rounded-2xl shadow-xl shadow-indigo-100 border-2 border-indigo-500 text-indigo-500 hover:bg-indigo-50 transition-all flex items-center justify-center active:scale-90"
+              >
+                <ArrowLeft size={20} />
+              </button>
+              <div>
+                <h2 className="text-xl font-bold text-slate-900 tracking-tight">
+                  {isCreatingNew ? 'New Order Terminal' : `Token #${activeOrders.find(o => o.id === selectedOrderId)?.tokenNumber}`}
+                </h2>
+                {isCreatingNew && (
+                  <div className="flex items-center gap-6 mt-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Token:</span>
+                      <input 
+                        type="text" 
+                        value={newTokenNum}
+                        onChange={(e) => setNewTokenNum(e.target.value)}
+                        className={`w-10 text-center border-b-2 bg-transparent font-bold text-lg outline-none transition-all ${isTokenDuplicate ? 'border-rose-500 text-rose-600' : 'border-slate-900 text-slate-900'}`}
+                      />
+                      {isTokenDuplicate && <AlertCircle className="text-rose-500" size={14} />}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Table:</span>
+                      <input 
+                        type="text" 
+                        placeholder="No"
+                        value={newTableNum}
+                        onChange={(e) => setNewTableNum(e.target.value)}
+                        className="w-12 text-center border-b-2 bg-transparent font-bold text-lg outline-none transition-all border-slate-900 text-slate-900"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
+            
+            <div className="relative w-full md:w-72 group">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={16} />
+                <input 
+                    type="text" 
+                    placeholder="Search menu..." 
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-11 pr-4 py-3 bg-white border-2 border-indigo-500 rounded-2xl text-xs font-medium focus:outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all shadow-xl shadow-indigo-100"
+                />
+            </div>
+          </div>
+
+          <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
+            {categories.map(cat => (
+              <button
+                key={cat}
+                onClick={() => setActiveCategory(cat)}
+                className={`px-6 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all border-2 shrink-0 ${
+                  activeCategory === cat 
+                  ? 'bg-slate-900 text-white border-slate-900 shadow-xl shadow-slate-200' 
+                  : 'bg-white text-slate-400 border-slate-100 hover:border-indigo-500 hover:text-indigo-500'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
           </div>
         </div>
 
-        <div className="flex gap-3 mb-6 overflow-x-auto pb-2 shrink-0 no-scrollbar">
-          {categories.map(cat => (
-            <button
-              key={cat}
-              onClick={() => setActiveCategory(cat)}
-              className={`px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border-4 shrink-0 ${
-                activeCategory === cat 
-                ? 'bg-black text-white border-black shadow-lg scale-105' 
-                : 'bg-white text-gray-500 border-white hover:border-slate-100'
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-3 md:gap-4 pb-32">
-          {filteredMenu.map(item => (
-            <button 
-              key={item.id} 
-              onClick={() => addToCart(item)}
-              className="aspect-square bg-white rounded-[2rem] md:rounded-[2.5rem] shadow-lg border-4 border-black p-3 md:p-4 flex flex-col items-center justify-center text-center transition-all duration-300 transform active:scale-90 hover:border-indigo-500 group"
-            >
-              <span className="text-[10px] md:text-[12px] font-black text-black line-clamp-2 mb-1.5 uppercase tracking-tighter leading-tight group-hover:text-indigo-600">
-                {item.name}
-              </span>
-              <span className="text-[10px] font-black text-white bg-black px-3 py-1 rounded-xl border-2 border-black">
-                {currentTenant?.currency}{item.price.toFixed(0)}
-              </span>
-            </button>
-          ))}
-        </div>
-
-        {/* Inline Mobile Basket - Same as Customer Portal */}
-        <div className="lg:hidden mt-20 border-t-8 border-black -mx-4 md:-mx-6">
-           <POSCartContent />
+        {/* Menu Grid */}
+        <div className="flex-1 overflow-y-auto p-6 md:p-8 no-scrollbar">
+          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+            <AnimatePresence mode="popLayout">
+              {filteredMenu.map(item => (
+                <motion.button 
+                  layout
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  key={item.id} 
+                  onClick={() => addToCart(item)}
+                  className="group bg-white rounded-[2.5rem] border-2 border-slate-100 p-5 flex flex-col hover:border-indigo-500 shadow-xl shadow-slate-200/20 hover:shadow-2xl transition-all active:scale-95 relative overflow-hidden hover:-translate-y-1"
+                >
+                  <div className="w-full aspect-square rounded-[2rem] overflow-hidden mb-4 bg-slate-50 relative border border-slate-100">
+                    <img src={item.image || `https://picsum.photos/seed/${item.name}/400/400`} alt={item.name} className={`w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ${item.stock !== undefined && item.stock !== null && item.stock <= 0 ? 'grayscale opacity-50' : ''}`} referrerPolicy="no-referrer" />
+                    <div className="absolute inset-0 bg-indigo-600/0 group-hover:bg-indigo-600/5 transition-colors"></div>
+                    <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-xl border border-slate-100 shadow-sm">
+                      <span className="text-xs font-black text-slate-900">{currentTenant.currency}{item.price.toFixed(0)}</span>
+                    </div>
+                    {item.stock !== undefined && item.stock !== null && item.stock <= 0 ? (
+                      <div className="absolute inset-0 flex items-center justify-center bg-slate-900/40 backdrop-blur-[2px]">
+                        <span className="bg-rose-600 text-white text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-2xl shadow-2xl transform -rotate-6 border-2 border-white/20">
+                          Sold Out
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="absolute bottom-3 left-3 w-10 h-10 bg-indigo-600 rounded-2xl shadow-lg flex items-center justify-center text-white group-hover:scale-110 transition-all opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 duration-300">
+                          <Plus size={20} strokeWidth={3} />
+                      </div>
+                    )}
+                    {item.stock !== undefined && item.stock !== null && item.stock > 0 && item.stock <= 10 && (
+                      <div className="absolute top-3 left-3 bg-amber-500 text-white text-[8px] font-black uppercase tracking-widest px-2.5 py-1.5 rounded-xl shadow-lg border border-white/20">
+                        Low Stock: {item.stock}
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="text-left">
+                    <h4 className="font-black text-slate-900 text-sm uppercase tracking-tight mb-1 group-hover:text-indigo-600 transition-colors">{item.name}</h4>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{item.category}</span>
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
+                    </div>
+                  </div>
+                </motion.button>
+              ))}
+            </AnimatePresence>
+          </div>
+          {filteredMenu.length === 0 && (
+            <div className="h-full flex flex-col items-center justify-center text-slate-300 py-20">
+                <Search size={64} strokeWidth={1} className="mb-4 opacity-20" />
+                <p className="text-sm font-medium uppercase tracking-widest opacity-40">No items found</p>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Desktop Sidebar Basket */}
-      <div className="hidden lg:flex w-[400px] bg-white border-l-8 border-black flex-col shadow-2xl shrink-0 overflow-y-auto no-scrollbar">
+      <div className="hidden lg:flex w-[400px] xl:w-[450px] bg-white flex-col shadow-2xl shrink-0">
          <POSCartContent />
       </div>
 
-      {/* Mobile Sticky Summary Bar - Mirrored from Customer Panel */}
-      {cartCount > 0 && (
-        <div className="lg:hidden fixed bottom-0 left-20 right-0 bg-white border-t-4 border-black p-4 flex items-center justify-between z-[120] animate-in slide-in-from-bottom-full shadow-[0_-12px_40px_rgba(0,0,0,0.15)]">
-           <div className="flex flex-col">
-              <span className="text-[8px] font-black uppercase text-slate-400 tracking-widest leading-none mb-1">{cartCount} Selections</span>
-              <span className="text-xl font-black text-indigo-600 leading-none">{currentTenant.currency}{cartTotal.toFixed(0)}</span>
-           </div>
-           <button 
-             onClick={createAndSubmitOrder}
-             disabled={isTokenDuplicate}
-             className="bg-black text-white px-8 py-3 rounded-2xl font-black uppercase tracking-widest text-[10px] border-4 border-white shadow-xl active:scale-95 transition flex items-center gap-2"
-           >
-             {isCreatingNew ? 'Fire Token' : 'Update'} <ArrowRight size={16} strokeWidth={3} />
-           </button>
-        </div>
-      )}
+      {/* Mobile Sticky Summary Bar */}
+      <AnimatePresence>
+        {cartCount > 0 && (
+          <motion.div 
+            initial={{ y: 100 }}
+            animate={{ y: 0 }}
+            exit={{ y: 100 }}
+            className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 p-6 flex items-center justify-between z-[50] shadow-[0_-10px_40px_rgba(0,0,0,0.1)]"
+          >
+            <div className="flex flex-col">
+                <span className="text-[9px] font-bold uppercase text-slate-400 tracking-widest mb-1">{cartCount} Items Selected</span>
+                <span className="text-2xl font-bold text-slate-900 leading-none">{currentTenant.currency}{cartTotal.toFixed(2)}</span>
+            </div>
+            <button 
+              onClick={createAndSubmitOrder}
+              disabled={isTokenDuplicate}
+              className="bg-slate-900 text-white px-8 py-4 rounded-2xl font-bold uppercase tracking-widest text-[10px] shadow-xl active:scale-95 transition flex items-center gap-3"
+            >
+              {isCreatingNew ? 'Send to Kitchen' : 'Update'} <ArrowRight size={18} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

@@ -64,6 +64,7 @@ export interface MenuItem {
   category: string;
   image?: string;
   isAvailable: boolean;
+  stock?: number; // Optional stock/quantity field
 }
 
 export interface OrderItem {

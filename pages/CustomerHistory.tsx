@@ -21,7 +21,7 @@ export const CustomerHistory = () => {
   return (
     <div className="flex h-screen bg-[#f1f5f9] overflow-hidden">
       {/* Sidebar - Fixed Rail */}
-      <aside className="h-full w-20 md:w-64 bg-black text-white z-[110] border-r-8 border-black flex flex-col items-center md:items-stretch py-8 shrink-0">
+      <aside className="h-full w-20 md:w-64 bg-black text-white z-[110] border-r-8 border-indigo-500/20 flex flex-col items-center md:items-stretch py-8 shrink-0 shadow-2xl shadow-indigo-500/10">
         <div className="flex items-center gap-3 px-4 md:px-8 mb-12">
            <img src={business.logo} alt="Logo" className="w-10 h-10 rounded-full border-2 border-white" />
            <h2 className="hidden md:block font-black text-lg uppercase tracking-tighter">OmniDine</h2>
@@ -63,17 +63,17 @@ export const CustomerHistory = () => {
 
       {/* Content */}
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
-        <header className="bg-white border-b-4 border-black p-4 flex justify-between items-center shadow-sm shrink-0">
+        <header className="bg-white border-b-4 border-indigo-500 p-4 flex justify-between items-center shadow-xl shadow-indigo-100 shrink-0">
            <h1 className="text-xl font-black uppercase tracking-tighter">Order Vault</h1>
            <History className="text-slate-200" size={24} />
         </header>
 
         <div className="flex-1 overflow-y-auto p-4 md:p-12 no-scrollbar">
           <div className="max-w-4xl mx-auto">
-            <div className="bg-white rounded-[2.5rem] border-4 border-black overflow-hidden shadow-xl">
+            <div className="bg-white rounded-[2.5rem] border-4 border-indigo-500 overflow-hidden shadow-2xl shadow-indigo-100">
                <div className="overflow-x-auto no-scrollbar">
                   <table className="w-full text-left border-collapse min-w-[500px]">
-                     <thead className="bg-slate-50 text-[9px] font-black uppercase tracking-widest text-slate-400 border-b-4 border-black">
+                     <thead className="bg-slate-50 text-[9px] font-black uppercase tracking-widest text-slate-400 border-b-4 border-indigo-500">
                         <tr>
                            <th className="p-6">Token</th>
                            <th className="p-6">Menu Items</th>
@@ -92,7 +92,7 @@ export const CustomerHistory = () => {
                         ) : pastOrders.map(order => (
                           <tr key={order.id} className="hover:bg-slate-50 transition group">
                              <td className="p-6">
-                                <div className="w-10 h-10 bg-black text-white rounded-xl flex items-center justify-center font-black border-2 border-white shadow-md">
+                                <div className="w-10 h-10 bg-indigo-600 text-white rounded-xl flex items-center justify-center font-black border-2 border-white shadow-lg shadow-indigo-200">
                                   #{order.tokenNumber}
                                 </div>
                              </td>

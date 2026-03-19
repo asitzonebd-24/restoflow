@@ -94,8 +94,8 @@ export const CustomerOrder = () => {
   const isActive = (path: string) => location.pathname === path;
 
   const CartContent = () => (
-    <div className="flex flex-col h-full bg-white">
-      <div className="p-6 border-b-4 border-black bg-slate-50 shrink-0">
+    <div className="flex flex-col h-full bg-white border-l-4 border-indigo-500 shadow-2xl shadow-indigo-100">
+      <div className="p-6 border-b-4 border-indigo-500 bg-slate-50 shrink-0">
         <h2 className="text-xl font-black uppercase tracking-tighter flex items-center gap-3">
            <ShoppingBasket size={24} strokeWidth={3} /> Basket
         </h2>
@@ -109,12 +109,12 @@ export const CustomerOrder = () => {
           </div>
         ) : (
           cart.map(item => (
-            <div key={item.rowId} className="bg-slate-50 p-3 rounded-[1.5rem] border-2 border-black flex justify-between items-center shadow-sm">
+            <div key={item.rowId} className="bg-white p-3 rounded-[1.5rem] border-2 border-indigo-500 flex justify-between items-center shadow-xl shadow-indigo-100">
               <div className="min-w-0 pr-4">
                   <h4 className="font-black text-[9px] md:text-[10px] uppercase truncate">{item.name}</h4>
                   <p className="text-[9px] font-bold text-slate-400">{business.currency}{item.price.toFixed(0)}</p>
               </div>
-              <div className="flex items-center gap-1.5 bg-white p-1 rounded-xl border-2 border-black shadow-inner">
+              <div className="flex items-center gap-1.5 bg-slate-50 p-1 rounded-xl border-2 border-slate-200 shadow-inner">
                   <button onClick={() => updateQuantity(item.itemId, -1)} className="p-1.5 hover:bg-black hover:text-white rounded-lg transition active:scale-90"><Minus size={10} strokeWidth={4}/></button>
                   <span className="font-black text-[11px] w-6 text-center">{item.quantity}</span>
                   <button onClick={() => updateQuantity(item.itemId, 1)} className="p-1.5 hover:bg-black hover:text-white rounded-lg transition active:scale-90"><Plus size={10} strokeWidth={4}/></button>
@@ -124,7 +124,7 @@ export const CustomerOrder = () => {
         )}
       </div>
 
-      <div id="address-section" className="p-6 border-t-8 border-black bg-slate-50 shrink-0 transition-all duration-500">
+      <div id="address-section" className="p-6 border-t-8 border-indigo-500 bg-slate-50 shrink-0 transition-all duration-500">
         <div className="space-y-4 mb-6">
           <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1.5 block flex items-center gap-2">
             <MapPin size={12} /> Delivery Destination
@@ -134,7 +134,7 @@ export const CustomerOrder = () => {
             {currentUser?.address && (
               <button 
                 onClick={() => setUseProfileAddress(true)}
-                className={`p-3 rounded-2xl border-4 text-left transition-all flex items-center justify-between group ${useProfileAddress ? 'border-black bg-indigo-50' : 'border-slate-100 bg-white'}`}
+                className={`p-3 rounded-2xl border-2 text-left transition-all flex items-center justify-between group ${useProfileAddress ? 'border-indigo-500 bg-indigo-50 shadow-xl shadow-indigo-100' : 'border-slate-100 bg-white shadow-sm'}`}
               >
                 <div className="min-w-0">
                   <p className={`text-[8px] font-black uppercase tracking-widest ${useProfileAddress ? 'text-indigo-600' : 'text-slate-400'}`}>My Profile Address</p>
@@ -146,7 +146,7 @@ export const CustomerOrder = () => {
             
             <button 
               onClick={() => setUseProfileAddress(false)}
-              className={`p-3 rounded-2xl border-4 text-left transition-all flex items-center justify-between group ${!useProfileAddress ? 'border-black bg-indigo-50' : 'border-slate-100 bg-white'}`}
+              className={`p-3 rounded-2xl border-2 text-left transition-all flex items-center justify-between group ${!useProfileAddress ? 'border-indigo-500 bg-indigo-50 shadow-xl shadow-indigo-100' : 'border-slate-100 bg-white shadow-sm'}`}
             >
               <div className="min-w-0">
                 <p className={`text-[8px] font-black uppercase tracking-widest ${!useProfileAddress ? 'text-indigo-600' : 'text-slate-400'}`}>New Location / Table</p>
@@ -164,7 +164,7 @@ export const CustomerOrder = () => {
               value={manualAddress}
               onChange={(e) => setManualAddress(e.target.value)}
               placeholder="e.g. Table 05 or 123 Street..."
-              className="w-full p-4 border-4 border-black rounded-2xl text-[10px] font-black uppercase outline-none focus:bg-white transition-all shadow-inner"
+              className="w-full p-4 border-2 border-indigo-500 rounded-2xl text-[10px] font-black uppercase outline-none focus:bg-white transition-all shadow-xl shadow-indigo-100"
             />
           )}
         </div>
@@ -177,7 +177,7 @@ export const CustomerOrder = () => {
         <button 
           onClick={handleCheckout}
           disabled={cart.length === 0}
-          className="w-full bg-black text-white py-5 rounded-[2rem] font-black uppercase tracking-widest text-[11px] shadow-xl flex items-center justify-center gap-3 active:scale-95 transition disabled:opacity-30 border-4 border-white"
+          className="w-full bg-slate-900 text-white py-5 rounded-[2rem] font-black uppercase tracking-widest text-[11px] shadow-xl shadow-indigo-100 flex items-center justify-center gap-3 active:scale-95 transition disabled:opacity-30 border-2 border-indigo-500"
         >
           Finalize Order <ArrowRight size={20} strokeWidth={3} />
         </button>
@@ -187,7 +187,7 @@ export const CustomerOrder = () => {
 
   return (
     <div className="flex h-screen bg-[#f1f5f9] overflow-hidden">
-      <aside className="h-full w-20 md:w-64 bg-black text-white z-[110] border-r-8 border-black flex flex-col items-center md:items-stretch py-8 shrink-0">
+      <aside className="h-full w-20 md:w-64 bg-slate-900 text-white z-[110] border-r-4 border-indigo-500 flex flex-col items-center md:items-stretch py-8 shrink-0 shadow-2xl shadow-indigo-100">
         <div className="flex items-center gap-3 px-4 md:px-8 mb-12">
            <img src={business.logo} alt="Logo" className="w-10 h-10 rounded-full border-2 border-white" />
            <h2 className="hidden md:block font-black text-lg uppercase tracking-tighter">OmniDine</h2>
@@ -212,15 +212,15 @@ export const CustomerOrder = () => {
       </aside>
 
       <div className="flex-1 flex flex-col h-full overflow-hidden relative">
-        <header className="bg-white shadow-sm border-b-4 border-black p-4 flex items-center justify-between shrink-0 z-30">
-          <div className="relative">
-            <Search className="absolute left-3 top-2.5 text-slate-300" size={18} />
+        <header className="bg-white shadow-xl shadow-indigo-100 border-b-4 border-indigo-500 p-4 flex items-center justify-between shrink-0 z-30">
+          <div className="relative group">
+            <Search className="absolute left-3 top-2.5 text-slate-300 group-focus-within:text-indigo-500 transition-colors" size={18} />
             <input 
               type="text" 
               placeholder="Search menu..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 py-2 bg-slate-50 border-2 border-black rounded-xl font-black uppercase text-[10px] outline-none focus:bg-white transition w-40 sm:w-64"
+              className="pl-10 pr-4 py-2 bg-white border-2 border-indigo-500 rounded-xl font-black uppercase text-[10px] outline-none focus:ring-4 focus:ring-indigo-500/10 transition w-40 sm:w-64"
             />
           </div>
           <div className="text-right flex items-center gap-4">
@@ -238,8 +238,8 @@ export const CustomerOrder = () => {
                 <button
                   key={cat}
                   onClick={() => setActiveCategory(cat)}
-                  className={`px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest border-4 transition-all shrink-0 snap-start ${
-                    activeCategory === cat ? 'bg-black text-white border-black shadow-lg scale-105' : 'bg-white text-slate-500 border-slate-100 hover:border-black'
+                  className={`px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest border-2 transition-all shrink-0 snap-start ${
+                    activeCategory === cat ? 'bg-slate-900 text-white border-slate-900 shadow-xl shadow-indigo-100 scale-105' : 'bg-white text-slate-500 border-slate-100 hover:border-indigo-500 hover:text-indigo-500'
                   }`}
                 >
                   {cat}
@@ -252,9 +252,9 @@ export const CustomerOrder = () => {
                 <button 
                   key={item.id} 
                   onClick={() => addToCart(item)}
-                  className="group flex flex-col bg-white rounded-[2rem] md:rounded-[2.5rem] border-4 border-black p-3 md:p-5 transition-all hover:-translate-y-1 hover:shadow-xl active:scale-95 shadow-md"
+                  className="group flex flex-col bg-white rounded-[2rem] md:rounded-[2.5rem] border-2 border-slate-100 p-3 md:p-5 transition-all hover:-translate-y-1 hover:shadow-2xl hover:border-indigo-500 active:scale-95 shadow-xl shadow-slate-200/20"
                 >
-                  <div className="aspect-square w-full rounded-2xl overflow-hidden border-2 border-black mb-3 md:mb-5 bg-slate-50 flex items-center justify-center">
+                  <div className="aspect-square w-full rounded-2xl overflow-hidden border-2 border-slate-100 mb-3 md:mb-5 bg-slate-50 flex items-center justify-center group-hover:border-indigo-500 transition-colors">
                       {item.image ? (
                         <img src={item.image} alt={item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                       ) : (
@@ -270,26 +270,26 @@ export const CustomerOrder = () => {
               ))}
             </div>
 
-            <div className="lg:hidden mt-20 border-t-8 border-black -mx-4 md:-mx-8">
+            <div className="lg:hidden mt-20 border-t-8 border-indigo-500 -mx-4 md:-mx-8">
                <CartContent />
             </div>
           </div>
 
-          <div className="hidden lg:flex w-[400px] bg-white border-l-8 border-black flex-col shadow-2xl shrink-0 overflow-y-auto no-scrollbar">
+          <div className="hidden lg:flex w-[400px] bg-white border-l-8 border-indigo-500 flex-col shadow-2xl shrink-0 overflow-y-auto no-scrollbar">
              <CartContent />
           </div>
         </div>
 
         {/* Persistent Checkout Bar for Mobile - High visibility direct trigger */}
         {cartCount > 0 && (
-          <div className="lg:hidden fixed bottom-0 left-20 right-0 bg-white border-t-4 border-black p-4 flex items-center justify-between z-[120] animate-in slide-in-from-bottom-full shadow-[0_-12px_40px_rgba(0,0,0,0.15)]">
+          <div className="lg:hidden fixed bottom-0 left-20 right-0 bg-white border-t-4 border-indigo-500 p-4 flex items-center justify-between z-[120] animate-in slide-in-from-bottom-full shadow-[0_-12px_40px_rgba(0,0,0,0.15)]">
              <div className="flex flex-col">
                 <span className="text-[8px] font-black uppercase text-slate-400 tracking-widest leading-none mb-1">{cartCount} Items Selected</span>
                 <span className="text-xl font-black text-indigo-600 leading-none">{business.currency}{cartTotal.toFixed(0)}</span>
              </div>
              <button 
                onClick={handleCheckout}
-               className="bg-black text-white px-8 py-3 rounded-2xl font-black uppercase tracking-widest text-[10px] border-4 border-white shadow-xl active:scale-95 transition flex items-center gap-2"
+               className="bg-slate-900 text-white px-8 py-3 rounded-2xl font-black uppercase tracking-widest text-[10px] border-2 border-indigo-500 shadow-xl active:scale-95 transition flex items-center gap-2"
              >
                Checkout Now <ArrowRight size={16} strokeWidth={3} />
              </button>

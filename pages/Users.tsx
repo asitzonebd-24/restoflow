@@ -126,14 +126,14 @@ export const Users = () => {
                 </div>
                 
                 <div className="flex flex-col sm:flex-row gap-4 w-full xl:w-auto">
-                    <div className="relative flex-1 sm:w-64">
-                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
+                    <div className="relative flex-1 sm:w-64 group">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-500 transition-colors" size={18} />
                         <input 
                             type="text" 
                             placeholder="Find member..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-12 pr-4 py-3 bg-white border-2 border-slate-900 rounded-2xl outline-none focus:ring-4 focus:ring-indigo-50 font-black text-[10px] uppercase transition-all shadow-sm"
+                            className="w-full pl-12 pr-4 py-3 bg-white border-2 border-indigo-500 rounded-2xl outline-none focus:ring-4 focus:ring-indigo-50 font-black text-[10px] uppercase transition-all shadow-lg shadow-indigo-100"
                         />
                     </div>
                     <button 
@@ -143,7 +143,7 @@ export const Users = () => {
                             setIsFormOpen(true);
                             handleRoleChange(Role.WAITER);
                         }}
-                        className="bg-slate-900 text-white px-8 py-3 rounded-2xl font-black uppercase tracking-widest shadow-xl hover:bg-black transition border-4 border-white flex items-center justify-center gap-3"
+                        className="bg-indigo-600 text-white px-8 py-3 rounded-2xl font-black uppercase tracking-widest shadow-xl hover:bg-indigo-700 transition border-2 border-indigo-400 flex items-center justify-center gap-3 shadow-indigo-200"
                     >
                         <UserPlus size={20} strokeWidth={3} /> Add <span className="hidden sm:inline">Member</span>
                     </button>
@@ -151,7 +151,7 @@ export const Users = () => {
             </div>
 
             {isFormOpen && (
-                <div className="bg-white p-6 md:p-10 rounded-[2.5rem] shadow-2xl border-4 border-slate-900 animate-in fade-in slide-in-from-top-4 overflow-hidden">
+                <div className="bg-white p-6 md:p-10 rounded-[2.5rem] shadow-2xl border-2 border-indigo-500 animate-in fade-in slide-in-from-top-4 overflow-hidden shadow-indigo-100">
                     <div className="flex justify-between items-center mb-8">
                         <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">{editingUserId ? 'Modify Profile' : 'New Enrollment'}</h3>
                         <button onClick={() => setIsFormOpen(false)} className="bg-slate-50 p-2.5 rounded-xl border-2 border-slate-100 text-slate-400 hover:text-red-500 transition"><X size={20}/></button>
@@ -232,10 +232,10 @@ export const Users = () => {
                 </div>
             )}
 
-            <div className="bg-white rounded-[2.5rem] shadow-xl border-4 border-slate-900 overflow-hidden">
+            <div className="bg-white rounded-[2.5rem] shadow-xl border-2 border-indigo-500 overflow-hidden shadow-indigo-100">
                 <div className="overflow-x-auto no-scrollbar">
                     <table className="w-full text-left border-collapse min-w-[900px]">
-                        <thead className="bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b-4 border-slate-900">
+                        <thead className="bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b-2 border-indigo-100">
                             <tr>
                                 <th className="p-6">Staff Details</th>
                                 <th className="p-6">Position</th>

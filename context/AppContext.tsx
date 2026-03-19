@@ -129,6 +129,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         
         if (errors.length > 0) {
           console.error('Supabase tables missing or inaccessible:', errors);
+          alert('Database Error: Some tables are missing in Supabase. Please run the SQL schema in your Supabase dashboard.');
           setDbStatus(prev => ({ 
             ...prev, 
             hasTables: false, 
@@ -319,7 +320,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     setAllOrders(prev => [newOrder, ...prev]);
 
     try {
-      await supabase.from('orders').insert({
+      const { error } = await supabase.from('orders').insert({
         id: newOrder.id,
         tenant_id: newOrder.tenantId,
         token_number: newOrder.tokenNumber,
@@ -331,6 +332,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         created_by: newOrder.createdBy,
         created_at: newOrder.createdAt
       });
+      if (error) throw error;
     } catch (error) {
       console.error('Error adding order to Supabase:', error);
     }
@@ -360,10 +362,11 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     }));
 
     try {
-      await supabase.from('orders').update({
+      const { error } = await supabase.from('orders').update({
         status,
         items: allOrders.find(o => o.id === orderId)?.items.map(i => ({ ...i, status: status as unknown as ItemStatus }))
       }).eq('id', orderId);
+      if (error) throw error;
     } catch (error) {
       console.error('Error updating order status in Supabase:', error);
     }
@@ -466,7 +469,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         price: newItem.price,
         category: newItem.category,
         image: newItem.image,
-        is_available: newItem.isAvailable
+        is_available: newItem.isAvailable,
+        stock: newItem.stock
       });
       if (error) throw error;
     } catch (error) {
@@ -485,6 +489,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       if (updates.category) supabaseUpdates.category = updates.category;
       if (updates.image) supabaseUpdates.image = updates.image;
       if (updates.isAvailable !== undefined) supabaseUpdates.is_available = updates.isAvailable;
+      if (updates.stock !== undefined) supabaseUpdates.stock = updates.stock;
 
       await supabase.from('menu_items').update(supabaseUpdates).eq('id', itemId);
     } catch (error) {
@@ -619,7 +624,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     setAllUsers(prev => [...prev, newUser]);
 
     try {
-      await supabase.from('users').insert({
+      const { error } = await supabase.from('users').insert({
         id: newUser.id,
         tenant_id: newUser.tenantId,
         name: newUser.name,
@@ -630,6 +635,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         avatar: newUser.avatar,
         permissions: newUser.permissions
       });
+      if (error) throw error;
     } catch (error) {
       console.error('Error adding user to Supabase:', error);
     }
@@ -756,7 +762,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     setAllUsers(prev => [...prev, newOwner]);
 
     try {
-      await Promise.all([
+      const [tenantResult, userResult] = await Promise.all([
         supabase.from('tenants').insert({
           id: newBusiness.id,
           name: newBusiness.name,
@@ -790,6 +796,9 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
           permissions: newOwner.permissions
         })
       ]);
+
+      if (tenantResult.error) throw tenantResult.error;
+      if (userResult.error) throw userResult.error;
     } catch (error) {
       console.error('Error creating business in Supabase:', error);
     }
@@ -801,7 +810,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     setAllTransactions(prev => [newTransaction, ...prev]);
 
     try {
-      await supabase.from('transactions').insert({
+      const { error } = await supabase.from('transactions').insert({
         id: newTransaction.id,
         tenant_id: newTransaction.tenantId,
         order_id: newTransaction.orderId,
@@ -811,6 +820,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         creator_name: newTransaction.creatorName,
         created_at: newTransaction.date
       });
+      if (error) throw error;
     } catch (error) {
       console.error('Error adding transaction to Supabase:', error);
     }
@@ -822,7 +832,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     setAllExpenses(prev => [newExpense, ...prev]);
 
     try {
-      await supabase.from('expenses').insert({
+      const { error } = await supabase.from('expenses').insert({
         id: newExpense.id,
         tenant_id: newExpense.tenantId,
         title: newExpense.title,
@@ -832,6 +842,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         note: newExpense.note,
         recorded_by: newExpense.recordedBy
       });
+      if (error) throw error;
     } catch (error) {
       console.error('Error adding expense to Supabase:', error);
     }
@@ -867,7 +878,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
     try {
       if (filteredNewBills.length > 0) {
-        await supabase.from('monthly_bills').insert(filteredNewBills.map(b => ({
+        const { error } = await supabase.from('monthly_bills').insert(filteredNewBills.map(b => ({
           id: b.id,
           tenant_id: b.tenantId,
           tenant_name: b.tenantName,
@@ -876,6 +887,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
           status: b.status,
           created_at: b.createdAt
         })));
+        if (error) throw error;
       }
     } catch (error) {
       console.error('Error generating monthly bills in Supabase:', error);
