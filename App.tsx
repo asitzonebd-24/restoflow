@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { HashRouter as Router, Routes, Route, Navigate, NavLink, useLocation } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Navigate, NavLink, useLocation, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AppProvider, useApp } from './context/AppContext';
 import { isSupabaseConfigured } from './supabase';
@@ -31,17 +31,27 @@ import { LayoutDashboard, UtensilsCrossed, ChefHat, Receipt, Package, LogOut, Se
 const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) => {
   const { business, currentUser, logout } = useApp();
   const location = useLocation();
+  const { tenantId: urlTenantId } = useParams();
 
   if (!currentUser || currentUser.role === Role.CUSTOMER) return null;
 
-  const isActive = (path: string) => location.pathname === path;
+  const tId = urlTenantId || currentUser.tenantId;
 
-  const navItemClass = (path: string) => `
-    flex items-center justify-center w-12 h-12 rounded-2xl transition-all duration-300 mb-4 group relative
-    ${isActive(path) 
-      ? 'bg-white text-[#1a1a37] shadow-xl' 
-      : 'text-white/40 hover:bg-white/10 hover:text-white'}
-  `;
+  const isActive = (path: string) => {
+    if (!tId) return location.pathname === path;
+    const fullPath = `/${tId}${path === '/' ? '' : path}`;
+    return location.pathname === fullPath;
+  };
+
+  const navItemClass = (path: string) => {
+    const active = isActive(path);
+    return `
+      flex items-center justify-center w-12 h-12 rounded-2xl transition-all duration-300 mb-4 group relative
+      ${active 
+        ? 'bg-white text-[#1a1a37] shadow-xl' 
+        : 'text-white/40 hover:bg-white/10 hover:text-white'}
+    `;
+  };
 
   const permissions = currentUser.permissions || [];
 
@@ -57,7 +67,7 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
       </div>
 
       <nav className="flex-1 flex flex-col items-center overflow-y-auto w-full px-2 no-scrollbar">
-            {currentUser.role === Role.SUPER_ADMIN ? (
+            {currentUser.role === Role.SUPER_ADMIN && !urlTenantId ? (
               <>
                 <NavLink to="/portal" onClick={() => onClose()} className={navItemClass('/portal')} title="Portal">
                   <ShieldCheck size={22} />
@@ -72,19 +82,19 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
             ) : (
               <>
                 {permissions.includes('Dashboard') && (
-                  <NavLink to="/dashboard" onClick={() => onClose()} className={navItemClass('/dashboard')} title="Dashboard">
+                  <NavLink to={`/${tId}/dashboard`} onClick={() => onClose()} className={navItemClass('/dashboard')} title="Dashboard">
                     <LayoutDashboard size={22} />
                   </NavLink>
                 )}
                 
                 {permissions.includes('POS') && (
-                  <NavLink to="/pos" onClick={() => onClose()} className={navItemClass('/pos')} title="Terminal">
+                  <NavLink to={`/${tId}/pos`} onClick={() => onClose()} className={navItemClass('/pos')} title="Terminal">
                     <UtensilsCrossed size={22} />
                   </NavLink>
                 )}
 
                 {permissions.includes('Kitchen') && (
-                  <NavLink to="/kitchen" onClick={() => onClose()} className={navItemClass('/kitchen')} title="Kitchen">
+                  <NavLink to={`/${tId}/kitchen`} onClick={() => onClose()} className={navItemClass('/kitchen')} title="Kitchen">
                     <ChefHat size={22} />
                   </NavLink>
                 )}
@@ -92,46 +102,55 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
                 <div className="w-10 h-px bg-white/10 my-4 shrink-0" />
 
                 {permissions.includes('Menu') && (
-                  <NavLink to="/menu" onClick={() => onClose()} className={navItemClass('/menu')} title="Menu">
+                  <NavLink to={`/${tId}/menu`} onClick={() => onClose()} className={navItemClass('/menu')} title="Menu">
                     <MenuIcon size={22} />
                   </NavLink>
                 )}
 
                 {permissions.includes('Billing') && (
-                  <NavLink to="/billing" onClick={() => onClose()} className={navItemClass('/billing')} title="Billing">
+                  <NavLink to={`/${tId}/billing`} onClick={() => onClose()} className={navItemClass('/billing')} title="Billing">
                     <Receipt size={22} />
                   </NavLink>
                 )}
 
                 {permissions.includes('Transactions') && (
-                  <NavLink to="/transactions" onClick={() => onClose()} className={navItemClass('/transactions')} title="History">
+                  <NavLink to={`/${tId}/transactions`} onClick={() => onClose()} className={navItemClass('/transactions')} title="History">
                     <History size={22} />
                   </NavLink>
                 )}
 
                 {permissions.includes('Inventory') && (
-                  <NavLink to="/inventory" onClick={() => onClose()} className={navItemClass('/inventory')} title="Inventory">
+                  <NavLink to={`/${tId}/inventory`} onClick={() => onClose()} className={navItemClass('/inventory')} title="Inventory">
                     <Package size={22} />
                   </NavLink>
                 )}
 
                 {permissions.includes('Reports') && (
-                  <NavLink to="/reports" onClick={() => onClose()} className={navItemClass('/reports')} title="Reports">
+                  <NavLink to={`/${tId}/reports`} onClick={() => onClose()} className={navItemClass('/reports')} title="Reports">
                     <PieChart size={22} />
                   </NavLink>
                 )}
 
                 {permissions.includes('Users') && (
-                  <NavLink to="/users" onClick={() => onClose()} className={navItemClass('/users')} title="Users">
+                  <NavLink to={`/${tId}/users`} onClick={() => onClose()} className={navItemClass('/users')} title="Users">
                     <UsersIcon size={22} />
                   </NavLink>
+                )}
+
+                {currentUser.role === Role.SUPER_ADMIN && (
+                  <>
+                    <div className="w-10 h-px bg-white/10 my-4 shrink-0" />
+                    <NavLink to="/portal" onClick={() => onClose()} className={navItemClass('/portal')} title="Back to Portal">
+                      <ShieldCheck size={22} className="text-indigo-400" />
+                    </NavLink>
+                  </>
                 )}
               </>
             )}
         </nav>
 
         <div className="mt-auto pt-4 space-y-4 flex flex-col items-center shrink-0">
-            <NavLink to="/settings" onClick={() => onClose()} className={navItemClass('/settings')} title="Settings">
+            <NavLink to={currentUser.role === Role.SUPER_ADMIN && !urlTenantId ? "/settings" : `/${tId}/settings`} onClick={() => onClose()} className={navItemClass('/settings')} title="Settings">
                 <Settings size={22} />
             </NavLink>
             
@@ -156,10 +175,29 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
 };
 
 const ProtectedLayout = ({ children, allowedRoles }: { children?: React.ReactNode, allowedRoles?: Role[] }) => {
-  const { currentUser, business } = useApp();
+  const { currentUser, business, setCurrentTenantId } = useApp();
+  const { tenantId } = useParams();
+  const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
+  React.useEffect(() => {
+    if (tenantId) {
+      setCurrentTenantId(tenantId);
+    }
+  }, [tenantId, setCurrentTenantId]);
+
   if (!currentUser) return <Navigate to="/login" replace />;
+
+  // If no tenantId in URL, redirect non-Super Admins to their tenant-specific route
+  if (!tenantId && currentUser.role !== Role.SUPER_ADMIN && currentUser.tenantId) {
+    const currentPath = location.pathname === '/' ? '/dashboard' : location.pathname;
+    return <Navigate to={`/${currentUser.tenantId}${currentPath}`} replace />;
+  }
+  
+  // If tenantId is in URL, ensure it matches user's tenant (unless Super Admin)
+  if (tenantId && currentUser.role !== Role.SUPER_ADMIN && currentUser.tenantId !== tenantId) {
+    return <Navigate to={`/${currentUser.tenantId}/dashboard`} replace />;
+  }
   
   if (allowedRoles && !allowedRoles.includes(currentUser.role)) {
     return <Navigate to="/" replace />;
@@ -224,8 +262,8 @@ const AppContent = () => {
     if (!currentUser) return "/";
     if (currentUser.role === Role.SUPER_ADMIN) return "/portal";
     if (currentUser.role === Role.CUSTOMER) return `/${currentUser.tenantId}/order`;
-    if (currentUser.permissions?.includes('Dashboard')) return "/dashboard";
-    return "/pos"; 
+    if (currentUser.permissions?.includes('Dashboard')) return `/${currentUser.tenantId}/dashboard`;
+    return `/${currentUser.tenantId}/pos`; 
   };
 
   return (
@@ -258,10 +296,21 @@ const AppContent = () => {
           : <Navigate to="/order/auth" />
       } />
 
+      {/* Tenant-specific business routes */}
+      <Route path="/:tenantId/dashboard" element={<ProtectedLayout><Dashboard /></ProtectedLayout>} />
+      <Route path="/:tenantId/pos" element={<ProtectedLayout><POS /></ProtectedLayout>} />
+      <Route path="/:tenantId/kitchen" element={<ProtectedLayout><Kitchen /></ProtectedLayout>} />
+      <Route path="/:tenantId/menu" element={<ProtectedLayout><MenuManagement /></ProtectedLayout>} />
+      <Route path="/:tenantId/inventory" element={<ProtectedLayout><Inventory /></ProtectedLayout>} />
+      <Route path="/:tenantId/billing" element={<ProtectedLayout><Billing /></ProtectedLayout>} />
+      <Route path="/:tenantId/transactions" element={<ProtectedLayout><Transactions /></ProtectedLayout>} />
+      <Route path="/:tenantId/expenses" element={<ProtectedLayout><Expenses /></ProtectedLayout>} />
+      <Route path="/:tenantId/reports" element={<ProtectedLayout><Reports /></ProtectedLayout>} />
+      <Route path="/:tenantId/users" element={<ProtectedLayout><UsersPage /></ProtectedLayout>} />
+      <Route path="/:tenantId/settings" element={<ProtectedLayout><SettingsPage /></ProtectedLayout>} />
+
+      {/* Legacy routes for backward compatibility or direct access */}
       <Route path="/dashboard" element={<ProtectedLayout><Dashboard /></ProtectedLayout>} />
-      <Route path="/portal" element={<ProtectedLayout allowedRoles={[Role.SUPER_ADMIN]}><SuperAdmin /></ProtectedLayout>} />
-      <Route path="/pending-bills" element={<ProtectedLayout allowedRoles={[Role.SUPER_ADMIN]}><PendingBills /></ProtectedLayout>} />
-      <Route path="/approved-bills" element={<ProtectedLayout allowedRoles={[Role.SUPER_ADMIN]}><ApprovedBills /></ProtectedLayout>} />
       <Route path="/pos" element={<ProtectedLayout><POS /></ProtectedLayout>} />
       <Route path="/kitchen" element={<ProtectedLayout><Kitchen /></ProtectedLayout>} />
       <Route path="/menu" element={<ProtectedLayout><MenuManagement /></ProtectedLayout>} />
@@ -272,6 +321,10 @@ const AppContent = () => {
       <Route path="/reports" element={<ProtectedLayout><Reports /></ProtectedLayout>} />
       <Route path="/users" element={<ProtectedLayout><UsersPage /></ProtectedLayout>} />
       <Route path="/settings" element={<ProtectedLayout><SettingsPage /></ProtectedLayout>} />
+
+      <Route path="/portal" element={<ProtectedLayout allowedRoles={[Role.SUPER_ADMIN]}><SuperAdmin /></ProtectedLayout>} />
+      <Route path="/pending-bills" element={<ProtectedLayout allowedRoles={[Role.SUPER_ADMIN]}><PendingBills /></ProtectedLayout>} />
+      <Route path="/approved-bills" element={<ProtectedLayout allowedRoles={[Role.SUPER_ADMIN]}><ApprovedBills /></ProtectedLayout>} />
       <Route path="/:tenantId" element={<TenantLanding />} />
     </Routes>
   );

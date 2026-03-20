@@ -172,7 +172,7 @@ export const CustomerAuth = () => {
                {isRegistering ? 'Already have an account? Sign In' : 'New here? Create an Account'}
              </button>
              <button 
-               onClick={() => navigate('/login')}
+               onClick={() => navigate(`/login?tenantId=${tenantId}`)}
                className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-indigo-600 transition"
              >
                <Lock size={12} /> Staff Portal

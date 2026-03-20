@@ -347,10 +347,19 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   const addOrder = async (order: Omit<Order, 'tenantId'>) => {
-    const tenantId = currentUser?.tenantId || '';
+    const tenantId = currentUser?.tenantId || currentTenantId || '';
     const newOrder = { ...order, tenantId } as Order;
     
     setAllOrders(prev => [newOrder, ...prev]);
+
+    // Update menu item stock locally
+    setAllMenu(prev => prev.map(menuItem => {
+      const orderItem = newOrder.items.find(oi => oi.itemId === menuItem.id);
+      if (orderItem && menuItem.stock !== undefined && menuItem.stock > 0) {
+        return { ...menuItem, stock: Math.max(0, menuItem.stock - orderItem.quantity) };
+      }
+      return menuItem;
+    }));
 
     try {
       const { error } = await supabase.from('orders').insert({
@@ -366,13 +375,55 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         created_at: newOrder.createdAt
       });
       if (error) throw error;
+
+      // Update stock in Supabase for each item
+      for (const item of newOrder.items) {
+        const menuItem = allMenu.find(m => m.id === item.itemId);
+        if (menuItem && menuItem.stock !== undefined && menuItem.stock > 0) {
+          const newStock = Math.max(0, menuItem.stock - item.quantity);
+          await supabase.from('menu_items').update({ stock: newStock }).eq('id', item.itemId);
+        }
+      }
     } catch (error) {
       console.error('Error adding order to Supabase:', error);
     }
   };
 
   const updateOrderItems = async (orderId: string, items: OrderItem[], totalAmount: number, note?: string) => {
+    const oldOrder = allOrders.find(o => o.id === orderId);
+    if (!oldOrder) return;
+
     setAllOrders(prev => prev.map(o => o.id === orderId ? { ...o, items, totalAmount, note: note ?? o.note } : o));
+
+    // Calculate stock changes
+    const stockChanges: { [itemId: string]: number } = {};
+
+    // Items in the new list
+    items.forEach(newItem => {
+      const oldItem = oldOrder.items.find(oi => oi.itemId === newItem.itemId);
+      const oldQty = oldItem ? oldItem.quantity : 0;
+      const diff = newItem.quantity - oldQty;
+      if (diff !== 0) {
+        stockChanges[newItem.itemId] = (stockChanges[newItem.itemId] || 0) + diff;
+      }
+    });
+
+    // Items removed from the list
+    oldOrder.items.forEach(oldItem => {
+      const newItem = items.find(ni => ni.itemId === oldItem.itemId);
+      if (!newItem) {
+        stockChanges[oldItem.itemId] = (stockChanges[oldItem.itemId] || 0) - oldItem.quantity;
+      }
+    });
+
+    // Update local menu stock
+    setAllMenu(prev => prev.map(menuItem => {
+      const change = stockChanges[menuItem.id];
+      if (change && menuItem.stock !== undefined && menuItem.stock > 0) {
+        return { ...menuItem, stock: Math.max(0, menuItem.stock - change) };
+      }
+      return menuItem;
+    }));
 
     try {
       await supabase.from('orders').update({
@@ -380,12 +431,25 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         total_amount: totalAmount,
         note: note
       }).eq('id', orderId);
+
+      // Update stock in Supabase
+      for (const itemId in stockChanges) {
+        const change = stockChanges[itemId];
+        const menuItem = allMenu.find(m => m.id === itemId);
+        if (menuItem && menuItem.stock !== undefined && menuItem.stock > 0) {
+          const newStock = Math.max(0, menuItem.stock - change);
+          await supabase.from('menu_items').update({ stock: newStock }).eq('id', itemId);
+        }
+      }
     } catch (error) {
       console.error('Error updating order items in Supabase:', error);
     }
   };
 
   const updateOrderStatus = async (orderId: string, status: OrderStatus) => {
+    const order = allOrders.find(o => o.id === orderId);
+    if (!order) return;
+
     setAllOrders(prev => prev.map(o => {
       if (o.id === orderId) {
         const updatedItems = o.items.map(i => ({ ...i, status: status as unknown as ItemStatus }));
@@ -394,12 +458,33 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       return o;
     }));
 
+    // If order is cancelled, return items to stock
+    if (status === OrderStatus.CANCELLED) {
+      setAllMenu(prev => prev.map(menuItem => {
+        const orderItem = order.items.find(oi => oi.itemId === menuItem.id);
+        if (orderItem && menuItem.stock !== undefined && menuItem.stock > 0) {
+          return { ...menuItem, stock: menuItem.stock + orderItem.quantity };
+        }
+        return menuItem;
+      }));
+    }
+
     try {
       const { error } = await supabase.from('orders').update({
         status,
-        items: allOrders.find(o => o.id === orderId)?.items.map(i => ({ ...i, status: status as unknown as ItemStatus }))
+        items: order.items.map(i => ({ ...i, status: status as unknown as ItemStatus }))
       }).eq('id', orderId);
       if (error) throw error;
+
+      if (status === OrderStatus.CANCELLED) {
+        for (const item of order.items) {
+          const menuItem = allMenu.find(m => m.id === item.itemId);
+          if (menuItem && menuItem.stock !== undefined && menuItem.stock > 0) {
+            const newStock = menuItem.stock + item.quantity;
+            await supabase.from('menu_items').update({ stock: newStock }).eq('id', item.itemId);
+          }
+        }
+      }
     } catch (error) {
       console.error('Error updating order status in Supabase:', error);
     }
@@ -407,20 +492,40 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
   const updateOrderItemStatus = async (orderId: string, rowId: string, status: ItemStatus) => {
     let updatedOrder: Order | undefined;
+    let cancelledItem: OrderItem | undefined;
+
     setAllOrders(prev => prev.map(o => {
       if (o.id === orderId) {
+        const itemToUpdate = o.items.find(i => i.rowId === rowId);
+        if (itemToUpdate && status === OrderStatus.CANCELLED && itemToUpdate.status !== OrderStatus.CANCELLED) {
+          cancelledItem = itemToUpdate;
+        }
+
         const newItems = o.items.map(i => i.rowId === rowId ? { ...i, status } : i);
         let newOrderStatus = o.status;
         const allReady = newItems.every(i => i.status === OrderStatus.READY);
         const anyPreparing = newItems.some(i => i.status === OrderStatus.PREPARING);
-        if (allReady) newOrderStatus = OrderStatus.READY;
+        const allCancelled = newItems.every(i => i.status === OrderStatus.CANCELLED);
+
+        if (allCancelled) newOrderStatus = OrderStatus.CANCELLED;
+        else if (allReady) newOrderStatus = OrderStatus.READY;
         else if (anyPreparing) newOrderStatus = OrderStatus.PREPARING;
         else newOrderStatus = OrderStatus.PENDING;
+
         updatedOrder = { ...o, items: newItems, status: newOrderStatus };
         return updatedOrder;
       }
       return o;
     }));
+
+    if (cancelledItem) {
+      setAllMenu(prev => prev.map(menuItem => {
+        if (menuItem.id === cancelledItem?.itemId && menuItem.stock !== undefined && menuItem.stock > 0) {
+          return { ...menuItem, stock: menuItem.stock + cancelledItem.quantity };
+        }
+        return menuItem;
+      }));
+    }
 
     if (updatedOrder) {
       try {
@@ -428,6 +533,14 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
           items: updatedOrder.items,
           status: updatedOrder.status
         }).eq('id', orderId);
+
+        if (cancelledItem) {
+          const menuItem = allMenu.find(m => m.id === cancelledItem?.itemId);
+          if (menuItem && menuItem.stock !== undefined && menuItem.stock > 0) {
+            const newStock = menuItem.stock + cancelledItem.quantity;
+            await supabase.from('menu_items').update({ stock: newStock }).eq('id', cancelledItem.itemId);
+          }
+        }
       } catch (error) {
         console.error('Error updating order item status in Supabase:', error);
       }
@@ -451,7 +564,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   const addInventoryItem = async (item: Omit<InventoryItem, 'tenantId'>) => {
-    const tenantId = currentUser?.tenantId || '';
+    const tenantId = currentUser?.tenantId || currentTenantId || '';
     const newItem = { ...item, tenantId } as InventoryItem;
     setAllInventory(prev => [...prev, newItem]);
 
@@ -489,11 +602,11 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   const addMenuItem = async (item: Omit<MenuItem, 'tenantId'>) => {
-    const tenantId = currentUser?.tenantId || '';
+    const tenantId = currentUser?.tenantId || currentTenantId || '';
     const newItem = { 
       ...item, 
       tenantId,
-      image: item.image || DEFAULT_MENU_IMAGE
+      image: item.image
     } as MenuItem;
     setAllMenu(prev => [...prev, newItem]);
 
@@ -524,7 +637,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       if (updates.description) supabaseUpdates.description = updates.description;
       if (updates.price !== undefined) supabaseUpdates.price = updates.price;
       if (updates.category) supabaseUpdates.category = updates.category;
-      if (updates.image) supabaseUpdates.image = updates.image;
+      if (updates.image !== undefined) supabaseUpdates.image = updates.image;
       if (updates.isAvailable !== undefined) supabaseUpdates.is_available = updates.isAvailable;
       if (updates.stock !== undefined) supabaseUpdates.stock = updates.stock;
 
@@ -545,7 +658,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   const addMenuCategory = async (catName: string) => {
-    const tenantId = currentUser?.tenantId || '';
+    const tenantId = currentUser?.tenantId || currentTenantId || '';
     const tenant = tenants.find(t => t.id === tenantId);
     if (!tenant) return;
 
@@ -563,7 +676,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   const renameMenuCategory = async (oldName: string, newName: string) => {
-    const tenantId = currentUser?.tenantId || '';
+    const tenantId = currentUser?.tenantId || currentTenantId || '';
     const tenant = tenants.find(t => t.id === tenantId);
     if (!tenant) return;
 
@@ -582,7 +695,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   const deleteMenuCategory = async (catName: string) => {
-    const tenantId = currentUser?.tenantId || '';
+    const tenantId = currentUser?.tenantId || currentTenantId || '';
     const tenant = tenants.find(t => t.id === tenantId);
     if (!tenant) return;
 
@@ -601,7 +714,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   const addExpenseCategory = async (catName: string) => {
-    const tenantId = currentUser?.tenantId || '';
+    const tenantId = currentUser?.tenantId || currentTenantId || '';
     const tenant = tenants.find(t => t.id === tenantId);
     if (!tenant) return;
 
@@ -618,7 +731,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   const renameExpenseCategory = async (oldName: string, newName: string) => {
-    const tenantId = currentUser?.tenantId || '';
+    const tenantId = currentUser?.tenantId || currentTenantId || '';
     const tenant = tenants.find(t => t.id === tenantId);
     if (!tenant) return;
 
@@ -637,7 +750,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   const deleteExpenseCategory = async (catName: string) => {
-    const tenantId = currentUser?.tenantId || '';
+    const tenantId = currentUser?.tenantId || currentTenantId || '';
     const tenant = tenants.find(t => t.id === tenantId);
     if (!tenant) return;
 
@@ -656,7 +769,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   const addUser = async (user: User | Omit<User, 'tenantId'>) => {
-    const tenantId = (user as User).tenantId || currentUser?.tenantId || '';
+    const tenantId = (user as User).tenantId || currentUser?.tenantId || currentTenantId || '';
     const newUser = { 
       ...user, 
       tenantId,
@@ -723,7 +836,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   const updateBusiness = async (updates: Partial<Business>) => {
-    const tenantId = currentUser?.tenantId || '';
+    const tenantId = currentUser?.tenantId || currentTenantId || '';
     setTenants(prev => prev.map(t => t.id === tenantId ? { ...t, ...updates } : t));
 
     try {
@@ -896,7 +1009,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   const addTransaction = async (transaction: Omit<Transaction, 'tenantId'>) => {
-    const tenantId = currentUser?.tenantId || '';
+    const tenantId = currentUser?.tenantId || currentTenantId || '';
     const newTransaction = { ...transaction, tenantId } as Transaction;
     setAllTransactions(prev => [newTransaction, ...prev]);
 
@@ -918,7 +1031,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   const addExpense = async (expense: Omit<Expense, 'tenantId'>) => {
-    const tenantId = currentUser?.tenantId || '';
+    const tenantId = currentUser?.tenantId || currentTenantId || '';
     const newExpense = { ...expense, tenantId } as Expense;
     setAllExpenses(prev => [newExpense, ...prev]);
 

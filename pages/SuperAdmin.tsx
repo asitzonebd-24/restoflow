@@ -3,9 +3,11 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Business, Role } from '../types';
 import { Plus, Building2, User, Mail, Phone, Globe, MapPin, Search, ExternalLink, Calendar, Power, PowerOff, DollarSign, Edit3, Save, X as CloseIcon, AlertTriangle, Copy, Check } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export const SuperAdmin = () => {
   const { tenants, createBusiness, currentUser, toggleBusinessStatus, updateTenant, deleteTenant, allUsers, updateUser } = useApp();
+  const navigate = useNavigate();
   const [showModal, setShowModal] = useState(false);
   const [editingTenant, setEditingTenant] = useState<Business | null>(null);
   const [editingBill, setEditingBill] = useState<string | null>(null);
@@ -288,7 +290,11 @@ export const SuperAdmin = () => {
                       >
                         <AlertTriangle size={18} />
                       </button>
-                      <button className="p-2 text-slate-400 hover:text-indigo-600 transition" title="View Dashboard">
+                      <button 
+                        onClick={() => navigate(`/${tenant.id}/dashboard`)}
+                        className="p-2 text-slate-400 hover:text-indigo-600 transition" 
+                        title="View Dashboard"
+                      >
                         <ExternalLink size={18} />
                       </button>
                     </div>
