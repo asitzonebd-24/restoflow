@@ -283,9 +283,9 @@ export const CustomerOrder = () => {
           </div>
         </header>
 
-        <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-          <div className="flex-1 p-4 md:p-8 overflow-y-auto no-scrollbar pb-32">
-            <div className="mb-8 flex flex-col md:flex-row gap-4 items-center">
+        <div className="flex-1 flex flex-col lg:flex-row overflow-hidden min-h-0">
+          <div className="flex-1 p-4 md:p-8 overflow-y-auto no-scrollbar pb-32 min-h-0">
+            <div className="mb-8 flex flex-col md:flex-row gap-4 items-start md:items-center">
               <div className="overflow-x-auto pb-2 no-scrollbar flex gap-2 snap-x w-full md:w-auto">
                 {categories.map(cat => (
                   <button
@@ -300,7 +300,7 @@ export const CustomerOrder = () => {
                 ))}
               </div>
               
-              <div className="relative min-w-[140px] w-full md:w-auto">
+              <div className="relative min-w-[140px] w-full md:w-auto md:hidden">
                 <select 
                   value={activeCategory}
                   onChange={(e) => setActiveCategory(e.target.value)}
@@ -314,39 +314,47 @@ export const CustomerOrder = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 md:gap-8">
-              {filteredMenu.map(item => (
-                <button 
-                  key={item.id} 
-                  onClick={() => addToCart(item)}
-                  className={`group flex flex-col bg-white rounded-[2rem] md:rounded-[2.5rem] border-2 border-slate-100 p-3 md:p-5 transition-all hover:-translate-y-1 hover:shadow-2xl hover:border-indigo-500 active:scale-95 shadow-xl shadow-slate-200/20 relative overflow-hidden ${item.stock !== undefined && item.stock !== null && item.stock <= 0 ? 'cursor-not-allowed' : ''}`}
-                >
-                  <div className="aspect-square w-full rounded-2xl overflow-hidden border-2 border-slate-100 mb-3 md:mb-5 bg-slate-50 flex items-center justify-center group-hover:border-indigo-500 transition-colors relative">
-                      <img 
-                        src={item.image || DEFAULT_MENU_IMAGE} 
-                        alt={item.name} 
-                        className={`w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ${item.stock !== undefined && item.stock !== null && item.stock <= 0 ? 'grayscale opacity-50' : ''}`} 
-                      />
-                      {item.stock !== undefined && item.stock !== null && item.stock <= 0 && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-slate-900/40 backdrop-blur-[2px]">
-                          <span className="bg-rose-600 text-white text-[8px] md:text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl shadow-2xl transform -rotate-6 border-2 border-white/20">
-                            Sold Out
-                          </span>
-                        </div>
-                      )}
-                  </div>
-                  <h3 className="font-black text-[10px] md:text-[12px] uppercase tracking-tight text-slate-900 text-left line-clamp-2 leading-tight mb-2 h-7 md:h-8">{item.name}</h3>
-                  <div className="mt-auto flex justify-between items-center w-full">
-                      <span className="font-black text-indigo-600 text-xs md:text-base">{business.currency}{item.price.toFixed(0)}</span>
-                      {item.stock !== undefined && item.stock !== null && item.stock <= 0 ? (
-                        <div className="bg-slate-100 text-slate-300 p-1.5 md:p-2 rounded-xl border-2 border-slate-100"><X size={12} md:size={14} strokeWidth={4} /></div>
-                      ) : (
-                        <div className="bg-black text-white p-1.5 md:p-2 rounded-xl border-2 border-black"><Plus size={12} md:size={14} strokeWidth={4} /></div>
-                      )}
-                  </div>
-                </button>
-              ))}
-            </div>
+            {filteredMenu.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+                <MenuIcon size={48} className="mb-4 opacity-20" />
+                <p className="font-black uppercase text-[10px] tracking-[0.3em]">No items found</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 md:gap-8">
+                {filteredMenu.map(item => (
+                  <button 
+                    key={item.id} 
+                    onClick={() => addToCart(item)}
+                    className={`group flex flex-col bg-white rounded-[2rem] md:rounded-[2.5rem] border-2 border-slate-100 p-3 md:p-5 transition-all hover:-translate-y-1 hover:shadow-2xl hover:border-indigo-500 active:scale-95 shadow-xl shadow-slate-200/20 relative overflow-hidden ${item.stock !== undefined && item.stock !== null && item.stock <= 0 ? 'cursor-not-allowed' : ''}`}
+                  >
+                    <div className="aspect-square w-full rounded-2xl overflow-hidden border-2 border-slate-100 mb-3 md:mb-5 bg-slate-50 flex items-center justify-center group-hover:border-indigo-500 transition-colors relative">
+                        <img 
+                          src={item.image || DEFAULT_MENU_IMAGE} 
+                          alt={item.name} 
+                          className={`w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ${item.stock !== undefined && item.stock !== null && item.stock <= 0 ? 'grayscale opacity-50' : ''}`} 
+                          referrerPolicy="no-referrer"
+                        />
+                        {item.stock !== undefined && item.stock !== null && item.stock <= 0 && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-slate-900/40 backdrop-blur-[2px]">
+                            <span className="bg-rose-600 text-white text-[8px] md:text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl shadow-2xl transform -rotate-6 border-2 border-white/20">
+                              Sold Out
+                            </span>
+                          </div>
+                        )}
+                    </div>
+                    <h3 className="font-black text-[10px] md:text-[12px] uppercase tracking-tight text-slate-900 text-left line-clamp-2 leading-tight mb-2 h-7 md:h-8">{item.name}</h3>
+                    <div className="mt-auto flex justify-between items-center w-full">
+                        <span className="font-black text-indigo-600 text-xs md:text-base">{business.currency}{item.price.toFixed(0)}</span>
+                        {item.stock !== undefined && item.stock !== null && item.stock <= 0 ? (
+                          <div className="bg-slate-100 text-slate-300 p-1.5 md:p-2 rounded-xl border-2 border-slate-100"><X size={14} strokeWidth={4} /></div>
+                        ) : (
+                          <div className="bg-black text-white p-1.5 md:p-2 rounded-xl border-2 border-black"><Plus size={14} strokeWidth={4} /></div>
+                        )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="hidden lg:flex w-[400px] bg-white border-l-8 border-indigo-500 flex-col shadow-2xl shrink-0 overflow-y-auto no-scrollbar">

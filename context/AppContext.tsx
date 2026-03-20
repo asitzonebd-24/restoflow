@@ -282,37 +282,37 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const business = useMemo(() => {
     const targetId = currentUser?.tenantId || currentTenantId;
     if (!targetId) return tenants[0] || BUSINESS_DETAILS;
-    return tenants.find(t => t.id === targetId) || tenants[0] || BUSINESS_DETAILS;
+    return tenants.find(t => String(t.id) === String(targetId)) || tenants[0] || BUSINESS_DETAILS;
   }, [currentUser, tenants, currentTenantId]);
 
   const orders = useMemo(() => {
     const targetId = currentUser?.tenantId || currentTenantId;
-    return allOrders.filter(o => o.tenantId === targetId);
+    return allOrders.filter(o => String(o.tenantId) === String(targetId));
   }, [allOrders, currentUser, currentTenantId]);
 
   const inventory = useMemo(() => {
     const targetId = currentUser?.tenantId || currentTenantId;
-    return allInventory.filter(i => i.tenantId === targetId);
+    return allInventory.filter(i => String(i.tenantId) === String(targetId));
   }, [allInventory, currentUser, currentTenantId]);
 
   const menu = useMemo(() => {
     const targetId = currentUser?.tenantId || currentTenantId;
-    return allMenu.filter(m => m.tenantId === targetId);
+    return allMenu.filter(m => String(m.tenantId) === String(targetId));
   }, [allMenu, currentUser, currentTenantId]);
 
   const users = useMemo(() => {
     const targetId = currentUser?.tenantId || currentTenantId;
-    return allUsers.filter(u => u.tenantId === targetId || u.role === Role.SUPER_ADMIN);
+    return allUsers.filter(u => String(u.tenantId) === String(targetId) || u.role === Role.SUPER_ADMIN);
   }, [allUsers, currentUser, currentTenantId]);
 
   const transactions = useMemo(() => {
     const targetId = currentUser?.tenantId || currentTenantId;
-    return allTransactions.filter(t => t.tenantId === targetId);
+    return allTransactions.filter(t => String(t.tenantId) === String(targetId));
   }, [allTransactions, currentUser, currentTenantId]);
 
   const expenses = useMemo(() => {
     const targetId = currentUser?.tenantId || currentTenantId;
-    return allExpenses.filter(e => e.tenantId === targetId);
+    return allExpenses.filter(e => String(e.tenantId) === String(targetId));
   }, [allExpenses, currentUser, currentTenantId]);
 
   const login = (emailOrMobile: string, password: string, tenantId?: string | null): boolean => {
