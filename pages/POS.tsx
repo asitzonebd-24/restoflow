@@ -165,10 +165,13 @@ export const POS = () => {
     } else if (selectedOrderId) {
       const totalAmount = cart.reduce((sum, i) => sum + (i.price * i.quantity), 0);
       
+      // Check if new items were added to reset status to PENDING
+      const hasNewItems = cart.some((i: any) => !i.isExisting);
+      
       // Clean up the isExisting flag before saving
       const cleanedItems = cart.map(({ isExisting, ...item }: any) => item);
       
-      updateOrderItems(selectedOrderId, cleanedItems, totalAmount, orderNote);
+      updateOrderItems(selectedOrderId, cleanedItems, totalAmount, orderNote, hasNewItems ? OrderStatus.PENDING : undefined);
     }
 
     setSelectedOrderId(null);

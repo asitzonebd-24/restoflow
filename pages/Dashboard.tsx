@@ -1,43 +1,127 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Cell } from 'recharts';
-import { generateBusinessInsight } from '../services/geminiService';
-import { Bot, TrendingUp, AlertTriangle, DollarSign, Wallet, ArrowUpRight, ArrowDownRight, PlusCircle, LayoutPanelTop, History, Globe } from 'lucide-react';
+import { TrendingUp, AlertTriangle, DollarSign, Wallet, ArrowUpRight, ArrowDownRight, PlusCircle, LayoutPanelTop, History, Globe, Calendar, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export const Dashboard = () => {
-  const { orders, inventory, currentTenant, expenses } = useApp();
-  const [insight, setInsight] = useState<string | null>(null);
-  const [loadingAi, setLoadingAi] = useState(false);
+  const { orders, inventory, currentTenant, expenses: allExpenses, transactions: allTransactions } = useApp();
   const navigate = useNavigate();
 
+  // Date range state
+  const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'week' | 'month' | 'custom'>('month');
+  const [customRange, setCustomRange] = useState({
+    start: (() => {
+      const d = new Date();
+      d.setDate(d.getDate() - 30);
+      return d.toISOString().split('T')[0];
+    })(),
+    end: new Date().toISOString().split('T')[0]
+  });
+
+  // Filtered data based on date range
+  const { transactions, expenses, startDate, endDate } = useMemo(() => {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const startOfMonth = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    let start = new Date(0); // All time
+    let end = new Date();
+
+    if (dateFilter === 'today') {
+      start = startOfToday;
+    } else if (dateFilter === 'week') {
+      start = startOfWeek;
+    } else if (dateFilter === 'month') {
+      start = startOfMonth;
+    } else if (dateFilter === 'custom') {
+      start = new Date(customRange.start);
+      start.setHours(0, 0, 0, 0);
+      end = new Date(customRange.end);
+      end.setHours(23, 59, 59, 999);
+    }
+
+    const filteredTransactions = allTransactions.filter(t => {
+      const d = new Date(t.date);
+      return d >= start && d <= end;
+    });
+
+    const filteredExpenses = allExpenses.filter(e => {
+      const d = new Date(e.date);
+      return d >= start && d <= end;
+    });
+
+    return { 
+      transactions: filteredTransactions, 
+      expenses: filteredExpenses,
+      startDate: start,
+      endDate: end
+    };
+  }, [allTransactions, allExpenses, dateFilter, customRange]);
+
   // Calculate stats
-  const totalRevenue = orders.reduce((sum, o) => sum + o.totalAmount, 0);
+  const totalRevenue = transactions.reduce((sum, t) => sum + t.amount, 0);
   const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
   const netProfit = totalRevenue - totalExpenses;
   
   const pendingOrders = orders.filter(o => o.status === 'PENDING').length;
   const lowStockCount = inventory.filter(i => i.quantity <= i.minThreshold).length;
 
-  const handleAiAnalysis = async () => {
-    if (!currentTenant) return;
-    setLoadingAi(true);
-    const result = await generateBusinessInsight(currentTenant.name, orders, inventory);
-    setInsight(result);
-    setLoadingAi(false);
-  };
+  // Dynamic chart data based on selected range
+  const chartData = useMemo(() => {
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    
+    const rangeDays: Date[] = [];
+    let current = new Date(startDate);
+    if (dateFilter === 'all' && allTransactions.length > 0) {
+      // For "All Time", just show last 30 days of activity
+      current = new Date();
+      current.setDate(current.getDate() - 30);
+    }
+    
+    // Limit to 31 days for chart performance if range is too long
+    const diffTime = Math.abs(endDate.getTime() - current.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays > 31) {
+      current = new Date(endDate);
+      current.setDate(current.getDate() - 30);
+    }
 
-  // Mock chart data based on weekly outlook
-  const chartData = [
-    { name: 'Mon', sales: 400, expense: 200 },
-    { name: 'Tue', sales: 300, expense: 150 },
-    { name: 'Wed', sales: 550, expense: 300 },
-    { name: 'Thu', sales: 450, expense: 400 },
-    { name: 'Fri', sales: 800, expense: 500 },
-    { name: 'Sat', sales: 1200, expense: 600 },
-    { name: 'Sun', sales: 900, expense: 450 },
-  ];
+    while (current <= endDate) {
+      rangeDays.push(new Date(current));
+      current.setDate(current.getDate() + 1);
+    }
+
+    return rangeDays.map(date => {
+      const dayName = days[date.getDay()];
+      const dayStart = new Date(date.setHours(0, 0, 0, 0));
+      const dayEnd = new Date(date.setHours(23, 59, 59, 999));
+
+      const daySales = allTransactions
+        .filter(t => {
+          const tDate = new Date(t.date);
+          return tDate >= dayStart && tDate <= dayEnd;
+        })
+        .reduce((sum, t) => sum + t.amount, 0);
+
+      const dayExpenses = allExpenses
+        .filter(e => {
+          const eDate = new Date(e.date);
+          return eDate >= dayStart && eDate <= dayEnd;
+        })
+        .reduce((sum, e) => sum + e.amount, 0);
+
+      return {
+        name: dayName,
+        date: date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+        sales: daySales,
+        expense: dayExpenses
+      };
+    });
+  }, [allTransactions, allExpenses, startDate, endDate, dateFilter]);
 
   return (
     <div className="p-6 md:p-8 space-y-8 bg-[#f8fafc] min-h-full font-sans">
@@ -53,7 +137,23 @@ export const Dashboard = () => {
           </div>
         </div>
         
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative w-full md:w-48">
+            <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+            <select 
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value as any)}
+              className="w-full pl-11 pr-10 py-3.5 bg-white border-2 border-slate-100 rounded-2xl text-[10px] font-bold uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm appearance-none"
+            >
+              <option value="all">All Time</option>
+              <option value="today">Today</option>
+              <option value="week">Last 7 Days</option>
+              <option value="month">Last 30 Days</option>
+              <option value="custom">Custom Range</option>
+            </select>
+            <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 rotate-90 text-slate-400 pointer-events-none" size={16} />
+          </div>
+
           <button 
             onClick={() => navigate(`/${currentTenant?.id}/expenses`)}
             className="px-5 py-2.5 bg-white border-2 border-slate-100 text-slate-900 rounded-2xl font-bold text-[10px] shadow-sm hover:border-slate-300 transition-all flex items-center gap-2 uppercase tracking-widest"
@@ -61,29 +161,32 @@ export const Dashboard = () => {
             <PlusCircle size={16} />
             <span>Add Expense</span>
           </button>
-          <button 
-            onClick={handleAiAnalysis}
-            disabled={loadingAi}
-            className="flex items-center gap-2 bg-indigo-600 text-white px-6 py-2.5 rounded-2xl font-bold text-[10px] shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-all disabled:opacity-50 uppercase tracking-widest"
-          >
-            <Bot size={16} />
-            <span>{loadingAi ? 'Analyzing...' : 'Gemini Insights'}</span>
-          </button>
         </div>
       </div>
 
-      {/* AI Insight Section */}
-      {insight && (
-        <div className="bg-white p-6 rounded-3xl shadow-xl border-2 border-indigo-500 shadow-indigo-100 animate-in fade-in slide-in-from-top-4 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-50/30 rounded-full -mr-32 -mt-32 blur-3xl"></div>
-          <div className="relative z-10">
-            <h3 className="text-[10px] font-bold text-indigo-600 mb-3 flex items-center gap-2 uppercase tracking-[0.2em]">
-              <Bot size={14} />
-              Strategic Intelligence
-            </h3>
-            <div className="prose prose-slate prose-sm text-slate-600 whitespace-pre-line font-medium leading-relaxed max-w-none">
-              {insight}
-            </div>
+      {/* Custom Range Inputs */}
+      {dateFilter === 'custom' && (
+        <div className="bg-white p-6 rounded-3xl border-2 border-indigo-500 shadow-xl shadow-indigo-100 animate-in slide-in-from-top-2 flex flex-col sm:flex-row items-center gap-6">
+          <div className="w-full sm:flex-1">
+            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Start Date</label>
+            <input 
+              type="date" 
+              value={customRange.start}
+              onChange={(e) => setCustomRange({...customRange, start: e.target.value})}
+              className="w-full px-6 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold outline-none focus:border-indigo-500 transition-all"
+            />
+          </div>
+          <div className="hidden sm:block text-slate-200 mt-6">
+            <ChevronRight size={20} />
+          </div>
+          <div className="w-full sm:flex-1">
+            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">End Date</label>
+            <input 
+              type="date" 
+              value={customRange.end}
+              onChange={(e) => setCustomRange({...customRange, end: e.target.value})}
+              className="w-full px-6 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold outline-none focus:border-indigo-500 transition-all"
+            />
           </div>
         </div>
       )}
@@ -155,36 +258,6 @@ export const Dashboard = () => {
         </div>
       </div>
 
-      {/* Customer App Link Section */}
-      <div className="bg-white p-8 rounded-[2.5rem] border-4 border-indigo-500 shadow-xl shadow-indigo-100 relative overflow-hidden group">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-full -mr-16 -mt-16 group-hover:scale-110 transition-transform duration-500"></div>
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="flex items-center gap-6">
-            <div className="w-16 h-16 bg-indigo-600 text-white rounded-2xl flex items-center justify-center shadow-lg border-2 border-white">
-              <Globe size={32} />
-            </div>
-            <div>
-              <h3 className="text-xl font-black text-slate-900 tracking-tighter uppercase">Customer App Portal</h3>
-              <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1">Share this link with your customers to order</p>
-            </div>
-          </div>
-          <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
-            <div className="flex-1 md:flex-none bg-slate-50 px-6 py-4 rounded-2xl border-2 border-slate-100 font-mono text-[10px] text-slate-600 break-all select-all shadow-inner">
-              {window.location.origin}/#/{currentTenant?.id}
-            </div>
-            <button 
-              onClick={() => {
-                navigator.clipboard.writeText(`${window.location.origin}/#/${currentTenant?.id}`);
-                alert('Customer App Link copied to clipboard!');
-              }}
-              className="w-full sm:w-auto bg-black text-white px-8 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-indigo-600 transition-all shadow-xl active:scale-95 border-b-4 border-slate-700"
-            >
-              Copy Link
-            </button>
-          </div>
-        </div>
-      </div>
-
       {/* Charts & Lists Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Sales Chart */}
@@ -206,10 +279,10 @@ export const Dashboard = () => {
               <BarChart data={chartData} barGap={8}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis 
-                  dataKey="name" 
+                  dataKey="date" 
                   axisLine={false} 
                   tickLine={false} 
-                  tick={{ fontSize: 10, fontWeight: 700, fill: '#94a3b8' }} 
+                  tick={{ fontSize: 9, fontWeight: 700, fill: '#94a3b8' }} 
                   dy={15}
                 />
                 <YAxis 

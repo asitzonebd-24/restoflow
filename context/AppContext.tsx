@@ -15,7 +15,7 @@ interface AppContextType {
   login: (emailOrMobile: string, password: string, tenantId?: string | null) => boolean;
   logout: () => void;
   addOrder: (order: Omit<Order, 'tenantId'>) => Promise<void>;
-  updateOrderItems: (orderId: string, items: OrderItem[], totalAmount: number, note?: string) => Promise<void>;
+  updateOrderItems: (orderId: string, items: OrderItem[], totalAmount: number, note?: string, status?: OrderStatus) => Promise<void>;
   updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>;
   updateOrderItemStatus: (orderId: string, rowId: string, status: ItemStatus) => Promise<void>;
   updateInventory: (itemId: string, quantityChange: number) => Promise<void>;
@@ -389,11 +389,13 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     }
   };
 
-  const updateOrderItems = async (orderId: string, items: OrderItem[], totalAmount: number, note?: string) => {
+  const updateOrderItems = async (orderId: string, items: OrderItem[], totalAmount: number, note?: string, status?: OrderStatus) => {
     const oldOrder = allOrders.find(o => o.id === orderId);
     if (!oldOrder) return;
 
-    setAllOrders(prev => prev.map(o => o.id === orderId ? { ...o, items, totalAmount, note: note ?? o.note } : o));
+    const newStatus = status ?? oldOrder.status;
+
+    setAllOrders(prev => prev.map(o => o.id === orderId ? { ...o, items, totalAmount, status: newStatus, note: note ?? o.note } : o));
 
     // Calculate stock changes
     const stockChanges: { [itemId: string]: number } = {};
@@ -429,6 +431,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       await supabase.from('orders').update({
         items,
         total_amount: totalAmount,
+        status: newStatus,
         note: note
       }).eq('id', orderId);
 

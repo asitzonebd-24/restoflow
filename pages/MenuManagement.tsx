@@ -152,15 +152,15 @@ export const MenuManagement = () => {
             placeholder="Search dishes, drinks or categories..." 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-14 pr-6 py-4 bg-white border-2 border-indigo-500 rounded-2xl text-sm font-medium focus:outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all shadow-xl shadow-indigo-100"
+            className="w-full pl-14 pr-6 py-4 bg-white border-2 border-black rounded-2xl text-sm font-medium focus:outline-none focus:ring-4 focus:ring-slate-900/10 transition-all shadow-xl shadow-slate-100"
           />
         </div>
         <div className="flex gap-4 w-full md:w-auto">
-          <div className="bg-white border-2 border-indigo-500 px-6 py-4 rounded-3xl shadow-xl shadow-indigo-100 flex-1 md:flex-none hover:scale-105 transition-all duration-300">
+          <div className="bg-white border-2 border-black px-6 py-4 rounded-3xl shadow-xl shadow-slate-200 flex-1 md:flex-none hover:scale-105 transition-all duration-300">
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Items</p>
             <p className="text-xl font-bold text-slate-900">{menu.length}</p>
           </div>
-          <div className="bg-white border-2 border-emerald-500 px-6 py-4 rounded-3xl shadow-xl shadow-emerald-100 flex-1 md:flex-none hover:scale-105 transition-all duration-300">
+          <div className="bg-white border-2 border-black px-6 py-4 rounded-3xl shadow-xl shadow-slate-200 flex-1 md:flex-none hover:scale-105 transition-all duration-300">
             <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Categories</p>
             <p className="text-xl font-bold text-slate-900">{categories.length}</p>
           </div>
@@ -170,7 +170,7 @@ export const MenuManagement = () => {
       {/* Menu Grid */}
       <div className="space-y-16">
         {categories.length === 0 ? (
-           <div className="text-center py-24 bg-white rounded-[2.5rem] border border-slate-100 shadow-sm">
+           <div className="text-center py-24 bg-white rounded-[2.5rem] border-2 border-black shadow-xl shadow-slate-200">
              <Utensils size={64} strokeWidth={1} className="mx-auto text-slate-100 mb-6" />
              <p className="text-slate-300 font-bold uppercase tracking-widest">Your menu is empty</p>
              <button onClick={openAddModal} className="mt-6 text-indigo-500 font-bold text-sm hover:underline">Create your first dish</button>
@@ -185,12 +185,12 @@ export const MenuManagement = () => {
               <div className="flex items-center gap-6">
                  <h2 className="text-2xl font-bold text-slate-900 tracking-tight">{cat}</h2>
                  <div className="h-1 flex-1 bg-slate-100 rounded-full"></div>
-                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest bg-white border-2 border-slate-100 px-5 py-2 rounded-full shadow-lg shadow-slate-200/20">{itemsInCat.length} Items</span>
+                 <span className="text-[10px] font-bold text-slate-900 uppercase tracking-widest bg-white border-2 border-black px-5 py-2 rounded-full shadow-lg shadow-slate-200/20">{itemsInCat.length} Items</span>
               </div>
               
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-8">
                 {itemsInCat.map(item => (
-                  <div key={item.id} className="group bg-white rounded-[2rem] border-2 border-slate-100 overflow-hidden transition-all hover:shadow-2xl hover:border-indigo-500 shadow-xl shadow-slate-200/20 flex flex-col hover:-translate-y-1">
+                  <div key={item.id} className="group bg-white rounded-[2rem] border-2 border-black overflow-hidden transition-all hover:shadow-2xl hover:border-slate-700 shadow-xl shadow-slate-200/20 flex flex-col hover:-translate-y-1">
                     <div className="relative h-56 bg-slate-50 overflow-hidden">
                       {item.image ? (
                         <img 
@@ -269,7 +269,7 @@ export const MenuManagement = () => {
       {isModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setIsModalOpen(false)}></div>
-          <div className="relative bg-white w-full max-w-xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 border-2 border-indigo-500 shadow-indigo-100">
+          <div className="relative bg-white w-full max-w-xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 border-4 border-black shadow-slate-200">
             <div className="p-8 md:p-10">
               <div className="flex justify-between items-center mb-8">
                 <div>
@@ -391,7 +391,7 @@ export const MenuManagement = () => {
       {isCategoryModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setIsCategoryModalOpen(false)}></div>
-          <div className="relative bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 border-2 border-indigo-500 shadow-indigo-100">
+          <div className="relative bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 border-4 border-black shadow-slate-200">
             <div className="p-8 md:p-10">
               <div className="flex justify-between items-center mb-8">
                 <div>
@@ -425,7 +425,7 @@ export const MenuManagement = () => {
 
                 <div className="space-y-3 max-h-80 overflow-y-auto pr-2 no-scrollbar">
                   {categories.map(cat => (
-                    <div key={cat} className="flex items-center justify-between p-5 bg-slate-50 rounded-2xl border border-slate-100 group hover:bg-white hover:border-indigo-100 transition-all">
+                    <div key={cat} className="flex items-center justify-between p-5 bg-slate-50 rounded-2xl border-2 border-black group hover:bg-white hover:border-slate-700 transition-all">
                       <span className="font-bold text-slate-700">{cat}</span>
                       <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
                         <button 
