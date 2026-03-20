@@ -37,11 +37,17 @@ export const Login = () => {
         
         {/* Top Branding Header */}
         <div className="bg-slate-900 text-white p-8 flex flex-col items-center text-center gap-4">
-          <div className="w-14 h-14 bg-white/10 rounded-xl p-2.5 border border-white/10 shadow-lg">
-            <img src={business.logo} className="w-full h-full object-contain rounded-lg" alt="Logo" />
+          <div className="w-14 h-14 bg-white/10 rounded-xl p-2.5 border border-white/10 shadow-lg flex items-center justify-center">
+            {tenantId ? (
+              <img src={business.logo} className="w-full h-full object-contain rounded-lg" alt="Logo" />
+            ) : (
+              <ChefHat className="text-white w-8 h-8" />
+            )}
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight leading-none">{business.name}</h1>
+            <h1 className="text-2xl font-bold tracking-tight leading-none">
+              {tenantId ? business.name : 'Super Admin Portal'}
+            </h1>
             <p className="text-white/40 text-[9px] font-bold uppercase tracking-[0.3em] mt-2">
               {tenantId ? 'Restaurant Access Terminal' : 'Portal Administrator Access'}
             </p>

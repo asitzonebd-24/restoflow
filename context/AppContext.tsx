@@ -35,6 +35,7 @@ interface AppContextType {
   deleteUser: (userId: string) => void;
   updateBusiness: (updates: Partial<Business>) => void;
   updateTenant: (tenantId: string, updates: Partial<Business>) => void;
+  deleteTenant: (tenantId: string) => void;
   currentTenant: Business;
   currentTenantId: string | null;
   setCurrentTenantId: (id: string | null) => void;
@@ -718,12 +719,43 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
     try {
       const supabaseUpdates: any = {};
+      if (updates.name !== undefined) supabaseUpdates.name = updates.name;
+      if (updates.address !== undefined) supabaseUpdates.address = updates.address;
+      if (updates.phone !== undefined) supabaseUpdates.phone = updates.phone;
+      if (updates.currency !== undefined) supabaseUpdates.currency = updates.currency;
       if (updates.monthlyBill !== undefined) supabaseUpdates.monthly_bill = updates.monthlyBill;
+      if (updates.billingDay !== undefined) supabaseUpdates.billing_day = updates.billingDay;
       if (updates.isActive !== undefined) supabaseUpdates.is_active = updates.isActive;
 
       await supabase.from('tenants').update(supabaseUpdates).eq('id', tenantId);
     } catch (error) {
       console.error('Error updating tenant in Supabase:', error);
+    }
+  };
+
+  const deleteTenant = async (tenantId: string) => {
+    // Prevent deleting the last tenant or something? Maybe not needed.
+    setTenants(prev => prev.filter(t => t.id !== tenantId));
+    setAllUsers(prev => prev.filter(u => u.tenantId !== tenantId));
+    setAllMenu(prev => prev.filter(m => m.tenantId !== tenantId));
+    setAllOrders(prev => prev.filter(o => o.tenantId !== tenantId));
+    setAllInventory(prev => prev.filter(i => i.tenantId !== tenantId));
+    setAllTransactions(prev => prev.filter(t => t.tenantId !== tenantId));
+    setAllExpenses(prev => prev.filter(e => e.tenantId !== tenantId));
+
+    try {
+      // Delete all related data in Supabase
+      await Promise.all([
+        supabase.from('tenants').delete().eq('id', tenantId),
+        supabase.from('users').delete().eq('tenant_id', tenantId),
+        supabase.from('menu_items').delete().eq('tenant_id', tenantId),
+        supabase.from('orders').delete().eq('tenant_id', tenantId),
+        supabase.from('inventory').delete().eq('tenant_id', tenantId),
+        supabase.from('transactions').delete().eq('tenant_id', tenantId),
+        supabase.from('expenses').delete().eq('tenant_id', tenantId)
+      ]);
+    } catch (error) {
+      console.error('Error deleting tenant from Supabase:', error);
     }
   };
 
@@ -970,6 +1002,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       deleteUser,
       updateBusiness,
       updateTenant,
+      deleteTenant,
       currentTenant: business,
       currentTenantId,
       setCurrentTenantId,

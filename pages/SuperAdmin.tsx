@@ -5,8 +5,9 @@ import { Business, Role } from '../types';
 import { Plus, Building2, User, Mail, Phone, Globe, MapPin, Search, ExternalLink, Calendar, Power, PowerOff, DollarSign, Edit3, Save, X as CloseIcon, AlertTriangle, Copy, Check } from 'lucide-react';
 
 export const SuperAdmin = () => {
-  const { tenants, createBusiness, currentUser, toggleBusinessStatus, updateTenant, allUsers } = useApp();
+  const { tenants, createBusiness, currentUser, toggleBusinessStatus, updateTenant, deleteTenant, allUsers } = useApp();
   const [showModal, setShowModal] = useState(false);
+  const [editingTenant, setEditingTenant] = useState<Business | null>(null);
   const [editingBill, setEditingBill] = useState<string | null>(null);
   const [billAmount, setBillAmount] = useState<number>(0);
   const [searchTerm, setSearchTerm] = useState('');
@@ -50,6 +51,14 @@ export const SuperAdmin = () => {
     e.preventDefault();
     setError(null);
 
+    if (editingTenant) {
+      updateTenant(editingTenant.id, newBusiness);
+      setEditingTenant(null);
+      setShowModal(false);
+      setNewBusiness({ name: '', address: '', phone: '', currency: '৳', themeColor: '#0f172a', monthlyBill: 500, billingDay: 1 });
+      return;
+    }
+
     // Check for global email uniqueness
     const isDuplicate = allUsers.some(u => u.email.toLowerCase() === newOwner.email.toLowerCase());
     if (isDuplicate) {
@@ -61,6 +70,26 @@ export const SuperAdmin = () => {
     setShowModal(false);
     setNewBusiness({ name: '', address: '', phone: '', currency: '৳', themeColor: '#0f172a', monthlyBill: 500, billingDay: 1 });
     setNewOwner({ name: '', email: '', password: 'password', mobile: '' });
+  };
+
+  const handleEditTenant = (tenant: Business) => {
+    setEditingTenant(tenant);
+    setNewBusiness({
+      name: tenant.name,
+      address: tenant.address,
+      phone: tenant.phone,
+      currency: tenant.currency,
+      themeColor: tenant.themeColor,
+      monthlyBill: tenant.monthlyBill,
+      billingDay: tenant.billingDay
+    });
+    setShowModal(true);
+  };
+
+  const handleDeleteTenant = (tenantId: string) => {
+    if (window.confirm('Are you sure you want to delete this business? This will delete all associated data and cannot be undone.')) {
+      deleteTenant(tenantId);
+    }
   };
 
   const handleEditBill = (tenant: Business) => {
@@ -132,6 +161,7 @@ export const SuperAdmin = () => {
             <thead>
               <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
                 <th className="px-6 py-4 font-semibold">Restaurant</th>
+                <th className="px-6 py-4 font-semibold">Contact</th>
                 <th className="px-6 py-4 font-semibold">Status</th>
                 <th className="px-6 py-4 font-semibold">Monthly Bill</th>
                 <th className="px-6 py-4 font-semibold">Billing Day</th>
@@ -158,6 +188,18 @@ export const SuperAdmin = () => {
                             {copiedId === tenant.id ? 'Copied' : 'Copy Link'}
                           </button>
                         </div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-1 text-slate-600">
+                        <Phone size={12} />
+                        <span className="text-xs font-medium">{tenant.phone || 'No Phone'}</span>
+                      </div>
+                      <div className="flex items-center gap-1 text-slate-400">
+                        <MapPin size={12} />
+                        <span className="text-[10px] truncate max-w-[150px]">{tenant.address || 'No Address'}</span>
                       </div>
                     </div>
                   </td>
@@ -204,6 +246,13 @@ export const SuperAdmin = () => {
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-2">
                       <button 
+                        onClick={() => handleEditTenant(tenant)}
+                        className="p-2 text-slate-400 hover:text-indigo-600 transition"
+                        title="Edit Business"
+                      >
+                        <Edit3 size={18} />
+                      </button>
+                      <button 
                         onClick={() => toggleBusinessStatus(tenant.id)}
                         className={`p-2 rounded-lg transition ${
                           tenant.isActive 
@@ -213,6 +262,13 @@ export const SuperAdmin = () => {
                         title={tenant.isActive ? 'Deactivate Restaurant' : 'Activate Restaurant'}
                       >
                         {tenant.isActive ? <PowerOff size={18} /> : <Power size={18} />}
+                      </button>
+                      <button 
+                        onClick={() => handleDeleteTenant(tenant.id)}
+                        className="p-2 text-slate-400 hover:text-red-600 transition"
+                        title="Delete Business"
+                      >
+                        <AlertTriangle size={18} />
                       </button>
                       <button className="p-2 text-slate-400 hover:text-indigo-600 transition" title="View Dashboard">
                         <ExternalLink size={18} />
@@ -232,9 +288,16 @@ export const SuperAdmin = () => {
             <div className="p-6 border-b border-indigo-100 flex items-center justify-between bg-slate-50/50">
               <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
                 <Building2 className="text-indigo-600" />
-                Register New Restaurant
+                {editingTenant ? `Edit ${editingTenant.name}` : 'Register New Restaurant'}
               </h2>
-              <button onClick={() => setShowModal(false)} className="text-slate-400 hover:text-slate-600">
+              <button 
+                onClick={() => {
+                  setShowModal(false);
+                  setEditingTenant(null);
+                  setNewBusiness({ name: '', address: '', phone: '', currency: '৳', themeColor: '#0f172a', monthlyBill: 500, billingDay: 1 });
+                }} 
+                className="text-slate-400 hover:text-slate-600"
+              >
                 ✕
               </button>
             </div>
@@ -247,7 +310,7 @@ export const SuperAdmin = () => {
             )}
             
             <form onSubmit={handleCreate} className="p-6 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className={`grid grid-cols-1 ${editingTenant ? '' : 'md:grid-cols-2'} gap-6`}>
                 <div className="space-y-4">
                   <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
                     <Building2 size={16} /> Business Details
@@ -315,56 +378,62 @@ export const SuperAdmin = () => {
                   </div>
                 </div>
 
-                <div className="space-y-4">
-                  <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                    <User size={16} /> Owner Account
-                  </h3>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Owner Name</label>
-                    <input 
-                      required
-                      type="text" 
-                      className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
-                      value={newOwner.name}
-                      onChange={(e) => setNewOwner({...newOwner, name: e.target.value})}
-                    />
+                {!editingTenant && (
+                  <div className="space-y-4">
+                    <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                      <User size={16} /> Owner Account
+                    </h3>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Owner Name</label>
+                      <input 
+                        required
+                        type="text" 
+                        className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
+                        value={newOwner.name}
+                        onChange={(e) => setNewOwner({...newOwner, name: e.target.value})}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Email Address</label>
+                      <input 
+                        required
+                        type="email" 
+                        className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
+                        value={newOwner.email}
+                        onChange={(e) => setNewOwner({...newOwner, email: e.target.value})}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Mobile</label>
+                      <input 
+                        type="text" 
+                        className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
+                        value={newOwner.mobile}
+                        onChange={(e) => setNewOwner({...newOwner, mobile: e.target.value})}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
+                      <input 
+                        required
+                        type="password" 
+                        className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
+                        value={newOwner.password}
+                        onChange={(e) => setNewOwner({...newOwner, password: e.target.value})}
+                      />
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Email Address</label>
-                    <input 
-                      required
-                      type="email" 
-                      className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
-                      value={newOwner.email}
-                      onChange={(e) => setNewOwner({...newOwner, email: e.target.value})}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Mobile</label>
-                    <input 
-                      type="text" 
-                      className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
-                      value={newOwner.mobile}
-                      onChange={(e) => setNewOwner({...newOwner, mobile: e.target.value})}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
-                    <input 
-                      required
-                      type="password" 
-                      className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
-                      value={newOwner.password}
-                      onChange={(e) => setNewOwner({...newOwner, password: e.target.value})}
-                    />
-                  </div>
-                </div>
+                )}
               </div>
 
               <div className="pt-6 border-t border-slate-100 flex gap-3">
                 <button 
                   type="button"
-                  onClick={() => setShowModal(false)}
+                  onClick={() => {
+                    setShowModal(false);
+                    setEditingTenant(null);
+                    setNewBusiness({ name: '', address: '', phone: '', currency: '৳', themeColor: '#0f172a', monthlyBill: 500, billingDay: 1 });
+                  }}
                   className="flex-1 px-6 py-3 rounded-xl font-bold text-slate-600 hover:bg-slate-100 transition"
                 >
                   Cancel
@@ -373,7 +442,7 @@ export const SuperAdmin = () => {
                   type="submit"
                   className="flex-1 bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 transition shadow-lg shadow-indigo-200"
                 >
-                  Create Business
+                  {editingTenant ? 'Save Changes' : 'Create Business'}
                 </button>
               </div>
             </form>
