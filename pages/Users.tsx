@@ -280,7 +280,7 @@ export const Users = () => {
                                         <span className="text-[10px] font-black text-slate-900 tracking-widest">{user.mobile}</span>
                                     </td>
                                     <td className="p-6 text-right">
-                                        {user.role !== Role.OWNER && (
+                                        {user.role !== Role.OWNER && user.role !== Role.SUPER_ADMIN && (
                                             <div className="flex justify-end gap-2">
                                                 <button onClick={() => handleEditClick(user)} className="p-3 text-slate-300 hover:text-indigo-600 bg-white border-2 border-transparent hover:border-indigo-100 rounded-xl transition shadow-sm"><Edit2 size={18} strokeWidth={3}/></button>
                                                 <button onClick={(e) => handleDelete(user.id, e)} className="p-3 text-slate-300 hover:text-red-600 bg-white border-2 border-transparent hover:border-red-100 rounded-xl transition shadow-sm"><Trash2 size={18} strokeWidth={3}/></button>

@@ -702,6 +702,17 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   const deleteUser = async (userId: string) => {
+    const userToDelete = allUsers.find(u => u.id === userId);
+    if (userToDelete?.role === Role.SUPER_ADMIN) {
+      console.error('Cannot delete Super Admin account.');
+      return;
+    }
+
+    if (userId === currentUser?.id) {
+      console.error('Cannot delete your own account.');
+      return;
+    }
+
     setAllUsers(prev => prev.filter(u => u.id !== userId));
 
     try {

@@ -1,14 +1,15 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { MenuItem, OrderItem, Order, OrderStatus } from '../types';
 import { ShoppingBasket, Plus, Minus, Search, ArrowRight, LogOut, MapPin, Menu as MenuIcon, X, ShoppingCart, Timer, History, ShoppingBag, CheckCircle, FileText, ChevronRight } from 'lucide-react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DEFAULT_MENU_IMAGE } from '../constants';
 
 export const CustomerOrder = () => {
-  const { menu, business, addOrder, currentUser, logout, updateBusiness } = useApp();
+  const { tenantId: urlTenantId } = useParams<{ tenantId: string }>();
+  const { menu, business, addOrder, currentUser, logout, updateBusiness, setCurrentTenantId } = useApp();
   const [activeCategory, setActiveCategory] = useState<string>('All');
   const [searchTerm, setSearchTerm] = useState('');
   const [cart, setCart] = useState<OrderItem[]>([]);
@@ -20,6 +21,14 @@ export const CustomerOrder = () => {
   
   const navigate = useNavigate();
   const location = useLocation();
+
+  const tenantId = urlTenantId || currentUser?.tenantId;
+
+  useEffect(() => {
+    if (tenantId) {
+      setCurrentTenantId(tenantId);
+    }
+  }, [tenantId, setCurrentTenantId]);
 
   const categories = useMemo(() => ['All', ...Array.from(new Set(menu.map(m => m.category)))], [menu]);
 
@@ -93,7 +102,7 @@ export const CustomerOrder = () => {
     // Explicitly increment the sequence
     updateBusiness({ nextCustomerToken: sequenceNum + 1 });
     setCart([]);
-    navigate('/order/panel');
+    navigate(`/${tenantId}/order/panel`);
   };
 
   const isActive = (path: string) => location.pathname === path;
@@ -236,13 +245,13 @@ export const CustomerOrder = () => {
            <h2 className="hidden md:block font-black text-lg uppercase tracking-tighter">OmniDine</h2>
         </div>
         <nav className="flex-1 space-y-4 px-2 md:px-6">
-           <button onClick={() => navigate('/order')} className={`w-full flex items-center justify-center md:justify-start gap-4 p-4 md:px-6 md:py-4 rounded-2xl transition font-black uppercase tracking-widest text-[10px] ${isActive('/order') ? 'bg-indigo-600 shadow-xl' : 'bg-white/5 hover:bg-white/10'}`}>
+           <button onClick={() => navigate(`/${tenantId}/order`)} className={`w-full flex items-center justify-center md:justify-start gap-4 p-4 md:px-6 md:py-4 rounded-2xl transition font-black uppercase tracking-widest text-[10px] ${isActive(`/${tenantId}/order`) ? 'bg-indigo-600 shadow-xl' : 'bg-white/5 hover:bg-white/10'}`}>
              <ShoppingBag size={20} /> <span className="hidden md:block">Digital Menu</span>
            </button>
-           <button onClick={() => navigate('/order/panel')} className={`w-full flex items-center justify-center md:justify-start gap-4 p-4 md:px-6 md:py-4 rounded-2xl transition font-black uppercase tracking-widest text-[10px] ${isActive('/order/panel') ? 'bg-indigo-600 shadow-xl' : 'bg-white/5 hover:bg-white/10'}`}>
+           <button onClick={() => navigate(`/${tenantId}/order/panel`)} className={`w-full flex items-center justify-center md:justify-start gap-4 p-4 md:px-6 md:py-4 rounded-2xl transition font-black uppercase tracking-widest text-[10px] ${isActive(`/${tenantId}/order/panel`) ? 'bg-indigo-600 shadow-xl' : 'bg-white/5 hover:bg-white/10'}`}>
              <Timer size={20} /> <span className="hidden md:block">My Tokens</span>
            </button>
-           <button onClick={() => navigate('/order/history')} className={`w-full flex items-center justify-center md:justify-start gap-4 p-4 md:px-6 md:py-4 rounded-2xl transition font-black uppercase tracking-widest text-[10px] ${isActive('/order/history') ? 'bg-indigo-600 shadow-xl' : 'bg-white/5 hover:bg-white/10'}`}>
+           <button onClick={() => navigate(`/${tenantId}/order/history`)} className={`w-full flex items-center justify-center md:justify-start gap-4 p-4 md:px-6 md:py-4 rounded-2xl transition font-black uppercase tracking-widest text-[10px] ${isActive(`/${tenantId}/order/history`) ? 'bg-indigo-600 shadow-xl' : 'bg-white/5 hover:bg-white/10'}`}>
              <History size={20} /> <span className="hidden md:block">History</span>
            </button>
         </nav>

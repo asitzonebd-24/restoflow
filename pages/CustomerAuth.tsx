@@ -52,12 +52,12 @@ export const CustomerAuth = () => {
         // Set user directly to avoid state propagation delay
         setCurrentUser(newUser);
         localStorage.setItem('resto_flow_user', JSON.stringify(newUser));
-        navigate('/order');
+        navigate(`/${tenantId}/order`);
       } else {
         // Try to login with email or mobile
         const success = login(formData.email || formData.mobile, formData.password, tenantId);
         if (success) {
-          navigate('/order');
+          navigate(`/${tenantId}/order`);
         } else {
           alert("Invalid credentials. Please try again or create an account.");
           setLoading(false);

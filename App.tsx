@@ -223,7 +223,7 @@ const AppContent = () => {
   const getDefaultRedirect = () => {
     if (!currentUser) return "/";
     if (currentUser.role === Role.SUPER_ADMIN) return "/portal";
-    if (currentUser.role === Role.CUSTOMER) return "/order";
+    if (currentUser.role === Role.CUSTOMER) return `/${currentUser.tenantId}/order`;
     if (currentUser.permissions?.includes('Dashboard')) return "/dashboard";
     return "/pos"; 
   };
@@ -234,19 +234,27 @@ const AppContent = () => {
       <Route path="/login" element={currentUser ? <Navigate to={getDefaultRedirect()} /> : <Login />} />
       <Route path="/order/auth" element={currentUser ? <Navigate to="/order" /> : <CustomerAuth />} />
       
-      <Route path="/order" element={
+      {/* Tenant-specific customer routes */}
+      <Route path="/:tenantId/order/auth" element={currentUser ? <Navigate to={`/${currentUser.tenantId}/order`} /> : <CustomerAuth />} />
+      <Route path="/:tenantId/order" element={
         currentUser && currentUser.role === Role.CUSTOMER 
           ? <CustomerOrder /> 
-          : <Navigate to="/order/auth" />
+          : <Navigate to={`/${window.location.hash.split('/')[1]}/order/auth?tenantId=${window.location.hash.split('/')[1]}`} />
       } />
-      <Route path="/order/panel" element={
+      <Route path="/:tenantId/order/panel" element={
         currentUser && currentUser.role === Role.CUSTOMER 
           ? <CustomerPanel /> 
-          : <Navigate to="/order/auth" />
+          : <Navigate to={`/${window.location.hash.split('/')[1]}/order/auth?tenantId=${window.location.hash.split('/')[1]}`} />
       } />
-      <Route path="/order/history" element={
+      <Route path="/:tenantId/order/history" element={
         currentUser && currentUser.role === Role.CUSTOMER 
           ? <CustomerHistory /> 
+          : <Navigate to={`/${window.location.hash.split('/')[1]}/order/auth?tenantId=${window.location.hash.split('/')[1]}`} />
+      } />
+
+      <Route path="/order" element={
+        currentUser && currentUser.role === Role.CUSTOMER 
+          ? <Navigate to={`/${currentUser.tenantId}/order`} />
           : <Navigate to="/order/auth" />
       } />
 

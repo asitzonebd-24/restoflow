@@ -59,7 +59,7 @@ export const TenantLanding = () => {
         <div className="space-y-4 animate-in fade-in slide-in-from-right-8 duration-700 delay-150">
           {/* Customer Portal */}
           <button 
-            onClick={() => navigate(`/order/auth?tenantId=${tenantId}`)}
+            onClick={() => navigate(`/${tenantId}/order/auth?tenantId=${tenantId}`)}
             className="w-full group bg-white hover:bg-indigo-600 p-8 rounded-[2.5rem] border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-1 hover:translate-y-1 transition-all flex items-center justify-between"
           >
             <div className="flex items-center gap-6">
