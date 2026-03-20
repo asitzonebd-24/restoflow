@@ -128,11 +128,25 @@ export const Login = () => {
 
             <div className="mt-10 pt-6 border-t border-slate-50">
                <p className="text-[9px] font-bold text-slate-300 uppercase tracking-[0.3em] text-center mb-3">Demo Credentials</p>
-               <div className="bg-slate-50 p-3 rounded-xl">
-                  <p className="text-[9px] font-medium text-slate-500 text-center">
-                    OWNER: <span className="text-slate-900 font-bold">owner@bistro.com</span> / <span className="text-slate-900 font-bold">password</span>
-                  </p>
+               <div className="bg-slate-50 p-4 rounded-2xl space-y-3">
+                  <div className="flex flex-col items-center gap-1">
+                    <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Super Admin (Portal)</p>
+                    <p className="text-[10px] font-medium text-slate-600">
+                      <span className="text-slate-900 font-bold">admin@portal.com</span> / <span className="text-slate-900 font-bold">admin</span>
+                    </p>
+                  </div>
+                  <div className="flex flex-col items-center gap-1">
+                    <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Business Owner (Bistro)</p>
+                    <p className="text-[10px] font-medium text-slate-600">
+                      <span className="text-slate-900 font-bold">owner@bistro.com</span> / <span className="text-slate-900 font-bold">password</span>
+                    </p>
+                  </div>
                </div>
+               {!tenantId && (
+                 <p className="mt-4 text-[9px] text-slate-400 text-center leading-relaxed">
+                   Business owners can log in here or via their <span className="text-indigo-500 font-bold">Tenant-Specific Link</span>.
+                 </p>
+               )}
             </div>
           </div>
         </div>

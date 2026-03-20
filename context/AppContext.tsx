@@ -305,19 +305,20 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
   const login = (email: string, password: string, tenantId?: string | null): boolean => {
     const user = allUsers.find(u => 
-      u.email === email && 
-      u.password === password &&
-      (!tenantId || u.tenantId === tenantId || u.role === Role.SUPER_ADMIN)
+      u.email.toLowerCase() === email.toLowerCase() && 
+      u.password === password
     );
     
     if (user) {
-      // If no tenantId provided (main link), only allow SUPER_ADMIN
-      if (!tenantId && user.role !== Role.SUPER_ADMIN) {
+      // If a specific tenantId is provided in the URL, verify the user belongs to it
+      // (Unless they are a SUPER_ADMIN who can access any tenant)
+      if (tenantId && user.tenantId && String(user.tenantId) !== String(tenantId) && user.role !== Role.SUPER_ADMIN) {
         return false;
       }
       
-      // If tenantId provided, user must belong to that tenant OR be a SUPER_ADMIN
-      if (tenantId && user.tenantId !== tenantId && user.role !== Role.SUPER_ADMIN) {
+      // If they are logging in from the main portal (no tenantId), 
+      // they must either be a SUPER_ADMIN OR have a tenantId (business user)
+      if (!tenantId && user.role !== Role.SUPER_ADMIN && !user.tenantId) {
         return false;
       }
 
