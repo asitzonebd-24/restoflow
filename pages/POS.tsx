@@ -78,7 +78,8 @@ export const POS = () => {
 
   const handleSelectOrder = (order: Order) => {
     setSelectedOrderId(order.id);
-    setCart(order.items);
+    // Mark existing items so we don't merge new additions into them
+    setCart(order.items.map(item => ({ ...item, isExisting: true } as any)));
     setOrderNote(order.note || '');
     setIsCreatingNew(false);
   };
@@ -97,17 +98,37 @@ export const POS = () => {
 
   const addToCart = (item: MenuItem) => {
     if (item.stock !== undefined && item.stock !== null && item.stock <= 0) return;
-    setCart(prev => [
-      ...prev, 
-      { 
-        rowId: `row-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        itemId: item.id, 
-        name: item.name, 
-        quantity: 1, 
-        price: item.price,
-        status: OrderStatus.PENDING 
+    
+    setCart(prev => {
+      // Find if this item is already in the cart AND it's a "new" item (not from an existing order)
+      // We identify "new" items by checking if they are PENDING and don't have an 'isExisting' flag
+      const existingNewItemIndex = prev.findIndex(i => 
+        i.itemId === item.id && 
+        i.status === OrderStatus.PENDING && 
+        !(i as any).isExisting
+      );
+
+      if (existingNewItemIndex > -1) {
+        const newCart = [...prev];
+        newCart[existingNewItemIndex] = {
+          ...newCart[existingNewItemIndex],
+          quantity: newCart[existingNewItemIndex].quantity + 1
+        };
+        return newCart;
       }
-    ]);
+
+      return [
+        ...prev, 
+        { 
+          rowId: `row-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          itemId: item.id, 
+          name: item.name, 
+          quantity: 1, 
+          price: item.price,
+          status: OrderStatus.PENDING 
+        }
+      ];
+    });
   };
 
   const updateQuantity = (rowId: string, delta: number) => {
@@ -125,11 +146,15 @@ export const POS = () => {
     if (isCreatingNew) {
       if (isTokenDuplicate) return;
       const totalAmount = cart.reduce((sum, i) => sum + (i.price * i.quantity), 0);
+      
+      // Clean up the isExisting flag before saving
+      const cleanedItems = cart.map(({ isExisting, ...item }: any) => item);
+      
       const newOrder = {
         id: `ord-${Date.now()}`,
         tokenNumber: newTokenNum,
         tableNumber: newTableNum,
-        items: cart,
+        items: cleanedItems,
         status: OrderStatus.PENDING,
         createdAt: new Date().toISOString(),
         createdBy: currentUser!.id,
@@ -139,7 +164,11 @@ export const POS = () => {
       addOrder(newOrder);
     } else if (selectedOrderId) {
       const totalAmount = cart.reduce((sum, i) => sum + (i.price * i.quantity), 0);
-      updateOrderItems(selectedOrderId, cart, totalAmount, orderNote);
+      
+      // Clean up the isExisting flag before saving
+      const cleanedItems = cart.map(({ isExisting, ...item }: any) => item);
+      
+      updateOrderItems(selectedOrderId, cleanedItems, totalAmount, orderNote);
     }
 
     setSelectedOrderId(null);
@@ -167,13 +196,13 @@ export const POS = () => {
     </div>
   );
 
-  const POSCartContent = ({ onClose }: { onClose?: () => void }) => (
-    <div className="flex flex-col h-full bg-white border-l-2 border-indigo-500 shadow-2xl shadow-indigo-100">
+  const POSCartContent = ({ onClose, isEmbedded = false }: { onClose?: () => void, isEmbedded?: boolean }) => (
+    <div className={`flex flex-col ${isEmbedded ? 'h-auto' : 'h-full'} bg-white border-l-2 border-indigo-500 shadow-2xl shadow-indigo-100`}>
       <div className="p-6 md:p-8 border-b border-slate-100 bg-slate-50/30 shrink-0">
         <div className="flex items-center justify-between mb-2">
           <div className="flex flex-col">
             <h2 className="text-lg font-bold text-slate-900 tracking-tight flex items-center gap-3">
-               <ShoppingBasket size={20} className="text-indigo-500" /> Order Basket
+               <ShoppingBasket size={20} className="text-indigo-500" /> {isEmbedded ? 'Current Selection' : 'Order Basket'}
             </h2>
             {isCreatingNew ? (
               newTableNum && (
@@ -206,7 +235,7 @@ export const POS = () => {
         <p className="text-xs text-slate-400 font-medium">Review selection before processing</p>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6 md:p-8 space-y-4 no-scrollbar">
+      <div className={`${isEmbedded ? 'h-auto' : 'flex-1 overflow-y-auto'} p-6 md:p-8 space-y-4 no-scrollbar`}>
         <AnimatePresence mode="popLayout">
           {cart.length === 0 ? (
             <motion.div 
@@ -309,7 +338,7 @@ export const POS = () => {
                   exit={{ opacity: 0, scale: 0.95 }}
                   key={order.id}
                   onClick={() => handleSelectOrder(order)}
-                  className="group relative bg-white rounded-[2rem] shadow-2xl border-4 border-black transition-all duration-300 text-left flex flex-col min-h-[280px] hover:scale-[1.02] overflow-hidden"
+                  className="group relative bg-white rounded-[2.5rem] shadow-2xl border-4 border-black transition-all duration-300 text-left flex flex-col min-h-[280px] hover:scale-[1.02] overflow-hidden"
                 >
                   {/* Top Border Bar */}
                   <div className={`absolute top-0 left-0 right-0 h-4 ${statusStyles.topBorder}`}></div>
@@ -370,8 +399,8 @@ export const POS = () => {
   }
 
   return (
-    <div className="flex flex-col lg:flex-row bg-slate-50/50 h-[calc(100vh-64px)] md:h-full overflow-hidden">
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden border-r border-slate-100">
+    <div className="flex flex-col lg:flex-row bg-slate-50/50 h-[calc(100vh-64px)] md:h-full overflow-y-auto lg:overflow-hidden no-scrollbar">
+      <div className="flex-none lg:flex-1 flex flex-col min-w-0 lg:overflow-hidden border-r border-slate-100">
         {/* POS Header */}
         <div className="p-4 md:p-8 bg-white border-b border-slate-100 shrink-0">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-6 mb-6 md:mb-8">
@@ -413,19 +442,34 @@ export const POS = () => {
               </div>
             </div>
             
-            <div className="relative w-full md:w-72 group">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={14} />
-                <input 
-                    type="text" 
-                    placeholder="Search menu..." 
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-11 pr-4 py-2.5 bg-white border-2 border-indigo-500 rounded-2xl text-xs font-medium focus:outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all shadow-xl shadow-indigo-100"
-                />
+            <div className="flex flex-col gap-3 w-full md:w-72">
+              <div className="relative group">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={14} />
+                  <input 
+                      type="text" 
+                      placeholder="Search menu..." 
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full pl-11 pr-4 py-2.5 bg-white border-2 border-indigo-500 rounded-2xl text-xs font-medium focus:outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all shadow-xl shadow-indigo-100"
+                  />
+              </div>
+              
+              <div className="relative">
+                <select 
+                  value={activeCategory}
+                  onChange={(e) => setActiveCategory(e.target.value)}
+                  className="w-full pl-4 pr-10 py-2.5 bg-white border-2 border-slate-100 rounded-xl text-[10px] font-bold uppercase tracking-widest outline-none focus:border-indigo-500 appearance-none cursor-pointer shadow-sm"
+                >
+                  {categories.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+                <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 rotate-90 pointer-events-none" size={14} />
+              </div>
             </div>
           </div>
 
-          <div className="flex flex-col md:flex-row gap-4 overflow-x-auto pb-2 no-scrollbar items-center">
+          <div className="hidden md:flex flex-row gap-4 overflow-x-auto pb-2 no-scrollbar items-center">
             <div className="flex gap-2 md:gap-3 no-scrollbar">
               {categories.map(cat => (
                 <button
@@ -441,24 +485,11 @@ export const POS = () => {
                 </button>
               ))}
             </div>
-            
-            <div className="relative min-w-[140px]">
-              <select 
-                value={activeCategory}
-                onChange={(e) => setActiveCategory(e.target.value)}
-                className="w-full pl-4 pr-10 py-2.5 bg-white border-2 border-slate-100 rounded-xl text-[10px] font-bold uppercase tracking-widest outline-none focus:border-indigo-500 appearance-none cursor-pointer"
-              >
-                {categories.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
-              <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 rotate-90 pointer-events-none" size={14} />
-            </div>
           </div>
         </div>
 
         {/* Menu Grid */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-8 no-scrollbar">
+        <div className="flex-none lg:flex-1 lg:overflow-y-auto p-4 md:p-8 no-scrollbar pb-12 lg:pb-32">
           <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-6">
             <AnimatePresence mode="popLayout">
               {filteredMenu.map(item => (
@@ -512,6 +543,13 @@ export const POS = () => {
                 <p className="text-sm font-medium uppercase tracking-widest opacity-40">No items found</p>
             </div>
           )}
+
+          {/* Mobile Embedded Basket - Visible below menu items */}
+          {cart.length > 0 && (
+            <div className="lg:hidden mt-12 mb-20">
+              <POSCartContent isEmbedded />
+            </div>
+          )}
         </div>
       </div>
 
@@ -520,34 +558,7 @@ export const POS = () => {
          <POSCartContent />
       </div>
 
-      {/* Mobile Sticky Summary Bar */}
-      <AnimatePresence>
-        {cartCount > 0 && (
-          <motion.div 
-            initial={{ y: 100 }}
-            animate={{ y: 0 }}
-            exit={{ y: 100 }}
-            className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 p-6 flex items-center justify-between z-[50] shadow-[0_-10px_40px_rgba(0,0,0,0.1)]"
-          >
-            <button 
-              onClick={() => setIsCartOpen(true)}
-              className="flex flex-col text-left"
-            >
-                <span className="text-[9px] font-bold uppercase text-slate-400 tracking-widest mb-1 flex items-center gap-1">
-                  <ShoppingCart size={10} /> {cartCount} Items Selected
-                </span>
-                <span className="text-2xl font-bold text-slate-900 leading-none">{currentTenant.currency}{cartTotal.toFixed(2)}</span>
-            </button>
-            <button 
-              onClick={createAndSubmitOrder}
-              disabled={isTokenDuplicate || (isCreatingNew && !newTableNum.trim())}
-              className="bg-slate-900 text-white px-8 py-4 rounded-2xl font-bold uppercase tracking-widest text-[10px] shadow-xl active:scale-95 transition flex items-center gap-3 disabled:opacity-50"
-            >
-              {isCreatingNew ? (isTokenDuplicate ? 'Duplicate' : (!newTableNum.trim() ? 'Table Req' : 'Send')) : 'Update'} <ArrowRight size={18} />
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Mobile Sticky Summary Bar Removed as per request - User can scroll to embedded basket */}
 
       {/* Mobile Cart Overlay */}
       <AnimatePresence>

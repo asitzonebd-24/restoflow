@@ -13,26 +13,26 @@ export const Kitchen = () => {
     switch(status) {
       case OrderStatus.PENDING: 
         return { 
-          bg: 'bg-[#f1c40f]', 
-          text: 'text-[#f1c40f]', 
-          lightBg: 'bg-[#fef9e7]',
-          border: 'border-[#f1c40f]',
+          bg: 'bg-rose-500', 
+          text: 'text-rose-600', 
+          lightBg: 'bg-rose-50',
+          border: 'border-rose-500',
           cardBorder: 'border-black',
         };
       case OrderStatus.PREPARING: 
         return { 
-          bg: 'bg-[#f39c12]', 
-          text: 'text-[#f39c12]', 
-          lightBg: 'bg-[#fef5e7]',
-          border: 'border-[#f39c12]',
+          bg: 'bg-amber-500', 
+          text: 'text-amber-600', 
+          lightBg: 'bg-amber-50',
+          border: 'border-amber-500',
           cardBorder: 'border-black',
         };
       case OrderStatus.READY: 
         return { 
-          bg: 'bg-[#2ecc71]', 
-          text: 'text-[#2ecc71]', 
-          lightBg: 'bg-[#eafaf1]',
-          border: 'border-[#2ecc71]',
+          bg: 'bg-emerald-500', 
+          text: 'text-emerald-600', 
+          lightBg: 'bg-emerald-50',
+          border: 'border-emerald-500',
           cardBorder: 'border-black',
         };
       default: 
@@ -97,22 +97,14 @@ export const Kitchen = () => {
           const statusColors = getStatusColors(order.status);
           
           return (
-          <div key={order.id} className="group relative rounded-[2.5rem] shadow-xl p-6 bg-white flex flex-col h-full transition-all border-2 border-black min-h-[400px] overflow-hidden">
+          <div key={order.id} className="group relative rounded-[2.5rem] shadow-xl bg-white flex flex-col h-full transition-all border-4 border-black min-h-[400px] overflow-hidden">
             {/* Top Border Color */}
-            <div className={`absolute top-0 left-0 right-0 h-6 ${statusColors.bg}`}></div>
+            <div className={`absolute top-0 left-0 right-0 h-4 ${statusColors.bg}`}></div>
             
-            <div className="relative z-10 flex flex-col h-full pt-4">
-              <div className="flex justify-between items-center mb-4">
-                <div className="flex flex-col">
-                  <span className="text-[10px] font-black uppercase tracking-widest text-[#1a1a37] flex items-center gap-2">
-                     <Hash size={12} className="text-[#1a1a37]" /> TOKEN VIEW
-                  </span>
-                  <div className={`w-10 h-1 mt-1 rounded-full ${statusColors.bg}`}></div>
-                </div>
-                <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                  <Clock size={12} />
-                  {formatTime(order.createdAt)}
-                </div>
+            <div className="relative z-10 flex flex-col h-full p-6 pt-10">
+              <div className="text-center mb-4">
+                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-900 mb-1">Kitchen Token</p>
+                <div className={`w-8 h-1.5 mx-auto rounded-full ${statusColors.bg}`}></div>
               </div>
 
               {/* Centered Token Number Pill with Table Number Badge */}

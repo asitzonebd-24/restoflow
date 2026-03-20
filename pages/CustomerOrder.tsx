@@ -45,9 +45,14 @@ export const CustomerOrder = () => {
   const addToCart = (item: MenuItem) => {
     if (item.stock !== undefined && item.stock !== null && item.stock <= 0) return;
     setCart(prev => {
-      const existing = prev.find(i => i.itemId === item.id);
-      if (existing) {
-        return prev.map(i => i.itemId === item.id ? { ...i, quantity: i.quantity + 1 } : i);
+      const existingIndex = prev.findIndex(i => i.itemId === item.id && i.status === OrderStatus.PENDING);
+      if (existingIndex > -1) {
+        const newCart = [...prev];
+        newCart[existingIndex] = {
+          ...newCart[existingIndex],
+          quantity: newCart[existingIndex].quantity + 1
+        };
+        return newCart;
       }
       return [...prev, {
         rowId: `c-${Date.now()}-${item.id}`,
@@ -111,12 +116,12 @@ export const CustomerOrder = () => {
 
   const isActive = (path: string) => location.pathname === path;
 
-  const CartContent = ({ onClose }: { onClose?: () => void }) => (
-    <div className="flex flex-col h-full bg-white border-l-4 border-indigo-500 shadow-2xl shadow-indigo-100">
+  const CartContent = ({ onClose, isEmbedded = false }: { onClose?: () => void, isEmbedded?: boolean }) => (
+    <div className={`flex flex-col ${isEmbedded ? 'h-auto' : 'h-full'} bg-white lg:border-l-4 border-indigo-500 shadow-2xl shadow-indigo-100`}>
       <div className="p-6 border-b-4 border-indigo-500 bg-slate-50 shrink-0">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-black uppercase tracking-tighter flex items-center gap-3">
-             <ShoppingBasket size={24} strokeWidth={3} /> Basket
+             <ShoppingBasket size={24} strokeWidth={3} /> {isEmbedded ? 'Your Selection' : 'Basket'}
           </h2>
           {onClose && (
             <button 
@@ -129,7 +134,7 @@ export const CustomerOrder = () => {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 no-scrollbar">
+      <div className={`${isEmbedded ? 'h-auto' : 'flex-1 overflow-y-auto'} p-4 md:p-6 space-y-4 no-scrollbar`}>
         <AnimatePresence mode="popLayout">
           {cart.length === 0 ? (
             <motion.div 
@@ -292,46 +297,62 @@ export const CustomerOrder = () => {
       </aside>
 
       <div className="flex-1 flex flex-col h-full overflow-hidden relative">
-        <header className="bg-white shadow-xl shadow-indigo-100 border-b-4 border-indigo-500 p-4 flex items-center gap-4 shrink-0 z-30">
-          <button 
-            onClick={() => setIsSidebarOpen(true)}
-            className="md:hidden w-10 h-10 flex items-center justify-center bg-slate-100 rounded-xl text-slate-600"
-          >
-            <MenuIcon size={20} />
-          </button>
-          
-          <div className="flex-1 relative group">
-            <Search className="absolute left-3 top-2.5 text-slate-300 group-focus-within:text-indigo-500 transition-colors" size={18} />
-            <input 
-              type="text" 
-              placeholder="Search menu..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-white border-2 border-indigo-500 rounded-xl font-black uppercase text-[10px] outline-none focus:ring-4 focus:ring-indigo-500/10 transition"
-            />
-          </div>
-          <div className="text-right flex items-center gap-4 shrink-0">
-            <div className="hidden sm:block">
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 leading-none mb-1">Basket</p>
-              <p className="font-black text-indigo-600 leading-none">{business.currency}{cartTotal.toFixed(0)}</p>
-            </div>
+        <header className="bg-white shadow-xl shadow-indigo-100 border-b-4 border-indigo-500 p-4 flex flex-col gap-4 shrink-0 z-30">
+          <div className="flex items-center gap-4">
             <button 
-              onClick={() => setIsCartOpen(true)}
-              className="lg:hidden relative w-10 h-10 flex items-center justify-center bg-indigo-600 text-white rounded-xl shadow-lg shadow-indigo-200"
+              onClick={() => setIsSidebarOpen(true)}
+              className="md:hidden w-10 h-10 flex items-center justify-center bg-slate-100 rounded-xl text-slate-600"
             >
-              <ShoppingCart size={20} />
-              {cartCount > 0 && (
-                <span className="absolute -top-2 -right-2 w-5 h-5 bg-rose-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white">
-                  {cartCount}
-                </span>
-              )}
+              <MenuIcon size={20} />
             </button>
+            
+            <div className="flex-1 flex flex-col gap-3">
+              <div className="relative group">
+                <Search className="absolute left-3 top-2.5 text-slate-300 group-focus-within:text-indigo-500 transition-colors" size={18} />
+                <input 
+                  type="text" 
+                  placeholder="Search menu..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 bg-white border-2 border-indigo-500 rounded-xl font-black uppercase text-[10px] outline-none focus:ring-4 focus:ring-indigo-500/10 transition"
+                />
+              </div>
+              <div className="relative">
+                <select 
+                  value={activeCategory}
+                  onChange={(e) => setActiveCategory(e.target.value)}
+                  className="w-full pl-4 pr-10 py-2.5 bg-white border-2 border-slate-100 rounded-xl text-[10px] font-bold uppercase tracking-widest outline-none focus:border-indigo-500 appearance-none cursor-pointer shadow-sm"
+                >
+                  {categories.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+                <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 rotate-90 pointer-events-none" size={14} />
+              </div>
+            </div>
+            <div className="text-right flex items-center gap-4 shrink-0">
+              <div className="hidden sm:block">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 leading-none mb-1">Basket</p>
+                <p className="font-black text-indigo-600 leading-none">{business.currency}{cartTotal.toFixed(0)}</p>
+              </div>
+              <button 
+                onClick={() => setIsCartOpen(true)}
+                className="lg:hidden relative w-10 h-10 flex items-center justify-center bg-indigo-600 text-white rounded-xl shadow-lg shadow-indigo-200"
+              >
+                <ShoppingCart size={20} />
+                {cartCount > 0 && (
+                  <span className="absolute -top-2 -right-2 w-5 h-5 bg-rose-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white">
+                    {cartCount}
+                  </span>
+                )}
+              </button>
+            </div>
           </div>
         </header>
 
-        <div className="flex-1 flex flex-col lg:flex-row overflow-hidden min-h-0">
-          <div className="flex-1 p-4 md:p-8 overflow-y-auto no-scrollbar pb-32 min-h-0">
-            <div className="mb-8 flex flex-col md:flex-row gap-4 items-start md:items-center">
+        <div className="flex-1 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden min-h-0 no-scrollbar">
+          <div className="flex-none lg:flex-1 p-4 md:p-8 lg:overflow-y-auto no-scrollbar pb-12 lg:pb-32 min-h-0">
+            <div className="mb-8 hidden md:flex flex-col md:flex-row gap-4 items-start md:items-center">
               <div className="overflow-x-auto pb-2 no-scrollbar flex gap-2 snap-x w-full md:w-auto">
                 {categories.map(cat => (
                   <button
@@ -388,6 +409,13 @@ export const CustomerOrder = () => {
                 ))}
               </div>
             )}
+
+            {/* Mobile Embedded Basket - Visible below menu items */}
+            {cart.length > 0 && (
+              <div className="lg:hidden mt-12 mb-20">
+                <CartContent isEmbedded />
+              </div>
+            )}
           </div>
 
           <div className="hidden lg:flex w-[400px] bg-white border-l-8 border-indigo-500 flex-col shadow-2xl shrink-0 overflow-y-auto no-scrollbar">
@@ -395,24 +423,7 @@ export const CustomerOrder = () => {
           </div>
         </div>
 
-        {/* Persistent Checkout Bar for Mobile - High visibility direct trigger */}
-        {cartCount > 0 && (
-          <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t-4 border-indigo-500 p-4 flex items-center justify-between z-[120] animate-in slide-in-from-bottom-full shadow-[0_-12px_40px_rgba(0,0,0,0.15)]">
-             <button 
-               onClick={() => setIsCartOpen(true)}
-               className="flex flex-col text-left"
-             >
-                <span className="text-[8px] font-black uppercase text-slate-400 tracking-widest leading-none mb-1">{cartCount} Items Selected</span>
-                <span className="text-xl font-black text-indigo-600 leading-none">{business.currency}{cartTotal.toFixed(0)}</span>
-             </button>
-             <button 
-               onClick={handleCheckout}
-               className="bg-slate-900 text-white px-8 py-3 rounded-2xl font-black uppercase tracking-widest text-[10px] border-2 border-indigo-500 shadow-xl active:scale-95 transition flex items-center gap-2"
-             >
-               Checkout Now <ArrowRight size={16} strokeWidth={3} />
-             </button>
-          </div>
-        )}
+        {/* Persistent Checkout Bar Removed as per request - User can scroll to embedded basket */}
 
         {/* Mobile Cart Overlay */}
         <AnimatePresence>

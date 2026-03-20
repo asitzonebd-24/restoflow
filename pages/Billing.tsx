@@ -90,21 +90,34 @@ export const Billing = () => {
             const headerLabel = isOnline ? 'Online Order' : 'Counter Token';
 
             return (
-              <div key={order.id} className="bg-white rounded-3xl p-6 shadow-xl border-2 border-emerald-500 hover:border-emerald-600 hover:shadow-2xl transition-all duration-300 flex flex-col group shadow-emerald-100">
-                <div className="flex justify-between items-start mb-6">
-                  <div>
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 block mb-2">{headerLabel}</span>
-                    <div className="w-14 h-14 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center font-bold text-2xl text-emerald-600 shadow-inner group-hover:scale-110 transition-transform">
+              <div key={order.id} className="group relative bg-white rounded-[2.5rem] shadow-2xl border-4 border-black transition-all duration-300 text-left flex flex-col min-h-[400px] hover:scale-[1.02] overflow-hidden">
+                {/* Top Border Bar */}
+                <div className="absolute top-0 left-0 right-0 h-4 bg-emerald-500"></div>
+                
+                <div className="relative z-10 flex flex-col h-full p-6 pt-10">
+                  <div className="text-center mb-4">
+                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-900 mb-1">{headerLabel}</p>
+                    <div className="w-8 h-1.5 mx-auto rounded-full bg-emerald-500"></div>
+                  </div>
+
+                  {/* Token Number Pill */}
+                  <div className="flex justify-center mb-6 relative">
+                    <div className="w-12 h-12 rounded-full border-2 border-black flex items-center justify-center font-black text-xl text-white shadow-xl bg-emerald-500">
                       {order.tokenNumber}
                     </div>
+                    {order.tableNumber && (
+                      <div className="absolute -top-1 -right-1 bg-black text-white text-[9px] font-black px-2 py-0.5 rounded-full border-2 border-white shadow-lg">
+                        T-{order.tableNumber}
+                      </div>
+                    )}
                   </div>
-                  <div className="text-right">
+
+                  <div className="text-center mb-6">
                     <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 block mb-1">Total Due</span>
                     <span className="text-2xl font-bold text-slate-900 tracking-tight">{currentTenant?.currency}{total.toFixed(2)}</span>
                   </div>
-                </div>
 
-                <div className="flex-1 space-y-3 mb-8 max-h-48 overflow-y-auto no-scrollbar py-2 border-y border-slate-50">
+                  <div className="flex-1 space-y-3 mb-8 max-h-48 overflow-y-auto no-scrollbar py-2 border-y border-slate-50">
                   {groupedItems.map((item, idx) => (
                     <div key={idx} className="flex justify-between items-center text-xs">
                       <div className="flex items-center gap-2 min-w-0">
@@ -133,7 +146,8 @@ export const Billing = () => {
                   Collect Payment <CheckCheck size={16} />
                 </button>
               </div>
-            );
+            </div>
+          );
           })
         )}
       </div>
