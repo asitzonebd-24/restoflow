@@ -61,68 +61,90 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
       </AnimatePresence>
 
       <div 
-        className={`fixed md:relative top-0 left-0 h-screen flex flex-col items-center py-8 text-white transition-all duration-500 shrink-0 z-[70] shadow-2xl w-20 print:hidden ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
+        className={`fixed md:sticky top-0 left-0 h-screen flex flex-col items-center py-8 text-white transition-all duration-500 shrink-0 z-[70] shadow-2xl w-20 print:hidden ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
         style={{ background: '#11112b' }}
       >
-        <div className="mb-12">
+        <div className="mb-12 shrink-0">
             <div className="w-12 h-12 rounded-full border-2 border-white/20 p-1">
               <img src={currentUser.avatar || `https://ui-avatars.com/api/?name=${currentUser.name}&background=random`} alt="User" className="w-full h-full object-cover rounded-full" />
             </div>
         </div>
 
-        <nav className="flex-1 flex flex-col items-center no-scrollbar">
-            {permissions.includes('Dashboard') && (
-              <NavLink to="/dashboard" onClick={() => onClose()} className={navItemClass('/dashboard')} title="Dashboard">
-                <LayoutDashboard size={22} />
-              </NavLink>
-            )}
-            
-            {permissions.includes('POS') && (
-              <NavLink to="/pos" onClick={() => onClose()} className={navItemClass('/pos')} title="Terminal">
-                <UtensilsCrossed size={22} />
-              </NavLink>
-            )}
+        <nav className="flex-1 flex flex-col items-center overflow-y-auto w-full px-2">
+            {currentUser.role === Role.SUPER_ADMIN ? (
+              <>
+                <NavLink to="/portal" onClick={() => onClose()} className={navItemClass('/portal')} title="Portal">
+                  <ShieldCheck size={22} />
+                </NavLink>
+                <NavLink to="/pending-bills" onClick={() => onClose()} className={navItemClass('/pending-bills')} title="Pending Bills">
+                  <FileText size={22} />
+                </NavLink>
+                <NavLink to="/approved-bills" onClick={() => onClose()} className={navItemClass('/approved-bills')} title="Approved Bills">
+                  <CheckCircle size={22} />
+                </NavLink>
+              </>
+            ) : (
+              <>
+                {permissions.includes('Dashboard') && (
+                  <NavLink to="/dashboard" onClick={() => onClose()} className={navItemClass('/dashboard')} title="Dashboard">
+                    <LayoutDashboard size={22} />
+                  </NavLink>
+                )}
+                
+                {permissions.includes('POS') && (
+                  <NavLink to="/pos" onClick={() => onClose()} className={navItemClass('/pos')} title="Terminal">
+                    <UtensilsCrossed size={22} />
+                  </NavLink>
+                )}
 
-            {permissions.includes('Kitchen') && (
-              <NavLink to="/kitchen" onClick={() => onClose()} className={navItemClass('/kitchen')} title="Kitchen">
-                <ChefHat size={22} />
-              </NavLink>
-            )}
+                {permissions.includes('Kitchen') && (
+                  <NavLink to="/kitchen" onClick={() => onClose()} className={navItemClass('/kitchen')} title="Kitchen">
+                    <ChefHat size={22} />
+                  </NavLink>
+                )}
 
-            <div className="w-10 h-px bg-white/10 my-4" />
+                <div className="w-10 h-px bg-white/10 my-4 shrink-0" />
 
-            {permissions.includes('Menu') && (
-              <NavLink to="/menu" onClick={() => onClose()} className={navItemClass('/menu')} title="Menu">
-                <MenuIcon size={22} />
-              </NavLink>
-            )}
+                {permissions.includes('Menu') && (
+                  <NavLink to="/menu" onClick={() => onClose()} className={navItemClass('/menu')} title="Menu">
+                    <MenuIcon size={22} />
+                  </NavLink>
+                )}
 
-            {permissions.includes('Billing') && (
-              <NavLink to="/billing" onClick={() => onClose()} className={navItemClass('/billing')} title="Billing">
-                <Receipt size={22} />
-              </NavLink>
-            )}
+                {permissions.includes('Billing') && (
+                  <NavLink to="/billing" onClick={() => onClose()} className={navItemClass('/billing')} title="Billing">
+                    <Receipt size={22} />
+                  </NavLink>
+                )}
 
-            {permissions.includes('Transactions') && (
-              <NavLink to="/transactions" onClick={() => onClose()} className={navItemClass('/transactions')} title="History">
-                <History size={22} />
-              </NavLink>
-            )}
+                {permissions.includes('Transactions') && (
+                  <NavLink to="/transactions" onClick={() => onClose()} className={navItemClass('/transactions')} title="History">
+                    <History size={22} />
+                  </NavLink>
+                )}
 
-            {permissions.includes('Inventory') && (
-              <NavLink to="/inventory" onClick={() => onClose()} className={navItemClass('/inventory')} title="Inventory">
-                <Package size={22} />
-              </NavLink>
-            )}
+                {permissions.includes('Inventory') && (
+                  <NavLink to="/inventory" onClick={() => onClose()} className={navItemClass('/inventory')} title="Inventory">
+                    <Package size={22} />
+                  </NavLink>
+                )}
 
-            {permissions.includes('Reports') && (
-              <NavLink to="/reports" onClick={() => onClose()} className={navItemClass('/reports')} title="Reports">
-                <PieChart size={22} />
-              </NavLink>
+                {permissions.includes('Reports') && (
+                  <NavLink to="/reports" onClick={() => onClose()} className={navItemClass('/reports')} title="Reports">
+                    <PieChart size={22} />
+                  </NavLink>
+                )}
+
+                {permissions.includes('Users') && (
+                  <NavLink to="/users" onClick={() => onClose()} className={navItemClass('/users')} title="Users">
+                    <UsersIcon size={22} />
+                  </NavLink>
+                )}
+              </>
             )}
         </nav>
 
-        <div className="mt-auto space-y-4 flex flex-col items-center">
+        <div className="mt-auto pt-4 space-y-4 flex flex-col items-center shrink-0">
             <NavLink to="/settings" onClick={() => onClose()} className={navItemClass('/settings')} title="Settings">
                 <Settings size={22} />
             </NavLink>
@@ -183,19 +205,21 @@ const ProtectedLayout = ({ children, allowedRoles }: { children?: React.ReactNod
       {!isCustomer && (
         <>
           <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
-          {/* Mobile Header */}
-          <div className="fixed top-0 left-0 right-0 h-16 bg-white border-b border-slate-200 flex items-center px-4 z-[60] md:hidden print:hidden">
-            <button 
-              onClick={() => setIsSidebarOpen(true)}
-              className="p-2 hover:bg-slate-100 rounded-xl transition-colors"
-            >
-              <Menu size={24} className="text-slate-600" />
-            </button>
-            <div className="ml-4 flex items-center gap-3">
-              <img src={business.logo} alt="Logo" className="w-8 h-8 object-contain rounded-lg" />
-              <span className="font-bold text-slate-900 truncate max-w-[150px]">{business.name}</span>
+          {/* Mobile Header - Visible when sidebar is closed */}
+          {!isSidebarOpen && (
+            <div className="fixed top-0 left-0 right-0 h-16 bg-white border-b border-slate-200 flex items-center px-4 z-[60] md:hidden print:hidden">
+              <button 
+                onClick={() => setIsSidebarOpen(true)}
+                className="p-2 hover:bg-slate-100 rounded-xl transition-colors"
+              >
+                <Menu size={24} className="text-slate-600" />
+              </button>
+              <div className="ml-4 flex items-center gap-3">
+                <img src={business.logo} alt="Logo" className="w-8 h-8 object-contain rounded-lg" />
+                <span className="font-bold text-slate-900 truncate max-w-[150px]">{business.name}</span>
+              </div>
             </div>
-          </div>
+          )}
         </>
       )}
       <main className={`flex-1 overflow-auto ${!isCustomer ? 'pt-16 md:pt-0' : ''}`}>
@@ -229,7 +253,7 @@ const AppContent = () => {
 
   return (
     <Routes>
-      <Route path="/" element={currentUser ? <Navigate to={getDefaultRedirect()} /> : <Landing />} />
+      <Route path="/" element={currentUser ? <Navigate to={getDefaultRedirect()} /> : <Navigate to="/login" replace />} />
       <Route path="/login" element={currentUser ? <Navigate to={getDefaultRedirect()} /> : <Login />} />
       <Route path="/order/auth" element={currentUser ? <Navigate to="/order" /> : <CustomerAuth />} />
       

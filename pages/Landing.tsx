@@ -53,14 +53,14 @@ export const Landing = () => {
               <ShieldCheck size={24} />
             </div>
             <h2 className="text-3xl font-bold text-white tracking-tight mb-3">
-              Staff <span className="text-indigo-400">Terminal</span>
+              Admin <span className="text-indigo-400">Portal</span>
             </h2>
             <p className="text-sm text-slate-400 font-medium leading-relaxed">
-              POS, Kitchen Display, Inventory, and Business Analytics for authorized staff.
+              Global management terminal for portal administrators only.
             </p>
           </div>
           <div className="flex items-center gap-2 font-bold uppercase text-[10px] tracking-widest text-white/30 group-hover:text-white transition-colors">
-            Enter Management <ArrowRight size={16} />
+            Enter Administrator Terminal <ArrowRight size={16} />
           </div>
         </button>
       </div>

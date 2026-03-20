@@ -305,10 +305,20 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const login = (email: string, password: string, tenantId?: string | null): boolean => {
     const user = allUsers.find(u => 
       u.email === email && 
-      u.password === password && 
-      (!tenantId || u.tenantId === tenantId || u.role === Role.SUPER_ADMIN)
+      u.password === password
     );
+    
     if (user) {
+      // If no tenantId provided (main link), only allow SUPER_ADMIN
+      if (!tenantId && user.role !== Role.SUPER_ADMIN) {
+        return false;
+      }
+      
+      // If tenantId provided, user must belong to that tenant OR be a SUPER_ADMIN
+      if (tenantId && user.tenantId !== tenantId && user.role !== Role.SUPER_ADMIN) {
+        return false;
+      }
+
       setCurrentUser(user);
       localStorage.setItem('resto_flow_user', JSON.stringify(user));
       return true;

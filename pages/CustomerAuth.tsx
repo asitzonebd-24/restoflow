@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Role, User } from '../types';
 import { ArrowRight, Lock, User as UserIcon, Phone, Mail, Utensils, MapPin } from 'lucide-react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
 
 export const CustomerAuth = () => {
   const { business, login, addUser, users, setCurrentTenantId } = useApp();
@@ -61,6 +61,10 @@ export const CustomerAuth = () => {
       navigate('/order');
     }, 800);
   };
+
+  if (!tenantId) {
+    return <Navigate to="/login" replace />;
+  }
 
   return (
     <div className="min-h-screen bg-indigo-600 flex flex-col items-center justify-center p-4 sm:p-6">

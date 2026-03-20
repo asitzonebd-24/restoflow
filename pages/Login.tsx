@@ -42,7 +42,9 @@ export const Login = () => {
           </div>
           <div>
             <h1 className="text-2xl font-bold tracking-tight leading-none">{business.name}</h1>
-            <p className="text-white/40 text-[9px] font-bold uppercase tracking-[0.3em] mt-2">Unified Access Terminal</p>
+            <p className="text-white/40 text-[9px] font-bold uppercase tracking-[0.3em] mt-2">
+              {tenantId ? 'Restaurant Access Terminal' : 'Portal Administrator Access'}
+            </p>
           </div>
         </div>
 
@@ -50,8 +52,12 @@ export const Login = () => {
           {/* Staff Section */}
           <div className="w-full bg-white flex flex-col justify-center">
             <div className="mb-8 text-center">
-               <h2 className="text-2xl font-bold text-slate-900 tracking-tight mb-1">Staff Login</h2>
-               <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">Enter credentials to access terminal</p>
+               <h2 className="text-2xl font-bold text-slate-900 tracking-tight mb-1">
+                 {tenantId ? 'Staff Login' : 'Super Admin Login'}
+               </h2>
+               <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">
+                 {tenantId ? 'Enter credentials to access terminal' : 'Restricted to portal administrators only'}
+               </p>
             </div>
 
             {(!dbStatus.isConfigured || !dbStatus.hasTables) && (
@@ -85,7 +91,7 @@ export const Login = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-indigo-50 outline-none transition-all font-medium text-sm"
-                    placeholder="staff@bistro.com"
+                    placeholder={tenantId ? "staff@bistro.com" : "admin@portal.com"}
                     required
                   />
                 </div>
@@ -126,13 +132,15 @@ export const Login = () => {
         </div>
       </div>
       
-      {/* Back to Landing */}
-      <button 
-        onClick={() => navigate('/')}
-        className="fixed bottom-8 left-1/2 -translate-x-1/2 text-[10px] font-bold text-slate-400 uppercase tracking-widest hover:text-slate-900 transition-colors flex items-center gap-2"
-      >
-        <ArrowRight size={14} className="rotate-180" /> Back to Home
-      </button>
+      {/* Back to Landing - Only show if tenantId is present */}
+      {tenantId && (
+        <button 
+          onClick={() => navigate(`/${tenantId}`)}
+          className="fixed bottom-8 left-1/2 -translate-x-1/2 text-[10px] font-bold text-slate-400 uppercase tracking-widest hover:text-slate-900 transition-colors flex items-center gap-2"
+        >
+          <ArrowRight size={14} className="rotate-180" /> Back to Restaurant
+        </button>
+      )}
     </div>
   );
 };
