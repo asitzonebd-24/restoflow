@@ -39,7 +39,7 @@ export const CustomerHistory = () => {
       >
         <div className="flex items-center gap-3 px-4 md:px-8 mb-12">
            <img src={business.logo || DEFAULT_BUSINESS_LOGO} alt="Logo" className="w-10 h-10 rounded-full border-2 border-white" />
-           <h2 className="hidden md:block font-black text-lg uppercase tracking-tighter">OmniDine</h2>
+           <h2 className="hidden md:block font-black text-lg uppercase tracking-tighter">Resto Keep</h2>
         </div>
         <nav className="flex-1 space-y-4 px-2 md:px-6">
            <button 

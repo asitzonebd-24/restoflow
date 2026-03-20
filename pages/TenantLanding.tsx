@@ -97,7 +97,7 @@ export const TenantLanding = () => {
       <div className="fixed bottom-8 left-0 right-0 flex flex-col items-center gap-4">
         <div className="flex items-center gap-2 opacity-20 grayscale">
           <Utensils size={12} />
-          <p className="text-[9px] font-black text-slate-900 uppercase tracking-[0.4em]"> OmniDine SaaS Ecosystem </p>
+          <p className="text-[9px] font-black text-slate-900 uppercase tracking-[0.4em]"> Resto Keep Ecosystem </p>
         </div>
       </div>
     </div>

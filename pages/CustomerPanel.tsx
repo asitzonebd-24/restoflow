@@ -61,7 +61,7 @@ export const CustomerPanel = () => {
       >
         <div className="flex items-center gap-3 px-4 md:px-8 mb-12">
            <img src={business.logo || DEFAULT_BUSINESS_LOGO} alt="Logo" className="w-10 h-10 rounded-full border-2 border-white" />
-           <h2 className="hidden md:block font-black text-lg uppercase tracking-tighter">OmniDine</h2>
+           <h2 className="hidden md:block font-black text-lg uppercase tracking-tighter">Resto Keep</h2>
         </div>
         <nav className="flex-1 space-y-4 px-2 md:px-6">
            <button onClick={() => navigate(`/${tenantId}/order`)} className={`w-full flex items-center justify-center md:justify-start gap-4 p-4 md:px-6 md:py-4 rounded-2xl transition font-black uppercase tracking-widest text-[10px] ${isActive(`/${tenantId}/order`) ? 'bg-indigo-600 shadow-xl' : 'bg-white/5 hover:bg-white/10'}`}>

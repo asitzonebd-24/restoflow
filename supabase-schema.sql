@@ -1,4 +1,4 @@
--- Supabase Schema for OmniDine
+-- Supabase Schema for Resto Keep
 
 -- 1. Tenants (Businesses)
 CREATE TABLE tenants (

@@ -131,7 +131,7 @@ CREATE TABLE IF NOT EXISTS monthly_bills (
 
 -- INSERT DEFAULT DATA FOR MOCK LOGIN COMPATIBILITY
 INSERT INTO tenants (id, name, currency, theme_color, expense_categories, menu_categories, vat_rate, include_vat, timezone)
-VALUES ('t1', 'OmniDine Bistro', '৳', '#0f172a', '{"Inventory", "Maintenance", "Utilities", "Salaries", "Marketing", "Other"}', '{"Main", "Starter", "Beverage", "Dessert"}', 10, true, 'EST')
+VALUES ('t1', 'Resto Keep Bistro', '৳', '#0f172a', '{"Inventory", "Maintenance", "Utilities", "Salaries", "Marketing", "Other"}', '{"Main", "Starter", "Beverage", "Dessert"}', 10, true, 'EST')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO users (id, tenant_id, name, email, password, role, permissions, mobile)

@@ -179,7 +179,7 @@ export const CustomerAuth = () => {
              </button>
              <div className="flex items-center gap-2 opacity-20 grayscale">
                 <Utensils size={10} />
-                <p className="text-[8px] font-black text-slate-900 uppercase tracking-[0.3em]"> OmniDine SaaS </p>
+                <p className="text-[8px] font-black text-slate-900 uppercase tracking-[0.3em]"> Resto Keep </p>
              </div>
           </div>
         </div>

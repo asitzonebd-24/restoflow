@@ -7,7 +7,7 @@ export const DEFAULT_BUSINESS_LOGO = 'https://images.unsplash.com/photo-15553962
 
 export const BUSINESS_DETAILS: Business = {
   id: '01',
-  name: 'OmniDine Bistro',
+  name: 'Resto Keep Bistro',
   logo: DEFAULT_BUSINESS_LOGO,
   address: '77 Culinary Ave, Food District, NY 10001',
   phone: '+1 555-0123',
