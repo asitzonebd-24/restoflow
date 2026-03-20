@@ -3,15 +3,16 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Role, User } from '../types';
 import { ArrowRight, Lock, User as UserIcon, Phone, Mail, Utensils, MapPin } from 'lucide-react';
-import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
+import { useNavigate, useSearchParams, Navigate, useParams } from 'react-router-dom';
 
 export const CustomerAuth = () => {
   const { business, login, addUser, setCurrentUser, setCurrentTenantId } = useApp();
   const [isRegistering, setIsRegistering] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { tenantId: pathTenantId } = useParams();
   const [searchParams] = useSearchParams();
-  const tenantId = searchParams.get('tenantId');
+  const tenantId = pathTenantId || searchParams.get('tenantId');
 
   useEffect(() => {
     if (tenantId) {

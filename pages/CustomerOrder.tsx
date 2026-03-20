@@ -14,6 +14,7 @@ export const CustomerOrder = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [cart, setCart] = useState<OrderItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [orderNote, setOrderNote] = useState('');
   
   const [useProfileAddress, setUseProfileAddress] = useState(!!currentUser?.address);
@@ -74,11 +75,14 @@ export const CustomerOrder = () => {
     const finalAddress = useProfileAddress ? (currentUser.address || '') : manualAddress;
 
     if (!finalAddress.trim()) {
-      const el = document.querySelector('#address-section');
-      el?.scrollIntoView({ behavior: 'smooth' });
-      // Brief highlight effect
-      el?.classList.add('ring-4', 'ring-red-500', 'ring-opacity-50');
-      setTimeout(() => el?.classList.remove('ring-4', 'ring-red-500', 'ring-opacity-50'), 2000);
+      setIsCartOpen(true);
+      setTimeout(() => {
+        const el = document.querySelector('#address-section');
+        el?.scrollIntoView({ behavior: 'smooth' });
+        // Brief highlight effect
+        el?.classList.add('ring-4', 'ring-red-500', 'ring-opacity-50');
+        setTimeout(() => el?.classList.remove('ring-4', 'ring-red-500', 'ring-opacity-50'), 2000);
+      }, 300);
       return;
     }
 
@@ -235,51 +239,93 @@ export const CustomerOrder = () => {
   );
 
   return (
-    <div className="flex h-screen bg-[#f1f5f9] overflow-hidden">
+    <div className="flex h-screen bg-[#f1f5f9] overflow-hidden relative">
+      {/* Mobile Sidebar Overlay */}
+      <AnimatePresence>
+        {isSidebarOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setIsSidebarOpen(false)}
+            className="md:hidden fixed inset-0 z-[150] bg-slate-900/60 backdrop-blur-sm"
+          />
+        )}
+      </AnimatePresence>
+
       <aside 
-        className="flex h-full w-16 md:w-64 text-white z-[110] border-r-4 border-indigo-500/20 flex-col items-center md:items-stretch py-8 shrink-0 shadow-2xl shadow-indigo-500/10"
+        className={`fixed md:relative h-full w-64 text-white z-[160] border-r-4 border-indigo-500/20 flex-col items-stretch py-8 shrink-0 shadow-2xl shadow-indigo-500/10 transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
         style={{ background: 'linear-gradient(180deg, #1d1d3f 0%, #11112b 100%)' }}
       >
-        <div className="flex items-center gap-3 px-4 md:px-8 mb-12">
-           <img src={business.logo} alt="Logo" className="w-10 h-10 rounded-full border-2 border-white" />
-           <h2 className="hidden md:block font-black text-lg uppercase tracking-tighter">Resto Keep</h2>
+        <div className="flex items-center justify-between px-6 mb-12">
+           <div className="flex items-center gap-3">
+             <img src={business.logo} alt="Logo" className="w-10 h-10 rounded-full border-2 border-white" />
+             <h2 className="font-black text-lg uppercase tracking-tighter">Resto Keep</h2>
+           </div>
+           <button onClick={() => setIsSidebarOpen(false)} className="md:hidden text-white/50 hover:text-white">
+             <X size={24} />
+           </button>
         </div>
-        <nav className="flex-1 space-y-4 px-2 md:px-6">
-           <button onClick={() => navigate(`/${tenantId}/order`)} className={`w-full flex items-center justify-center md:justify-start gap-4 p-4 md:px-6 md:py-4 rounded-2xl transition font-black uppercase tracking-widest text-[10px] ${isActive(`/${tenantId}/order`) ? 'bg-indigo-600 shadow-xl' : 'bg-white/5 hover:bg-white/10'}`}>
-             <ShoppingBag size={20} /> <span className="hidden md:block">Digital Menu</span>
+        <nav className="flex-1 space-y-4 px-6">
+           <button onClick={() => { navigate(`/${tenantId}/order`); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl transition font-black uppercase tracking-widest text-[10px] ${isActive(`/${tenantId}/order`) ? 'bg-indigo-600 shadow-xl' : 'bg-white/5 hover:bg-white/10'}`}>
+             <ShoppingBag size={20} /> <span>Digital Menu</span>
            </button>
-           <button onClick={() => navigate(`/${tenantId}/order/panel`)} className={`w-full flex items-center justify-center md:justify-start gap-4 p-4 md:px-6 md:py-4 rounded-2xl transition font-black uppercase tracking-widest text-[10px] ${isActive(`/${tenantId}/order/panel`) ? 'bg-indigo-600 shadow-xl' : 'bg-white/5 hover:bg-white/10'}`}>
-             <Timer size={20} /> <span className="hidden md:block">My Tokens</span>
+           <button onClick={() => { navigate(`/${tenantId}/order/panel`); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl transition font-black uppercase tracking-widest text-[10px] ${isActive(`/${tenantId}/order/panel`) ? 'bg-indigo-600 shadow-xl' : 'bg-white/5 hover:bg-white/10'}`}>
+             <Timer size={20} /> <span>My Tokens</span>
            </button>
-           <button onClick={() => navigate(`/${tenantId}/order/history`)} className={`w-full flex items-center justify-center md:justify-start gap-4 p-4 md:px-6 md:py-4 rounded-2xl transition font-black uppercase tracking-widest text-[10px] ${isActive(`/${tenantId}/order/history`) ? 'bg-indigo-600 shadow-xl' : 'bg-white/5 hover:bg-white/10'}`}>
-             <History size={20} /> <span className="hidden md:block">History</span>
+           <button onClick={() => { navigate(`/${tenantId}/order/history`); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl transition font-black uppercase tracking-widest text-[10px] ${isActive(`/${tenantId}/order/history`) ? 'bg-indigo-600 shadow-xl' : 'bg-white/5 hover:bg-white/10'}`}>
+             <History size={20} /> <span>History</span>
            </button>
         </nav>
-        <div className="pt-8 border-t border-white/10 mt-auto px-2 md:px-8 flex flex-col items-center md:items-start">
-           <img src={currentUser?.avatar} className="w-10 h-10 rounded-full border-2 border-indigo-500 mb-4" alt="avatar" />
-           <button onClick={logout} className="p-4 md:w-full md:flex md:items-center md:gap-4 md:px-6 md:py-4 rounded-2xl text-red-400 hover:bg-red-400/10 transition font-black uppercase tracking-widest text-[10px]">
-             <LogOut size={20} /> <span className="hidden md:block">Sign Out</span>
+        <div className="pt-8 border-t border-white/10 mt-auto px-8 flex flex-col items-start">
+           <div className="flex items-center gap-3 mb-6">
+             <img src={currentUser?.avatar} className="w-10 h-10 rounded-full border-2 border-indigo-500" alt="avatar" />
+             <div className="min-w-0">
+               <p className="text-[10px] font-black uppercase truncate">{currentUser?.name}</p>
+               <p className="text-[8px] font-bold text-white/40 uppercase tracking-widest">Customer</p>
+             </div>
+           </div>
+           <button onClick={logout} className="w-full flex items-center gap-4 px-6 py-4 rounded-2xl text-red-400 hover:bg-red-400/10 transition font-black uppercase tracking-widest text-[10px]">
+             <LogOut size={20} /> <span>Sign Out</span>
            </button>
         </div>
       </aside>
 
       <div className="flex-1 flex flex-col h-full overflow-hidden relative">
-        <header className="bg-white shadow-xl shadow-indigo-100 border-b-4 border-indigo-500 p-4 flex items-center justify-between shrink-0 z-30">
-          <div className="relative group">
+        <header className="bg-white shadow-xl shadow-indigo-100 border-b-4 border-indigo-500 p-4 flex items-center gap-4 shrink-0 z-30">
+          <button 
+            onClick={() => setIsSidebarOpen(true)}
+            className="md:hidden w-10 h-10 flex items-center justify-center bg-slate-100 rounded-xl text-slate-600"
+          >
+            <MenuIcon size={20} />
+          </button>
+          
+          <div className="flex-1 relative group">
             <Search className="absolute left-3 top-2.5 text-slate-300 group-focus-within:text-indigo-500 transition-colors" size={18} />
             <input 
               type="text" 
               placeholder="Search menu..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 pr-4 py-2 bg-white border-2 border-indigo-500 rounded-xl font-black uppercase text-[10px] outline-none focus:ring-4 focus:ring-indigo-500/10 transition w-40 sm:w-64"
+              className="w-full pl-10 pr-4 py-2 bg-white border-2 border-indigo-500 rounded-xl font-black uppercase text-[10px] outline-none focus:ring-4 focus:ring-indigo-500/10 transition"
             />
           </div>
-          <div className="text-right flex items-center gap-4">
-            <div className="block">
+          <div className="text-right flex items-center gap-4 shrink-0">
+            <div className="hidden sm:block">
               <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 leading-none mb-1">Basket</p>
               <p className="font-black text-indigo-600 leading-none">{business.currency}{cartTotal.toFixed(0)}</p>
             </div>
+            <button 
+              onClick={() => setIsCartOpen(true)}
+              className="lg:hidden relative w-10 h-10 flex items-center justify-center bg-indigo-600 text-white rounded-xl shadow-lg shadow-indigo-200"
+            >
+              <ShoppingCart size={20} />
+              {cartCount > 0 && (
+                <span className="absolute -top-2 -right-2 w-5 h-5 bg-rose-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white">
+                  {cartCount}
+                </span>
+              )}
+            </button>
           </div>
         </header>
 
@@ -298,19 +344,6 @@ export const CustomerOrder = () => {
                     {cat}
                   </button>
                 ))}
-              </div>
-              
-              <div className="relative min-w-[140px] w-full md:w-auto md:hidden">
-                <select 
-                  value={activeCategory}
-                  onChange={(e) => setActiveCategory(e.target.value)}
-                  className="w-full pl-4 pr-10 py-2.5 bg-white border-2 border-slate-100 rounded-2xl text-[10px] font-black uppercase tracking-widest outline-none focus:border-indigo-500 appearance-none cursor-pointer shadow-sm"
-                >
-                  {categories.map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                </select>
-                <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 rotate-90 pointer-events-none" size={14} />
               </div>
             </div>
 
@@ -364,7 +397,7 @@ export const CustomerOrder = () => {
 
         {/* Persistent Checkout Bar for Mobile - High visibility direct trigger */}
         {cartCount > 0 && (
-          <div className="lg:hidden fixed bottom-0 left-16 right-0 bg-white border-t-4 border-indigo-500 p-4 flex items-center justify-between z-[120] animate-in slide-in-from-bottom-full shadow-[0_-12px_40px_rgba(0,0,0,0.15)]">
+          <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t-4 border-indigo-500 p-4 flex items-center justify-between z-[120] animate-in slide-in-from-bottom-full shadow-[0_-12px_40px_rgba(0,0,0,0.15)]">
              <button 
                onClick={() => setIsCartOpen(true)}
                className="flex flex-col text-left"
