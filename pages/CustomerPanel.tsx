@@ -45,7 +45,7 @@ export const CustomerPanel = () => {
   return (
     <div className="flex h-screen bg-[#f1f5f9] overflow-hidden">
       <aside 
-        className="h-full w-20 md:w-64 text-white z-[110] border-r-4 border-indigo-500 flex flex-col items-center md:items-stretch py-8 shrink-0 shadow-2xl shadow-indigo-100"
+        className="flex h-full w-16 md:w-64 text-white z-[110] border-r-4 border-indigo-500/20 flex-col items-center md:items-stretch py-8 shrink-0 shadow-2xl shadow-indigo-500/10"
         style={{ background: 'linear-gradient(180deg, #1d1d3f 0%, #11112b 100%)' }}
       >
         <div className="flex items-center gap-3 px-4 md:px-8 mb-12">
@@ -131,6 +131,20 @@ export const CustomerPanel = () => {
                                     <StatusBox label="Pending" count={pendingCount} colorClass="bg-slate-50 border-slate-100 text-slate-300" activeColor="bg-red-50 border-red-200 text-red-600 shadow-sm" />
                                     <StatusBox label="Kitchen" count={preparingCount} colorClass="bg-slate-50 border-slate-100 text-slate-300" activeColor="bg-amber-50 border-amber-200 text-amber-600 shadow-sm" />
                                     <StatusBox label="Ready" count={readyCount} colorClass="bg-slate-50 border-slate-100 text-slate-300" activeColor="bg-emerald-50 border-emerald-200 text-emerald-600 shadow-sm" />
+                                </div>
+
+                                <div className="mb-4 space-y-1 max-h-20 overflow-y-auto no-scrollbar">
+                                    {order.items.slice(0, 3).map((item: any, i: number) => (
+                                        <div key={i} className="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-tight">
+                                            <span className="truncate pr-2">{item.name}</span>
+                                            <span className="shrink-0">x{item.quantity}</span>
+                                        </div>
+                                    ))}
+                                    {order.items.length > 3 && (
+                                        <div className="text-[8px] font-black text-indigo-500 uppercase tracking-widest mt-1">
+                                            + {order.items.length - 3} more items
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="pt-4 border-t-2 border-slate-200 border-dashed flex items-center justify-between">

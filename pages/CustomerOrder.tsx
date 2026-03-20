@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { MenuItem, OrderItem, Order, OrderStatus } from '../types';
-import { ShoppingBasket, Plus, Minus, Search, ArrowRight, LogOut, MapPin, Menu as MenuIcon, X, ShoppingCart, Timer, History, ShoppingBag, CheckCircle, FileText } from 'lucide-react';
+import { ShoppingBasket, Plus, Minus, Search, ArrowRight, LogOut, MapPin, Menu as MenuIcon, X, ShoppingCart, Timer, History, ShoppingBag, CheckCircle, FileText, ChevronRight } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -32,6 +32,7 @@ export const CustomerOrder = () => {
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   const addToCart = (item: MenuItem) => {
+    if (item.stock !== undefined && item.stock !== null && item.stock <= 0) return;
     setCart(prev => {
       const existing = prev.find(i => i.itemId === item.id);
       if (existing) {
@@ -226,7 +227,7 @@ export const CustomerOrder = () => {
   return (
     <div className="flex h-screen bg-[#f1f5f9] overflow-hidden">
       <aside 
-        className="h-full w-20 md:w-64 text-white z-[110] border-r-4 border-indigo-500 flex flex-col items-center md:items-stretch py-8 shrink-0 shadow-2xl shadow-indigo-100"
+        className="flex h-full w-16 md:w-64 text-white z-[110] border-r-4 border-indigo-500/20 flex-col items-center md:items-stretch py-8 shrink-0 shadow-2xl shadow-indigo-500/10"
         style={{ background: 'linear-gradient(180deg, #1d1d3f 0%, #11112b 100%)' }}
       >
         <div className="flex items-center gap-3 px-4 md:px-8 mb-12">
@@ -274,18 +275,33 @@ export const CustomerOrder = () => {
 
         <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
           <div className="flex-1 p-4 md:p-8 overflow-y-auto no-scrollbar pb-32">
-            <div className="mb-8 overflow-x-auto pb-2 no-scrollbar flex gap-2 snap-x">
-              {categories.map(cat => (
-                <button
-                  key={cat}
-                  onClick={() => setActiveCategory(cat)}
-                  className={`px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest border-2 transition-all shrink-0 snap-start ${
-                    activeCategory === cat ? 'bg-slate-900 text-white border-slate-900 shadow-xl shadow-indigo-100 scale-105' : 'bg-white text-slate-500 border-slate-100 hover:border-indigo-500 hover:text-indigo-500'
-                  }`}
+            <div className="mb-8 flex flex-col md:flex-row gap-4 items-center">
+              <div className="overflow-x-auto pb-2 no-scrollbar flex gap-2 snap-x w-full md:w-auto">
+                {categories.map(cat => (
+                  <button
+                    key={cat}
+                    onClick={() => setActiveCategory(cat)}
+                    className={`px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest border-2 transition-all shrink-0 snap-start ${
+                      activeCategory === cat ? 'bg-slate-900 text-white border-slate-900 shadow-xl shadow-indigo-100 scale-105' : 'bg-white text-slate-500 border-slate-100 hover:border-indigo-500 hover:text-indigo-500'
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+              
+              <div className="relative min-w-[140px] w-full md:w-auto">
+                <select 
+                  value={activeCategory}
+                  onChange={(e) => setActiveCategory(e.target.value)}
+                  className="w-full pl-4 pr-10 py-2.5 bg-white border-2 border-slate-100 rounded-2xl text-[10px] font-black uppercase tracking-widest outline-none focus:border-indigo-500 appearance-none cursor-pointer shadow-sm"
                 >
-                  {cat}
-                </button>
-              ))}
+                  {categories.map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+                <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 rotate-90 pointer-events-none" size={14} />
+              </div>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 md:gap-8">
@@ -293,19 +309,30 @@ export const CustomerOrder = () => {
                 <button 
                   key={item.id} 
                   onClick={() => addToCart(item)}
-                  className="group flex flex-col bg-white rounded-[2rem] md:rounded-[2.5rem] border-2 border-slate-100 p-3 md:p-5 transition-all hover:-translate-y-1 hover:shadow-2xl hover:border-indigo-500 active:scale-95 shadow-xl shadow-slate-200/20"
+                  className={`group flex flex-col bg-white rounded-[2rem] md:rounded-[2.5rem] border-2 border-slate-100 p-3 md:p-5 transition-all hover:-translate-y-1 hover:shadow-2xl hover:border-indigo-500 active:scale-95 shadow-xl shadow-slate-200/20 relative overflow-hidden ${item.stock !== undefined && item.stock !== null && item.stock <= 0 ? 'cursor-not-allowed' : ''}`}
                 >
-                  <div className="aspect-square w-full rounded-2xl overflow-hidden border-2 border-slate-100 mb-3 md:mb-5 bg-slate-50 flex items-center justify-center group-hover:border-indigo-500 transition-colors">
+                  <div className="aspect-square w-full rounded-2xl overflow-hidden border-2 border-slate-100 mb-3 md:mb-5 bg-slate-50 flex items-center justify-center group-hover:border-indigo-500 transition-colors relative">
                       {item.image ? (
-                        <img src={item.image} alt={item.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
+                        <img src={item.image} alt={item.name} className={`w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ${item.stock !== undefined && item.stock !== null && item.stock <= 0 ? 'grayscale opacity-50' : ''}`} />
                       ) : (
                         <ShoppingCart size={32} className="text-slate-200" />
+                      )}
+                      {item.stock !== undefined && item.stock !== null && item.stock <= 0 && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-slate-900/40 backdrop-blur-[2px]">
+                          <span className="bg-rose-600 text-white text-[8px] md:text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl shadow-2xl transform -rotate-6 border-2 border-white/20">
+                            Sold Out
+                          </span>
+                        </div>
                       )}
                   </div>
                   <h3 className="font-black text-[10px] md:text-[12px] uppercase tracking-tight text-slate-900 text-left line-clamp-2 leading-tight mb-2 h-7 md:h-8">{item.name}</h3>
                   <div className="mt-auto flex justify-between items-center w-full">
                       <span className="font-black text-indigo-600 text-xs md:text-base">{business.currency}{item.price.toFixed(0)}</span>
-                      <div className="bg-black text-white p-1.5 md:p-2 rounded-xl border-2 border-black"><Plus size={12} md:size={14} strokeWidth={4} /></div>
+                      {item.stock !== undefined && item.stock !== null && item.stock <= 0 ? (
+                        <div className="bg-slate-100 text-slate-300 p-1.5 md:p-2 rounded-xl border-2 border-slate-100"><X size={12} md:size={14} strokeWidth={4} /></div>
+                      ) : (
+                        <div className="bg-black text-white p-1.5 md:p-2 rounded-xl border-2 border-black"><Plus size={12} md:size={14} strokeWidth={4} /></div>
+                      )}
                   </div>
                 </button>
               ))}
@@ -319,7 +346,7 @@ export const CustomerOrder = () => {
 
         {/* Persistent Checkout Bar for Mobile - High visibility direct trigger */}
         {cartCount > 0 && (
-          <div className="lg:hidden fixed bottom-0 left-20 right-0 bg-white border-t-4 border-indigo-500 p-4 flex items-center justify-between z-[120] animate-in slide-in-from-bottom-full shadow-[0_-12px_40px_rgba(0,0,0,0.15)]">
+          <div className="lg:hidden fixed bottom-0 left-16 right-0 bg-white border-t-4 border-indigo-500 p-4 flex items-center justify-between z-[120] animate-in slide-in-from-bottom-full shadow-[0_-12px_40px_rgba(0,0,0,0.15)]">
              <button 
                onClick={() => setIsCartOpen(true)}
                className="flex flex-col text-left"

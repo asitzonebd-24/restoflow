@@ -263,10 +263,10 @@ export const POS = () => {
 
           <button 
             onClick={createAndSubmitOrder}
-            disabled={cart.length === 0 || isTokenDuplicate}
+            disabled={cart.length === 0 || isTokenDuplicate || (isCreatingNew && !newTableNum.trim())}
             className={`w-full py-4 rounded-2xl font-bold uppercase tracking-widest text-[10px] shadow-xl flex items-center justify-center gap-3 active:scale-95 transition-all disabled:opacity-30 border-2 ${isTokenDuplicate ? 'bg-rose-500 text-white border-rose-600 shadow-rose-100' : 'bg-slate-900 text-white hover:bg-slate-800 border-indigo-500 shadow-indigo-100'}`}
           >
-            {isCreatingNew ? (isTokenDuplicate ? 'Duplicate Token' : 'Send to Kitchen') : 'Update Order'} <ArrowRight size={18} />
+            {isCreatingNew ? (isTokenDuplicate ? 'Duplicate Token' : (!newTableNum.trim() ? 'Table Required' : 'Send to Kitchen')) : 'Update Order'} <ArrowRight size={18} />
           </button>
         </div>
       </div>
@@ -425,20 +425,35 @@ export const POS = () => {
             </div>
           </div>
 
-          <div className="flex gap-2 md:gap-3 overflow-x-auto pb-2 no-scrollbar">
-            {categories.map(cat => (
-              <button
-                key={cat}
-                onClick={() => setActiveCategory(cat)}
-                className={`px-4 md:px-6 py-2 md:py-2.5 rounded-xl text-[9px] md:text-[10px] font-bold uppercase tracking-widest transition-all border-2 shrink-0 ${
-                  activeCategory === cat 
-                  ? 'bg-slate-900 text-white border-slate-900 shadow-xl shadow-slate-200' 
-                  : 'bg-white text-slate-400 border-slate-100 hover:border-indigo-500 hover:text-indigo-500'
-                }`}
+          <div className="flex flex-col md:flex-row gap-4 overflow-x-auto pb-2 no-scrollbar items-center">
+            <div className="flex gap-2 md:gap-3 no-scrollbar">
+              {categories.map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => setActiveCategory(cat)}
+                  className={`px-4 md:px-6 py-2 md:py-2.5 rounded-xl text-[9px] md:text-[10px] font-bold uppercase tracking-widest transition-all border-2 shrink-0 ${
+                    activeCategory === cat 
+                    ? 'bg-slate-900 text-white border-slate-900 shadow-xl shadow-slate-200' 
+                    : 'bg-white text-slate-400 border-slate-100 hover:border-indigo-500 hover:text-indigo-500'
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+            
+            <div className="relative min-w-[140px]">
+              <select 
+                value={activeCategory}
+                onChange={(e) => setActiveCategory(e.target.value)}
+                className="w-full pl-4 pr-10 py-2.5 bg-white border-2 border-slate-100 rounded-xl text-[10px] font-bold uppercase tracking-widest outline-none focus:border-indigo-500 appearance-none cursor-pointer"
               >
-                {cat}
-              </button>
-            ))}
+                {categories.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+              <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 rotate-90 pointer-events-none" size={14} />
+            </div>
           </div>
         </div>
 
@@ -525,10 +540,10 @@ export const POS = () => {
             </button>
             <button 
               onClick={createAndSubmitOrder}
-              disabled={isTokenDuplicate}
-              className="bg-slate-900 text-white px-8 py-4 rounded-2xl font-bold uppercase tracking-widest text-[10px] shadow-xl active:scale-95 transition flex items-center gap-3"
+              disabled={isTokenDuplicate || (isCreatingNew && !newTableNum.trim())}
+              className="bg-slate-900 text-white px-8 py-4 rounded-2xl font-bold uppercase tracking-widest text-[10px] shadow-xl active:scale-95 transition flex items-center gap-3 disabled:opacity-50"
             >
-              {isCreatingNew ? 'Send to Kitchen' : 'Update'} <ArrowRight size={18} />
+              {isCreatingNew ? (isTokenDuplicate ? 'Duplicate' : (!newTableNum.trim() ? 'Table Req' : 'Send')) : 'Update'} <ArrowRight size={18} />
             </button>
           </motion.div>
         )}
