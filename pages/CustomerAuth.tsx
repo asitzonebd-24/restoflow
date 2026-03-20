@@ -37,6 +37,7 @@ export const CustomerAuth = () => {
       if (isRegistering) {
         const newUser: User = {
           id: `c-${Date.now()}`,
+          tenantId: tenantId || '',
           name: formData.name,
           email: formData.email || `${formData.mobile}@customer.com`,
           mobile: formData.mobile,

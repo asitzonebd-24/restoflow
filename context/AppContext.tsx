@@ -13,16 +13,16 @@ interface AppContextType {
   menu: MenuItem[];
   login: (email: string, password: string, tenantId?: string | null) => boolean;
   logout: () => void;
-  addOrder: (order: Omit<Order, 'tenantId'>) => void;
-  updateOrderItems: (orderId: string, items: OrderItem[], totalAmount: number, note?: string) => void;
-  updateOrderStatus: (orderId: string, status: OrderStatus) => void;
-  updateOrderItemStatus: (orderId: string, rowId: string, status: ItemStatus) => void;
-  updateInventory: (itemId: string, quantityChange: number) => void;
-  addInventoryItem: (item: Omit<InventoryItem, 'tenantId'>) => void;
-  editInventoryItem: (id: string, updates: Partial<InventoryItem>) => void;
-  addMenuItem: (item: Omit<MenuItem, 'tenantId'>) => void;
-  updateMenuItem: (itemId: string, updates: Partial<MenuItem>) => void;
-  deleteMenuItem: (itemId: string) => void;
+  addOrder: (order: Omit<Order, 'tenantId'>) => Promise<void>;
+  updateOrderItems: (orderId: string, items: OrderItem[], totalAmount: number, note?: string) => Promise<void>;
+  updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>;
+  updateOrderItemStatus: (orderId: string, rowId: string, status: ItemStatus) => Promise<void>;
+  updateInventory: (itemId: string, quantityChange: number) => Promise<void>;
+  addInventoryItem: (item: Omit<InventoryItem, 'tenantId'>) => Promise<void>;
+  editInventoryItem: (id: string, updates: Partial<InventoryItem>) => Promise<void>;
+  addMenuItem: (item: Omit<MenuItem, 'tenantId'>) => Promise<void>;
+  updateMenuItem: (itemId: string, updates: Partial<MenuItem>) => Promise<void>;
+  deleteMenuItem: (itemId: string) => Promise<void>;
   addMenuCategory: (catName: string) => void;
   renameMenuCategory: (oldName: string, newName: string) => void;
   deleteMenuCategory: (catName: string) => void;
@@ -30,25 +30,25 @@ interface AppContextType {
   renameExpenseCategory: (oldName: string, newName: string) => void;
   deleteExpenseCategory: (catName: string) => void;
   users: User[];
-  addUser: (user: Omit<User, 'tenantId'>) => void;
-  updateUser: (userId: string, updates: Partial<User>) => void;
-  deleteUser: (userId: string) => void;
-  updateBusiness: (updates: Partial<Business>) => void;
-  updateTenant: (tenantId: string, updates: Partial<Business>) => void;
-  deleteTenant: (tenantId: string) => void;
+  addUser: (user: User | Omit<User, 'tenantId'>) => Promise<void>;
+  updateUser: (userId: string, updates: Partial<User>) => Promise<void>;
+  deleteUser: (userId: string) => Promise<void>;
+  updateBusiness: (updates: Partial<Business>) => Promise<void>;
+  updateTenant: (tenantId: string, updates: Partial<Business>) => Promise<void>;
+  deleteTenant: (tenantId: string) => Promise<void>;
   currentTenant: Business;
   currentTenantId: string | null;
   setCurrentTenantId: (id: string | null) => void;
-  createBusiness: (businessData: Partial<Business>, ownerData: Partial<User>) => void;
-  toggleBusinessStatus: (tenantId: string) => void;
+  createBusiness: (businessData: Partial<Business>, ownerData: Partial<User>) => Promise<void>;
+  toggleBusinessStatus: (tenantId: string) => Promise<void>;
   transactions: Transaction[];
-  addTransaction: (transaction: Omit<Transaction, 'tenantId'>) => void;
+  addTransaction: (transaction: Omit<Transaction, 'tenantId'>) => Promise<void>;
   expenses: Expense[];
-  addExpense: (expense: Omit<Expense, 'tenantId'>) => void;
-  deleteExpense: (id: string) => void;
+  addExpense: (expense: Omit<Expense, 'tenantId'>) => Promise<void>;
+  deleteExpense: (id: string) => Promise<void>;
   monthlyBills: MonthlyBill[];
-  generateMonthlyBills: (month: string) => void;
-  approveBill: (billId: string) => void;
+  generateMonthlyBills: (month: string) => Promise<void>;
+  approveBill: (billId: string) => Promise<void>;
   allUsers: User[];
   isLoading: boolean;
   dbStatus: {
@@ -306,7 +306,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const login = (email: string, password: string, tenantId?: string | null): boolean => {
     const user = allUsers.find(u => 
       u.email === email && 
-      u.password === password
+      u.password === password &&
+      (!tenantId || u.tenantId === tenantId || u.role === Role.SUPER_ADMIN)
     );
     
     if (user) {
@@ -637,8 +638,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     }
   };
 
-  const addUser = async (user: Omit<User, 'tenantId'>) => {
-    const tenantId = currentUser?.tenantId || '';
+  const addUser = async (user: User | Omit<User, 'tenantId'>) => {
+    const tenantId = (user as User).tenantId || currentUser?.tenantId || '';
     const newUser = { ...user, tenantId } as User;
     setAllUsers(prev => [...prev, newUser]);
 
@@ -750,7 +751,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         supabase.from('users').delete().eq('tenant_id', tenantId),
         supabase.from('menu_items').delete().eq('tenant_id', tenantId),
         supabase.from('orders').delete().eq('tenant_id', tenantId),
-        supabase.from('inventory').delete().eq('tenant_id', tenantId),
+        supabase.from('inventory_items').delete().eq('tenant_id', tenantId),
         supabase.from('transactions').delete().eq('tenant_id', tenantId),
         supabase.from('expenses').delete().eq('tenant_id', tenantId)
       ]);
