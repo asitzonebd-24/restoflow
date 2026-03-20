@@ -5,6 +5,7 @@ import { MenuItem, OrderItem, Order, OrderStatus } from '../types';
 import { ShoppingBasket, Plus, Minus, Search, ArrowRight, LogOut, MapPin, Menu as MenuIcon, X, ShoppingCart, Timer, History, ShoppingBag, CheckCircle, FileText, ChevronRight } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { DEFAULT_MENU_IMAGE } from '../constants';
 
 export const CustomerOrder = () => {
   const { menu, business, addOrder, currentUser, logout, updateBusiness } = useApp();
@@ -312,11 +313,11 @@ export const CustomerOrder = () => {
                   className={`group flex flex-col bg-white rounded-[2rem] md:rounded-[2.5rem] border-2 border-slate-100 p-3 md:p-5 transition-all hover:-translate-y-1 hover:shadow-2xl hover:border-indigo-500 active:scale-95 shadow-xl shadow-slate-200/20 relative overflow-hidden ${item.stock !== undefined && item.stock !== null && item.stock <= 0 ? 'cursor-not-allowed' : ''}`}
                 >
                   <div className="aspect-square w-full rounded-2xl overflow-hidden border-2 border-slate-100 mb-3 md:mb-5 bg-slate-50 flex items-center justify-center group-hover:border-indigo-500 transition-colors relative">
-                      {item.image ? (
-                        <img src={item.image} alt={item.name} className={`w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ${item.stock !== undefined && item.stock !== null && item.stock <= 0 ? 'grayscale opacity-50' : ''}`} />
-                      ) : (
-                        <ShoppingCart size={32} className="text-slate-200" />
-                      )}
+                      <img 
+                        src={item.image || DEFAULT_MENU_IMAGE} 
+                        alt={item.name} 
+                        className={`w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ${item.stock !== undefined && item.stock !== null && item.stock <= 0 ? 'grayscale opacity-50' : ''}`} 
+                      />
                       {item.stock !== undefined && item.stock !== null && item.stock <= 0 && (
                         <div className="absolute inset-0 flex items-center justify-center bg-slate-900/40 backdrop-blur-[2px]">
                           <span className="bg-rose-600 text-white text-[8px] md:text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl shadow-2xl transform -rotate-6 border-2 border-white/20">

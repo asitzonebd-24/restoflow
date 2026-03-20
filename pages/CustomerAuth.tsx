@@ -6,7 +6,7 @@ import { ArrowRight, Lock, User as UserIcon, Phone, Mail, Utensils, MapPin } fro
 import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
 
 export const CustomerAuth = () => {
-  const { business, login, addUser, users, setCurrentTenantId } = useApp();
+  const { business, login, addUser, setCurrentUser, setCurrentTenantId } = useApp();
   const [isRegistering, setIsRegistering] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -48,21 +48,13 @@ export const CustomerAuth = () => {
           avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.name)}&background=indigo&color=fff`
         };
         await addUser(newUser);
-        // Wait a bit for state to propagate or use the newUser directly if login allowed it
-        // But login uses allUsers state, so we might need a small delay or modify login
-        // Actually, login should probably be async too if it depends on state that was just set
-        // For now, let's try direct login if possible or just wait
-        setTimeout(() => {
-          const success = login(newUser.email, formData.password, tenantId);
-          if (success) {
-            navigate('/order');
-          } else {
-            setLoading(false);
-            alert("Registration successful, but login failed. Please try signing in.");
-            setIsRegistering(false);
-          }
-        }, 500);
+        
+        // Set user directly to avoid state propagation delay
+        setCurrentUser(newUser);
+        localStorage.setItem('resto_flow_user', JSON.stringify(newUser));
+        navigate('/order');
       } else {
+        // Try to login with email or mobile
         const success = login(formData.email || formData.mobile, formData.password, tenantId);
         if (success) {
           navigate('/order');

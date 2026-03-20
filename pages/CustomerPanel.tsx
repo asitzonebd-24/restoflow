@@ -2,6 +2,7 @@
 import React, { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { OrderStatus } from '../types';
+import { DEFAULT_BUSINESS_LOGO, DEFAULT_AVATAR } from '../constants';
 import { Timer, ShoppingBag, ArrowLeft, Clock, Menu as MenuIcon, User as UserCircle, ShoppingCart, LogOut, X, MapPin, History, LayoutGrid, ShoppingBasket, ChevronRight } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -19,6 +20,7 @@ export const CustomerPanel = () => {
   }, [orders, currentUser]);
 
   const activeOrders = myOrders.filter(o => o.status !== OrderStatus.COMPLETED && o.status !== OrderStatus.CANCELLED);
+  const completedOrders = myOrders.filter(o => o.status === OrderStatus.COMPLETED).slice(0, 5);
 
   const getStatusDisplay = (status: OrderStatus) => {
     switch(status) {
@@ -49,7 +51,7 @@ export const CustomerPanel = () => {
         style={{ background: 'linear-gradient(180deg, #1d1d3f 0%, #11112b 100%)' }}
       >
         <div className="flex items-center gap-3 px-4 md:px-8 mb-12">
-           <img src={business.logo} alt="Logo" className="w-10 h-10 rounded-full border-2 border-white" />
+           <img src={business.logo || DEFAULT_BUSINESS_LOGO} alt="Logo" className="w-10 h-10 rounded-full border-2 border-white" />
            <h2 className="hidden md:block font-black text-lg uppercase tracking-tighter">OmniDine</h2>
         </div>
         <nav className="flex-1 space-y-4 px-2 md:px-6">
@@ -64,7 +66,7 @@ export const CustomerPanel = () => {
            </button>
         </nav>
         <div className="pt-8 border-t border-white/10 mt-auto px-2 md:px-8 flex flex-col items-center md:items-start">
-           <img src={currentUser?.avatar} className="w-10 h-10 rounded-full border-2 border-indigo-500 mb-4" alt="avatar" />
+           <img src={currentUser?.avatar || DEFAULT_AVATAR} className="w-10 h-10 rounded-full border-2 border-indigo-500 mb-4" alt="avatar" />
            <button onClick={logout} className="p-4 md:w-full md:flex md:items-center md:gap-4 md:px-6 md:py-4 rounded-2xl text-red-400 hover:bg-red-400/10 transition font-black uppercase tracking-widest text-[10px]">
              <LogOut size={20} /> <span className="hidden md:block">Sign Out</span>
            </button>
@@ -166,6 +168,71 @@ export const CustomerPanel = () => {
                    );
                  })}
             </div>
+
+            {/* Recent History Summary */}
+            {completedOrders.length > 0 && (
+              <div className="mt-16">
+                <div className="flex items-center justify-between mb-8">
+                  <div className="flex items-center gap-3">
+                    <History size={24} className="text-indigo-600" />
+                    <h2 className="text-2xl font-black uppercase tracking-tighter text-slate-900">Recent Completed Orders</h2>
+                  </div>
+                  <button 
+                    onClick={() => navigate('/order/history')}
+                    className="text-[10px] font-black uppercase tracking-widest text-indigo-600 hover:text-indigo-800 flex items-center gap-2 bg-indigo-50 px-4 py-2 rounded-xl transition-all"
+                  >
+                    View All History <ChevronRight size={14} />
+                  </button>
+                </div>
+                
+                <div className="bg-white rounded-[2.5rem] border-4 border-slate-100 overflow-hidden shadow-xl">
+                  <div className="overflow-x-auto no-scrollbar">
+                    <table className="w-full text-left border-collapse">
+                      <thead className="bg-slate-50 border-b-4 border-slate-100">
+                        <tr>
+                          <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Token</th>
+                          <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Items</th>
+                          <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Amount</th>
+                          <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y-2 divide-slate-50">
+                        {completedOrders.map((order) => (
+                          <tr key={order.id} className="hover:bg-slate-50/50 transition-colors group">
+                            <td className="px-8 py-5 whitespace-nowrap">
+                              <span className="font-black text-lg text-slate-900 tracking-tighter">#{order.tokenNumber}</span>
+                            </td>
+                            <td className="px-8 py-5">
+                              <div className="flex flex-col">
+                                <span className="text-[11px] font-black text-slate-600 uppercase">
+                                  {order.items.length} {order.items.length === 1 ? 'item' : 'items'}
+                                </span>
+                                <span className="text-[9px] font-bold text-slate-400 uppercase">
+                                  {new Date(order.createdAt).toLocaleDateString()}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-8 py-5 text-right">
+                              <span className="text-sm font-black text-slate-900">
+                                {business.currency}{order.totalAmount.toFixed(0)}
+                              </span>
+                            </td>
+                            <td className="px-8 py-5 text-right">
+                              <button 
+                                onClick={() => setSelectedOrder(order)}
+                                className="bg-slate-900 text-white px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-indigo-600 transition-all shadow-md"
+                              >
+                                Details
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

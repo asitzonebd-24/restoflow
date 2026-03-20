@@ -1,17 +1,18 @@
 
 import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
 import { Role, Business, User, Order, InventoryItem, MenuItem, OrderStatus, ItemStatus, Transaction, Expense, OrderItem, MonthlyBill, BillStatus } from '../types';
-import { BUSINESS_DETAILS, MOCK_USERS, INITIAL_ORDERS, MOCK_INVENTORY, MOCK_MENU, MOCK_EXPENSES } from '../constants';
+import { BUSINESS_DETAILS, MOCK_USERS, INITIAL_ORDERS, MOCK_INVENTORY, MOCK_MENU, MOCK_EXPENSES, DEFAULT_MENU_IMAGE, DEFAULT_AVATAR, DEFAULT_BUSINESS_LOGO } from '../constants';
 import { supabase, isSupabaseConfigured } from '../supabase';
 
 interface AppContextType {
   currentUser: User | null;
+  setCurrentUser: (user: User | null) => void;
   business: Business;
   tenants: Business[];
   orders: Order[];
   inventory: InventoryItem[];
   menu: MenuItem[];
-  login: (email: string, password: string, tenantId?: string | null) => boolean;
+  login: (emailOrMobile: string, password: string, tenantId?: string | null) => boolean;
   logout: () => void;
   addOrder: (order: Omit<Order, 'tenantId'>) => Promise<void>;
   updateOrderItems: (orderId: string, items: OrderItem[], totalAmount: number, note?: string) => Promise<void>;
@@ -100,13 +101,45 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     missingTables: []
   });
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setIsLoading(true);
+  const fetchData = async () => {
+    setIsLoading(true);
+    
+    if (!isSupabaseConfigured) {
+      console.log('Supabase not configured, using mock data.');
+      setDbStatus(prev => ({ ...prev, isConfigured: false }));
+      setTenants([BUSINESS_DETAILS]);
+      setAllUsers(ENHANCED_MOCK_USERS);
+      setAllOrders(INITIAL_ORDERS);
+      setAllInventory(MOCK_INVENTORY);
+      setAllMenu(MOCK_MENU);
+      setAllExpenses(MOCK_EXPENSES);
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const results = await Promise.all([
+        supabase.from('tenants').select('*'),
+        supabase.from('users').select('*'),
+        supabase.from('menu_items').select('*'),
+        supabase.from('inventory_items').select('*'),
+        supabase.from('orders').select('*'),
+        supabase.from('transactions').select('*'),
+        supabase.from('expenses').select('*'),
+        supabase.from('monthly_bills').select('*')
+      ]);
+
+      const errors = results.map((r, i) => r.error ? { table: ['tenants', 'users', 'menu_items', 'inventory_items', 'orders', 'transactions', 'expenses', 'monthly_bills'][i], error: r.error } : null).filter(Boolean);
       
-      if (!isSupabaseConfigured) {
-        console.log('Supabase not configured, using mock data.');
-        setDbStatus(prev => ({ ...prev, isConfigured: false }));
+      if (errors.length > 0) {
+        console.error('Supabase tables missing or inaccessible:', errors);
+        setDbStatus(prev => ({ 
+          ...prev, 
+          hasTables: false, 
+          missingTables: errors.map(e => e?.table || '') 
+        }));
+        
+        // Fallback to mock data if tables are missing
         setTenants([BUSINESS_DETAILS]);
         setAllUsers(ENHANCED_MOCK_USERS);
         setAllOrders(INITIAL_ORDERS);
@@ -117,154 +150,133 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         return;
       }
 
-      try {
-        const results = await Promise.all([
-          supabase.from('tenants').select('*'),
-          supabase.from('users').select('*'),
-          supabase.from('menu_items').select('*'),
-          supabase.from('inventory_items').select('*'),
-          supabase.from('orders').select('*'),
-          supabase.from('transactions').select('*'),
-          supabase.from('expenses').select('*'),
-          supabase.from('monthly_bills').select('*')
-        ]);
+      setDbStatus(prev => ({ ...prev, hasTables: true, missingTables: [] }));
 
-        const errors = results.map((r, i) => r.error ? { table: ['tenants', 'users', 'menu_items', 'inventory_items', 'orders', 'transactions', 'expenses', 'monthly_bills'][i], error: r.error } : null).filter(Boolean);
-        
-        if (errors.length > 0) {
-          console.error('Supabase tables missing or inaccessible:', errors);
-          alert('Database Error: Some tables are missing in Supabase. Please run the SQL schema in your Supabase dashboard.');
-          setDbStatus(prev => ({ 
-            ...prev, 
-            hasTables: false, 
-            missingTables: errors.map(e => e?.table || '') 
-          }));
-          
-          // Fallback to mock data if tables are missing
-          setTenants([BUSINESS_DETAILS]);
-          setAllUsers(ENHANCED_MOCK_USERS);
-          setAllOrders(INITIAL_ORDERS);
-          setAllInventory(MOCK_INVENTORY);
-          setAllMenu(MOCK_MENU);
-          setAllExpenses(MOCK_EXPENSES);
-          setIsLoading(false);
-          return;
-        }
+      const [
+        { data: tenantsData },
+        { data: usersData },
+        { data: menuData },
+        { data: inventoryData },
+        { data: ordersData },
+        { data: transactionsData },
+        { data: expensesData },
+        { data: billsData }
+      ] = results;
 
-        setDbStatus(prev => ({ ...prev, hasTables: true, missingTables: [] }));
-
-        const [
-          { data: tenantsData },
-          { data: usersData },
-          { data: menuData },
-          { data: inventoryData },
-          { data: ordersData },
-          { data: transactionsData },
-          { data: expensesData },
-          { data: billsData }
-        ] = results;
-
-        if (tenantsData && tenantsData.length > 0) {
-          setTenants(tenantsData.map(t => ({
-            ...t,
-            expenseCategories: t.expense_categories,
-            menuCategories: t.menu_categories,
-            customerTokenPrefix: t.customer_token_prefix,
-            nextCustomerToken: t.next_customer_token,
-            customerAppEnabled: t.customer_app_enabled,
-            isActive: t.is_active,
-            monthlyBill: t.monthly_bill,
-            billingDay: t.billing_day,
-            createdAt: t.created_at
-          })));
-        } else {
-          // Seed with mock data if empty
-          setTenants([BUSINESS_DETAILS]);
-        }
-
-        if (usersData && usersData.length > 0) {
-          setAllUsers(usersData.map(u => ({
-            ...u,
-            tenantId: u.tenant_id
-          })));
-        } else {
-          setAllUsers(ENHANCED_MOCK_USERS);
-        }
-
-        if (menuData) {
-          setAllMenu(menuData.map(m => ({
-            ...m,
-            tenantId: m.tenant_id,
-            isAvailable: m.is_available
-          })));
-        }
-
-        if (inventoryData) {
-          setAllInventory(inventoryData.map(i => ({
-            ...i,
-            tenantId: i.tenant_id,
-            minThreshold: i.min_threshold,
-            lastUpdated: i.last_updated
-          })));
-        }
-
-        if (ordersData) {
-          setAllOrders(ordersData.map(o => ({
-            ...o,
-            tenantId: o.tenant_id,
-            tokenNumber: o.token_number,
-            tableNumber: o.table_number,
-            totalAmount: o.total_amount,
-            createdBy: o.created_by,
-            createdAt: o.created_at
-          })));
-        }
-
-        if (transactionsData) {
-          setAllTransactions(transactionsData.map(t => ({
-            ...t,
-            tenantId: t.tenant_id,
-            orderId: t.order_id,
-            paymentMethod: t.payment_method,
-            itemsSummary: t.items_summary,
-            creatorName: t.creator_name,
-            date: t.created_at
-          })));
-        }
-
-        if (expensesData) {
-          setAllExpenses(expensesData.map(e => ({
-            ...e,
-            tenantId: e.tenant_id,
-            recordedBy: e.recorded_by
-          })));
-        }
-
-        if (billsData) {
-          setMonthlyBills(billsData.map(b => ({
-            ...b,
-            tenantId: b.tenant_id,
-            tenantName: b.tenant_name,
-            approvedAt: b.approved_at,
-            createdAt: b.created_at
-          })));
-        }
-
-      } catch (error) {
-        console.error('Error fetching data from Supabase:', error);
-        // Fallback to mock data on error
+      if (tenantsData && tenantsData.length > 0) {
+        setTenants(tenantsData.map(t => ({
+          ...t,
+          expenseCategories: t.expense_categories,
+          menuCategories: t.menu_categories,
+          customerTokenPrefix: t.customer_token_prefix,
+          nextCustomerToken: t.next_customer_token,
+          customerAppEnabled: t.customer_app_enabled,
+          isActive: t.is_active,
+          monthlyBill: t.monthly_bill,
+          billingDay: t.billing_day,
+          createdAt: t.created_at
+        })));
+      } else {
         setTenants([BUSINESS_DETAILS]);
-        setAllUsers(ENHANCED_MOCK_USERS);
-        setAllOrders(INITIAL_ORDERS);
-        setAllInventory(MOCK_INVENTORY);
-        setAllMenu(MOCK_MENU);
-        setAllExpenses(MOCK_EXPENSES);
-      } finally {
-        setIsLoading(false);
       }
-    };
 
+      if (usersData && usersData.length > 0) {
+        setAllUsers(usersData.map(u => ({
+          ...u,
+          tenantId: u.tenant_id
+        })));
+      } else {
+        setAllUsers(ENHANCED_MOCK_USERS);
+      }
+
+      if (menuData) {
+        setAllMenu(menuData.map(m => ({
+          ...m,
+          tenantId: m.tenant_id,
+          isAvailable: m.is_available
+        })));
+      }
+
+      if (inventoryData) {
+        setAllInventory(inventoryData.map(i => ({
+          ...i,
+          tenantId: i.tenant_id,
+          minThreshold: i.min_threshold,
+          lastUpdated: i.last_updated
+        })));
+      }
+
+      if (ordersData) {
+        setAllOrders(ordersData.map(o => ({
+          ...o,
+          tenantId: o.tenant_id,
+          tokenNumber: o.token_number,
+          tableNumber: o.table_number,
+          totalAmount: o.total_amount,
+          createdBy: o.created_by,
+          createdAt: o.created_at
+        })));
+      }
+
+      if (transactionsData) {
+        setAllTransactions(transactionsData.map(t => ({
+          ...t,
+          tenantId: t.tenant_id,
+          orderId: t.order_id,
+          paymentMethod: t.payment_method,
+          itemsSummary: t.items_summary,
+          creatorName: t.creator_name,
+          date: t.created_at
+        })));
+      }
+
+      if (expensesData) {
+        setAllExpenses(expensesData.map(e => ({
+          ...e,
+          tenantId: e.tenant_id,
+          recordedBy: e.recorded_by
+        })));
+      }
+
+      if (billsData) {
+        setMonthlyBills(billsData.map(b => ({
+          ...b,
+          tenantId: b.tenant_id,
+          tenantName: b.tenant_name,
+          approvedAt: b.approved_at,
+          createdAt: b.created_at
+        })));
+      }
+
+    } catch (error) {
+      console.error('Error fetching data from Supabase:', error);
+      setTenants([BUSINESS_DETAILS]);
+      setAllUsers(ENHANCED_MOCK_USERS);
+      setAllOrders(INITIAL_ORDERS);
+      setAllInventory(MOCK_INVENTORY);
+      setAllMenu(MOCK_MENU);
+      setAllExpenses(MOCK_EXPENSES);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchData();
+  }, []);
+
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+
+    const channel = supabase.channel('db-changes')
+      .on('postgres_changes', { event: '*', schema: 'public' }, () => {
+        fetchData();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const business = useMemo(() => {
@@ -303,9 +315,9 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     return allExpenses.filter(e => e.tenantId === targetId);
   }, [allExpenses, currentUser, currentTenantId]);
 
-  const login = (email: string, password: string, tenantId?: string | null): boolean => {
+  const login = (emailOrMobile: string, password: string, tenantId?: string | null): boolean => {
     const user = allUsers.find(u => 
-      u.email.toLowerCase() === email.toLowerCase() && 
+      (u.email.toLowerCase() === emailOrMobile.toLowerCase() || u.mobile === emailOrMobile) && 
       u.password === password
     );
     
@@ -478,7 +490,11 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
   const addMenuItem = async (item: Omit<MenuItem, 'tenantId'>) => {
     const tenantId = currentUser?.tenantId || '';
-    const newItem = { ...item, tenantId } as MenuItem;
+    const newItem = { 
+      ...item, 
+      tenantId,
+      image: item.image || DEFAULT_MENU_IMAGE
+    } as MenuItem;
     setAllMenu(prev => [...prev, newItem]);
 
     try {
@@ -641,7 +657,11 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
   const addUser = async (user: User | Omit<User, 'tenantId'>) => {
     const tenantId = (user as User).tenantId || currentUser?.tenantId || '';
-    const newUser = { ...user, tenantId } as User;
+    const newUser = { 
+      ...user, 
+      tenantId,
+      avatar: (user as User).avatar || DEFAULT_AVATAR
+    } as User;
     setAllUsers(prev => [...prev, newUser]);
 
     try {
@@ -787,7 +807,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     const newBusiness: Business = {
       id: newTenantId,
       name: businessData.name || 'New Restaurant',
-      logo: businessData.logo || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?q=80&w=200&h=200&auto=format&fit=crop',
+      logo: businessData.logo || DEFAULT_BUSINESS_LOGO,
       address: businessData.address || '',
       phone: businessData.phone || '',
       currency: businessData.currency || '$',
@@ -975,6 +995,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   return (
     <AppContext.Provider value={{
       currentUser,
+      setCurrentUser,
       business,
       tenants,
       orders,

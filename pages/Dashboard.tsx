@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Cell } from 'recharts';
 import { generateBusinessInsight } from '../services/geminiService';
-import { Bot, TrendingUp, AlertTriangle, DollarSign, Wallet, ArrowUpRight, ArrowDownRight, PlusCircle, LayoutPanelTop, History } from 'lucide-react';
+import { Bot, TrendingUp, AlertTriangle, DollarSign, Wallet, ArrowUpRight, ArrowDownRight, PlusCircle, LayoutPanelTop, History, Globe } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export const Dashboard = () => {
@@ -152,6 +152,36 @@ export const Dashboard = () => {
           <h3 className="text-4xl font-black text-slate-900 tracking-tighter">
             {lowStockCount > 0 ? 'Low Supply' : 'Healthy'}
           </h3>
+        </div>
+      </div>
+
+      {/* Customer App Link Section */}
+      <div className="bg-white p-8 rounded-[2.5rem] border-4 border-indigo-500 shadow-xl shadow-indigo-100 relative overflow-hidden group">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-50 rounded-full -mr-16 -mt-16 group-hover:scale-110 transition-transform duration-500"></div>
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex items-center gap-6">
+            <div className="w-16 h-16 bg-indigo-600 text-white rounded-2xl flex items-center justify-center shadow-lg border-2 border-white">
+              <Globe size={32} />
+            </div>
+            <div>
+              <h3 className="text-xl font-black text-slate-900 tracking-tighter uppercase">Customer App Portal</h3>
+              <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1">Share this link with your customers to order</p>
+            </div>
+          </div>
+          <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
+            <div className="flex-1 md:flex-none bg-slate-50 px-6 py-4 rounded-2xl border-2 border-slate-100 font-mono text-[10px] text-slate-600 break-all select-all shadow-inner">
+              {window.location.origin}/#/{currentTenant?.id}
+            </div>
+            <button 
+              onClick={() => {
+                navigator.clipboard.writeText(`${window.location.origin}/#/${currentTenant?.id}`);
+                alert('Customer App Link copied to clipboard!');
+              }}
+              className="w-full sm:w-auto bg-black text-white px-8 py-4 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-indigo-600 transition-all shadow-xl active:scale-95 border-b-4 border-slate-700"
+            >
+              Copy Link
+            </button>
+          </div>
         </div>
       </div>
 

@@ -1,10 +1,14 @@
 
 import { Role, Business, User, MenuItem, InventoryItem, Order, OrderStatus, Expense } from './types';
 
+export const DEFAULT_MENU_IMAGE = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?q=80&w=400&h=400&auto=format&fit=crop';
+export const DEFAULT_AVATAR = 'https://ui-avatars.com/api/?name=User&background=random';
+export const DEFAULT_BUSINESS_LOGO = 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?q=80&w=200&h=200&auto=format&fit=crop';
+
 export const BUSINESS_DETAILS: Business = {
   id: '01',
   name: 'OmniDine Bistro',
-  logo: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?q=80&w=200&h=200&auto=format&fit=crop',
+  logo: DEFAULT_BUSINESS_LOGO,
   address: '77 Culinary Ave, Food District, NY 10001',
   phone: '+1 555-0123',
   currency: '৳',

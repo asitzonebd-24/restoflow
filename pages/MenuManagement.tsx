@@ -3,6 +3,7 @@ import { useApp } from '../context/AppContext';
 import { MenuItem } from '../types';
 import { Plus, Edit2, Trash2, X, Save, Utensils, Sparkles, Search, ImageOff, ListTree, ChevronDown } from 'lucide-react';
 import { generateMenuDescription } from '../services/geminiService';
+import { DEFAULT_MENU_IMAGE } from '../constants';
 
 export const MenuManagement = () => {
   const { menu, business, addMenuItem, updateMenuItem, deleteMenuItem, addMenuCategory, renameMenuCategory, deleteMenuCategory } = useApp();
@@ -323,7 +324,11 @@ export const MenuManagement = () => {
                     <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Image URL (Optional)</label>
                     <div className="flex gap-4">
                         <div className="w-14 h-14 rounded-2xl bg-slate-50 border border-slate-100 overflow-hidden shrink-0 flex items-center justify-center shadow-inner">
-                           {formData.image ? <img src={formData.image} alt="Preview" className="w-full h-full object-cover" /> : <ImageOff size={24} className="text-slate-200" />}
+                           <img 
+                             src={formData.image || DEFAULT_MENU_IMAGE} 
+                             alt="Preview" 
+                             className="w-full h-full object-cover" 
+                           />
                         </div>
                         <input 
                             type="url" 
