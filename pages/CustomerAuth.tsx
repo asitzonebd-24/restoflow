@@ -29,11 +29,11 @@ export const CustomerAuth = () => {
     address: ''
   });
 
-  const handleAuth = (e: React.FormEvent) => {
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    setTimeout(() => {
+    try {
       if (isRegistering) {
         const newUser: User = {
           id: `c-${Date.now()}`,
@@ -47,20 +47,35 @@ export const CustomerAuth = () => {
           permissions: [],
           avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.name)}&background=indigo&color=fff`
         };
-        addUser(newUser);
-        login(newUser.email, formData.password, tenantId);
+        await addUser(newUser);
+        // Wait a bit for state to propagate or use the newUser directly if login allowed it
+        // But login uses allUsers state, so we might need a small delay or modify login
+        // Actually, login should probably be async too if it depends on state that was just set
+        // For now, let's try direct login if possible or just wait
+        setTimeout(() => {
+          const success = login(newUser.email, formData.password, tenantId);
+          if (success) {
+            navigate('/order');
+          } else {
+            setLoading(false);
+            alert("Registration successful, but login failed. Please try signing in.");
+            setIsRegistering(false);
+          }
+        }, 500);
       } else {
-        const user = users.find(u => (u.email === formData.email || u.mobile === formData.mobile) && u.password === formData.password && (!tenantId || u.tenantId === tenantId));
-        if (user) {
-          login(user.email, formData.password, tenantId);
+        const success = login(formData.email || formData.mobile, formData.password, tenantId);
+        if (success) {
+          navigate('/order');
         } else {
           alert("Invalid credentials. Please try again or create an account.");
           setLoading(false);
-          return;
         }
       }
-      navigate('/order');
-    }, 800);
+    } catch (error) {
+      console.error("Auth error:", error);
+      alert("An error occurred during authentication.");
+      setLoading(false);
+    }
   };
 
   if (!tenantId) {

@@ -5,7 +5,7 @@ import { Business, Role } from '../types';
 import { Plus, Building2, User, Mail, Phone, Globe, MapPin, Search, ExternalLink, Calendar, Power, PowerOff, DollarSign, Edit3, Save, X as CloseIcon, AlertTriangle, Copy, Check } from 'lucide-react';
 
 export const SuperAdmin = () => {
-  const { tenants, createBusiness, currentUser, toggleBusinessStatus, updateTenant, deleteTenant, allUsers } = useApp();
+  const { tenants, createBusiness, currentUser, toggleBusinessStatus, updateTenant, deleteTenant, allUsers, updateUser } = useApp();
   const [showModal, setShowModal] = useState(false);
   const [editingTenant, setEditingTenant] = useState<Business | null>(null);
   const [editingBill, setEditingBill] = useState<string | null>(null);
@@ -53,9 +53,14 @@ export const SuperAdmin = () => {
 
     if (editingTenant) {
       updateTenant(editingTenant.id, newBusiness);
+      const owner = allUsers.find(u => u.tenantId === editingTenant.id && u.role === Role.OWNER);
+      if (owner) {
+        updateUser(owner.id, newOwner);
+      }
       setEditingTenant(null);
       setShowModal(false);
       setNewBusiness({ name: '', address: '', phone: '', currency: '৳', themeColor: '#0f172a', monthlyBill: 500, billingDay: 1 });
+      setNewOwner({ name: '', email: '', password: 'password', mobile: '' });
       return;
     }
 
@@ -83,6 +88,19 @@ export const SuperAdmin = () => {
       monthlyBill: tenant.monthlyBill,
       billingDay: tenant.billingDay
     });
+    
+    const owner = allUsers.find(u => u.tenantId === tenant.id && u.role === Role.OWNER);
+    if (owner) {
+      setNewOwner({
+        name: owner.name,
+        email: owner.email,
+        password: owner.password,
+        mobile: owner.mobile || ''
+      });
+    } else {
+      setNewOwner({ name: '', email: '', password: 'password', mobile: '' });
+    }
+    
     setShowModal(true);
   };
 
@@ -321,7 +339,7 @@ export const SuperAdmin = () => {
                       required
                       type="text" 
                       className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
-                      value={newBusiness.name}
+                      value={newBusiness.name || ''}
                       onChange={(e) => setNewBusiness({...newBusiness, name: e.target.value})}
                     />
                   </div>
@@ -330,7 +348,7 @@ export const SuperAdmin = () => {
                     <input 
                       type="text" 
                       className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
-                      value={newBusiness.address}
+                      value={newBusiness.address || ''}
                       onChange={(e) => setNewBusiness({...newBusiness, address: e.target.value})}
                     />
                   </div>
@@ -340,7 +358,7 @@ export const SuperAdmin = () => {
                       <input 
                         type="text" 
                         className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
-                        value={newBusiness.phone}
+                        value={newBusiness.phone || ''}
                         onChange={(e) => setNewBusiness({...newBusiness, phone: e.target.value})}
                       />
                     </div>
@@ -349,7 +367,7 @@ export const SuperAdmin = () => {
                       <input 
                         type="text" 
                         className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
-                        value={newBusiness.currency}
+                        value={newBusiness.currency || ''}
                         onChange={(e) => setNewBusiness({...newBusiness, currency: e.target.value})}
                       />
                     </div>
@@ -378,10 +396,9 @@ export const SuperAdmin = () => {
                   </div>
                 </div>
 
-                {!editingTenant && (
                   <div className="space-y-4">
                     <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                      <User size={16} /> Owner Account
+                      <User size={16} /> {editingTenant ? 'Edit Owner Account' : 'Owner Account'}
                     </h3>
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-1">Owner Name</label>
@@ -389,7 +406,7 @@ export const SuperAdmin = () => {
                         required
                         type="text" 
                         className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
-                        value={newOwner.name}
+                        value={newOwner.name || ''}
                         onChange={(e) => setNewOwner({...newOwner, name: e.target.value})}
                       />
                     </div>
@@ -399,7 +416,7 @@ export const SuperAdmin = () => {
                         required
                         type="email" 
                         className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
-                        value={newOwner.email}
+                        value={newOwner.email || ''}
                         onChange={(e) => setNewOwner({...newOwner, email: e.target.value})}
                       />
                     </div>
@@ -408,7 +425,7 @@ export const SuperAdmin = () => {
                       <input 
                         type="text" 
                         className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
-                        value={newOwner.mobile}
+                        value={newOwner.mobile || ''}
                         onChange={(e) => setNewOwner({...newOwner, mobile: e.target.value})}
                       />
                     </div>
@@ -418,12 +435,11 @@ export const SuperAdmin = () => {
                         required
                         type="password" 
                         className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
-                        value={newOwner.password}
+                        value={newOwner.password || ''}
                         onChange={(e) => setNewOwner({...newOwner, password: e.target.value})}
                       />
                     </div>
                   </div>
-                )}
               </div>
 
               <div className="pt-6 border-t border-slate-100 flex gap-3">

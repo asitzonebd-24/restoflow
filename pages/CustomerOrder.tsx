@@ -2,14 +2,17 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { MenuItem, OrderItem, Order, OrderStatus } from '../types';
-import { ShoppingBasket, Plus, Minus, Search, ArrowRight, LogOut, MapPin, Menu as MenuIcon, X, ShoppingCart, Timer, History, ShoppingBag, CheckCircle } from 'lucide-react';
+import { ShoppingBasket, Plus, Minus, Search, ArrowRight, LogOut, MapPin, Menu as MenuIcon, X, ShoppingCart, Timer, History, ShoppingBag, CheckCircle, FileText } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export const CustomerOrder = () => {
   const { menu, business, addOrder, currentUser, logout, updateBusiness } = useApp();
   const [activeCategory, setActiveCategory] = useState<string>('All');
   const [searchTerm, setSearchTerm] = useState('');
   const [cart, setCart] = useState<OrderItem[]>([]);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [orderNote, setOrderNote] = useState('');
   
   const [useProfileAddress, setUseProfileAddress] = useState(!!currentUser?.address);
   const [manualAddress, setManualAddress] = useState('');
@@ -93,39 +96,62 @@ export const CustomerOrder = () => {
 
   const isActive = (path: string) => location.pathname === path;
 
-  const CartContent = () => (
+  const CartContent = ({ onClose }: { onClose?: () => void }) => (
     <div className="flex flex-col h-full bg-white border-l-4 border-indigo-500 shadow-2xl shadow-indigo-100">
       <div className="p-6 border-b-4 border-indigo-500 bg-slate-50 shrink-0">
-        <h2 className="text-xl font-black uppercase tracking-tighter flex items-center gap-3">
-           <ShoppingBasket size={24} strokeWidth={3} /> Basket
-        </h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-black uppercase tracking-tighter flex items-center gap-3">
+             <ShoppingBasket size={24} strokeWidth={3} /> Basket
+          </h2>
+          {onClose && (
+            <button 
+              onClick={onClose}
+              className="lg:hidden w-10 h-10 flex items-center justify-center rounded-2xl bg-slate-100 text-slate-500 hover:bg-rose-50 hover:text-rose-500 transition-all"
+            >
+              <X size={20} />
+            </button>
+          )}
+        </div>
       </div>
 
-      <div className="p-4 md:p-6 space-y-3 h-auto">
-        {cart.length === 0 ? (
-          <div className="py-20 flex flex-col items-center justify-center text-slate-200">
-              <ShoppingCart size={48} className="mb-4 opacity-50" />
-              <p className="font-black uppercase text-[10px] tracking-[0.3em]">No items added</p>
-          </div>
-        ) : (
-          cart.map(item => (
-            <div key={item.rowId} className="bg-white p-3 rounded-[1.5rem] border-2 border-indigo-500 flex justify-between items-center shadow-xl shadow-indigo-100">
-              <div className="min-w-0 pr-4">
-                  <h4 className="font-black text-[9px] md:text-[10px] uppercase truncate">{item.name}</h4>
-                  <p className="text-[9px] font-bold text-slate-400">{business.currency}{item.price.toFixed(0)}</p>
-              </div>
-              <div className="flex items-center gap-1.5 bg-slate-50 p-1 rounded-xl border-2 border-slate-200 shadow-inner">
-                  <button onClick={() => updateQuantity(item.itemId, -1)} className="p-1.5 hover:bg-black hover:text-white rounded-lg transition active:scale-90"><Minus size={10} strokeWidth={4}/></button>
-                  <span className="font-black text-[11px] w-6 text-center">{item.quantity}</span>
-                  <button onClick={() => updateQuantity(item.itemId, 1)} className="p-1.5 hover:bg-black hover:text-white rounded-lg transition active:scale-90"><Plus size={10} strokeWidth={4}/></button>
-              </div>
-            </div>
-          ))
-        )}
+      <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 no-scrollbar">
+        <AnimatePresence mode="popLayout">
+          {cart.length === 0 ? (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="py-20 flex flex-col items-center justify-center text-slate-200"
+            >
+                <ShoppingCart size={48} className="mb-4 opacity-50" />
+                <p className="font-black uppercase text-[10px] tracking-[0.3em]">No items added</p>
+            </motion.div>
+          ) : (
+            cart.map(item => (
+              <motion.div 
+                layout
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                key={item.rowId} 
+                className="bg-white p-4 rounded-[1.5rem] border-2 border-indigo-500 flex justify-between items-center shadow-xl shadow-indigo-100 group"
+              >
+                <div className="min-w-0 pr-4">
+                    <h4 className="font-black text-[10px] md:text-[11px] uppercase truncate">{item.name}</h4>
+                    <p className="text-[10px] font-bold text-slate-400">{business.currency}{item.price.toFixed(0)}</p>
+                </div>
+                <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-xl border-2 border-slate-200 shadow-inner group-hover:bg-white transition-colors">
+                    <button onClick={() => updateQuantity(item.itemId, -1)} className="w-8 h-8 flex items-center justify-center hover:bg-black hover:text-white rounded-lg transition active:scale-90"><Minus size={12} strokeWidth={4}/></button>
+                    <span className="font-black text-[12px] w-6 text-center">{item.quantity}</span>
+                    <button onClick={() => updateQuantity(item.itemId, 1)} className="w-8 h-8 flex items-center justify-center hover:bg-black hover:text-white rounded-lg transition active:scale-90"><Plus size={12} strokeWidth={4}/></button>
+                </div>
+              </motion.div>
+            ))
+          )}
+        </AnimatePresence>
       </div>
 
-      <div id="address-section" className="p-6 border-t-8 border-indigo-500 bg-slate-50 shrink-0 transition-all duration-500">
-        <div className="space-y-4 mb-6">
+      <div id="address-section" className="p-6 border-t-8 border-indigo-500 bg-slate-50 shrink-0 transition-all duration-500 space-y-6">
+        <div className="space-y-4">
           <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1.5 block flex items-center gap-2">
             <MapPin size={12} /> Delivery Destination
           </label>
@@ -168,8 +194,20 @@ export const CustomerOrder = () => {
             />
           )}
         </div>
+
+        <div className="space-y-3">
+          <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-2">
+            <FileText size={12} /> Special Instructions
+          </label>
+          <textarea 
+            value={orderNote}
+            onChange={(e) => setOrderNote(e.target.value)}
+            placeholder="Any special requests?"
+            className="w-full p-4 bg-white border-2 border-indigo-500 rounded-2xl text-[10px] font-black uppercase outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all shadow-xl shadow-indigo-100 h-20 resize-none"
+          />
+        </div>
         
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex justify-between items-center">
             <span className="font-black uppercase text-[10px] text-slate-400 tracking-widest leading-none">Subtotal</span>
             <span className="text-3xl font-black text-slate-900 tracking-tighter leading-none">{business.currency}{cartTotal.toFixed(0)}</span>
         </div>
@@ -272,10 +310,6 @@ export const CustomerOrder = () => {
                 </button>
               ))}
             </div>
-
-            <div className="lg:hidden mt-20 border-t-8 border-indigo-500 -mx-4 md:-mx-8">
-               <CartContent />
-            </div>
           </div>
 
           <div className="hidden lg:flex w-[400px] bg-white border-l-8 border-indigo-500 flex-col shadow-2xl shrink-0 overflow-y-auto no-scrollbar">
@@ -286,10 +320,13 @@ export const CustomerOrder = () => {
         {/* Persistent Checkout Bar for Mobile - High visibility direct trigger */}
         {cartCount > 0 && (
           <div className="lg:hidden fixed bottom-0 left-20 right-0 bg-white border-t-4 border-indigo-500 p-4 flex items-center justify-between z-[120] animate-in slide-in-from-bottom-full shadow-[0_-12px_40px_rgba(0,0,0,0.15)]">
-             <div className="flex flex-col">
+             <button 
+               onClick={() => setIsCartOpen(true)}
+               className="flex flex-col text-left"
+             >
                 <span className="text-[8px] font-black uppercase text-slate-400 tracking-widest leading-none mb-1">{cartCount} Items Selected</span>
                 <span className="text-xl font-black text-indigo-600 leading-none">{business.currency}{cartTotal.toFixed(0)}</span>
-             </div>
+             </button>
              <button 
                onClick={handleCheckout}
                className="bg-slate-900 text-white px-8 py-3 rounded-2xl font-black uppercase tracking-widest text-[10px] border-2 border-indigo-500 shadow-xl active:scale-95 transition flex items-center gap-2"
@@ -298,6 +335,28 @@ export const CustomerOrder = () => {
              </button>
           </div>
         )}
+
+        {/* Mobile Cart Overlay */}
+        <AnimatePresence>
+          {isCartOpen && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="lg:hidden fixed inset-0 z-[200] bg-slate-900/40 backdrop-blur-sm"
+            >
+              <motion.div 
+                initial={{ x: '100%' }}
+                animate={{ x: 0 }}
+                exit={{ x: '100%' }}
+                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                className="absolute right-0 top-0 bottom-0 w-[85%] max-w-md"
+              >
+                <CartContent onClose={() => setIsCartOpen(false)} />
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

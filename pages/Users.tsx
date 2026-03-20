@@ -168,27 +168,27 @@ export const Users = () => {
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             <div className="space-y-1">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Legal Name</label>
-                                <input type="text" required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full p-4 bg-slate-50 border-2 border-slate-900 rounded-2xl outline-none font-bold uppercase text-xs focus:bg-white shadow-inner" placeholder="John Doe" />
+                                <input type="text" required value={formData.name || ''} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full p-4 bg-slate-50 border-2 border-slate-900 rounded-2xl outline-none font-bold uppercase text-xs focus:bg-white shadow-inner" placeholder="John Doe" />
                             </div>
                             <div className="space-y-1">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Email Access</label>
                                 <div className="relative">
                                     <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={16}/>
-                                    <input type="email" required value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full pl-12 p-4 bg-slate-50 border-2 border-slate-900 rounded-2xl outline-none font-bold text-xs focus:bg-white shadow-inner" placeholder="staff@dine.com" />
+                                    <input type="email" required value={formData.email || ''} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full pl-12 p-4 bg-slate-50 border-2 border-slate-900 rounded-2xl outline-none font-bold text-xs focus:bg-white shadow-inner" placeholder="staff@dine.com" />
                                 </div>
                             </div>
                             <div className="space-y-1">
                                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Phone</label>
                                  <div className="relative">
                                     <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={16}/>
-                                    <input type="tel" required value={formData.mobile} onChange={e => setFormData({...formData, mobile: e.target.value})} className="w-full pl-12 p-4 bg-slate-50 border-2 border-slate-900 rounded-2xl outline-none font-bold text-xs focus:bg-white shadow-inner" placeholder="+1..." />
+                                    <input type="tel" required value={formData.mobile || ''} onChange={e => setFormData({...formData, mobile: e.target.value})} className="w-full pl-12 p-4 bg-slate-50 border-2 border-slate-900 rounded-2xl outline-none font-bold text-xs focus:bg-white shadow-inner" placeholder="+1..." />
                                 </div>
                             </div>
                             <div className="space-y-1">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Passkey</label>
                                  <div className="relative">
                                     <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={16}/>
-                                    <input type="password" required value={formData.password} onChange={e => setFormData({...formData, password: e.target.value})} className="w-full pl-12 p-4 bg-slate-50 border-2 border-slate-900 rounded-2xl outline-none font-bold text-xs focus:bg-white shadow-inner" placeholder="••••••••" />
+                                    <input type="password" required value={formData.password || ''} onChange={e => setFormData({...formData, password: e.target.value})} className="w-full pl-12 p-4 bg-slate-50 border-2 border-slate-900 rounded-2xl outline-none font-bold text-xs focus:bg-white shadow-inner" placeholder="••••••••" />
                                 </div>
                             </div>
                             <div className="space-y-1">

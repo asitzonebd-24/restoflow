@@ -2,11 +2,13 @@
 import React, { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { OrderStatus } from '../types';
-import { ShoppingBag, Timer, Clock, Menu as MenuIcon, User as UserCircle, ShoppingCart, LogOut, X, MapPin, History } from 'lucide-react';
+import { ShoppingBag, Timer, Clock, Menu as MenuIcon, User as UserCircle, ShoppingCart, LogOut, X, MapPin, History, ChevronRight } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export const CustomerHistory = () => {
   const { orders, currentUser, business, logout } = useApp();
+  const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -93,7 +95,11 @@ export const CustomerHistory = () => {
                             </td>
                           </tr>
                         ) : pastOrders.map(order => (
-                          <tr key={order.id} className="hover:bg-slate-50 transition group">
+                          <tr 
+                            key={order.id} 
+                            onClick={() => setSelectedOrder(order)}
+                            className="hover:bg-slate-50 transition group cursor-pointer"
+                          >
                              <td className="p-6">
                                 <div className="w-10 h-10 bg-indigo-600 text-white rounded-xl flex items-center justify-center font-black border-2 border-white shadow-lg shadow-indigo-200">
                                   #{order.tokenNumber}
@@ -109,7 +115,10 @@ export const CustomerHistory = () => {
                                 <div className="text-[8px] font-bold text-slate-300 uppercase">{new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                              </td>
                              <td className="p-6 text-right">
-                                <span className="font-black text-indigo-600 text-sm">{business.currency}{order.totalAmount.toFixed(0)}</span>
+                                <div className="flex items-center justify-end gap-3">
+                                  <span className="font-black text-indigo-600 text-sm">{business.currency}{order.totalAmount.toFixed(0)}</span>
+                                  <ChevronRight size={14} className="text-slate-200 group-hover:text-indigo-500 transition-colors" />
+                                </div>
                              </td>
                           </tr>
                         ))}
@@ -119,6 +128,73 @@ export const CustomerHistory = () => {
             </div>
           </div>
         </div>
+
+        {/* Order Details Modal */}
+        <AnimatePresence>
+          {selectedOrder && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[200] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4"
+              onClick={() => setSelectedOrder(null)}
+            >
+              <motion.div 
+                initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                className="bg-white w-full max-w-lg rounded-[3rem] border-4 border-indigo-500 overflow-hidden shadow-2xl flex flex-col max-h-[80vh]"
+                onClick={e => e.stopPropagation()}
+              >
+                <div className="p-6 border-b-4 border-indigo-500 bg-slate-50 flex items-center justify-between shrink-0">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center font-black text-xl border-2 border-white shadow-lg">
+                      {selectedOrder.tokenNumber}
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-black uppercase tracking-tighter leading-none mb-1">Order Summary</h2>
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                        {new Date(selectedOrder.createdAt).toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => setSelectedOrder(null)}
+                    className="w-10 h-10 flex items-center justify-center rounded-2xl bg-slate-100 text-slate-500 hover:bg-rose-50 hover:text-rose-500 transition-all"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-6 space-y-4 no-scrollbar">
+                  {selectedOrder.items.map((item: any, idx: number) => (
+                    <div key={idx} className="bg-white p-4 rounded-[1.5rem] border-2 border-slate-100 flex justify-between items-center shadow-sm">
+                      <div className="min-w-0 pr-4">
+                        <h4 className="font-black text-[11px] uppercase truncate">{item.name}</h4>
+                        <p className="text-[10px] font-bold text-slate-400">{business.currency}{item.price.toFixed(0)} each</p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="bg-slate-100 px-3 py-1 rounded-lg font-black text-xs">x{item.quantity}</span>
+                        <span className="font-black text-indigo-600 text-sm">{business.currency}{(item.price * item.quantity).toFixed(0)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="p-6 border-t-4 border-slate-100 bg-slate-50 shrink-0">
+                  <div className="flex justify-between items-center mb-4">
+                    <span className="font-black uppercase text-[10px] text-slate-400 tracking-widest">Grand Total</span>
+                    <span className="text-3xl font-black text-slate-900 tracking-tighter">{business.currency}{selectedOrder.totalAmount.toFixed(0)}</span>
+                  </div>
+                  <div className="flex items-center gap-2 p-3 bg-white rounded-2xl border-2 border-slate-100">
+                    <MapPin size={14} className="text-indigo-500" />
+                    <p className="text-[10px] font-black uppercase text-slate-600 truncate">{selectedOrder.deliveryAddress || 'No address provided'}</p>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

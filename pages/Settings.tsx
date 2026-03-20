@@ -125,7 +125,7 @@ export const Settings = () => {
                             <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Business Name</label>
                             <input 
                                 type="text" 
-                                value={name}
+                                value={name || ''}
                                 onChange={e => setName(e.target.value)}
                                 className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-indigo-500 outline-none font-bold text-sm transition-all shadow-sm"
                             />
@@ -134,7 +134,7 @@ export const Settings = () => {
                              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Official Phone</label>
                              <input 
                                 type="text" 
-                                value={phone}
+                                value={phone || ''}
                                 onChange={e => setPhone(e.target.value)}
                                 className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-indigo-500 outline-none font-bold text-sm transition-all shadow-sm"
                             />
@@ -144,13 +144,13 @@ export const Settings = () => {
                              <div className="flex gap-3">
                                 <input 
                                     type="color" 
-                                    value={themeColor}
+                                    value={themeColor || ''}
                                     onChange={e => setThemeColor(e.target.value)}
                                     className="h-14 w-14 border-2 border-slate-100 rounded-2xl cursor-pointer p-1.5 bg-white shadow-sm"
                                 />
                                 <input 
                                     type="text" 
-                                    value={themeColor}
+                                    value={themeColor || ''}
                                     onChange={e => setThemeColor(e.target.value)}
                                     className="flex-1 p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-indigo-500 outline-none font-bold text-sm uppercase transition-all shadow-sm"
                                 />
@@ -159,7 +159,7 @@ export const Settings = () => {
                         <div className="md:col-span-2">
                              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Physical Address</label>
                              <textarea 
-                                value={address}
+                                value={address || ''}
                                 onChange={e => setAddress(e.target.value)}
                                 rows={2}
                                 className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-indigo-500 outline-none font-bold text-sm transition-all resize-none shadow-sm"
@@ -182,7 +182,7 @@ export const Settings = () => {
                              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Currency Symbol</label>
                              <div className="relative group">
                                 <select
-                                    value={currency}
+                                    value={currency || ''}
                                     onChange={e => setCurrency(e.target.value)}
                                     className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-indigo-500 outline-none font-bold text-sm transition-all appearance-none shadow-sm"
                                 >
