@@ -74,8 +74,8 @@ export const Login = () => {
                 </div>
                 <p className="text-[9px] font-medium opacity-80 leading-relaxed">
                   {!dbStatus.isConfigured 
-                    ? "Supabase is not configured. Changes will not be saved." 
-                    : "Database tables are missing. Please run the SQL schema."}
+                    ? "Firebase is not configured. Changes will not be saved." 
+                    : "Database tables are missing. Please check your Firestore setup."}
                 </p>
               </div>
             )}

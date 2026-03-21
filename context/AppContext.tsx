@@ -154,6 +154,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   useEffect(() => {
     // Real-time listeners for all collections
     const unsubscribers: (() => void)[] = [];
+    const loadedCollections = new Set<string>();
 
     const collectionsList = [
       { name: 'tenants', setter: setTenants },
@@ -169,21 +170,42 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     collectionsList.forEach(({ name, setter }) => {
       const unsub = onSnapshot(collection(db, name), (snapshot) => {
         const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        if (data.length > 0) {
+        
+        if (name === 'users') {
+          // Always ensure super admins from mock data are available
+          const firestoreUsers = data as User[];
+          const mockSuperAdmins = ENHANCED_MOCK_USERS.filter(u => u.role === Role.SUPER_ADMIN);
+          
+          const mergedUsers = [...firestoreUsers];
+          mockSuperAdmins.forEach(mockSA => {
+            if (!mergedUsers.some(u => u.email.toLowerCase() === mockSA.email.toLowerCase())) {
+              mergedUsers.push(mockSA);
+            }
+          });
+          
+          setter(mergedUsers as any);
+        } else if (data.length > 0) {
           setter(data as any);
         } else {
           // Fallback to mock data if collection is empty
           if (name === 'tenants') setter([BUSINESS_DETAILS]);
-          if (name === 'users') setter(ENHANCED_MOCK_USERS);
           if (name === 'menu_items') setter(MOCK_MENU);
           if (name === 'inventory_items') setter(MOCK_INVENTORY);
           if (name === 'orders') setter(INITIAL_ORDERS);
           if (name === 'expenses') setter(MOCK_EXPENSES);
+          if (name === 'monthly_bills') setter([]);
         }
-        setIsLoading(false);
+        
+        loadedCollections.add(name);
+        if (loadedCollections.size >= collectionsList.length) {
+          setIsLoading(false);
+        }
       }, (error) => {
         handleFirestoreError(error, OperationType.LIST, name);
-        setIsLoading(false);
+        loadedCollections.add(name);
+        if (loadedCollections.size >= collectionsList.length) {
+          setIsLoading(false);
+        }
       });
       unsubscribers.push(unsub);
     });
