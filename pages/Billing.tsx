@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { OrderStatus, Order, Transaction, OrderItem } from '../types';
-import { Receipt, CheckCheck, Printer, Download, X, FileText, Hash, MapPin, ShoppingBag, CreditCard } from 'lucide-react';
+import { Receipt, CheckCheck, Printer, Download, X, FileText, Hash, MapPin, ShoppingBag, CreditCard, Store } from 'lucide-react';
 
 export const Billing = () => {
   const { orders, currentTenant, updateOrderStatus, addTransaction, users } = useApp();
@@ -168,7 +168,13 @@ export const Billing = () => {
             
             <div className="p-10 overflow-y-auto no-scrollbar print:p-0 print:overflow-visible" id="invoice-content">
               <div className="text-center mb-10">
-                {currentTenant?.logo && <img src={currentTenant.logo} className="h-16 w-16 mx-auto mb-4 rounded-2xl border border-slate-100 shadow-sm" alt="Logo"/>}
+                <div className="h-16 w-16 mx-auto mb-4 rounded-2xl border border-slate-100 bg-slate-50 flex items-center justify-center overflow-hidden shadow-sm">
+                  {currentTenant?.logo ? (
+                    <img src={currentTenant.logo} className="h-full w-full object-contain" alt="Logo"/>
+                  ) : (
+                    <Store size={32} className="text-indigo-600" />
+                  )}
+                </div>
                 <h2 className="text-2xl font-bold text-slate-900 tracking-tight mb-1">{currentTenant?.name}</h2>
                 <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{currentTenant?.address}</p>
                 <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Tel: {currentTenant?.phone}</p>

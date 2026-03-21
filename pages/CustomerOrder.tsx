@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { MenuItem, OrderItem, Order, OrderStatus } from '../types';
-import { ShoppingBasket, Plus, Minus, Search, ArrowRight, LogOut, MapPin, Menu as MenuIcon, X, ShoppingCart, Timer, History, ShoppingBag, CheckCircle, FileText, ChevronRight, Store, User as UserCircle } from 'lucide-react';
+import { ShoppingBasket, Plus, Minus, Search, ArrowRight, LogOut, MapPin, Menu as MenuIcon, X, ShoppingCart, Timer, History, ShoppingBag, CheckCircle, FileText, ChevronRight, Store, User as UserCircle, Utensils } from 'lucide-react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -281,13 +281,13 @@ export const CustomerOrder = () => {
       >
         <div className="flex items-center justify-between px-6 mb-12">
            <div className="flex items-center gap-3">
-             {business.logo ? (
-               <img src={business.logo} alt="Logo" className="w-10 h-10 rounded-full border-2 border-white" />
-             ) : (
-               <div className="w-10 h-10 rounded-full border-2 border-white bg-white/10 flex items-center justify-center">
-                 <Store size={16} className="text-white" />
-               </div>
-             )}
+             <div className="w-10 h-10 rounded-full border-2 border-white bg-white/10 flex items-center justify-center overflow-hidden">
+               {business.logo ? (
+                 <img src={business.logo} alt="Logo" className="w-full h-full object-contain" />
+               ) : (
+                 <Utensils size={16} className="text-white/40" />
+               )}
+             </div>
              <h2 className="font-black text-lg uppercase tracking-tighter">Resto Keep</h2>
            </div>
            <button onClick={() => setIsSidebarOpen(false)} className="md:hidden text-white/50 hover:text-white">
@@ -307,13 +307,13 @@ export const CustomerOrder = () => {
         </nav>
         <div className="pt-8 border-t border-white/10 mt-auto px-8 flex flex-col items-start">
            <div className="flex items-center gap-3 mb-6">
-             {currentUser?.avatar ? (
-               <img src={currentUser.avatar} className="w-10 h-10 rounded-full border-2 border-indigo-500" alt="avatar" />
-             ) : (
-               <div className="w-10 h-10 rounded-full border-2 border-indigo-500 bg-white/10 flex items-center justify-center">
+             <div className="w-10 h-10 rounded-full border-2 border-indigo-500 bg-white/10 flex items-center justify-center overflow-hidden">
+               {currentUser?.avatar ? (
+                 <img src={currentUser.avatar} className="w-full h-full object-cover" alt="avatar" />
+               ) : (
                  <UserCircle size={20} className="text-white" />
-               </div>
-             )}
+               )}
+             </div>
              <div className="min-w-0">
                <p className="text-[10px] font-black uppercase truncate">{currentUser?.name}</p>
                <p className="text-[8px] font-bold text-white/40 uppercase tracking-widest">Customer</p>

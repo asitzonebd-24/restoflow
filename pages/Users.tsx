@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Role, User } from '../types';
-import { UserPlus, Users as UsersIcon, Shield, Trash2, Mail, Phone, Lock, CheckSquare, Square, Edit2, X, ChevronRight, Search, AlertTriangle } from 'lucide-react';
+import { UserPlus, Users as UsersIcon, Shield, Trash2, Mail, Phone, Lock, CheckSquare, Square, Edit2, X, ChevronRight, Search, AlertTriangle, User as UserCircle } from 'lucide-react';
 
 const AVAILABLE_MODULES = ['Dashboard', 'POS', 'Kitchen', 'Billing', 'Transactions', 'Expenses', 'Reports', 'Inventory', 'Users', 'Settings'];
 
@@ -252,7 +252,13 @@ export const Users = () => {
                                     <td className="p-6">
                                         <div className="flex items-center gap-4">
                                             <div className="relative">
-                                                <img src={user.avatar} alt={user.name} className="w-12 h-12 rounded-full border-2 border-slate-900 shadow-sm" />
+                                                <div className="w-12 h-12 rounded-full border-2 border-slate-900 bg-slate-50 flex items-center justify-center overflow-hidden shadow-sm">
+                                                    {user.avatar ? (
+                                                        <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <UserCircle size={24} className="text-slate-300" />
+                                                    )}
+                                                </div>
                                                 <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white"></div>
                                             </div>
                                             <div>

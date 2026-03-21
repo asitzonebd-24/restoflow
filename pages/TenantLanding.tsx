@@ -34,8 +34,12 @@ export const TenantLanding = () => {
           </div>
           
           <div className="space-y-4">
-            <div className="w-24 h-24 bg-white rounded-3xl shadow-xl p-4 border border-slate-100 mx-auto md:mx-0">
-              <img src={tenant.logo} alt={tenant.name} className="w-full h-full object-contain rounded-xl" />
+            <div className="w-24 h-24 bg-white rounded-3xl shadow-xl p-4 border border-slate-100 mx-auto md:mx-0 flex items-center justify-center overflow-hidden">
+              {tenant.logo ? (
+                <img src={tenant.logo} alt={tenant.name} className="w-full h-full object-contain rounded-xl" />
+              ) : (
+                <Utensils size={40} className="text-indigo-600" />
+              )}
             </div>
             <h1 className="text-4xl md:text-6xl font-black text-slate-900 leading-none tracking-tighter uppercase">
               {tenant.name}

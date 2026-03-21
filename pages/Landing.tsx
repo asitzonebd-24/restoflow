@@ -12,7 +12,11 @@ export const Landing = () => {
       {/* Branding Header */}
       <div className="text-center mb-16 animate-in fade-in slide-in-from-top-4 duration-700">
         <div className="w-20 h-20 bg-white rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center mx-auto mb-6 p-4">
-          <img src={business.logo} alt="Logo" className="w-full h-full object-contain rounded-lg" />
+          {business.logo ? (
+            <img src={business.logo} alt="Logo" className="w-full h-full object-contain rounded-lg" />
+          ) : (
+            <Utensils size={32} className="text-slate-200" />
+          )}
         </div>
         <h1 className="text-4xl md:text-5xl font-bold text-slate-900 tracking-tight leading-tight mb-4">
           Welcome to <span className="text-indigo-600">{business.name}</span>

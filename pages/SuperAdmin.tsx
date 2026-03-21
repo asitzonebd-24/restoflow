@@ -193,7 +193,13 @@ export const SuperAdmin = () => {
                 <tr key={tenant.id} className={`hover:bg-slate-50/50 transition ${!tenant.isActive ? 'opacity-60' : ''}`}>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      <img src={tenant.logo} className="w-10 h-10 rounded-full object-cover border border-slate-200" />
+                      <div className="w-10 h-10 rounded-full border border-slate-200 bg-slate-50 flex items-center justify-center overflow-hidden">
+                        {tenant.logo ? (
+                          <img src={tenant.logo} className="w-full h-full object-cover" alt="Logo" />
+                        ) : (
+                          <Building2 size={20} className="text-slate-300" />
+                        )}
+                      </div>
                       <div>
                         <p className="font-bold text-slate-900">{tenant.name}</p>
                         <div className="flex items-center gap-2 mt-1">

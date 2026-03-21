@@ -46,7 +46,7 @@ export const CustomerAuth = () => {
           address: formData.address,
           role: Role.CUSTOMER,
           permissions: [],
-          avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.name)}&background=indigo&color=fff`
+          avatar: ''
         };
         await addUser(newUser);
         
@@ -79,8 +79,12 @@ export const CustomerAuth = () => {
     <div className="min-h-screen bg-indigo-600 flex flex-col items-center justify-center p-4 sm:p-6">
       <div className="w-full max-w-md bg-white rounded-[2.5rem] sm:rounded-[3.5rem] border-[6px] sm:border-8 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] sm:shadow-[16px_16px_0px_0px_rgba(0,0,0,1)] overflow-hidden">
         <div className="p-6 sm:p-10 text-center">
-           <div className="w-16 h-16 sm:w-20 sm:h-20 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-6 border-4 border-black shadow-lg">
-              <img src={business.logo} className="w-10 h-10 sm:w-12 sm:h-12 rounded-full" alt="Logo" />
+           <div className="w-16 h-16 sm:w-20 sm:h-20 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-6 border-4 border-black shadow-lg overflow-hidden">
+              {business.logo ? (
+                <img src={business.logo} className="w-10 h-10 sm:w-12 sm:h-12 rounded-full" alt="Logo" />
+              ) : (
+                <Utensils size={32} className="text-indigo-600" />
+              )}
            </div>
            <h1 className="text-3xl sm:text-4xl font-black text-slate-900 uppercase tracking-tighter mb-2 leading-none">
              {isRegistering ? 'Join the' : 'Welcome to'} <br/> <span className="text-indigo-600">{business.name}</span>

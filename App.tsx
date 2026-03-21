@@ -61,7 +61,11 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
     >
       <div className="mb-12 shrink-0">
           <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center border border-white/10">
-            <img src={business.logo} alt="Logo" className="w-8 h-8 object-contain" />
+            {business.logo ? (
+              <img src={business.logo} alt="Logo" className="w-8 h-8 object-contain" />
+            ) : (
+              <UtensilsCrossed size={24} className="text-white/20" />
+            )}
           </div>
       </div>
 
@@ -153,12 +157,16 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
                 <Settings size={22} />
             </NavLink>
             
-            <div className="w-10 h-10 rounded-full border-2 border-white/20 p-0.5 mb-2">
-              <img 
-                src={currentUser.avatar || `https://ui-avatars.com/api/?name=${currentUser.name}&background=random`} 
-                alt="User" 
-                className="w-full h-full object-cover rounded-full" 
-              />
+            <div className="w-10 h-10 rounded-full border-2 border-white/20 p-0.5 mb-2 flex items-center justify-center overflow-hidden">
+              {currentUser.avatar ? (
+                <img 
+                  src={currentUser.avatar} 
+                  alt="User" 
+                  className="w-full h-full object-cover rounded-full" 
+                />
+              ) : (
+                <UserCircle size={24} className="text-white/40" />
+              )}
             </div>
 
             <button 

@@ -481,8 +481,8 @@ export const POS = () => {
                         {getWaiterAvatar(order.createdBy) ? (
                           <img src={getWaiterAvatar(order.createdBy)} className="w-10 h-10 rounded-full border-2 border-black object-cover" alt="W" />
                         ) : (
-                          <div className="w-10 h-10 rounded-full border-2 border-black bg-slate-100 flex items-center justify-center">
-                            <UserIcon size={16} className="text-slate-400" />
+                          <div className="w-10 h-10 rounded-full border-2 border-black bg-slate-50 flex items-center justify-center overflow-hidden">
+                            <UserIcon size={18} className="text-slate-400" />
                           </div>
                         )}
                         <span className="text-[10px] font-black uppercase tracking-widest text-slate-900">{getWaiterName(order.createdBy).split(' ')[0].toUpperCase()}</span>

@@ -2,7 +2,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { OrderStatus } from '../types';
-import { Timer, ShoppingBag, ArrowLeft, Clock, Menu as MenuIcon, User as UserCircle, ShoppingCart, LogOut, X, MapPin, History, LayoutGrid, ShoppingBasket, ChevronRight, Store } from 'lucide-react';
+import { Timer, ShoppingBag, ArrowLeft, Clock, Menu as MenuIcon, User as UserCircle, ShoppingCart, LogOut, X, MapPin, History, LayoutGrid, ShoppingBasket, ChevronRight, Store, Utensils } from 'lucide-react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -59,13 +59,13 @@ export const CustomerPanel = () => {
         style={{ background: 'linear-gradient(180deg, #1d1d3f 0%, #11112b 100%)' }}
       >
         <div className="flex items-center gap-3 px-4 md:px-8 mb-12">
-           {business.logo ? (
-             <img src={business.logo} alt="Logo" className="w-10 h-10 rounded-full border-2 border-white" />
-           ) : (
-             <div className="w-10 h-10 rounded-full border-2 border-white bg-white/10 flex items-center justify-center">
-               <Store size={16} className="text-white" />
-             </div>
-           )}
+           <div className="w-10 h-10 rounded-full border-2 border-white bg-white/10 flex items-center justify-center overflow-hidden">
+             {business.logo ? (
+               <img src={business.logo} alt="Logo" className="w-full h-full object-contain" />
+             ) : (
+               <Utensils size={16} className="text-white/40" />
+             )}
+           </div>
            <h2 className="hidden md:block font-black text-lg uppercase tracking-tighter">Resto Keep</h2>
         </div>
         <nav className="flex-1 space-y-4 px-2 md:px-6">
@@ -80,13 +80,13 @@ export const CustomerPanel = () => {
            </button>
         </nav>
         <div className="pt-8 border-t border-white/10 mt-auto px-2 md:px-8 flex flex-col items-center md:items-start">
-           {currentUser?.avatar ? (
-             <img src={currentUser.avatar} className="w-10 h-10 rounded-full border-2 border-indigo-500 mb-4" alt="avatar" />
-           ) : (
-             <div className="w-10 h-10 rounded-full border-2 border-indigo-500 mb-4 bg-white/10 flex items-center justify-center">
+           <div className="w-10 h-10 rounded-full border-2 border-indigo-500 mb-4 bg-white/10 flex items-center justify-center overflow-hidden">
+             {currentUser?.avatar ? (
+               <img src={currentUser.avatar} className="w-full h-full object-cover" alt="avatar" />
+             ) : (
                <UserCircle size={20} className="text-white" />
-             </div>
-           )}
+             )}
+           </div>
            <button onClick={logout} className="p-4 md:w-full md:flex md:items-center md:gap-4 md:px-6 md:py-4 rounded-2xl text-red-400 hover:bg-red-400/10 transition font-black uppercase tracking-widest text-[10px]">
              <LogOut size={20} /> <span className="hidden md:block">Sign Out</span>
            </button>

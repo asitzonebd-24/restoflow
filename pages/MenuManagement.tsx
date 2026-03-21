@@ -190,7 +190,7 @@ export const MenuManagement = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-8">
                 {itemsInCat.map(item => (
                   <div key={item.id} className="group bg-white rounded-[2rem] border-2 border-black overflow-hidden transition-all hover:shadow-2xl hover:border-slate-700 shadow-xl shadow-slate-200/20 flex flex-col hover:-translate-y-1">
-                    <div className="relative h-56 bg-slate-50 overflow-hidden">
+                    <div className="relative h-56 bg-slate-50 overflow-hidden flex items-center justify-center">
                       {item.image ? (
                         <img 
                           src={item.image} 
@@ -199,9 +199,9 @@ export const MenuManagement = () => {
                           referrerPolicy="no-referrer"
                         />
                       ) : (
-                        <div className="w-full h-full flex flex-col items-center justify-center text-slate-200 gap-3">
-                          <ImageOff size={40} strokeWidth={1} />
-                          <span className="text-[10px] font-bold uppercase tracking-widest opacity-60">No Image</span>
+                        <div className="w-full h-full flex flex-col items-center justify-center text-slate-200 bg-slate-50 gap-3">
+                          <Utensils size={48} strokeWidth={1} className="text-slate-300" />
+                          <span className="text-[10px] font-bold uppercase tracking-widest opacity-60 text-slate-400">No Image</span>
                         </div>
                       )}
                       {!item.isAvailable && (

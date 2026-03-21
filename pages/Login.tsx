@@ -38,7 +38,7 @@ export const Login = () => {
         {/* Top Branding Header */}
         <div className="bg-slate-900 text-white p-8 flex flex-col items-center text-center gap-4">
           <div className="w-14 h-14 bg-white/10 rounded-xl p-2.5 border border-white/10 shadow-lg flex items-center justify-center">
-            {tenantId ? (
+            {tenantId && business.logo ? (
               <img src={business.logo} className="w-full h-full object-contain rounded-lg" alt="Logo" />
             ) : (
               <ChefHat className="text-white w-8 h-8" />
