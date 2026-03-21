@@ -56,12 +56,14 @@ export const Users = () => {
     const handleRoleChange = (role: Role) => {
         let perms: string[] = [];
         switch(role) {
+            case Role.SUPER_ADMIN: perms = AVAILABLE_MODULES; break;
             case Role.OWNER: perms = AVAILABLE_MODULES; break;
             case Role.MANAGER: perms = ['Dashboard', 'POS', 'Kitchen', 'Billing', 'Transactions', 'Expenses', 'Reports', 'Inventory', 'Users']; break;
             case Role.WAITER: perms = ['POS']; break;
             case Role.KITCHEN: perms = ['Kitchen']; break;
             case Role.CASHIER: perms = ['Billing', 'Transactions', 'Reports']; break;
             case Role.INVENTORY_MANAGER: perms = ['Inventory']; break;
+            case Role.DELIVERY: perms = []; break;
             default: perms = [];
         }
         setFormData(prev => ({ ...prev, role, permissions: perms }));
@@ -261,7 +263,8 @@ export const Users = () => {
                                     </td>
                                     <td className="p-6">
                                         <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-xl text-[9px] font-black uppercase tracking-widest border-2
-                                            ${user.role === Role.OWNER ? 'bg-indigo-50 border-indigo-200 text-indigo-600' : 
+                                            ${user.role === Role.SUPER_ADMIN ? 'bg-rose-50 border-rose-200 text-rose-600' : 
+                                              user.role === Role.OWNER ? 'bg-indigo-50 border-indigo-200 text-indigo-600' : 
                                               user.role === Role.MANAGER ? 'bg-amber-50 border-amber-200 text-amber-600' : 
                                               'bg-slate-50 border-slate-200 text-slate-600'}`}>
                                             <Shield size={10} /> {user.role}

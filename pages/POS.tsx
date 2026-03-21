@@ -37,8 +37,16 @@ export const POS = () => {
   const [newTableNum, setNewTableNum] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isDelivery, setIsDelivery] = useState(false);
+  const [selectedDeliveryStaffId, setSelectedDeliveryStaffId] = useState<string>('');
+  const [deliveryAddress, setDeliveryAddress] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const categories = useMemo(() => ['All', ...Array.from(new Set(menu.map(m => m.category)))], [menu]);
+
+  const deliveryStaff = useMemo(() => {
+    return users.filter(u => u.role === Role.DELIVERY);
+  }, [users]);
 
   const activeOrders = useMemo(() => {
     let filtered = orders.filter(o => o.status !== OrderStatus.COMPLETED && o.status !== OrderStatus.CANCELLED);
@@ -60,7 +68,7 @@ export const POS = () => {
 
   const getWaiterAvatar = (userId: string) => {
     const user = users.find(u => u.id === userId);
-    return user ? user.avatar : `https://ui-avatars.com/api/?name=W&background=random`;
+    return user ? user.avatar : '';
   };
 
   const getStatusStyles = (status: OrderStatus) => {
@@ -81,6 +89,9 @@ export const POS = () => {
     // Mark existing items so we don't merge new additions into them
     setCart(order.items.map(item => ({ ...item, isExisting: true } as any)));
     setOrderNote(order.note || '');
+    setIsDelivery(!!order.deliveryStaffId);
+    setSelectedDeliveryStaffId(order.deliveryStaffId || '');
+    setDeliveryAddress(order.deliveryAddress || '');
     setIsCreatingNew(false);
   };
 
@@ -94,6 +105,9 @@ export const POS = () => {
     setSelectedOrderId(null);
     setCart([]);
     setOrderNote('');
+    setIsDelivery(false);
+    setSelectedDeliveryStaffId('');
+    setDeliveryAddress('');
   };
 
   const addToCart = (item: MenuItem) => {
@@ -101,7 +115,6 @@ export const POS = () => {
     
     setCart(prev => {
       // Find if this item is already in the cart AND it's a "new" item (not from an existing order)
-      // We identify "new" items by checking if they are PENDING and don't have an 'isExisting' flag
       const existingNewItemIndex = prev.findIndex(i => 
         i.itemId === item.id && 
         i.status === OrderStatus.PENDING && 
@@ -109,10 +122,14 @@ export const POS = () => {
       );
 
       if (existingNewItemIndex > -1) {
+        const currentQty = prev[existingNewItemIndex].quantity;
+        if (item.stock !== undefined && item.stock !== null && currentQty >= item.stock) {
+          return prev; // Don't add if stock limit reached
+        }
         const newCart = [...prev];
         newCart[existingNewItemIndex] = {
           ...newCart[existingNewItemIndex],
-          quantity: newCart[existingNewItemIndex].quantity + 1
+          quantity: currentQty + 1
         };
         return newCart;
       }
@@ -134,51 +151,86 @@ export const POS = () => {
   const updateQuantity = (rowId: string, delta: number) => {
     setCart(prev => prev.map(i => {
       if (i.rowId === rowId) {
-        return { ...i, quantity: Math.max(0, i.quantity + delta) };
+        const menuItem = menu.find(m => m.id === i.itemId);
+        const newQty = i.quantity + delta;
+        
+        // Check stock if increasing
+        if (delta > 0 && menuItem && menuItem.stock !== undefined && menuItem.stock !== null) {
+          if (newQty > menuItem.stock) return i;
+        }
+        
+        return { ...i, quantity: Math.max(0, newQty) };
       }
       return i;
     }).filter(i => i.quantity > 0));
   };
 
-  const createAndSubmitOrder = () => {
-    if (cart.length === 0) return;
+  const createAndSubmitOrder = async () => {
+    if (cart.length === 0 || isSubmitting) return;
+    setIsSubmitting(true);
 
-    if (isCreatingNew) {
-      if (isTokenDuplicate) return;
-      const totalAmount = cart.reduce((sum, i) => sum + (i.price * i.quantity), 0);
-      
-      // Clean up the isExisting flag before saving
-      const cleanedItems = cart.map(({ isExisting, ...item }: any) => item);
-      
-      const newOrder = {
-        id: `ord-${Date.now()}`,
-        tokenNumber: newTokenNum,
-        tableNumber: newTableNum,
-        items: cleanedItems,
-        status: OrderStatus.PENDING,
-        createdAt: new Date().toISOString(),
-        createdBy: currentUser!.id,
-        totalAmount,
-        note: orderNote
-      };
-      addOrder(newOrder);
-    } else if (selectedOrderId) {
-      const totalAmount = cart.reduce((sum, i) => sum + (i.price * i.quantity), 0);
-      
-      // Check if new items were added to reset status to PENDING
-      const hasNewItems = cart.some((i: any) => !i.isExisting);
-      
-      // Clean up the isExisting flag before saving
-      const cleanedItems = cart.map(({ isExisting, ...item }: any) => item);
-      
-      updateOrderItems(selectedOrderId, cleanedItems, totalAmount, orderNote, hasNewItems ? OrderStatus.PENDING : undefined);
+    try {
+      if (isCreatingNew) {
+        if (isTokenDuplicate) {
+          setIsSubmitting(false);
+          return;
+        }
+        const totalAmount = cart.reduce((sum, i) => sum + (i.price * i.quantity), 0);
+        
+        // Clean up the isExisting flag before saving
+        const cleanedItems = cart.map(({ isExisting, ...item }: any) => item);
+        
+        const selectedStaff = deliveryStaff.find(s => s.id === selectedDeliveryStaffId);
+        
+        const newOrder = {
+          id: `ord-${Date.now()}`,
+          tokenNumber: newTokenNum,
+          tableNumber: isDelivery ? 'Delivery' : newTableNum,
+          items: cleanedItems,
+          status: OrderStatus.PENDING,
+          createdAt: new Date().toISOString(),
+          createdBy: currentUser!.id,
+          totalAmount,
+          note: orderNote,
+          deliveryStaffId: isDelivery ? selectedDeliveryStaffId : undefined,
+          deliveryStaffName: isDelivery ? selectedStaff?.name : undefined,
+          deliveryAddress: isDelivery ? deliveryAddress : undefined
+        };
+        await addOrder(newOrder);
+      } else if (selectedOrderId) {
+        const totalAmount = cart.reduce((sum, i) => sum + (i.price * i.quantity), 0);
+        
+        // Check if new items were added to reset status to PENDING
+        const hasNewItems = cart.some((i: any) => !i.isExisting);
+        
+        // Clean up the isExisting flag before saving
+        const cleanedItems = cart.map(({ isExisting, ...item }: any) => item);
+        
+        const selectedStaff = deliveryStaff.find(s => s.id === selectedDeliveryStaffId);
+
+        await updateOrderItems(
+          selectedOrderId, 
+          cleanedItems, 
+          totalAmount, 
+          orderNote, 
+          hasNewItems ? OrderStatus.PENDING : undefined,
+          isDelivery ? selectedDeliveryStaffId : undefined,
+          isDelivery ? selectedStaff?.name : undefined,
+          isDelivery ? deliveryAddress : undefined
+        );
+      }
+
+      setSelectedOrderId(null);
+      setIsCreatingNew(false);
+      setCart([]);
+      setOrderNote('');
+      setNewTableNum('');
+      setIsDelivery(false);
+      setSelectedDeliveryStaffId('');
+      setDeliveryAddress('');
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setSelectedOrderId(null);
-    setIsCreatingNew(false);
-    setCart([]);
-    setOrderNote('');
-    setNewTableNum('');
   };
 
   const filteredMenu = useMemo(() => {
@@ -239,6 +291,55 @@ export const POS = () => {
       </div>
 
       <div className={`${isEmbedded ? 'h-auto' : 'flex-1 overflow-y-auto'} p-6 md:p-8 space-y-4 no-scrollbar`}>
+        {/* Delivery Options */}
+        {(currentUser?.role === Role.OWNER || currentUser?.role === Role.MANAGER || currentUser?.role === Role.SUPER_ADMIN) && (
+          <div className="bg-indigo-50/50 p-4 rounded-2xl border-2 border-indigo-100 mb-4">
+            <div className="flex items-center justify-between mb-3">
+              <label className="text-[10px] font-black uppercase text-indigo-600 tracking-widest flex items-center gap-2">
+                <ShoppingBag size={14} /> Online / Delivery Order
+              </label>
+              <button 
+                onClick={() => setIsDelivery(!isDelivery)}
+                className={`w-10 h-5 rounded-full transition-all relative ${isDelivery ? 'bg-indigo-600' : 'bg-slate-200'}`}
+              >
+                <div className={`absolute top-1 w-3 h-3 rounded-full bg-white transition-all ${isDelivery ? 'left-6' : 'left-1'}`} />
+              </button>
+            </div>
+            
+            {isDelivery && (
+              <motion.div 
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                className="space-y-3 overflow-hidden"
+              >
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-bold uppercase text-slate-400 tracking-widest ml-1">Assign Delivery Staff</label>
+                  <select 
+                    value={selectedDeliveryStaffId}
+                    onChange={(e) => setSelectedDeliveryStaffId(e.target.value)}
+                    className="w-full p-3 bg-white border-2 border-indigo-200 rounded-xl text-xs font-bold outline-none focus:border-indigo-500 transition-all"
+                  >
+                    <option value="">Select Staff...</option>
+                    {deliveryStaff.map(staff => (
+                      <option key={staff.id} value={staff.id}>{staff.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-bold uppercase text-slate-400 tracking-widest ml-1">Delivery Address</label>
+                  <input 
+                    type="text"
+                    value={deliveryAddress}
+                    onChange={(e) => setDeliveryAddress(e.target.value)}
+                    placeholder="Enter full address..."
+                    className="w-full p-3 bg-white border-2 border-indigo-200 rounded-xl text-xs font-medium outline-none focus:border-indigo-500 transition-all"
+                  />
+                </div>
+              </motion.div>
+            )}
+          </div>
+        )}
+
         <AnimatePresence mode="popLayout">
           {cart.length === 0 ? (
             <motion.div 
@@ -295,10 +396,10 @@ export const POS = () => {
 
           <button 
             onClick={createAndSubmitOrder}
-            disabled={cart.length === 0 || isTokenDuplicate || (isCreatingNew && !newTableNum.trim())}
+            disabled={cart.length === 0 || isTokenDuplicate || (isCreatingNew && !newTableNum.trim() && !isDelivery) || (isDelivery && !selectedDeliveryStaffId) || isSubmitting}
             className={`w-full py-4 rounded-2xl font-bold uppercase tracking-widest text-[10px] shadow-xl flex items-center justify-center gap-3 active:scale-95 transition-all disabled:opacity-30 border-2 ${isTokenDuplicate ? 'bg-rose-500 text-white border-rose-600 shadow-rose-100' : 'bg-slate-900 text-white hover:bg-slate-800 border-indigo-500 shadow-indigo-100'}`}
           >
-            {isCreatingNew ? (isTokenDuplicate ? 'Duplicate Token' : (!newTableNum.trim() ? 'Table Required' : 'Send to Kitchen')) : 'Update Order'} <ArrowRight size={18} />
+            {isSubmitting ? 'Processing...' : (isCreatingNew ? (isTokenDuplicate ? 'Duplicate Token' : (!newTableNum.trim() && !isDelivery ? 'Table Required' : (isDelivery && !selectedDeliveryStaffId ? 'Select Staff' : 'Send to Kitchen'))) : 'Update Order')} <ArrowRight size={18} />
           </button>
         </div>
       </div>
@@ -357,9 +458,9 @@ export const POS = () => {
                       <div className={`w-12 h-12 rounded-full border-2 border-black flex items-center justify-center font-black text-xl text-white shadow-xl ${statusStyles.topBorder}`}>
                         {order.tokenNumber}
                       </div>
-                      {order.tableNumber && (
+                      {(order.tableNumber || order.deliveryStaffName) && (
                         <div className="absolute -top-1 -right-1 bg-black text-white text-[9px] font-black px-2 py-0.5 rounded-full border-2 border-white shadow-lg">
-                          T-{order.tableNumber}
+                          {order.deliveryStaffName ? `D-${order.deliveryStaffName.split(' ')[0]}` : `T-${order.tableNumber}`}
                         </div>
                       )}
                     </div>
@@ -377,7 +478,13 @@ export const POS = () => {
                     {/* Footer */}
                     <div className="mt-auto flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <img src={getWaiterAvatar(order.createdBy)} className="w-10 h-10 rounded-full border-2 border-black object-cover" alt="W" />
+                        {getWaiterAvatar(order.createdBy) ? (
+                          <img src={getWaiterAvatar(order.createdBy)} className="w-10 h-10 rounded-full border-2 border-black object-cover" alt="W" />
+                        ) : (
+                          <div className="w-10 h-10 rounded-full border-2 border-black bg-slate-100 flex items-center justify-center">
+                            <UserIcon size={16} className="text-slate-400" />
+                          </div>
+                        )}
                         <span className="text-[10px] font-black uppercase tracking-widest text-slate-900">{getWaiterName(order.createdBy).split(' ')[0].toUpperCase()}</span>
                       </div>
                       <div className="bg-black text-white px-5 py-2.5 rounded-full font-black text-sm flex items-center gap-1 shadow-lg">
@@ -503,10 +610,16 @@ export const POS = () => {
                   exit={{ opacity: 0, scale: 0.9 }}
                   key={item.id} 
                   onClick={() => addToCart(item)}
-                  className="group bg-white rounded-[2.5rem] border-2 border-slate-100 p-5 flex flex-col hover:border-indigo-500 shadow-xl shadow-slate-200/20 hover:shadow-2xl transition-all active:scale-95 relative overflow-hidden hover:-translate-y-1"
+                  className="group bg-white rounded-[2.5rem] border-2 border-black p-5 flex flex-col hover:border-indigo-500 shadow-xl shadow-slate-200/20 hover:shadow-2xl transition-all active:scale-95 relative overflow-hidden hover:-translate-y-1"
                 >
                   <div className="w-full aspect-square rounded-[2rem] overflow-hidden mb-4 bg-slate-50 relative border border-slate-100">
-                    <img src={item.image || `https://picsum.photos/seed/${item.name}/400/400`} alt={item.name} className={`w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ${item.stock !== undefined && item.stock !== null && item.stock <= 0 ? 'grayscale opacity-50' : ''}`} referrerPolicy="no-referrer" />
+                    {item.image ? (
+                      <img src={item.image} alt={item.name} className={`w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ${item.stock !== undefined && item.stock !== null && item.stock <= 0 ? 'grayscale opacity-50' : ''}`} referrerPolicy="no-referrer" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-slate-50">
+                        <Utensils size={40} className="text-slate-200" />
+                      </div>
+                    )}
                     <div className="absolute inset-0 bg-indigo-600/0 group-hover:bg-indigo-600/5 transition-colors"></div>
                     <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-xl border border-slate-100 shadow-sm">
                       <span className="text-xs font-black text-slate-900">{currentTenant.currency}{item.price.toFixed(0)}</span>

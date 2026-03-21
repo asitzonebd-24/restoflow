@@ -65,7 +65,16 @@ interface AppContextType {
   login: (emailOrMobile: string, password: string, tenantId?: string | null) => boolean;
   logout: () => void;
   addOrder: (order: Omit<Order, 'tenantId'>) => Promise<void>;
-  updateOrderItems: (orderId: string, items: OrderItem[], totalAmount: number, note?: string, status?: OrderStatus) => Promise<void>;
+  updateOrderItems: (
+    orderId: string, 
+    items: OrderItem[], 
+    totalAmount: number, 
+    note?: string, 
+    status?: OrderStatus,
+    deliveryStaffId?: string,
+    deliveryStaffName?: string,
+    deliveryAddress?: string
+  ) => Promise<void>;
   updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>;
   updateOrderItemStatus: (orderId: string, rowId: string, status: ItemStatus) => Promise<void>;
   updateInventory: (itemId: string, quantityChange: number) => Promise<void>;
@@ -121,7 +130,7 @@ const ENHANCED_MOCK_USERS: User[] = [
     password: 'password',
     mobile: '0000000',
     role: Role.CUSTOMER,
-    avatar: 'https://ui-avatars.com/api/?name=Guest&background=indigo&color=fff',
+    avatar: '',
     permissions: []
   }
 ];
@@ -235,6 +244,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   }, [allMenu, currentUser, currentTenantId]);
 
   const users = useMemo(() => {
+    if (currentUser?.role === Role.SUPER_ADMIN) return allUsers;
     const targetId = currentUser?.tenantId || currentTenantId;
     return allUsers.filter(u => String(u.tenantId) === String(targetId) || u.role === Role.SUPER_ADMIN);
   }, [allUsers, currentUser, currentTenantId]);
@@ -294,15 +304,18 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         createdAt: serverTimestamp()
       });
 
-      // Update menu item stock
-      for (const item of newOrder.items) {
-        const menuItem = allMenu.find(m => m.id === item.itemId);
-        if (menuItem && menuItem.stock !== undefined && menuItem.stock > 0) {
-          const newStock = Math.max(0, menuItem.stock - item.quantity);
-          const itemRef = doc(db, 'menu_items', item.itemId);
-          batch.update(itemRef, { stock: newStock });
+    // Update menu item stock and validate
+    for (const item of newOrder.items) {
+      const menuItem = allMenu.find(m => m.id === item.itemId);
+      if (menuItem && menuItem.stock !== undefined && menuItem.stock !== null) {
+        if (menuItem.stock < item.quantity) {
+          throw new Error(`Insufficient stock for ${menuItem.name}`);
         }
+        const newStock = Math.max(0, menuItem.stock - item.quantity);
+        const itemRef = doc(db, 'menu_items', item.itemId);
+        batch.update(itemRef, { stock: newStock });
       }
+    }
 
       await batch.commit();
     } catch (error) {
@@ -310,7 +323,16 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     }
   };
 
-  const updateOrderItems = async (orderId: string, items: OrderItem[], totalAmount: number, note?: string, status?: OrderStatus) => {
+  const updateOrderItems = async (
+    orderId: string, 
+    items: OrderItem[], 
+    totalAmount: number, 
+    note?: string, 
+    status?: OrderStatus,
+    deliveryStaffId?: string,
+    deliveryStaffName?: string,
+    deliveryAddress?: string
+  ) => {
     const oldOrder = allOrders.find(o => o.id === orderId);
     if (!oldOrder) return;
 
@@ -337,14 +359,20 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         items,
         totalAmount,
         status: newStatus,
-        note: note ?? oldOrder.note
+        note: note ?? oldOrder.note,
+        deliveryStaffId: deliveryStaffId ?? oldOrder.deliveryStaffId,
+        deliveryStaffName: deliveryStaffName ?? oldOrder.deliveryStaffName,
+        deliveryAddress: deliveryAddress ?? oldOrder.deliveryAddress
       });
 
-      // Update stock in Firestore
+      // Update stock in Firestore and validate
       for (const itemId in stockChanges) {
         const change = stockChanges[itemId];
         const menuItem = allMenu.find(m => m.id === itemId);
-        if (menuItem && menuItem.stock !== undefined && menuItem.stock > 0) {
+        if (menuItem && menuItem.stock !== undefined && menuItem.stock !== null) {
+          if (change > 0 && menuItem.stock < change) {
+            throw new Error(`Insufficient stock for ${menuItem.name}`);
+          }
           const newStock = Math.max(0, menuItem.stock - change);
           const itemRef = doc(db, 'menu_items', itemId);
           batch.update(itemRef, { stock: newStock });
@@ -758,7 +786,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       password: ownerData.password || 'password',
       mobile: ownerData.mobile || '',
       role: Role.OWNER,
-      avatar: `https://i.pravatar.cc/150?u=${newTenantId}`,
+      avatar: '',
       permissions: ['Dashboard', 'POS', 'Kitchen', 'Menu', 'Billing', 'Transactions', 'Expenses', 'Reports', 'Inventory', 'Users', 'Settings']
     };
 

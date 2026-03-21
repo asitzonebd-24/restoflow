@@ -105,9 +105,9 @@ export const Billing = () => {
                     <div className="w-12 h-12 rounded-full border-2 border-black flex items-center justify-center font-black text-xl text-white shadow-xl bg-emerald-500">
                       {order.tokenNumber}
                     </div>
-                    {order.tableNumber && (
+                    {(order.tableNumber || order.deliveryStaffName) && (
                       <div className="absolute -top-1 -right-1 bg-black text-white text-[9px] font-black px-2 py-0.5 rounded-full border-2 border-white shadow-lg">
-                        T-{order.tableNumber}
+                        {order.deliveryStaffName ? `D-${order.deliveryStaffName.split(' ')[0]}` : `T-${order.tableNumber}`}
                       </div>
                     )}
                   </div>
@@ -176,7 +176,14 @@ export const Billing = () => {
               
               <div className="border-y border-slate-100 py-8 mb-8 text-center bg-slate-50/50 rounded-3xl">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Service Token</span>
-                  <span className="text-5xl text-slate-900 font-bold tracking-tight">#{invoiceOrder.tokenNumber}</span>
+                  <div className="flex flex-col items-center gap-2">
+                    <span className="text-5xl text-slate-900 font-bold tracking-tight">#{invoiceOrder.tokenNumber}</span>
+                    {invoiceOrder.deliveryStaffName && (
+                      <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest bg-indigo-50 px-3 py-1 rounded-full border border-indigo-100">
+                        Delivery: {invoiceOrder.deliveryStaffName}
+                      </span>
+                    )}
+                  </div>
               </div>
 
               <div className="space-y-4 mb-10">

@@ -2,10 +2,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { MenuItem, OrderItem, Order, OrderStatus } from '../types';
-import { ShoppingBasket, Plus, Minus, Search, ArrowRight, LogOut, MapPin, Menu as MenuIcon, X, ShoppingCart, Timer, History, ShoppingBag, CheckCircle, FileText, ChevronRight } from 'lucide-react';
+import { ShoppingBasket, Plus, Minus, Search, ArrowRight, LogOut, MapPin, Menu as MenuIcon, X, ShoppingCart, Timer, History, ShoppingBag, CheckCircle, FileText, ChevronRight, Store, User as UserCircle } from 'lucide-react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { DEFAULT_MENU_IMAGE } from '../constants';
 
 export const CustomerOrder = () => {
   const { tenantId: urlTenantId } = useParams<{ tenantId: string }>();
@@ -19,6 +18,7 @@ export const CustomerOrder = () => {
   
   const [useProfileAddress, setUseProfileAddress] = useState(!!currentUser?.address);
   const [manualAddress, setManualAddress] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const navigate = useNavigate();
   const location = useLocation();
@@ -47,10 +47,14 @@ export const CustomerOrder = () => {
     setCart(prev => {
       const existingIndex = prev.findIndex(i => i.itemId === item.id && i.status === OrderStatus.PENDING);
       if (existingIndex > -1) {
+        const currentQty = prev[existingIndex].quantity;
+        if (item.stock !== undefined && item.stock !== null && currentQty >= item.stock) {
+          return prev; // Don't add if stock limit reached
+        }
         const newCart = [...prev];
         newCart[existingIndex] = {
           ...newCart[existingIndex],
-          quantity: newCart[existingIndex].quantity + 1
+          quantity: currentQty + 1
         };
         return newCart;
       }
@@ -68,14 +72,22 @@ export const CustomerOrder = () => {
   const updateQuantity = (itemId: string, delta: number) => {
     setCart(prev => prev.map(i => {
       if (i.itemId === itemId) {
-        return { ...i, quantity: Math.max(0, i.quantity + delta) };
+        const menuItem = menu.find(m => m.id === i.itemId);
+        const newQty = i.quantity + delta;
+        
+        // Check stock if increasing
+        if (delta > 0 && menuItem && menuItem.stock !== undefined && menuItem.stock !== null) {
+          if (newQty > menuItem.stock) return i;
+        }
+        
+        return { ...i, quantity: Math.max(0, newQty) };
       }
       return i;
     }).filter(i => i.quantity > 0));
   };
 
-  const handleCheckout = () => {
-    if (cart.length === 0 || !currentUser) return;
+  const handleCheckout = async () => {
+    if (cart.length === 0 || !currentUser || isSubmitting) return;
     
     const finalAddress = useProfileAddress ? (currentUser.address || '') : manualAddress;
 
@@ -91,27 +103,32 @@ export const CustomerOrder = () => {
       return;
     }
 
-    const prefix = business.customerTokenPrefix || 'WEB';
-    const sequenceNum = business.nextCustomerToken || 100;
-    const tokenNumber = `${prefix}-${sequenceNum}`;
+    setIsSubmitting(true);
+    try {
+      const prefix = business.customerTokenPrefix || 'WEB';
+      const sequenceNum = business.nextCustomerToken || 100;
+      const tokenNumber = `${prefix}-${sequenceNum}`;
 
-    const newOrder = {
-      id: `cust-ord-${Date.now()}`,
-      tokenNumber: tokenNumber,
-      items: cart,
-      status: OrderStatus.PENDING,
-      createdAt: new Date().toISOString(),
-      createdBy: currentUser.id,
-      totalAmount: cartTotal,
-      note: "Online Customer Order",
-      deliveryAddress: finalAddress
-    };
+      const newOrder = {
+        id: `cust-ord-${Date.now()}`,
+        tokenNumber: tokenNumber,
+        items: cart,
+        status: OrderStatus.PENDING,
+        createdAt: new Date().toISOString(),
+        createdBy: currentUser.id,
+        totalAmount: cartTotal,
+        note: "Online Customer Order",
+        deliveryAddress: finalAddress
+      };
 
-    addOrder(newOrder);
-    // Explicitly increment the sequence
-    updateBusiness({ nextCustomerToken: sequenceNum + 1 });
-    setCart([]);
-    navigate(`/${tenantId}/order/panel`);
+      await addOrder(newOrder);
+      // Explicitly increment the sequence
+      await updateBusiness({ nextCustomerToken: sequenceNum + 1 });
+      setCart([]);
+      navigate(`/${tenantId}/order/panel`);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const isActive = (path: string) => location.pathname === path;
@@ -234,10 +251,10 @@ export const CustomerOrder = () => {
 
         <button 
           onClick={handleCheckout}
-          disabled={cart.length === 0}
+          disabled={cart.length === 0 || isSubmitting}
           className="w-full bg-slate-900 text-white py-5 rounded-[2rem] font-black uppercase tracking-widest text-[11px] shadow-xl shadow-indigo-100 flex items-center justify-center gap-3 active:scale-95 transition disabled:opacity-30 border-2 border-indigo-500"
         >
-          Finalize Order <ArrowRight size={20} strokeWidth={3} />
+          {isSubmitting ? 'Processing...' : 'Finalize Order'} <ArrowRight size={20} strokeWidth={3} />
         </button>
       </div>
     </div>
@@ -264,7 +281,13 @@ export const CustomerOrder = () => {
       >
         <div className="flex items-center justify-between px-6 mb-12">
            <div className="flex items-center gap-3">
-             <img src={business.logo} alt="Logo" className="w-10 h-10 rounded-full border-2 border-white" />
+             {business.logo ? (
+               <img src={business.logo} alt="Logo" className="w-10 h-10 rounded-full border-2 border-white" />
+             ) : (
+               <div className="w-10 h-10 rounded-full border-2 border-white bg-white/10 flex items-center justify-center">
+                 <Store size={16} className="text-white" />
+               </div>
+             )}
              <h2 className="font-black text-lg uppercase tracking-tighter">Resto Keep</h2>
            </div>
            <button onClick={() => setIsSidebarOpen(false)} className="md:hidden text-white/50 hover:text-white">
@@ -284,7 +307,13 @@ export const CustomerOrder = () => {
         </nav>
         <div className="pt-8 border-t border-white/10 mt-auto px-8 flex flex-col items-start">
            <div className="flex items-center gap-3 mb-6">
-             <img src={currentUser?.avatar} className="w-10 h-10 rounded-full border-2 border-indigo-500" alt="avatar" />
+             {currentUser?.avatar ? (
+               <img src={currentUser.avatar} className="w-10 h-10 rounded-full border-2 border-indigo-500" alt="avatar" />
+             ) : (
+               <div className="w-10 h-10 rounded-full border-2 border-indigo-500 bg-white/10 flex items-center justify-center">
+                 <UserCircle size={20} className="text-white" />
+               </div>
+             )}
              <div className="min-w-0">
                <p className="text-[10px] font-black uppercase truncate">{currentUser?.name}</p>
                <p className="text-[8px] font-bold text-white/40 uppercase tracking-widest">Customer</p>
@@ -379,15 +408,19 @@ export const CustomerOrder = () => {
                   <button 
                     key={item.id} 
                     onClick={() => addToCart(item)}
-                    className={`group flex flex-col bg-white rounded-[2rem] md:rounded-[2.5rem] border-2 border-slate-100 p-3 md:p-5 transition-all hover:-translate-y-1 hover:shadow-2xl hover:border-indigo-500 active:scale-95 shadow-xl shadow-slate-200/20 relative overflow-hidden ${item.stock !== undefined && item.stock !== null && item.stock <= 0 ? 'cursor-not-allowed' : ''}`}
+                    className={`group flex flex-col bg-white rounded-[2rem] md:rounded-[2.5rem] border-2 border-black p-3 md:p-5 transition-all hover:-translate-y-1 hover:shadow-2xl hover:border-indigo-500 active:scale-95 shadow-xl shadow-slate-200/20 relative overflow-hidden ${item.stock !== undefined && item.stock !== null && item.stock <= 0 ? 'cursor-not-allowed' : ''}`}
                   >
                     <div className="aspect-square w-full rounded-2xl overflow-hidden border-2 border-slate-100 mb-3 md:mb-5 bg-slate-50 flex items-center justify-center group-hover:border-indigo-500 transition-colors relative">
-                        <img 
-                          src={item.image || DEFAULT_MENU_IMAGE} 
-                          alt={item.name} 
-                          className={`w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ${item.stock !== undefined && item.stock !== null && item.stock <= 0 ? 'grayscale opacity-50' : ''}`} 
-                          referrerPolicy="no-referrer"
-                        />
+                        {item.image ? (
+                          <img 
+                            src={item.image} 
+                            alt={item.name} 
+                            className={`w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ${item.stock !== undefined && item.stock !== null && item.stock <= 0 ? 'grayscale opacity-50' : ''}`} 
+                            referrerPolicy="no-referrer"
+                          />
+                        ) : (
+                          <ShoppingBag size={32} className="text-slate-200" />
+                        )}
                         {item.stock !== undefined && item.stock !== null && item.stock <= 0 && (
                           <div className="absolute inset-0 flex items-center justify-center bg-slate-900/40 backdrop-blur-[2px]">
                             <span className="bg-rose-600 text-white text-[8px] md:text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl shadow-2xl transform -rotate-6 border-2 border-white/20">

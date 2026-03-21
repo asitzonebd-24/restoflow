@@ -2,8 +2,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { OrderStatus } from '../types';
-import { DEFAULT_BUSINESS_LOGO, DEFAULT_AVATAR } from '../constants';
-import { ShoppingBag, Timer, Clock, Menu as MenuIcon, User as UserCircle, ShoppingCart, LogOut, X, MapPin, History, ChevronRight } from 'lucide-react';
+import { ShoppingBag, Timer, Clock, Menu as MenuIcon, User as UserCircle, ShoppingCart, LogOut, X, MapPin, History, ChevronRight, Store } from 'lucide-react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -38,7 +37,13 @@ export const CustomerHistory = () => {
         style={{ background: 'linear-gradient(180deg, #1d1d3f 0%, #11112b 100%)' }}
       >
         <div className="flex items-center gap-3 px-4 md:px-8 mb-12">
-           <img src={business.logo || DEFAULT_BUSINESS_LOGO} alt="Logo" className="w-10 h-10 rounded-full border-2 border-white" />
+           {business.logo ? (
+             <img src={business.logo} alt="Logo" className="w-10 h-10 rounded-full border-2 border-white" />
+           ) : (
+             <div className="w-10 h-10 rounded-full border-2 border-white bg-white/10 flex items-center justify-center">
+               <Store size={16} className="text-white" />
+             </div>
+           )}
            <h2 className="hidden md:block font-black text-lg uppercase tracking-tighter">Resto Keep</h2>
         </div>
         <nav className="flex-1 space-y-4 px-2 md:px-6">
@@ -65,7 +70,13 @@ export const CustomerHistory = () => {
            </button>
         </nav>
         <div className="pt-8 border-t border-white/10 mt-auto px-2 md:px-8 flex flex-col items-center md:items-start">
-           <img src={currentUser?.avatar || DEFAULT_AVATAR} className="w-10 h-10 rounded-full border-2 border-indigo-500 mb-4" alt="avatar" />
+           {currentUser?.avatar ? (
+             <img src={currentUser.avatar} className="w-10 h-10 rounded-full border-2 border-indigo-500 mb-4" alt="avatar" />
+           ) : (
+             <div className="w-10 h-10 rounded-full border-2 border-indigo-500 mb-4 bg-white/10 flex items-center justify-center">
+               <UserCircle size={20} className="text-white" />
+             </div>
+           )}
            <div className="hidden md:block min-w-0 mb-8">
               <p className="font-black uppercase text-xs truncate">{currentUser?.name}</p>
               <p className="text-[9px] font-bold text-white/40 uppercase truncate">{currentUser?.mobile}</p>

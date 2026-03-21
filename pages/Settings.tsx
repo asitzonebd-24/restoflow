@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Settings as SettingsIcon, Save, Store, Globe, Percent, Upload, Image as ImageIcon } from 'lucide-react';
-import { DEFAULT_BUSINESS_LOGO } from '../constants';
 
 export const Settings = () => {
     const { business, updateBusiness } = useApp();
@@ -102,11 +101,15 @@ export const Settings = () => {
                         <div className="md:col-span-2 flex flex-col md:flex-row items-center gap-8 mb-4">
                             <div className="relative group">
                                 <div className="w-32 h-32 rounded-[2rem] overflow-hidden border-4 border-slate-100 shadow-inner bg-slate-50 flex items-center justify-center group-hover:border-indigo-500/20 transition-all">
-                                    <img 
-                                        src={logo || DEFAULT_BUSINESS_LOGO} 
-                                        alt="Business Logo" 
-                                        className="w-full h-full object-cover" 
-                                    />
+                                    {logo ? (
+                                        <img 
+                                            src={logo} 
+                                            alt="Business Logo" 
+                                            className="w-full h-full object-cover" 
+                                        />
+                                    ) : (
+                                        <Store size={40} className="text-slate-200" />
+                                    )}
                                 </div>
                                 <label className="absolute -bottom-2 -right-2 bg-slate-900 text-white p-2.5 rounded-xl shadow-lg cursor-pointer hover:bg-indigo-600 transition-all active:scale-90">
                                     <Upload size={16} />

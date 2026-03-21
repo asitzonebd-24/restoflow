@@ -7,6 +7,7 @@ export enum Role {
   WAITER = 'WAITER',
   KITCHEN = 'KITCHEN',
   CASHIER = 'CASHIER',
+  DELIVERY = 'DELIVERY',
   CUSTOMER = 'CUSTOMER',
 }
 
@@ -88,6 +89,8 @@ export interface Order {
   totalAmount: number;
   note?: string;
   deliveryAddress?: string;
+  deliveryStaffId?: string;
+  deliveryStaffName?: string;
 }
 
 export interface Transaction {
