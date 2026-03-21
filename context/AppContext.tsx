@@ -2,7 +2,8 @@
 import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
 import { Role, Business, User, Order, InventoryItem, MenuItem, OrderStatus, ItemStatus, Transaction, Expense, OrderItem, MonthlyBill, BillStatus } from '../types';
 import { BUSINESS_DETAILS, MOCK_USERS, INITIAL_ORDERS, MOCK_INVENTORY, MOCK_MENU, MOCK_EXPENSES, DEFAULT_MENU_IMAGE, DEFAULT_AVATAR, DEFAULT_BUSINESS_LOGO } from '../constants';
-import { db, auth } from '../firebase';
+import { auth, db } from '../firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 import { 
   collection, 
   onSnapshot, 
