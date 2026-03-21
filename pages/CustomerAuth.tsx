@@ -75,6 +75,33 @@ export const CustomerAuth = () => {
     return <Navigate to="/login" replace />;
   }
 
+  if (!business.customerAppEnabled) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center">
+        <div className="w-24 h-24 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mb-8 border-4 border-white shadow-xl">
+          <Lock size={48} />
+        </div>
+        <h1 className="text-4xl font-black text-slate-900 uppercase tracking-tighter mb-4 leading-none">
+          Portal <br/> <span className="text-rose-600">Disabled</span>
+        </h1>
+        <p className="text-slate-500 max-w-xs font-medium text-sm mb-8">
+          The online ordering portal for <span className="font-black text-slate-900">{business.name}</span> is currently disabled. 
+          Please contact the restaurant directly to place your order.
+        </p>
+        <div className="bg-white p-6 rounded-3xl border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] w-full max-w-xs">
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Restaurant Contact</p>
+          <p className="text-xl font-black text-slate-900">{business.phone || 'N/A'}</p>
+        </div>
+        <button 
+          onClick={() => navigate(`/login?tenantId=${tenantId}`)}
+          className="mt-8 text-[10px] font-black text-indigo-600 uppercase tracking-widest hover:underline"
+        >
+          Staff Portal Login
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-indigo-600 flex flex-col items-center justify-center p-4 sm:p-6">
       <div className="w-full max-w-md bg-white rounded-[2.5rem] sm:rounded-[3.5rem] border-[6px] sm:border-8 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] sm:shadow-[16px_16px_0px_0px_rgba(0,0,0,1)] overflow-hidden">

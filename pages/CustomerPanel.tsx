@@ -3,7 +3,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { OrderStatus } from '../types';
 import { Timer, ShoppingBag, ArrowLeft, Clock, Menu as MenuIcon, User as UserCircle, ShoppingCart, LogOut, X, MapPin, History, LayoutGrid, ShoppingBasket, ChevronRight, Store, Utensils } from 'lucide-react';
-import { useNavigate, useLocation, useParams } from 'react-router-dom';
+import { useNavigate, useLocation, useParams, Navigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const CustomerPanel = () => {
@@ -44,6 +44,10 @@ export const CustomerPanel = () => {
   };
 
   const isActive = (path: string) => location.pathname === path;
+
+  if (!business.customerAppEnabled) {
+    return <Navigate to={`/${tenantId}/order/auth`} replace />;
+  }
 
   const StatusBox = ({ label, count, colorClass, activeColor }: { label: string, count: number, colorClass: string, activeColor: string }) => (
     <div className={`flex flex-col items-center justify-center py-1.5 px-1 rounded-xl border-2 transition-all ${count > 0 ? activeColor : colorClass}`}>

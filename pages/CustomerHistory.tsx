@@ -3,7 +3,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { OrderStatus } from '../types';
 import { ShoppingBag, Timer, Clock, Menu as MenuIcon, User as UserCircle, ShoppingCart, LogOut, X, MapPin, History, ChevronRight, Store, Utensils } from 'lucide-react';
-import { useNavigate, useLocation, useParams } from 'react-router-dom';
+import { useNavigate, useLocation, useParams, Navigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const CustomerHistory = () => {
@@ -28,6 +28,10 @@ export const CustomerHistory = () => {
   }, [orders, currentUser]);
 
   const isActive = (path: string) => location.pathname === path;
+
+  if (!business.customerAppEnabled) {
+    return <Navigate to={`/${tenantId}/order/auth`} replace />;
+  }
 
   return (
     <div className="flex h-screen bg-[#f1f5f9] overflow-hidden">

@@ -3,7 +3,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { MenuItem, OrderItem, Order, OrderStatus } from '../types';
 import { ShoppingBasket, Plus, Minus, Search, ArrowRight, LogOut, MapPin, Menu as MenuIcon, X, ShoppingCart, Timer, History, ShoppingBag, CheckCircle, FileText, ChevronRight, Store, User as UserCircle, Utensils } from 'lucide-react';
-import { useNavigate, useLocation, useParams } from 'react-router-dom';
+import { useNavigate, useLocation, useParams, Navigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const CustomerOrder = () => {
@@ -132,6 +132,10 @@ export const CustomerOrder = () => {
   };
 
   const isActive = (path: string) => location.pathname === path;
+
+  if (!business.customerAppEnabled) {
+    return <Navigate to={`/${tenantId}/order/auth`} replace />;
+  }
 
   const CartContent = ({ onClose, isEmbedded = false }: { onClose?: () => void, isEmbedded?: boolean }) => (
     <div className={`flex flex-col ${isEmbedded ? 'h-auto' : 'h-full'} bg-white lg:border-l-4 border-indigo-500 shadow-2xl shadow-indigo-100`}>
