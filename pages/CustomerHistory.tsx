@@ -122,7 +122,7 @@ export const CustomerHistory = () => {
                             className="hover:bg-slate-50 transition group cursor-pointer"
                           >
                              <td className="p-6">
-                                <div className="w-10 h-10 bg-indigo-600 text-white rounded-xl flex items-center justify-center font-black border-2 border-white shadow-lg shadow-indigo-200">
+                                <div className="min-w-[2.5rem] px-3 h-10 bg-indigo-600 text-white rounded-xl flex items-center justify-center font-black border-2 border-white shadow-lg shadow-indigo-200">
                                   #{order.tokenNumber}
                                 </div>
                              </td>
@@ -169,7 +169,7 @@ export const CustomerHistory = () => {
               >
                 <div className="p-6 border-b-4 border-indigo-500 bg-slate-50 flex items-center justify-between shrink-0">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center font-black text-xl border-2 border-white shadow-lg">
+                    <div className="min-w-[3rem] px-4 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center font-black text-xl border-2 border-white shadow-lg">
                       {selectedOrder.tokenNumber}
                     </div>
                     <div>

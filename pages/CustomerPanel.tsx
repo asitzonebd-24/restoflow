@@ -275,7 +275,7 @@ export const CustomerPanel = () => {
               >
                 <div className="p-6 border-b-4 border-indigo-500 bg-slate-50 flex items-center justify-between shrink-0">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center font-black text-xl border-2 border-white shadow-lg">
+                    <div className="min-w-[3rem] px-4 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center font-black text-xl border-2 border-white shadow-lg">
                       {selectedOrder.tokenNumber}
                     </div>
                     <div>

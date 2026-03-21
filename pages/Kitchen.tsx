@@ -109,7 +109,7 @@ export const Kitchen = () => {
 
               {/* Centered Token Number Pill with Table Number Badge */}
                 <div className="flex justify-center mb-6 relative">
-                <div className={`w-12 h-12 rounded-full border-2 border-black flex items-center justify-center font-black text-xl text-white shadow-xl ${statusColors.bg}`}>
+                <div className={`min-w-[3rem] px-3 h-12 rounded-[1.5rem] border-2 border-black flex items-center justify-center font-black text-xl text-white shadow-xl ${statusColors.bg}`}>
                   {order.tokenNumber}
                 </div>
                 {(order.tableNumber || order.deliveryStaffName) && (
