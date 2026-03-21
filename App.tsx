@@ -185,7 +185,10 @@ const ProtectedLayout = ({ children, allowedRoles }: { children?: React.ReactNod
     }
   }, [tenantId, setCurrentTenantId]);
 
-  if (!currentUser) return <Navigate to="/login" replace />;
+  if (!currentUser) {
+    const loginPath = tenantId ? `/login?tenantId=${tenantId}` : '/login';
+    return <Navigate to={loginPath} replace />;
+  }
 
   // If no tenantId in URL, redirect non-Super Admins to their tenant-specific route
   if (!tenantId && currentUser.role !== Role.SUPER_ADMIN && currentUser.tenantId) {
@@ -220,7 +223,7 @@ const ProtectedLayout = ({ children, allowedRoles }: { children?: React.ReactNod
           <p className="text-sm text-indigo-600 font-medium">support@portal.com</p>
         </div>
         <button 
-          onClick={() => window.location.href = '/#/login'}
+          onClick={() => window.location.href = tenantId ? `/#/login?tenantId=${tenantId}` : '/#/login'}
           className="bg-black text-white px-8 py-3 rounded-xl font-bold uppercase tracking-widest text-xs"
         >
           Sign Out
