@@ -3,7 +3,6 @@ import React, { useState } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate, NavLink, useLocation, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AppProvider, useApp } from './context/AppContext';
-import { isSupabaseConfigured } from './supabase';
 import { Login } from './pages/Login';
 import { Landing } from './pages/Landing';
 import { Dashboard } from './pages/Dashboard';
@@ -252,7 +251,7 @@ const AppContent = () => {
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">Connecting to Supabase...</p>
+          <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">Connecting to Cloud...</p>
         </div>
       </div>
     );
