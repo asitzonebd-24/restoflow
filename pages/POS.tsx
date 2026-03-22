@@ -36,6 +36,9 @@ export const POS = () => {
   const [newTokenNum, setNewTokenNum] = useState('');
   const [newTableNum, setNewTableNum] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeOrdersSearchTerm, setActiveOrdersSearchTerm] = useState('');
+  const [activeOrdersStatusFilter, setActiveOrdersStatusFilter] = useState<OrderStatus | 'ALL'>('ALL');
+  const [activeOrdersTypeFilter, setActiveOrdersTypeFilter] = useState<'ALL' | 'TABLE' | 'DELIVERY'>('ALL');
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isDelivery, setIsDelivery] = useState(false);
   const [selectedDeliveryStaffId, setSelectedDeliveryStaffId] = useState<string>('');
@@ -53,8 +56,28 @@ export const POS = () => {
     if (currentUser?.role === Role.WAITER) {
       filtered = filtered.filter(o => o.createdBy === currentUser.id);
     }
+
+    if (activeOrdersStatusFilter !== 'ALL') {
+      filtered = filtered.filter(o => o.status === activeOrdersStatusFilter);
+    }
+
+    if (activeOrdersTypeFilter === 'TABLE') {
+      filtered = filtered.filter(o => !!o.tableNumber);
+    } else if (activeOrdersTypeFilter === 'DELIVERY') {
+      filtered = filtered.filter(o => !!o.deliveryStaffId);
+    }
+
+    if (activeOrdersSearchTerm.trim()) {
+      const term = activeOrdersSearchTerm.toLowerCase();
+      filtered = filtered.filter(o => 
+        o.tokenNumber.toLowerCase().includes(term) || 
+        o.tableNumber?.toLowerCase().includes(term) ||
+        o.deliveryStaffName?.toLowerCase().includes(term)
+      );
+    }
+
     return filtered;
-  }, [orders, currentUser]);
+  }, [orders, currentUser, activeOrdersSearchTerm, activeOrdersStatusFilter, activeOrdersTypeFilter]);
 
   const isTokenDuplicate = useMemo(() => {
     const allActive = orders.filter(o => o.status !== OrderStatus.COMPLETED && o.status !== OrderStatus.CANCELLED);
@@ -410,17 +433,62 @@ export const POS = () => {
     return (
       <div className="p-4 md:p-10 h-full bg-slate-50/50 overflow-y-auto no-scrollbar">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 md:mb-10 gap-6">
-          <div>
+          <div className="flex-1 w-full">
             <h1 className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-4">
               <LayoutGrid className="text-indigo-500" size={28} /> Active Terminals
             </h1>
             <p className="text-slate-400 text-[10px] font-medium uppercase tracking-widest mt-2 opacity-80">
               {currentUser?.role === Role.WAITER ? 'Your active service tokens' : 'Global floor tracking & management'}
             </p>
+            
+            <div className="mt-6 flex flex-col md:flex-row gap-4 items-center">
+              <div className="relative w-full md:w-64">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                <input 
+                  type="text"
+                  placeholder="Search token/table..."
+                  value={activeOrdersSearchTerm}
+                  onChange={(e) => setActiveOrdersSearchTerm(e.target.value)}
+                  className="w-full pl-11 pr-4 py-2.5 bg-white border-2 border-slate-100 rounded-2xl text-xs font-bold focus:outline-none focus:border-indigo-500 transition-all shadow-sm"
+                />
+              </div>
+              
+              <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2 md:pb-0 w-full md:w-auto">
+                {['ALL', OrderStatus.PENDING, OrderStatus.PREPARING, OrderStatus.READY].map((status) => (
+                  <button
+                    key={status}
+                    onClick={() => setActiveOrdersStatusFilter(status as any)}
+                    className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border-2 transition-all whitespace-nowrap ${
+                      activeOrdersStatusFilter === status 
+                      ? 'bg-slate-900 text-white border-slate-900 shadow-lg' 
+                      : 'bg-white text-slate-400 border-slate-100 hover:border-indigo-500'
+                    }`}
+                  >
+                    {status}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex gap-2 border-l-2 border-slate-100 pl-4 w-full md:w-auto">
+                {['ALL', 'TABLE', 'DELIVERY'].map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => setActiveOrdersTypeFilter(type as any)}
+                    className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border-2 transition-all whitespace-nowrap ${
+                      activeOrdersTypeFilter === type 
+                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg' 
+                      : 'bg-white text-slate-400 border-slate-100 hover:border-indigo-500'
+                    }`}
+                  >
+                    {type}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
           <button 
             onClick={startNewOrder}
-            className="w-full md:w-auto bg-slate-900 text-white px-6 py-3.5 rounded-2xl font-bold uppercase tracking-widest text-[10px] shadow-xl shadow-indigo-200 hover:bg-slate-800 transition-all transform hover:-translate-y-1 active:scale-95 flex items-center justify-center gap-3 border-2 border-indigo-500"
+            className="w-full md:w-auto bg-slate-900 text-white px-8 py-4 rounded-2xl font-bold uppercase tracking-widest text-[10px] shadow-xl shadow-indigo-200 hover:bg-slate-800 transition-all transform hover:-translate-y-1 active:scale-95 flex items-center justify-center gap-3 border-2 border-indigo-500 shrink-0"
           >
             <Plus size={18} /> New Order
           </button>
