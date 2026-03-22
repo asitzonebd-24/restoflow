@@ -15,7 +15,7 @@ export const Transactions = () => {
         start: new Date().toISOString().split('T')[0],
         end: new Date().toISOString().split('T')[0]
     });
-    const [viewInvoice, setViewInvoice] = useState<Order | null>(null);
+    const [viewInvoice, setViewInvoice] = useState<{ order: Order; transaction: Transaction } | null>(null);
 
     // List of staff for the dropdown (exclude customers)
     const staffList = useMemo(() => {
@@ -97,7 +97,7 @@ export const Transactions = () => {
     const openInvoice = (txn: Transaction) => {
         const originalOrder = orders.find(o => o.id === txn.orderId);
         if (originalOrder) {
-            setViewInvoice(originalOrder);
+            setViewInvoice({ order: originalOrder, transaction: txn });
         } else {
             alert("Order details archived or unavailable.");
         }
@@ -109,10 +109,10 @@ export const Transactions = () => {
       }, 1000);
     };
 
-    const calculateInvoiceTotal = (order: Order) => {
+    const calculateInvoiceTotal = (order: Order, discount: number = 0) => {
       const subtotal = order.totalAmount;
       const vat = currentTenant?.includeVat ? (subtotal * ((currentTenant?.vatRate || 0) / 100)) : 0;
-      return { subtotal, vat, total: subtotal + vat };
+      return { subtotal, vat, total: subtotal + vat - discount };
     };
 
     return (
@@ -266,6 +266,7 @@ export const Transactions = () => {
                                 <th className="px-8 py-6">Order ID</th>
                                 <th className="px-8 py-6">Items Summary</th>
                                 <th className="px-8 py-6">Processor</th>
+                                <th className="px-8 py-6">Discount</th>
                                 <th className="px-8 py-6">Total Amount</th>
                                 <th className="px-8 py-6 text-right">Receipt</th>
                             </tr>
@@ -306,6 +307,11 @@ export const Transactions = () => {
                                                 </div>
                                                 <span className="text-xs font-black text-slate-900 uppercase tracking-tight">{txn.creatorName || '-'}</span>
                                             </div>
+                                        </td>
+                                        <td className="px-8 py-6">
+                                            <span className="text-sm font-black text-red-500 tracking-tighter">
+                                                {txn.discount ? `-${currentTenant?.currency}${txn.discount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
+                                            </span>
                                         </td>
                                         <td className="px-8 py-6">
                                             <span className="text-sm font-black text-slate-900 tracking-tighter">
@@ -358,15 +364,15 @@ export const Transactions = () => {
                             <div className="border-y border-slate-100 py-8 mb-8 bg-slate-50/50 rounded-3xl px-6">
                                 <div className="flex justify-between text-[10px] mb-3 font-bold uppercase tracking-widest">
                                     <span className="text-slate-400">Order Ref</span>
-                                    <span className="text-slate-900">#{viewInvoice.id.slice(-8).toUpperCase()}</span>
+                                    <span className="text-slate-900">#{viewInvoice.order.id.slice(-8).toUpperCase()}</span>
                                 </div>
                                 <div className="flex justify-between text-[10px] mb-4 font-bold uppercase tracking-widest">
                                     <span className="text-slate-400">Date/Time</span>
-                                    <span className="text-slate-900">{new Date(viewInvoice.createdAt).toLocaleString()}</span>
+                                    <span className="text-slate-900">{new Date(viewInvoice.order.createdAt).toLocaleString()}</span>
                                 </div>
                                 <div className="flex justify-between items-center pt-4 border-t border-slate-100">
                                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Token Number</span>
-                                    <span className="text-4xl text-indigo-600 font-bold tracking-tight">#{viewInvoice.tokenNumber}</span>
+                                    <span className="text-4xl text-indigo-600 font-bold tracking-tight">#{viewInvoice.order.tokenNumber}</span>
                                 </div>
                             </div>
 
@@ -376,7 +382,7 @@ export const Transactions = () => {
                                   <span>Subtotal</span>
                                 </div>
                                 <div className="space-y-3">
-                                    {viewInvoice.items.map((item, i) => (
+                                    {viewInvoice.order.items.map((item, i) => (
                                         <div key={i} className="flex justify-between items-center text-xs font-medium">
                                             <div className="flex items-center gap-3">
                                                 <span className="text-indigo-500 font-bold">x{item.quantity}</span>
@@ -390,7 +396,7 @@ export const Transactions = () => {
 
                             <div className="space-y-3 pt-6 border-t border-slate-100">
                                 {(() => {
-                                    const { subtotal, vat, total } = calculateInvoiceTotal(viewInvoice);
+                                    const { subtotal, vat, total } = calculateInvoiceTotal(viewInvoice.order, viewInvoice.transaction.discount);
                                     return (
                                         <>
                                             <div className="flex justify-between text-[11px] font-bold uppercase tracking-widest text-slate-400">
@@ -403,6 +409,12 @@ export const Transactions = () => {
                                                     <span>{currentTenant?.currency}{vat.toFixed(2)}</span>
                                                 </div>
                                             )}
+                                            {viewInvoice.transaction.discount ? (
+                                                <div className="flex justify-between text-[11px] font-bold uppercase tracking-widest text-red-500">
+                                                    <span>Discount</span>
+                                                    <span>-{currentTenant?.currency}{viewInvoice.transaction.discount.toFixed(2)}</span>
+                                                </div>
+                                            ) : null}
                                             <div className="flex justify-between items-center pt-6 mt-4 border-t border-slate-900">
                                                 <span className="text-xs font-bold uppercase tracking-widest text-slate-900">Total Amount</span>
                                                 <span className="text-3xl font-bold text-slate-900 tracking-tight">{currentTenant?.currency}{total.toFixed(2)}</span>

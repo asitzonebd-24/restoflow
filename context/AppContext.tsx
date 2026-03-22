@@ -76,7 +76,7 @@ interface AppContextType {
     deliveryStaffMobile?: string | null,
     deliveryAddress?: string | null
   ) => Promise<void>;
-  updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>;
+  updateOrderStatus: (orderId: string, status: OrderStatus, discount?: number) => Promise<void>;
   updateOrderItemStatus: (orderId: string, rowId: string, status: ItemStatus) => Promise<void>;
   updateInventory: (itemId: string, quantityChange: number) => Promise<void>;
   addInventoryItem: (item: Omit<InventoryItem, 'tenantId'>) => Promise<void>;
@@ -418,7 +418,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     }
   };
 
-  const updateOrderStatus = async (orderId: string, status: OrderStatus) => {
+  const updateOrderStatus = async (orderId: string, status: OrderStatus, discount?: number) => {
     const order = allOrders.find(o => o.id === orderId);
     if (!order) return;
 
@@ -427,10 +427,13 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       const orderRef = doc(db, 'orders', orderId);
       
       const updatedItems = order.items.map(i => ({ ...i, status: status as unknown as ItemStatus }));
-      batch.update(orderRef, {
+      const updates: any = {
         status,
         items: updatedItems
-      });
+      };
+      if (discount !== undefined) updates.discount = discount;
+
+      batch.update(orderRef, updates);
 
       // If order is cancelled, return items to stock
       if (status === OrderStatus.CANCELLED) {

@@ -136,14 +136,15 @@ export const CustomerHistory = () => {
                                     {order.items.map(i => `${i.quantity}x ${i.name}`).join(', ')}
                                   </div>
                                   {order.deliveryStaffName && (
-                                    <div className="flex flex-col mt-1">
-                                      <div className="flex items-center gap-1">
-                                        <ShoppingBag size={8} className="text-indigo-500" />
-                                        <span className="text-[8px] font-black uppercase tracking-widest text-indigo-500">{order.deliveryStaffName}</span>
+                                    <div className="mt-2 p-2 bg-indigo-50/50 rounded-xl border border-indigo-100/50">
+                                      <div className="flex items-center gap-1.5 mb-1">
+                                        <ShoppingBag size={10} className="text-indigo-500" />
+                                        <span className="text-[7px] font-black uppercase tracking-widest text-indigo-500">Assigned Delivery</span>
                                       </div>
-                                      {order.deliveryStaffMobile && (
-                                        <span className="text-[7px] font-bold text-slate-400 ml-3">{order.deliveryStaffMobile}</span>
-                                      )}
+                                      <div className="flex flex-col">
+                                        <p className="text-[9px] font-black text-slate-900 leading-none">{order.deliveryStaffName}</p>
+                                        <p className="text-[8px] font-bold text-slate-400 mt-0.5 leading-none">{order.deliveryStaffMobile}</p>
+                                      </div>
                                     </div>
                                   )}
                                 </div>
@@ -220,9 +221,21 @@ export const CustomerHistory = () => {
                 </div>
 
                 <div className="p-6 border-t-4 border-slate-100 bg-slate-50 shrink-0">
-                  <div className="flex justify-between items-center mb-4">
-                    <span className="font-black uppercase text-[10px] text-slate-400 tracking-widest">Grand Total</span>
-                    <span className="text-3xl font-black text-slate-900 tracking-tighter">{business.currency}{selectedOrder.totalAmount.toFixed(0)}</span>
+                  <div className="space-y-2 mb-4">
+                    <div className="flex justify-between items-center">
+                      <span className="font-black uppercase text-[10px] text-slate-400 tracking-widest">Subtotal</span>
+                      <span className="text-lg font-black text-slate-600 tracking-tighter">{business.currency}{(selectedOrder.totalAmount + (selectedOrder.discount || 0)).toFixed(0)}</span>
+                    </div>
+                    {selectedOrder.discount > 0 && (
+                      <div className="flex justify-between items-center">
+                        <span className="font-black uppercase text-[10px] text-rose-400 tracking-widest">Discount</span>
+                        <span className="text-lg font-black text-rose-500 tracking-tighter">-{business.currency}{selectedOrder.discount.toFixed(0)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between items-center pt-2 border-t border-slate-200">
+                      <span className="font-black uppercase text-[10px] text-slate-900 tracking-widest">Grand Total</span>
+                      <span className="text-3xl font-black text-slate-900 tracking-tighter">{business.currency}{selectedOrder.totalAmount.toFixed(0)}</span>
+                    </div>
                   </div>
                   <div className="flex flex-col gap-2">
                     <div className="flex items-center gap-2 p-3 bg-white rounded-2xl border-2 border-slate-100">

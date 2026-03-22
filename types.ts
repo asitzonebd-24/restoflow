@@ -92,6 +92,7 @@ export interface Order {
   deliveryStaffId?: string | null;
   deliveryStaffName?: string | null;
   deliveryStaffMobile?: string | null;
+  discount?: number;
 }
 
 export interface Transaction {
@@ -99,6 +100,7 @@ export interface Transaction {
   tenantId: string;
   orderId: string;
   amount: number;
+  discount?: number;
   date: string;
   paymentMethod: string;
   itemsSummary: string;

@@ -7,6 +7,7 @@ import { Receipt, CheckCheck, Printer, Download, X, FileText, Hash, MapPin, Shop
 export const Billing = () => {
   const { orders, currentTenant, updateOrderStatus, updateOrderItems, addTransaction, users } = useApp();
   const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
+  const [discounts, setDiscounts] = useState<{ [key: string]: number }>({});
   
   const readyOrders = orders.filter(o => o.status === OrderStatus.READY);
 
@@ -14,10 +15,11 @@ export const Billing = () => {
     return users.find(u => u.id === userId);
   };
 
-  const calculateTotal = (order: Order) => {
+  const calculateTotal = (order: Order, discount: number = 0) => {
     const subtotal = order.totalAmount;
     const vat = currentTenant?.includeVat ? (subtotal * ((currentTenant?.vatRate || 0) / 100)) : 0;
-    return { subtotal, vat, total: subtotal + vat };
+    const total = Math.max(0, subtotal + vat - discount);
+    return { subtotal, vat, total };
   };
 
   const groupItems = (items: OrderItem[]) => {
@@ -34,14 +36,17 @@ export const Billing = () => {
   };
 
   const handlePayment = (order: Order) => {
-    const { total } = calculateTotal(order);
+    const discount = discounts[order.id] || 0;
+    const { total } = calculateTotal(order, discount);
     const groupedItems = groupItems(order.items);
     const creator = getCreator(order.createdBy);
     
     const transaction = {
         id: `txn-${Date.now()}`,
+        tenantId: currentTenant.id,
         orderId: order.id,
         amount: total,
+        discount: discount,
         date: new Date().toISOString(),
         paymentMethod: 'CASH',
         itemsSummary: groupedItems.map(i => `${i.quantity}x ${i.name}`).join(', '),
@@ -49,9 +54,11 @@ export const Billing = () => {
     };
     
     addTransaction(transaction);
-    updateOrderStatus(order.id, OrderStatus.COMPLETED);
+    updateOrderStatus(order.id, OrderStatus.COMPLETED, discount);
     
-    setInvoiceOrder(order);
+    // Store the discount in the order object temporarily for the invoice modal
+    const orderWithDiscount = { ...order, discount };
+    setInvoiceOrder(orderWithDiscount as any);
   };
 
   const printInvoice = () => {
@@ -83,7 +90,8 @@ export const Billing = () => {
           </div>
         ) : (
           readyOrders.map(order => {
-            const { total } = calculateTotal(order);
+            const discount = discounts[order.id] || 0;
+            const { total } = calculateTotal(order, discount);
             const groupedItems = groupItems(order.items);
             const prefix = currentTenant.customerTokenPrefix || 'WEB';
             const isOnline = order.tokenNumber.startsWith(prefix) || order.tokenNumber === 'OO';
@@ -115,6 +123,17 @@ export const Billing = () => {
                   <div className="text-center mb-6">
                     <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 block mb-1">Total Due</span>
                     <span className="text-2xl font-bold text-slate-900 tracking-tight">{currentTenant?.currency}{total.toFixed(2)}</span>
+                  </div>
+
+                  <div className="mb-6">
+                    <label className="text-[9px] font-bold uppercase tracking-widest text-slate-400 block mb-2">Discount ({currentTenant?.currency})</label>
+                    <input 
+                      type="number"
+                      value={discounts[order.id] || ''}
+                      onChange={(e) => setDiscounts(prev => ({ ...prev, [order.id]: parseFloat(e.target.value) || 0 }))}
+                      placeholder="0.00"
+                      className="w-full p-3 text-[10px] font-bold bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                    />
                   </div>
 
                   {isOnline && (
@@ -180,12 +199,23 @@ export const Billing = () => {
                   </div>
                 )}
 
-                <button 
-                  onClick={() => handlePayment(order)}
-                  className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold uppercase tracking-widest text-[10px] shadow-lg hover:bg-slate-800 transition-all active:scale-95 flex items-center justify-center gap-3"
-                >
-                  Collect Payment <CheckCheck size={16} />
-                </button>
+                <div className="mt-auto space-y-3">
+                  <button 
+                    onClick={() => {
+                      const discount = discounts[order.id] || 0;
+                      setInvoiceOrder({ ...order, discount } as any);
+                    }}
+                    className="w-full py-3 bg-white border-2 border-slate-900 text-slate-900 rounded-2xl font-bold uppercase tracking-widest text-[10px] hover:bg-slate-50 transition-all active:scale-95 flex items-center justify-center gap-3"
+                  >
+                    Print Invoice <Printer size={16} />
+                  </button>
+                  <button 
+                    onClick={() => handlePayment(order)}
+                    className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold uppercase tracking-widest text-[10px] shadow-lg hover:bg-slate-800 transition-all active:scale-95 flex items-center justify-center gap-3"
+                  >
+                    Collect Payment <CheckCheck size={16} />
+                  </button>
+                </div>
               </div>
             </div>
           );
@@ -200,7 +230,7 @@ export const Billing = () => {
           <div className="relative bg-white w-full max-w-md md:rounded-[2.5rem] rounded-t-[2rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 print:shadow-none print:max-w-none print:rounded-none border-2 border-indigo-500 print:border-none print:static print:block print:w-full print:opacity-100 print:transform-none self-end md:self-center">
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 print:hidden">
               <h3 className="font-bold text-slate-900 flex items-center gap-3 uppercase text-[10px] tracking-widest">
-                <FileText size={18} className="text-indigo-500"/> Payment Confirmation
+                <FileText size={18} className="text-indigo-500"/> {invoiceOrder.status === OrderStatus.COMPLETED ? 'Invoice' : 'Pro-forma Invoice'}
               </h3>
               <button onClick={() => setInvoiceOrder(null)} className="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-slate-400 hover:text-red-500 transition-all">
                 <X size={20}/>
@@ -260,7 +290,8 @@ export const Billing = () => {
 
               <div className="space-y-3 pt-6 border-t border-slate-100">
                 {(() => {
-                  const { subtotal, vat, total } = calculateTotal(invoiceOrder);
+                  const discount = (invoiceOrder as any).discount || 0;
+                  const { subtotal, vat, total } = calculateTotal(invoiceOrder, discount);
                   return (
                     <>
                       <div className="flex justify-between text-[11px] font-bold uppercase tracking-widest text-slate-400">
@@ -271,6 +302,12 @@ export const Billing = () => {
                         <div className="flex justify-between text-[11px] font-bold uppercase tracking-widest text-slate-400">
                           <span>VAT ({currentTenant?.vatRate}%)</span>
                           <span>{currentTenant?.currency}{vat.toFixed(2)}</span>
+                        </div>
+                      )}
+                      {discount > 0 && (
+                        <div className="flex justify-between text-[11px] font-bold uppercase tracking-widest text-rose-500">
+                          <span>Discount</span>
+                          <span>-{currentTenant?.currency}{discount.toFixed(2)}</span>
                         </div>
                       )}
                       <div className="flex justify-between items-center pt-6 mt-4 border-t border-slate-900">
