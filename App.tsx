@@ -213,6 +213,38 @@ const ProtectedLayout = ({ children, allowedRoles }: { children?: React.ReactNod
     return <Navigate to="/" replace />;
   }
 
+  // Check permissions for business users (Super Admin bypasses)
+  if (currentUser.role !== Role.SUPER_ADMIN && currentUser.role !== Role.CUSTOMER) {
+    const path = location.pathname;
+    const permissions = currentUser.permissions || [];
+    
+    const permissionMap: { [key: string]: string } = {
+      'dashboard': 'Dashboard',
+      'pos': 'POS',
+      'kitchen': 'Kitchen',
+      'menu': 'Menu',
+      'billing': 'Billing',
+      'transactions': 'Transactions',
+      'inventory': 'Inventory',
+      'reports': 'Reports',
+      'users': 'Users',
+      'settings': 'Settings',
+      'expenses': 'Expenses'
+    };
+
+    const currentPathSegment = path.split('/').pop();
+    const requiredPermission = currentPathSegment ? permissionMap[currentPathSegment] : null;
+
+    if (requiredPermission && !permissions.includes(requiredPermission)) {
+      // Redirect to the first available permission or login
+      if (permissions.length > 0) {
+        const firstPermission = permissions[0].toLowerCase();
+        return <Navigate to={`/${currentUser.tenantId}/${firstPermission}`} replace />;
+      }
+      return <Navigate to="/login" replace />;
+    }
+  }
+
   // Check if business is active (Super Admin can always access)
   if (!business.isActive && currentUser.role !== Role.SUPER_ADMIN) {
     return (
@@ -272,8 +304,13 @@ const AppContent = () => {
     if (!currentUser) return "/";
     if (currentUser.role === Role.SUPER_ADMIN) return "/portal";
     if (currentUser.role === Role.CUSTOMER) return `/${currentUser.tenantId}/order`;
-    if (currentUser.permissions?.includes('Dashboard')) return `/${currentUser.tenantId}/dashboard`;
-    return `/${currentUser.tenantId}/pos`; 
+    
+    const permissions = currentUser.permissions || [];
+    if (permissions.includes('Dashboard')) return `/${currentUser.tenantId}/dashboard`;
+    if (permissions.includes('POS')) return `/${currentUser.tenantId}/pos`;
+    if (permissions.length > 0) return `/${currentUser.tenantId}/${permissions[0].toLowerCase()}`;
+    
+    return "/login";
   };
 
   return (

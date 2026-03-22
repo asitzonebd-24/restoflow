@@ -232,6 +232,26 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     return () => unsubscribers.forEach(unsub => unsub());
   }, []);
 
+  // Sync currentUser with allUsers in real-time to reflect role/permission changes
+  useEffect(() => {
+    if (currentUser) {
+      const updatedUser = allUsers.find(u => u.id === currentUser.id);
+      if (updatedUser) {
+        const hasChanged = 
+          updatedUser.role !== currentUser.role || 
+          JSON.stringify(updatedUser.permissions) !== JSON.stringify(currentUser.permissions) ||
+          updatedUser.name !== currentUser.name ||
+          updatedUser.avatar !== currentUser.avatar ||
+          updatedUser.tenantId !== currentUser.tenantId;
+
+        if (hasChanged) {
+          setCurrentUser(updatedUser);
+          localStorage.setItem('resto_flow_user', JSON.stringify(updatedUser));
+        }
+      }
+    }
+  }, [allUsers, currentUser?.id]);
+
   const business = useMemo(() => {
     const targetId = currentUser?.tenantId || currentTenantId;
     if (!targetId) return tenants[0] || BUSINESS_DETAILS;
