@@ -87,10 +87,10 @@ export interface Order {
   createdAt: string;
   createdBy: string;
   totalAmount: number;
-  note?: string;
-  deliveryAddress?: string;
-  deliveryStaffId?: string;
-  deliveryStaffName?: string;
+  note?: string | null;
+  deliveryAddress?: string | null;
+  deliveryStaffId?: string | null;
+  deliveryStaffName?: string | null;
 }
 
 export interface Transaction {

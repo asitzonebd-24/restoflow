@@ -71,9 +71,9 @@ interface AppContextType {
     totalAmount: number, 
     note?: string, 
     status?: OrderStatus,
-    deliveryStaffId?: string,
-    deliveryStaffName?: string,
-    deliveryAddress?: string
+    deliveryStaffId?: string | null,
+    deliveryStaffName?: string | null,
+    deliveryAddress?: string | null
   ) => Promise<void>;
   updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>;
   updateOrderItemStatus: (orderId: string, rowId: string, status: ItemStatus) => Promise<void>;
@@ -134,6 +134,16 @@ const ENHANCED_MOCK_USERS: User[] = [
     permissions: []
   }
 ];
+
+const cleanObject = (obj: any) => {
+  const newObj = { ...obj };
+  Object.keys(newObj).forEach(key => {
+    if (newObj[key] === undefined) {
+      delete newObj[key];
+    }
+  });
+  return newObj;
+};
 
 export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
@@ -299,10 +309,10 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       
       // Add order
       const orderRef = doc(db, 'orders', newOrder.id);
-      batch.set(orderRef, {
+      batch.set(orderRef, cleanObject({
         ...newOrder,
         createdAt: serverTimestamp()
-      });
+      }));
 
     // Update menu item stock and validate
     for (const item of newOrder.items) {
@@ -329,9 +339,9 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     totalAmount: number, 
     note?: string, 
     status?: OrderStatus,
-    deliveryStaffId?: string,
-    deliveryStaffName?: string,
-    deliveryAddress?: string
+    deliveryStaffId?: string | null,
+    deliveryStaffName?: string | null,
+    deliveryAddress?: string | null
   ) => {
     const oldOrder = allOrders.find(o => o.id === orderId);
     if (!oldOrder) return;
@@ -355,15 +365,15 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       const batch = writeBatch(db);
       
       const orderRef = doc(db, 'orders', orderId);
-      batch.update(orderRef, {
+      batch.update(orderRef, cleanObject({
         items,
         totalAmount,
         status: newStatus,
-        note: note ?? oldOrder.note,
-        deliveryStaffId: deliveryStaffId ?? oldOrder.deliveryStaffId,
-        deliveryStaffName: deliveryStaffName ?? oldOrder.deliveryStaffName,
-        deliveryAddress: deliveryAddress ?? oldOrder.deliveryAddress
-      });
+        note: note ?? oldOrder.note ?? null,
+        deliveryStaffId: deliveryStaffId !== undefined ? deliveryStaffId : (oldOrder.deliveryStaffId ?? null),
+        deliveryStaffName: deliveryStaffName !== undefined ? deliveryStaffName : (oldOrder.deliveryStaffName ?? null),
+        deliveryAddress: deliveryAddress !== undefined ? deliveryAddress : (oldOrder.deliveryAddress ?? null)
+      }));
 
       // Update stock in Firestore and validate
       for (const itemId in stockChanges) {

@@ -36,11 +36,7 @@ export const POS = () => {
   const [newTokenNum, setNewTokenNum] = useState('');
   const [newTableNum, setNewTableNum] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeOrdersSearchTerm, setActiveOrdersSearchTerm] = useState('');
-  const [activeOrdersStatusFilter, setActiveOrdersStatusFilter] = useState<OrderStatus | 'ALL'>('ALL');
-  const [activeOrdersTypeFilter, setActiveOrdersTypeFilter] = useState<'ALL' | 'TABLE' | 'DELIVERY'>('ALL');
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [successToken, setSuccessToken] = useState<{ token: string, table?: string, isDelivery?: boolean, staffName?: string } | null>(null);
   const [isDelivery, setIsDelivery] = useState(false);
   const [selectedDeliveryStaffId, setSelectedDeliveryStaffId] = useState<string>('');
   const [deliveryAddress, setDeliveryAddress] = useState('');
@@ -57,28 +53,8 @@ export const POS = () => {
     if (currentUser?.role === Role.WAITER) {
       filtered = filtered.filter(o => o.createdBy === currentUser.id);
     }
-
-    if (activeOrdersStatusFilter !== 'ALL') {
-      filtered = filtered.filter(o => o.status === activeOrdersStatusFilter);
-    }
-
-    if (activeOrdersTypeFilter === 'TABLE') {
-      filtered = filtered.filter(o => !!o.tableNumber);
-    } else if (activeOrdersTypeFilter === 'DELIVERY') {
-      filtered = filtered.filter(o => !!o.deliveryStaffId);
-    }
-
-    if (activeOrdersSearchTerm.trim()) {
-      const term = activeOrdersSearchTerm.toLowerCase();
-      filtered = filtered.filter(o => 
-        o.tokenNumber.toLowerCase().includes(term) || 
-        o.tableNumber?.toLowerCase().includes(term) ||
-        o.deliveryStaffName?.toLowerCase().includes(term)
-      );
-    }
-
     return filtered;
-  }, [orders, currentUser, activeOrdersSearchTerm, activeOrdersStatusFilter, activeOrdersTypeFilter]);
+  }, [orders, currentUser]);
 
   const isTokenDuplicate = useMemo(() => {
     const allActive = orders.filter(o => o.status !== OrderStatus.COMPLETED && o.status !== OrderStatus.CANCELLED);
@@ -216,17 +192,11 @@ export const POS = () => {
           createdBy: currentUser!.id,
           totalAmount,
           note: orderNote,
-          deliveryStaffId: isDelivery ? selectedDeliveryStaffId : undefined,
-          deliveryStaffName: isDelivery ? selectedStaff?.name : undefined,
-          deliveryAddress: isDelivery ? deliveryAddress : undefined
+          deliveryStaffId: isDelivery ? selectedDeliveryStaffId : null,
+          deliveryStaffName: isDelivery ? (selectedStaff?.name || null) : null,
+          deliveryAddress: isDelivery ? (deliveryAddress || null) : null
         };
         await addOrder(newOrder);
-        setSuccessToken({ 
-          token: newTokenNum, 
-          table: isDelivery ? undefined : newTableNum, 
-          isDelivery, 
-          staffName: isDelivery ? selectedStaff?.name : undefined 
-        });
       } else if (selectedOrderId) {
         const totalAmount = cart.reduce((sum, i) => sum + (i.price * i.quantity), 0);
         
@@ -243,10 +213,10 @@ export const POS = () => {
           cleanedItems, 
           totalAmount, 
           orderNote, 
-          hasNewItems ? OrderStatus.PENDING : undefined,
-          isDelivery ? selectedDeliveryStaffId : undefined,
-          isDelivery ? selectedStaff?.name : undefined,
-          isDelivery ? deliveryAddress : undefined
+          hasNewItems ? OrderStatus.PENDING : null,
+          isDelivery ? selectedDeliveryStaffId : null,
+          isDelivery ? (selectedStaff?.name || null) : null,
+          isDelivery ? (deliveryAddress || null) : null
         );
       }
 
@@ -440,62 +410,17 @@ export const POS = () => {
     return (
       <div className="p-4 md:p-10 h-full bg-slate-50/50 overflow-y-auto no-scrollbar">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 md:mb-10 gap-6">
-          <div className="flex-1 w-full">
+          <div>
             <h1 className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-4">
               <LayoutGrid className="text-indigo-500" size={28} /> Active Terminals
             </h1>
             <p className="text-slate-400 text-[10px] font-medium uppercase tracking-widest mt-2 opacity-80">
               {currentUser?.role === Role.WAITER ? 'Your active service tokens' : 'Global floor tracking & management'}
             </p>
-            
-            <div className="mt-6 flex flex-col md:flex-row gap-4 items-center">
-              <div className="relative w-full md:w-64">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
-                <input 
-                  type="text"
-                  placeholder="Search token/table..."
-                  value={activeOrdersSearchTerm}
-                  onChange={(e) => setActiveOrdersSearchTerm(e.target.value)}
-                  className="w-full pl-11 pr-4 py-2.5 bg-white border-2 border-slate-100 rounded-2xl text-xs font-bold focus:outline-none focus:border-indigo-500 transition-all shadow-sm"
-                />
-              </div>
-              
-              <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2 md:pb-0 w-full md:w-auto">
-                {['ALL', OrderStatus.PENDING, OrderStatus.PREPARING, OrderStatus.READY].map((status) => (
-                  <button
-                    key={status}
-                    onClick={() => setActiveOrdersStatusFilter(status as any)}
-                    className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border-2 transition-all whitespace-nowrap ${
-                      activeOrdersStatusFilter === status 
-                      ? 'bg-slate-900 text-white border-slate-900 shadow-lg' 
-                      : 'bg-white text-slate-400 border-slate-100 hover:border-indigo-500'
-                    }`}
-                  >
-                    {status}
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex gap-2 border-l-2 border-slate-100 pl-4 w-full md:w-auto">
-                {['ALL', 'TABLE', 'DELIVERY'].map((type) => (
-                  <button
-                    key={type}
-                    onClick={() => setActiveOrdersTypeFilter(type as any)}
-                    className={`px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border-2 transition-all whitespace-nowrap ${
-                      activeOrdersTypeFilter === type 
-                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg' 
-                      : 'bg-white text-slate-400 border-slate-100 hover:border-indigo-500'
-                    }`}
-                  >
-                    {type}
-                  </button>
-                ))}
-              </div>
-            </div>
           </div>
           <button 
             onClick={startNewOrder}
-            className="w-full md:w-auto bg-slate-900 text-white px-8 py-4 rounded-2xl font-bold uppercase tracking-widest text-[10px] shadow-xl shadow-indigo-200 hover:bg-slate-800 transition-all transform hover:-translate-y-1 active:scale-95 flex items-center justify-center gap-3 border-2 border-indigo-500 shrink-0"
+            className="w-full md:w-auto bg-slate-900 text-white px-6 py-3.5 rounded-2xl font-bold uppercase tracking-widest text-[10px] shadow-xl shadow-indigo-200 hover:bg-slate-800 transition-all transform hover:-translate-y-1 active:scale-95 flex items-center justify-center gap-3 border-2 border-indigo-500"
           >
             <Plus size={18} /> New Order
           </button>
@@ -768,50 +693,6 @@ export const POS = () => {
               className="absolute right-0 top-0 bottom-0 w-[85%] max-w-md"
             >
               <POSCartContent onClose={() => setIsCartOpen(false)} />
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Success Token Modal */}
-      <AnimatePresence>
-        {successToken && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[200] bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4"
-          >
-            <motion.div 
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.9, y: 20 }}
-              className="bg-white rounded-[3rem] p-8 md:p-12 max-w-sm w-full shadow-2xl border-4 border-black text-center relative overflow-hidden"
-            >
-              <div className="absolute top-0 left-0 right-0 h-4 bg-indigo-500"></div>
-              <div className="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-6 border-4 border-indigo-500 shadow-xl">
-                <CheckCircle2 size={40} className="text-indigo-600" />
-              </div>
-              <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight mb-2">Order Sent to Kitchen</h2>
-              <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mb-8">Please provide this token to the customer</p>
-              
-              <div className="flex justify-center mb-8 relative">
-                <div className="min-w-[5rem] px-6 h-20 rounded-[2.5rem] border-4 border-black flex items-center justify-center font-black text-4xl text-white shadow-2xl bg-indigo-500">
-                  {successToken.token}
-                </div>
-                {(successToken.table || successToken.staffName) && (
-                  <div className="absolute -top-3 -right-3 bg-black text-white text-xs font-black px-3 py-1 rounded-full border-2 border-white shadow-lg">
-                    {successToken.isDelivery ? `D-${successToken.staffName?.split(' ')[0]}` : `T-${successToken.table}`}
-                  </div>
-                )}
-              </div>
-
-              <button 
-                onClick={() => setSuccessToken(null)}
-                className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-slate-800 transition-all active:scale-95 border-2 border-black shadow-xl"
-              >
-                Continue
-              </button>
             </motion.div>
           </motion.div>
         )}
