@@ -40,6 +40,7 @@ export const POS = () => {
   const [activeOrdersStatusFilter, setActiveOrdersStatusFilter] = useState<OrderStatus | 'ALL'>('ALL');
   const [activeOrdersTypeFilter, setActiveOrdersTypeFilter] = useState<'ALL' | 'TABLE' | 'DELIVERY'>('ALL');
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [successToken, setSuccessToken] = useState<{ token: string, table?: string, isDelivery?: boolean, staffName?: string } | null>(null);
   const [isDelivery, setIsDelivery] = useState(false);
   const [selectedDeliveryStaffId, setSelectedDeliveryStaffId] = useState<string>('');
   const [deliveryAddress, setDeliveryAddress] = useState('');
@@ -220,6 +221,12 @@ export const POS = () => {
           deliveryAddress: isDelivery ? deliveryAddress : undefined
         };
         await addOrder(newOrder);
+        setSuccessToken({ 
+          token: newTokenNum, 
+          table: isDelivery ? undefined : newTableNum, 
+          isDelivery, 
+          staffName: isDelivery ? selectedStaff?.name : undefined 
+        });
       } else if (selectedOrderId) {
         const totalAmount = cart.reduce((sum, i) => sum + (i.price * i.quantity), 0);
         
@@ -761,6 +768,50 @@ export const POS = () => {
               className="absolute right-0 top-0 bottom-0 w-[85%] max-w-md"
             >
               <POSCartContent onClose={() => setIsCartOpen(false)} />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Success Token Modal */}
+      <AnimatePresence>
+        {successToken && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 20 }}
+              className="bg-white rounded-[3rem] p-8 md:p-12 max-w-sm w-full shadow-2xl border-4 border-black text-center relative overflow-hidden"
+            >
+              <div className="absolute top-0 left-0 right-0 h-4 bg-indigo-500"></div>
+              <div className="w-20 h-20 bg-indigo-100 rounded-full flex items-center justify-center mx-auto mb-6 border-4 border-indigo-500 shadow-xl">
+                <CheckCircle2 size={40} className="text-indigo-600" />
+              </div>
+              <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight mb-2">Order Sent to Kitchen</h2>
+              <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mb-8">Please provide this token to the customer</p>
+              
+              <div className="flex justify-center mb-8 relative">
+                <div className="min-w-[5rem] px-6 h-20 rounded-[2.5rem] border-4 border-black flex items-center justify-center font-black text-4xl text-white shadow-2xl bg-indigo-500">
+                  {successToken.token}
+                </div>
+                {(successToken.table || successToken.staffName) && (
+                  <div className="absolute -top-3 -right-3 bg-black text-white text-xs font-black px-3 py-1 rounded-full border-2 border-white shadow-lg">
+                    {successToken.isDelivery ? `D-${successToken.staffName?.split(' ')[0]}` : `T-${successToken.table}`}
+                  </div>
+                )}
+              </div>
+
+              <button 
+                onClick={() => setSuccessToken(null)}
+                className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-slate-800 transition-all active:scale-95 border-2 border-black shadow-xl"
+              >
+                Continue
+              </button>
             </motion.div>
           </motion.div>
         )}
