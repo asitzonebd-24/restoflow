@@ -150,6 +150,15 @@ export const CustomerPanel = () => {
                                         <span className="text-white text-xl md:text-2xl font-black leading-none">{order.tokenNumber}</span>
                                     </div>
                                 </div>
+
+                                {order.deliveryStaffName && (
+                                    <div className="flex flex-col items-center mb-4">
+                                        <div className="flex items-center gap-1.5 bg-indigo-50 px-3 py-1 rounded-full border border-indigo-100">
+                                            <ShoppingBag size={10} className="text-indigo-500" />
+                                            <span className="text-[8px] font-black uppercase tracking-widest text-indigo-600">{order.deliveryStaffName}</span>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                             
                             <div className="w-full">
@@ -317,9 +326,27 @@ export const CustomerPanel = () => {
                     <span className="font-black uppercase text-[10px] text-slate-400 tracking-widest">Total Amount</span>
                     <span className="text-3xl font-black text-slate-900 tracking-tighter">{business.currency}{selectedOrder.totalAmount.toFixed(0)}</span>
                   </div>
-                  <div className="flex items-center gap-2 p-3 bg-white rounded-2xl border-2 border-slate-100">
-                    <MapPin size={14} className="text-indigo-500" />
-                    <p className="text-[10px] font-black uppercase text-slate-600 truncate">{selectedOrder.deliveryAddress || 'No address provided'}</p>
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center gap-2 p-3 bg-white rounded-2xl border-2 border-slate-100">
+                      <MapPin size={14} className="text-indigo-500 shrink-0" />
+                      <p className="text-[10px] font-black uppercase text-slate-600 truncate">{selectedOrder.deliveryAddress || 'No address provided'}</p>
+                    </div>
+                    {selectedOrder.deliveryStaffName && (
+                      <div className="flex items-center justify-between p-3 bg-indigo-50 rounded-2xl border-2 border-indigo-100">
+                        <div className="flex items-center gap-2">
+                          <ShoppingBag size={14} className="text-indigo-500 shrink-0" />
+                          <div>
+                            <p className="text-[8px] font-black uppercase text-indigo-400 leading-none mb-1">Delivery Staff</p>
+                            <p className="text-[10px] font-black uppercase text-slate-900 leading-none">{selectedOrder.deliveryStaffName}</p>
+                          </div>
+                        </div>
+                        {selectedOrder.deliveryStaffMobile && (
+                          <div className="text-right">
+                            <p className="text-[10px] font-black text-indigo-600">{selectedOrder.deliveryStaffMobile}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               </motion.div>
