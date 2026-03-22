@@ -228,7 +228,6 @@ const ProtectedLayout = ({ children, allowedRoles }: { children?: React.ReactNod
       'inventory': 'Inventory',
       'reports': 'Reports',
       'users': 'Users',
-      'settings': 'Settings',
       'expenses': 'Expenses'
     };
 

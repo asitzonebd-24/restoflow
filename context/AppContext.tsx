@@ -703,7 +703,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const updateUser = async (userId: string, updates: Partial<User>) => {
     try {
       const userRef = doc(db, 'users', userId);
-      await updateDoc(userRef, cleanObject(updates));
+      await setDoc(userRef, cleanObject(updates), { merge: true });
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `users/${userId}`);
     }

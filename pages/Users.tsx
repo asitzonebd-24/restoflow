@@ -58,7 +58,7 @@ export const Users = () => {
         switch(role) {
             case Role.SUPER_ADMIN: perms = AVAILABLE_MODULES; break;
             case Role.OWNER: perms = AVAILABLE_MODULES; break;
-            case Role.MANAGER: perms = ['Dashboard', 'POS', 'Kitchen', 'Menu', 'Billing', 'Transactions', 'Expenses', 'Reports', 'Inventory', 'Users']; break;
+            case Role.MANAGER: perms = ['Dashboard', 'POS', 'Kitchen', 'Menu', 'Billing', 'Transactions', 'Expenses', 'Reports', 'Inventory', 'Users', 'Settings']; break;
             case Role.WAITER: perms = ['POS']; break;
             case Role.KITCHEN: perms = ['Kitchen']; break;
             case Role.CASHIER: perms = ['Billing', 'Transactions', 'Reports']; break;

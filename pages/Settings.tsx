@@ -1,12 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { Settings as SettingsIcon, Save, Store, Globe, Percent, Upload, Image as ImageIcon } from 'lucide-react';
+import { Settings as SettingsIcon, Save, Store, Globe, Percent, Upload, Image as ImageIcon, User as UserIcon, Lock, Mail, Phone } from 'lucide-react';
+import { Role } from '../types';
 
 export const Settings = () => {
-    const { business, updateBusiness } = useApp();
+    const { business, updateBusiness, currentUser, updateUser } = useApp();
     
-    // Local state for form
+    // Business Settings state
     const [name, setName] = useState('');
     const [address, setAddress] = useState('');
     const [phone, setPhone] = useState('');
@@ -19,7 +20,16 @@ export const Settings = () => {
     const [customerTokenPrefix, setCustomerTokenPrefix] = useState('ORD');
     const [nextCustomerToken, setNextCustomerToken] = useState(1);
 
-    // Load tenant data into form on mount
+    // User Profile state
+    const [userName, setUserName] = useState('');
+    const [userEmail, setUserEmail] = useState('');
+    const [userMobile, setUserMobile] = useState('');
+    const [userPassword, setUserPassword] = useState('');
+    const [userAvatar, setUserAvatar] = useState('');
+
+    const hasSettingsPermission = currentUser?.permissions?.includes('Settings') || currentUser?.role === Role.SUPER_ADMIN;
+
+    // Load data into form on mount
     useEffect(() => {
         if (business) {
             setName(business.name);
@@ -34,7 +44,14 @@ export const Settings = () => {
             setCustomerTokenPrefix(business.customerTokenPrefix || 'ORD');
             setNextCustomerToken(business.nextCustomerToken || 1);
         }
-    }, [business]);
+        if (currentUser) {
+            setUserName(currentUser.name);
+            setUserEmail(currentUser.email);
+            setUserMobile(currentUser.mobile);
+            setUserPassword(currentUser.password || '');
+            setUserAvatar(currentUser.avatar || '');
+        }
+    }, [business, currentUser]);
 
     const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -47,7 +64,18 @@ export const Settings = () => {
         }
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setUserAvatar(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleBusinessSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (business) {
             updateBusiness({
@@ -63,247 +91,354 @@ export const Settings = () => {
                 customerTokenPrefix,
                 nextCustomerToken
             });
-            alert('Settings saved successfully!');
+            alert('Business settings saved successfully!');
         }
     };
 
-    if (!business) return null;
+    const handleProfileSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (currentUser) {
+            updateUser(currentUser.id, {
+                name: userName,
+                email: userEmail,
+                mobile: userMobile,
+                password: userPassword,
+                avatar: userAvatar
+            });
+            alert('Profile updated successfully!');
+        }
+    };
+
+    if (!business || !currentUser) return null;
 
     return (
         <div className="p-6 md:p-8 max-w-5xl mx-auto space-y-8 bg-[#f8fafc] min-h-full font-sans">
              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Settings</h1>
-                    <p className="text-slate-500 text-sm font-medium mt-1">System preferences and business profile</p>
-                </div>
-                <div className="flex items-center gap-3">
-                    <button 
-                        onClick={handleSubmit}
-                        className="flex items-center gap-2 bg-slate-900 text-white px-6 py-2.5 rounded-xl font-bold text-xs shadow-xl shadow-indigo-100 hover:bg-slate-800 transition-all uppercase tracking-widest border-2 border-indigo-500"
-                    >
-                        <Save size={16} />
-                        <span>Save Changes</span>
-                    </button>
+                    <p className="text-slate-500 text-sm font-medium mt-1">Manage your profile and business preferences</p>
                 </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-8 pb-12">
-                {/* Profile Section */}
-                <div className="bg-white p-8 rounded-[2rem] border-2 border-indigo-500 shadow-xl shadow-indigo-100 hover:scale-[1.01] transition-all duration-300">
-                    <div className="flex items-center gap-3 mb-8">
-                        <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center border border-indigo-100">
-                            <Store size={20} />
+            <div className="space-y-8 pb-12">
+                {/* User Profile Section - Visible to EVERYONE */}
+                <div className="bg-white p-8 rounded-[2rem] border-2 border-slate-900 shadow-xl shadow-slate-100 hover:scale-[1.01] transition-all duration-300">
+                    <div className="flex items-center justify-between mb-8">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-slate-50 text-slate-900 rounded-xl flex items-center justify-center border border-slate-100">
+                                <UserIcon size={20} />
+                            </div>
+                            <h2 className="text-lg font-bold text-slate-900 tracking-tight">My Profile</h2>
                         </div>
-                        <h2 className="text-lg font-bold text-slate-900 tracking-tight">Restaurant Profile</h2>
+                        <button 
+                            onClick={handleProfileSubmit}
+                            className="bg-slate-900 text-white px-6 py-2 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center gap-2"
+                        >
+                            <Save size={16} />
+                            Update Profile
+                        </button>
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="md:col-span-2 flex flex-col md:flex-row items-center gap-8 mb-4">
                             <div className="relative group">
-                                <div className="w-32 h-32 rounded-[2rem] overflow-hidden border-4 border-slate-100 shadow-inner bg-slate-50 flex items-center justify-center group-hover:border-indigo-500/20 transition-all">
-                                    {logo ? (
+                                <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-slate-100 shadow-inner bg-slate-50 flex items-center justify-center group-hover:border-slate-900/20 transition-all">
+                                    {userAvatar ? (
                                         <img 
-                                            src={logo} 
-                                            alt="Business Logo" 
+                                            src={userAvatar} 
+                                            alt="User Avatar" 
                                             className="w-full h-full object-cover" 
                                         />
                                     ) : (
-                                        <Store size={40} className="text-slate-200" />
+                                        <UserIcon size={32} className="text-slate-200" />
                                     )}
                                 </div>
-                                <label className="absolute -bottom-2 -right-2 bg-slate-900 text-white p-2.5 rounded-xl shadow-lg cursor-pointer hover:bg-indigo-600 transition-all active:scale-90">
-                                    <Upload size={16} />
-                                    <input type="file" className="hidden" accept="image/*" onChange={handleLogoUpload} />
+                                <label className="absolute -bottom-1 -right-1 bg-slate-900 text-white p-2 rounded-full shadow-lg cursor-pointer hover:bg-indigo-600 transition-all active:scale-90">
+                                    <Upload size={14} />
+                                    <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} />
                                 </label>
                             </div>
-                            <div className="flex-1 space-y-2">
-                                <h3 className="text-sm font-bold text-slate-900 uppercase tracking-tight">Business Logo</h3>
-                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-relaxed">
-                                    Upload your restaurant's logo. This will appear on the login screen, sidebar, and customer app.
-                                    Recommended size: 200x200px.
+                            <div className="flex-1">
+                                <h3 className="text-sm font-bold text-slate-900 uppercase tracking-tight">Profile Picture</h3>
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-relaxed mt-1">
+                                    Your avatar is visible in the sidebar and team list.
                                 </p>
                             </div>
                         </div>
 
-                        <div className="md:col-span-2">
-                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Business Name</label>
-                            <input 
-                                type="text" 
-                                value={name || ''}
-                                onChange={e => setName(e.target.value)}
-                                className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-indigo-500 outline-none font-bold text-sm transition-all shadow-sm"
-                            />
-                        </div>
                         <div>
-                             <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Official Phone</label>
-                             <input 
-                                type="text" 
-                                value={phone || ''}
-                                onChange={e => setPhone(e.target.value)}
-                                className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-indigo-500 outline-none font-bold text-sm transition-all shadow-sm"
-                            />
-                        </div>
-                        <div>
-                             <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Brand Theme Color</label>
-                             <div className="flex gap-3">
-                                <input 
-                                    type="color" 
-                                    value={themeColor || ''}
-                                    onChange={e => setThemeColor(e.target.value)}
-                                    className="h-14 w-14 border-2 border-slate-100 rounded-2xl cursor-pointer p-1.5 bg-white shadow-sm"
-                                />
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Full Name</label>
+                            <div className="relative">
                                 <input 
                                     type="text" 
-                                    value={themeColor || ''}
-                                    onChange={e => setThemeColor(e.target.value)}
-                                    className="flex-1 p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-indigo-500 outline-none font-bold text-sm uppercase transition-all shadow-sm"
+                                    value={userName}
+                                    onChange={e => setUserName(e.target.value)}
+                                    className="w-full p-4 pl-12 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-slate-900 outline-none font-bold text-sm transition-all shadow-sm"
                                 />
-                             </div>
+                                <UserIcon size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                            </div>
                         </div>
-                        <div className="md:col-span-2">
-                             <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Physical Address</label>
-                             <textarea 
-                                value={address || ''}
-                                onChange={e => setAddress(e.target.value)}
-                                rows={2}
-                                className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-indigo-500 outline-none font-bold text-sm transition-all resize-none shadow-sm"
-                            />
+
+                        <div>
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Email Address</label>
+                            <div className="relative">
+                                <input 
+                                    type="email" 
+                                    value={userEmail}
+                                    onChange={e => setUserEmail(e.target.value)}
+                                    className="w-full p-4 pl-12 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-slate-900 outline-none font-bold text-sm transition-all shadow-sm"
+                                />
+                                <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Mobile Number</label>
+                            <div className="relative">
+                                <input 
+                                    type="text" 
+                                    value={userMobile}
+                                    onChange={e => setUserMobile(e.target.value)}
+                                    className="w-full p-4 pl-12 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-slate-900 outline-none font-bold text-sm transition-all shadow-sm"
+                                />
+                                <Phone size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Password</label>
+                            <div className="relative">
+                                <input 
+                                    type="password" 
+                                    value={userPassword}
+                                    onChange={e => setUserPassword(e.target.value)}
+                                    className="w-full p-4 pl-12 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-slate-900 outline-none font-bold text-sm transition-all shadow-sm"
+                                />
+                                <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Regional & Tax Section */}
-                <div className="bg-white p-8 rounded-[2rem] border-2 border-emerald-500 shadow-xl shadow-emerald-100 hover:scale-[1.01] transition-all duration-300">
-                    <div className="flex items-center gap-3 mb-8">
-                        <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center border border-emerald-100">
-                            <Percent size={20} />
-                        </div>
-                        <h2 className="text-lg font-bold text-slate-900 tracking-tight">Tax & Regional Settings</h2>
-                    </div>
-
-                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div>
-                             <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Currency Symbol</label>
-                             <div className="relative group">
-                                <select
-                                    value={currency || ''}
-                                    onChange={e => setCurrency(e.target.value)}
-                                    className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-indigo-500 outline-none font-bold text-sm transition-all appearance-none shadow-sm"
-                                >
-                                    <option value="$">USD ($)</option>
-                                    <option value="£">GBP (£)</option>
-                                    <option value="€">EUR (€)</option>
-                                    <option value="₹">INR (₹)</option>
-                                    <option value="৳">BDT (৳)</option>
-                                    <option value="د.إ">AED (د.إ)</option>
-                                    <option value="﷼">SAR (﷼)</option>
-                                </select>
-                                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 group-focus-within:text-indigo-500 transition-colors">
-                                    <Globe size={16} />
-                                </div>
-                             </div>
-                        </div>
-                        <div className="space-y-4">
-                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Billing Tax (VAT)</label>
-                            <div className="flex items-center justify-between p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl shadow-sm">
+                {hasSettingsPermission && (
+                    <>
+                        {/* Business Profile Section */}
+                        <div className="bg-white p-8 rounded-[2rem] border-2 border-indigo-500 shadow-xl shadow-indigo-100 hover:scale-[1.01] transition-all duration-300">
+                            <div className="flex items-center justify-between mb-8">
                                 <div className="flex items-center gap-3">
-                                    <div className={`w-2 h-2 rounded-full ${includeVat ? 'bg-emerald-500' : 'bg-slate-300'}`}></div>
-                                    <span className="text-xs font-bold text-slate-700 uppercase tracking-widest">
-                                        {includeVat ? 'VAT Enabled' : 'VAT Disabled'}
-                                    </span>
+                                    <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center border border-indigo-100">
+                                        <Store size={20} />
+                                    </div>
+                                    <h2 className="text-lg font-bold text-slate-900 tracking-tight">Restaurant Profile</h2>
                                 </div>
-                                <label className="relative inline-flex items-center cursor-pointer">
-                                    <input 
-                                        type="checkbox" 
-                                        className="sr-only peer"
-                                        checked={includeVat}
-                                        onChange={e => setIncludeVat(e.target.checked)}
-                                    />
-                                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-slate-900"></div>
-                                </label>
+                                <button 
+                                    onClick={handleBusinessSubmit}
+                                    className="bg-indigo-600 text-white px-6 py-2 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-indigo-700 transition-all flex items-center gap-2"
+                                >
+                                    <Save size={16} />
+                                    Save Business
+                                </button>
                             </div>
                             
-                            {includeVat && (
-                                <div className="animate-in slide-in-from-top-2 duration-300">
-                                    <label className="block text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1 ml-1">VAT Rate (%)</label>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="md:col-span-2 flex flex-col md:flex-row items-center gap-8 mb-4">
+                                    <div className="relative group">
+                                        <div className="w-32 h-32 rounded-[2rem] overflow-hidden border-4 border-slate-100 shadow-inner bg-slate-50 flex items-center justify-center group-hover:border-indigo-500/20 transition-all">
+                                            {logo ? (
+                                                <img 
+                                                    src={logo} 
+                                                    alt="Business Logo" 
+                                                    className="w-full h-full object-cover" 
+                                                />
+                                            ) : (
+                                                <Store size={40} className="text-slate-200" />
+                                            )}
+                                        </div>
+                                        <label className="absolute -bottom-2 -right-2 bg-slate-900 text-white p-2.5 rounded-xl shadow-lg cursor-pointer hover:bg-indigo-600 transition-all active:scale-90">
+                                            <Upload size={16} />
+                                            <input type="file" className="hidden" accept="image/*" onChange={handleLogoUpload} />
+                                        </label>
+                                    </div>
+                                    <div className="flex-1 space-y-2">
+                                        <h3 className="text-sm font-bold text-slate-900 uppercase tracking-tight">Business Logo</h3>
+                                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-relaxed">
+                                            Upload your restaurant's logo. This will appear on the login screen, sidebar, and customer app.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="md:col-span-2">
+                                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Business Name</label>
                                     <input 
-                                        type="number" 
-                                        value={vatRate}
-                                        min="0"
-                                        step="0.1"
-                                        onChange={e => setVatRate(Number(e.target.value))}
-                                        className="w-full p-4 bg-white border-2 border-slate-100 rounded-2xl focus:border-indigo-500 outline-none font-bold text-sm transition-all shadow-sm"
+                                        type="text" 
+                                        value={name || ''}
+                                        onChange={e => setName(e.target.value)}
+                                        className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-indigo-500 outline-none font-bold text-sm transition-all shadow-sm"
                                     />
                                 </div>
-                            )}
+                                <div>
+                                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Official Phone</label>
+                                    <input 
+                                        type="text" 
+                                        value={phone || ''}
+                                        onChange={e => setPhone(e.target.value)}
+                                        className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-indigo-500 outline-none font-bold text-sm transition-all shadow-sm"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Brand Theme Color</label>
+                                    <div className="flex gap-3">
+                                        <input 
+                                            type="color" 
+                                            value={themeColor || ''}
+                                            onChange={e => setThemeColor(e.target.value)}
+                                            className="h-14 w-14 border-2 border-slate-100 rounded-2xl cursor-pointer p-1.5 bg-white shadow-sm"
+                                        />
+                                        <input 
+                                            type="text" 
+                                            value={themeColor || ''}
+                                            onChange={e => setThemeColor(e.target.value)}
+                                            className="flex-1 p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-indigo-500 outline-none font-bold text-sm uppercase transition-all shadow-sm"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="md:col-span-2">
+                                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Physical Address</label>
+                                    <textarea 
+                                        value={address || ''}
+                                        onChange={e => setAddress(e.target.value)}
+                                        rows={2}
+                                        className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-indigo-500 outline-none font-bold text-sm transition-all resize-none shadow-sm"
+                                    />
+                                </div>
+                            </div>
                         </div>
-                     </div>
-                </div>
 
-                {/* Customer App Section */}
-                <div className="bg-white p-8 rounded-[2rem] border-2 border-blue-500 shadow-xl shadow-blue-100 hover:scale-[1.01] transition-all duration-300">
-                    <div className="flex items-center gap-3 mb-8">
-                        <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center border border-blue-100">
-                            <Globe size={20} />
-                        </div>
-                        <h2 className="text-lg font-bold text-slate-900 tracking-tight">Customer App & Token Settings</h2>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                        <div>
-                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Order Token Prefix</label>
-                            <input 
-                                type="text" 
-                                value={customerTokenPrefix}
-                                onChange={e => setCustomerTokenPrefix(e.target.value.toUpperCase())}
-                                placeholder="e.g. WEB"
-                                className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-indigo-500 outline-none font-bold text-sm uppercase transition-all shadow-sm"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Next Token Number</label>
-                            <input 
-                                type="number" 
-                                value={nextCustomerToken}
-                                onChange={e => setNextCustomerToken(Number(e.target.value))}
-                                className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-indigo-500 outline-none font-bold text-sm transition-all shadow-sm"
-                            />
-                        </div>
-                    </div>
+                        {/* Regional & Tax Section */}
+                        <div className="bg-white p-8 rounded-[2rem] border-2 border-emerald-500 shadow-xl shadow-emerald-100 hover:scale-[1.01] transition-all duration-300">
+                            <div className="flex items-center gap-3 mb-8">
+                                <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center border border-emerald-100">
+                                    <Percent size={20} />
+                                </div>
+                                <h2 className="text-lg font-bold text-slate-900 tracking-tight">Tax & Regional Settings</h2>
+                            </div>
 
-                    <div className="p-6 bg-slate-50 border-2 border-slate-100 rounded-3xl flex items-center justify-between shadow-sm">
-                        <div>
-                            <h3 className="text-sm font-bold text-slate-900 uppercase tracking-tight">Enable Customer Ordering Portal</h3>
-                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">
-                                Allow customers to access the ordering app from the login screen.
-                            </p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <div>
+                                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Currency Symbol</label>
+                                    <div className="relative group">
+                                        <select
+                                            value={currency || ''}
+                                            onChange={e => setCurrency(e.target.value)}
+                                            className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-indigo-500 outline-none font-bold text-sm transition-all appearance-none shadow-sm"
+                                        >
+                                            <option value="$">USD ($)</option>
+                                            <option value="£">GBP (£)</option>
+                                            <option value="€">EUR (€)</option>
+                                            <option value="₹">INR (₹)</option>
+                                            <option value="৳">BDT (৳)</option>
+                                            <option value="د.إ">AED (د.إ)</option>
+                                            <option value="﷼">SAR (﷼)</option>
+                                        </select>
+                                        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 group-focus-within:text-indigo-500 transition-colors">
+                                            <Globe size={16} />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="space-y-4">
+                                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Billing Tax (VAT)</label>
+                                    <div className="flex items-center justify-between p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl shadow-sm">
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-2 h-2 rounded-full ${includeVat ? 'bg-emerald-500' : 'bg-slate-300'}`}></div>
+                                            <span className="text-xs font-bold text-slate-700 uppercase tracking-widest">
+                                                {includeVat ? 'VAT Enabled' : 'VAT Disabled'}
+                                            </span>
+                                        </div>
+                                        <label className="relative inline-flex items-center cursor-pointer">
+                                            <input 
+                                                type="checkbox" 
+                                                className="sr-only peer"
+                                                checked={includeVat}
+                                                onChange={e => setIncludeVat(e.target.checked)}
+                                            />
+                                            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-slate-900"></div>
+                                        </label>
+                                    </div>
+                                    
+                                    {includeVat && (
+                                        <div className="animate-in slide-in-from-top-2 duration-300">
+                                            <label className="block text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1 ml-1">VAT Rate (%)</label>
+                                            <input 
+                                                type="number" 
+                                                value={vatRate}
+                                                min="0"
+                                                step="0.1"
+                                                onChange={e => setVatRate(Number(e.target.value))}
+                                                className="w-full p-4 bg-white border-2 border-slate-100 rounded-2xl focus:border-indigo-500 outline-none font-bold text-sm transition-all shadow-sm"
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
                         </div>
-                        <div className="flex items-center gap-4">
-                            <span className="text-[10px] font-bold uppercase text-slate-900 tracking-widest">
-                                {customerAppEnabled ? 'Enabled' : 'Disabled'}
-                            </span>
-                            <label className="relative inline-flex items-center cursor-pointer">
-                                <input 
-                                    type="checkbox" 
-                                    className="sr-only peer"
-                                    checked={customerAppEnabled}
-                                    onChange={e => setCustomerAppEnabled(e.target.checked)}
-                                />
-                                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                            </label>
-                        </div>
-                    </div>
-                </div>
 
-                <div className="flex justify-end pt-4">
-                    <button 
-                        type="submit"
-                        className="flex items-center gap-3 bg-slate-900 text-white px-8 py-4 rounded-2xl font-bold uppercase tracking-widest text-xs shadow-xl shadow-indigo-100 hover:bg-slate-800 transition transform active:scale-95 border-2 border-indigo-500"
-                    >
-                        <Save size={20} /> Save Business Profile
-                    </button>
-                </div>
-            </form>
+                        {/* Customer App Section */}
+                        <div className="bg-white p-8 rounded-[2rem] border-2 border-blue-500 shadow-xl shadow-blue-100 hover:scale-[1.01] transition-all duration-300">
+                            <div className="flex items-center gap-3 mb-8">
+                                <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center border border-blue-100">
+                                    <Globe size={20} />
+                                </div>
+                                <h2 className="text-lg font-bold text-slate-900 tracking-tight">Customer App & Token Settings</h2>
+                            </div>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                                <div>
+                                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Order Token Prefix</label>
+                                    <input 
+                                        type="text" 
+                                        value={customerTokenPrefix}
+                                        onChange={e => setCustomerTokenPrefix(e.target.value.toUpperCase())}
+                                        placeholder="e.g. WEB"
+                                        className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-indigo-500 outline-none font-bold text-sm uppercase transition-all shadow-sm"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Next Token Number</label>
+                                    <input 
+                                        type="number" 
+                                        value={nextCustomerToken}
+                                        onChange={e => setNextCustomerToken(Number(e.target.value))}
+                                        className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-indigo-500 outline-none font-bold text-sm transition-all shadow-sm"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="p-6 bg-slate-50 border-2 border-slate-100 rounded-3xl flex items-center justify-between shadow-sm">
+                                <div>
+                                    <h3 className="text-sm font-bold text-slate-900 uppercase tracking-tight">Enable Customer Ordering Portal</h3>
+                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">
+                                        Allow customers to access the ordering app from the login screen.
+                                    </p>
+                                </div>
+                                <div className="flex items-center gap-4">
+                                    <span className="text-[10px] font-bold uppercase text-slate-900 tracking-widest">
+                                        {customerAppEnabled ? 'Enabled' : 'Disabled'}
+                                    </span>
+                                    <label className="relative inline-flex items-center cursor-pointer">
+                                        <input 
+                                            type="checkbox" 
+                                            className="sr-only peer"
+                                            checked={customerAppEnabled}
+                                            onChange={e => setCustomerAppEnabled(e.target.checked)}
+                                        />
+                                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </>
+                )}
+            </div>
         </div>
     );
 };
