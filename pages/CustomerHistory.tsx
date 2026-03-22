@@ -136,9 +136,14 @@ export const CustomerHistory = () => {
                                     {order.items.map(i => `${i.quantity}x ${i.name}`).join(', ')}
                                   </div>
                                   {order.deliveryStaffName && (
-                                    <div className="flex items-center gap-1 mt-1">
-                                      <ShoppingBag size={8} className="text-indigo-500" />
-                                      <span className="text-[8px] font-black uppercase tracking-widest text-indigo-500">{order.deliveryStaffName}</span>
+                                    <div className="flex flex-col mt-1">
+                                      <div className="flex items-center gap-1">
+                                        <ShoppingBag size={8} className="text-indigo-500" />
+                                        <span className="text-[8px] font-black uppercase tracking-widest text-indigo-500">{order.deliveryStaffName}</span>
+                                      </div>
+                                      {order.deliveryStaffMobile && (
+                                        <span className="text-[7px] font-bold text-slate-400 ml-3">{order.deliveryStaffMobile}</span>
+                                      )}
                                     </div>
                                   )}
                                 </div>
@@ -229,7 +234,7 @@ export const CustomerHistory = () => {
                         <div className="flex items-center gap-2">
                           <ShoppingBag size={14} className="text-indigo-500 shrink-0" />
                           <div>
-                            <p className="text-[8px] font-black uppercase text-indigo-400 leading-none mb-1">Delivery Staff</p>
+                            <p className="text-[8px] font-black uppercase text-indigo-400 leading-none mb-1">Assigned Delivery</p>
                             <p className="text-[10px] font-black uppercase text-slate-900 leading-none">{selectedOrder.deliveryStaffName}</p>
                           </div>
                         </div>

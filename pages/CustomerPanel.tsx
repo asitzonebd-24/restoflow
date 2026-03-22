@@ -152,10 +152,14 @@ export const CustomerPanel = () => {
                                 </div>
 
                                 {order.deliveryStaffName && (
-                                    <div className="flex flex-col items-center mb-4">
-                                        <div className="flex items-center gap-1.5 bg-indigo-50 px-3 py-1 rounded-full border border-indigo-100">
-                                            <ShoppingBag size={10} className="text-indigo-500" />
-                                            <span className="text-[8px] font-black uppercase tracking-widest text-indigo-600">{order.deliveryStaffName}</span>
+                                    <div className="mb-4 p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100/50">
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <ShoppingBag size={14} className="text-indigo-500" />
+                                            <span className="text-[9px] font-bold uppercase tracking-widest text-indigo-500">Assigned Delivery</span>
+                                        </div>
+                                        <div className="flex flex-col">
+                                            <p className="text-[11px] font-bold text-slate-900">{order.deliveryStaffName}</p>
+                                            <p className="text-[10px] font-medium text-slate-500 mt-0.5">{order.deliveryStaffMobile}</p>
                                         </div>
                                     </div>
                                 )}
@@ -336,7 +340,7 @@ export const CustomerPanel = () => {
                         <div className="flex items-center gap-2">
                           <ShoppingBag size={14} className="text-indigo-500 shrink-0" />
                           <div>
-                            <p className="text-[8px] font-black uppercase text-indigo-400 leading-none mb-1">Delivery Staff</p>
+                            <p className="text-[8px] font-black uppercase text-indigo-400 leading-none mb-1">Assigned Delivery</p>
                             <p className="text-[10px] font-black uppercase text-slate-900 leading-none">{selectedOrder.deliveryStaffName}</p>
                           </div>
                         </div>
