@@ -264,13 +264,12 @@ export const MenuManagement = () => {
         })}
       </div>
 
-      {/* Item Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6">
           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setIsModalOpen(false)}></div>
-          <div className="relative bg-white w-full max-w-xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 border-4 border-black shadow-slate-200">
-            <div className="p-8 md:p-10">
-              <div className="flex justify-between items-center mb-8">
+          <div className="relative bg-white w-full max-w-xl md:rounded-[2.5rem] rounded-t-[2rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 border-4 border-black shadow-slate-200 self-end md:self-center max-h-[90vh] flex flex-col">
+            <div className="p-8 md:p-10 overflow-y-auto no-scrollbar flex-1">
+              <div className="flex justify-between items-center mb-8 shrink-0">
                 <div>
                   <h2 className="text-2xl font-bold text-slate-900">{editingItem ? 'Edit Menu Item' : 'New Menu Item'}</h2>
                   <p className="text-slate-400 text-sm mt-1">Fill in the details for your dish</p>
@@ -392,11 +391,11 @@ export const MenuManagement = () => {
 
       {/* Category Modal */}
       {isCategoryModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6">
           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setIsCategoryModalOpen(false)}></div>
-          <div className="relative bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 border-4 border-black shadow-slate-200">
-            <div className="p-8 md:p-10">
-              <div className="flex justify-between items-center mb-8">
+          <div className="relative bg-white w-full max-w-md md:rounded-[2.5rem] rounded-t-[2rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 border-4 border-black shadow-slate-200 self-end md:self-center max-h-[90vh] flex flex-col">
+            <div className="p-8 md:p-10 overflow-y-auto no-scrollbar flex-1">
+              <div className="flex justify-between items-center mb-8 shrink-0">
                 <div>
                   <h2 className="text-2xl font-bold text-slate-900">Manage Categories</h2>
                   <p className="text-slate-400 text-sm mt-1">Organize your menu structure</p>
@@ -449,7 +448,7 @@ export const MenuManagement = () => {
                 </div>
               </div>
             </div>
-            <div className="p-8 bg-slate-50 border-t border-slate-100">
+            <div className="p-8 bg-slate-50 border-t border-slate-100 shrink-0">
                 <button 
                     onClick={() => setIsCategoryModalOpen(false)}
                     className="w-full py-4 rounded-2xl font-bold text-white uppercase tracking-widest text-[10px] bg-slate-900 hover:bg-slate-800 transition-all shadow-lg"

@@ -246,17 +246,17 @@ export const Inventory = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center p-6"
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6"
           >
             <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setIsModalOpen(false)}></div>
             <motion.div 
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative bg-white w-full max-w-xl rounded-[2.5rem] shadow-2xl overflow-hidden border-2 border-indigo-500 shadow-indigo-100"
+              className="relative bg-white w-full max-w-xl md:rounded-[2.5rem] rounded-t-[2rem] shadow-2xl overflow-hidden border-2 border-indigo-500 shadow-indigo-100 self-end md:self-center max-h-[90vh] flex flex-col"
             >
-              <div className="p-8 md:p-10">
-                <div className="flex justify-between items-center mb-8">
+              <div className="p-8 md:p-10 overflow-y-auto no-scrollbar flex-1">
+                <div className="flex justify-between items-center mb-8 shrink-0">
                   <div>
                     <h2 className="text-2xl font-bold text-slate-900 tracking-tight">{editingItem ? 'Edit Stock Item' : 'New Stock Item'}</h2>
                     <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1">Update your material inventory</p>

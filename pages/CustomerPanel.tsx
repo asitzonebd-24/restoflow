@@ -280,14 +280,14 @@ export const CustomerPanel = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[200] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4"
+              className="fixed inset-0 z-[200] bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 md:p-6"
               onClick={() => setSelectedOrder(null)}
             >
               <motion.div 
                 initial={{ scale: 0.9, opacity: 0, y: 20 }}
                 animate={{ scale: 1, opacity: 1, y: 0 }}
                 exit={{ scale: 0.9, opacity: 0, y: 20 }}
-                className="bg-white w-full max-w-lg rounded-[3rem] border-4 border-indigo-500 overflow-hidden shadow-2xl flex flex-col max-h-[80vh]"
+                className="bg-white w-full max-w-lg md:rounded-[3rem] rounded-t-[2rem] border-4 border-indigo-500 overflow-hidden shadow-2xl flex flex-col max-h-[90vh] self-end md:self-center"
                 onClick={e => e.stopPropagation()}
               >
                 <div className="p-6 border-b-4 border-indigo-500 bg-slate-50 flex items-center justify-between shrink-0">

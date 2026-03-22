@@ -260,13 +260,12 @@ export const Expenses = () => {
                 </div>
             </div>
 
-            {/* Record Expense Modal */}
             {isFormOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6">
                     <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setIsFormOpen(false)}></div>
-                    <div className="relative bg-white w-full max-w-xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-                        <div className="p-8 md:p-10">
-                            <div className="flex justify-between items-center mb-8">
+                    <div className="relative bg-white w-full max-w-xl md:rounded-[2.5rem] rounded-t-[2rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 self-end md:self-center max-h-[90vh] flex flex-col">
+                        <div className="p-8 md:p-10 overflow-y-auto no-scrollbar flex-1">
+                            <div className="flex justify-between items-center mb-8 shrink-0">
                                 <div>
                                     <h2 className="text-2xl font-bold text-slate-900">Record Expense</h2>
                                     <p className="text-slate-400 text-sm mt-1">Log a new operational cost</p>
@@ -331,7 +330,7 @@ export const Expenses = () => {
                                     </div>
                                 </div>
 
-                                <div className="pt-4 flex gap-4">
+                                <div className="pt-4 flex gap-4 shrink-0">
                                     <button 
                                         type="button"
                                         onClick={() => setIsFormOpen(false)}
@@ -354,9 +353,9 @@ export const Expenses = () => {
 
             {/* Category Management Modal */}
             {isCategoryModalOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-6">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6">
                     <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setIsCategoryModalOpen(false)}></div>
-                    <div className="relative bg-white w-full max-w-xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 flex flex-col max-h-[85vh]">
+                    <div className="relative bg-white w-full max-w-xl md:rounded-[2.5rem] rounded-t-[2rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 flex flex-col max-h-[90vh] self-end md:self-center">
                         <div className="p-8 md:p-10 border-b border-slate-50 flex justify-between items-center shrink-0">
                             <div>
                                 <h2 className="text-2xl font-bold text-slate-900">Expense Categories</h2>

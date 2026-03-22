@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '../context/AppContext';
 import { Role, User } from '../types';
 import { UserPlus, Users as UsersIcon, Shield, Trash2, Mail, Phone, Lock, CheckSquare, Square, Edit2, X, ChevronRight, Search, AlertTriangle, User as UserCircle } from 'lucide-react';
@@ -152,87 +153,105 @@ export const Users = () => {
                 </div>
             </div>
 
-            {isFormOpen && (
-                <div className="bg-white p-6 md:p-10 rounded-[2.5rem] shadow-2xl border-2 border-indigo-500 animate-in fade-in slide-in-from-top-4 overflow-hidden shadow-indigo-100">
-                    <div className="flex justify-between items-center mb-8">
-                        <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">{editingUserId ? 'Modify Profile' : 'New Enrollment'}</h3>
-                        <button onClick={() => setIsFormOpen(false)} className="bg-slate-50 p-2.5 rounded-xl border-2 border-slate-100 text-slate-400 hover:text-red-500 transition"><X size={20}/></button>
+            <AnimatePresence>
+                {isFormOpen && (
+                    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 md:p-6">
+                        <motion.div 
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" 
+                            onClick={() => setIsFormOpen(false)}
+                        ></motion.div>
+                        <motion.div 
+                            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                            className="relative bg-white w-full max-w-4xl md:rounded-[2.5rem] rounded-t-[2rem] shadow-2xl border-2 border-indigo-500 overflow-hidden shadow-indigo-100 self-end md:self-center max-h-[90vh] flex flex-col"
+                        >
+                            <div className="p-6 md:p-10 overflow-y-auto no-scrollbar flex-1">
+                                <div className="flex justify-between items-center mb-8 shrink-0">
+                                    <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">{editingUserId ? 'Modify Profile' : 'New Enrollment'}</h3>
+                                    <button onClick={() => setIsFormOpen(false)} className="bg-slate-50 p-2.5 rounded-xl border-2 border-slate-100 text-slate-400 hover:text-red-500 transition"><X size={20}/></button>
+                                </div>
+
+                                {error && (
+                                    <div className="mb-6 p-4 bg-red-50 border-2 border-red-200 rounded-2xl flex items-center gap-3 text-red-600 animate-in fade-in slide-in-from-top-2">
+                                        <AlertTriangle size={20} />
+                                        <p className="text-[10px] font-black uppercase tracking-widest">{error}</p>
+                                    </div>
+                                )}
+
+                                <form onSubmit={handleSubmit} className="space-y-8">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Legal Name</label>
+                                            <input type="text" required value={formData.name || ''} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full p-4 bg-slate-50 border-2 border-slate-900 rounded-2xl outline-none font-bold uppercase text-xs focus:bg-white shadow-inner" placeholder="John Doe" />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Email Access</label>
+                                            <div className="relative">
+                                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={16}/>
+                                                <input type="email" required value={formData.email || ''} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full pl-12 p-4 bg-slate-50 border-2 border-slate-900 rounded-2xl outline-none font-bold text-xs focus:bg-white shadow-inner" placeholder="staff@dine.com" />
+                                            </div>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Phone</label>
+                                            <div className="relative">
+                                                <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={16}/>
+                                                <input type="tel" required value={formData.mobile || ''} onChange={e => setFormData({...formData, mobile: e.target.value})} className="w-full pl-12 p-4 bg-slate-50 border-2 border-slate-900 rounded-2xl outline-none font-bold text-xs focus:bg-white shadow-inner" placeholder="+1..." />
+                                            </div>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Passkey</label>
+                                            <div className="relative">
+                                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={16}/>
+                                                <input type="password" required value={formData.password || ''} onChange={e => setFormData({...formData, password: e.target.value})} className="w-full pl-12 p-4 bg-slate-50 border-2 border-slate-900 rounded-2xl outline-none font-bold text-xs focus:bg-white shadow-inner" placeholder="••••••••" />
+                                            </div>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Position / Role</label>
+                                            <div className="relative">
+                                                <select value={formData.role} onChange={e => handleRoleChange(e.target.value as Role)} className="w-full p-4 bg-slate-50 border-2 border-slate-900 rounded-2xl outline-none font-black uppercase text-[10px] appearance-none focus:bg-white shadow-inner">
+                                                    {Object.values(Role).map(role => <option key={role} value={role}>{role}</option>)}
+                                                </select>
+                                                <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 rotate-90 text-slate-900 pointer-events-none" size={16} strokeWidth={3} />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Permissions Override</label>
+                                        <div className="flex flex-wrap gap-2 md:gap-3">
+                                            {AVAILABLE_MODULES.map(module => (
+                                                <button
+                                                    type="button"
+                                                    key={module}
+                                                    onClick={() => togglePermission(module)}
+                                                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 text-[10px] font-black uppercase tracking-widest transition-all
+                                                        ${formData.permissions.includes(module) 
+                                                            ? 'bg-slate-900 border-slate-900 text-white shadow-lg' 
+                                                            : 'bg-white border-slate-100 text-slate-400 hover:border-slate-900'}`}
+                                                >
+                                                    {formData.permissions.includes(module) ? <CheckSquare size={14} /> : <Square size={14} />}
+                                                    {module}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="flex flex-col sm:flex-row justify-end gap-3 pt-6 border-t-2 border-dashed border-slate-100 shrink-0">
+                                        <button type="button" onClick={() => setIsFormOpen(false)} className="px-8 py-4 text-[10px] font-black uppercase text-slate-400 hover:text-slate-900 transition">Cancel</button>
+                                        <button type="submit" className="bg-slate-900 text-white px-10 py-5 rounded-[2rem] font-black uppercase tracking-widest text-[10px] border-4 border-white shadow-xl hover:bg-black transition">
+                                            {editingUserId ? 'Update Profile' : 'Confirm Enrollment'}
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </motion.div>
                     </div>
-
-                    {error && (
-                        <div className="mb-6 p-4 bg-red-50 border-2 border-red-200 rounded-2xl flex items-center gap-3 text-red-600 animate-in fade-in slide-in-from-top-2">
-                            <AlertTriangle size={20} />
-                            <p className="text-[10px] font-black uppercase tracking-widest">{error}</p>
-                        </div>
-                    )}
-
-                    <form onSubmit={handleSubmit} className="space-y-8">
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            <div className="space-y-1">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Legal Name</label>
-                                <input type="text" required value={formData.name || ''} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full p-4 bg-slate-50 border-2 border-slate-900 rounded-2xl outline-none font-bold uppercase text-xs focus:bg-white shadow-inner" placeholder="John Doe" />
-                            </div>
-                            <div className="space-y-1">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Email Access</label>
-                                <div className="relative">
-                                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={16}/>
-                                    <input type="email" required value={formData.email || ''} onChange={e => setFormData({...formData, email: e.target.value})} className="w-full pl-12 p-4 bg-slate-50 border-2 border-slate-900 rounded-2xl outline-none font-bold text-xs focus:bg-white shadow-inner" placeholder="staff@dine.com" />
-                                </div>
-                            </div>
-                            <div className="space-y-1">
-                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Phone</label>
-                                 <div className="relative">
-                                    <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={16}/>
-                                    <input type="tel" required value={formData.mobile || ''} onChange={e => setFormData({...formData, mobile: e.target.value})} className="w-full pl-12 p-4 bg-slate-50 border-2 border-slate-900 rounded-2xl outline-none font-bold text-xs focus:bg-white shadow-inner" placeholder="+1..." />
-                                </div>
-                            </div>
-                            <div className="space-y-1">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Passkey</label>
-                                 <div className="relative">
-                                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={16}/>
-                                    <input type="password" required value={formData.password || ''} onChange={e => setFormData({...formData, password: e.target.value})} className="w-full pl-12 p-4 bg-slate-50 border-2 border-slate-900 rounded-2xl outline-none font-bold text-xs focus:bg-white shadow-inner" placeholder="••••••••" />
-                                </div>
-                            </div>
-                            <div className="space-y-1">
-                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Position / Role</label>
-                                <div className="relative">
-                                    <select value={formData.role} onChange={e => handleRoleChange(e.target.value as Role)} className="w-full p-4 bg-slate-50 border-2 border-slate-900 rounded-2xl outline-none font-black uppercase text-[10px] appearance-none focus:bg-white shadow-inner">
-                                        {Object.values(Role).map(role => <option key={role} value={role}>{role}</option>)}
-                                    </select>
-                                    <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 rotate-90 text-slate-900 pointer-events-none" size={16} strokeWidth={3} />
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="space-y-4">
-                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Permissions Override</label>
-                            <div className="flex flex-wrap gap-2 md:gap-3">
-                                {AVAILABLE_MODULES.map(module => (
-                                    <button
-                                        type="button"
-                                        key={module}
-                                        onClick={() => togglePermission(module)}
-                                        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 text-[10px] font-black uppercase tracking-widest transition-all
-                                            ${formData.permissions.includes(module) 
-                                                ? 'bg-slate-900 border-slate-900 text-white shadow-lg' 
-                                                : 'bg-white border-slate-100 text-slate-400 hover:border-slate-900'}`}
-                                    >
-                                        {formData.permissions.includes(module) ? <CheckSquare size={14} /> : <Square size={14} />}
-                                        {module}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        <div className="flex flex-col sm:flex-row justify-end gap-3 pt-6 border-t-2 border-dashed border-slate-100">
-                            <button type="button" onClick={() => setIsFormOpen(false)} className="px-8 py-4 text-[10px] font-black uppercase text-slate-400 hover:text-slate-900 transition">Cancel</button>
-                            <button type="submit" className="bg-slate-900 text-white px-10 py-5 rounded-[2rem] font-black uppercase tracking-widest text-[10px] border-4 border-white shadow-xl hover:bg-black transition">
-                                {editingUserId ? 'Update Profile' : 'Confirm Enrollment'}
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            )}
+                )}
+            </AnimatePresence>
 
             <div className="bg-white rounded-[2.5rem] shadow-xl border-2 border-indigo-500 overflow-hidden shadow-indigo-100">
                 <div className="overflow-x-auto no-scrollbar">

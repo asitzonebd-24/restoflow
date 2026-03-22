@@ -339,8 +339,8 @@ export const Transactions = () => {
              {viewInvoice && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 print:p-0 print:static print:block">
                     <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm print:hidden" onClick={() => setViewInvoice(null)}></div>
-                    <div className="relative bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 print:shadow-none print:max-w-none print:rounded-none print:static print:block print:w-full print:opacity-100 print:transform-none">
-                        <div className="p-6 border-b border-slate-50 flex justify-between items-center print:hidden bg-slate-50/50">
+                    <div className="relative bg-white w-full max-w-md md:rounded-[2.5rem] rounded-t-[2rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 print:shadow-none print:max-w-none print:rounded-none print:static print:block print:w-full print:opacity-100 print:transform-none self-end md:self-center max-h-[90vh] flex flex-col">
+                        <div className="p-6 border-b border-slate-50 flex justify-between items-center print:hidden bg-slate-50/50 shrink-0">
                             <h3 className="font-bold text-slate-900 flex items-center gap-3 uppercase text-[10px] tracking-widest">
                               <FileText size={18} className="text-indigo-500"/> Receipt Vault
                             </h3>
@@ -348,7 +348,7 @@ export const Transactions = () => {
                               <X size={20}/>
                             </button>
                         </div>
-                        <div className="p-10 overflow-y-auto no-scrollbar print:p-0 print:overflow-visible" id="invoice-content">
+                        <div className="p-10 overflow-y-auto no-scrollbar print:p-0 print:overflow-visible flex-1" id="invoice-content">
                             <div className="text-center mb-10">
                                 <div className="h-16 w-16 mx-auto mb-4 rounded-2xl border border-slate-100 bg-slate-50 flex items-center justify-center overflow-hidden shadow-sm">
                                   {currentTenant?.logo ? (
