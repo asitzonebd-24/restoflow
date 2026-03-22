@@ -73,6 +73,7 @@ interface AppContextType {
     status?: OrderStatus,
     deliveryStaffId?: string | null,
     deliveryStaffName?: string | null,
+    deliveryStaffMobile?: string | null,
     deliveryAddress?: string | null
   ) => Promise<void>;
   updateOrderStatus: (orderId: string, status: OrderStatus) => Promise<void>;
@@ -361,6 +362,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     status?: OrderStatus,
     deliveryStaffId?: string | null,
     deliveryStaffName?: string | null,
+    deliveryStaffMobile?: string | null,
     deliveryAddress?: string | null
   ) => {
     const oldOrder = allOrders.find(o => o.id === orderId);
@@ -392,6 +394,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         note: note ?? oldOrder.note ?? null,
         deliveryStaffId: deliveryStaffId !== undefined ? deliveryStaffId : (oldOrder.deliveryStaffId ?? null),
         deliveryStaffName: deliveryStaffName !== undefined ? deliveryStaffName : (oldOrder.deliveryStaffName ?? null),
+        deliveryStaffMobile: deliveryStaffMobile !== undefined ? deliveryStaffMobile : (oldOrder.deliveryStaffMobile ?? null),
         deliveryAddress: deliveryAddress !== undefined ? deliveryAddress : (oldOrder.deliveryAddress ?? null)
       }));
 

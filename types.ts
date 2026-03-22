@@ -91,6 +91,7 @@ export interface Order {
   deliveryAddress?: string | null;
   deliveryStaffId?: string | null;
   deliveryStaffName?: string | null;
+  deliveryStaffMobile?: string | null;
 }
 
 export interface Transaction {

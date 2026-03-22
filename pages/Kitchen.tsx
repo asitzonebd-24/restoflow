@@ -2,7 +2,7 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
 import { Order, OrderStatus, ItemStatus, Role } from '../types';
-import { Clock, CheckCircle, Flame, Timer, PlayCircle, CheckSquare, FileText, Lock, Hash, User as UserIcon, ChevronDown } from 'lucide-react';
+import { Clock, CheckCircle, Flame, Timer, PlayCircle, CheckSquare, FileText, Lock, Hash, User as UserIcon, ChevronDown, ShoppingBag } from 'lucide-react';
 
 export const Kitchen = () => {
   const { orders, updateOrderStatus, updateOrderItemStatus, currentTenant, currentUser, users } = useApp();
@@ -118,6 +118,19 @@ export const Kitchen = () => {
                   </div>
                 )}
               </div>
+
+            {order.deliveryStaffName && (
+              <div className="mb-4 p-3 bg-indigo-50 rounded-2xl border border-indigo-100 flex flex-col gap-1">
+                <div className="flex items-center gap-2">
+                  <ShoppingBag size={12} className="text-indigo-500" />
+                  <span className="text-[9px] font-bold uppercase tracking-widest text-indigo-500">Delivery Staff</span>
+                </div>
+                <div className="flex flex-col">
+                  <p className="text-[10px] font-bold text-slate-900">{order.deliveryStaffName}</p>
+                  {order.deliveryStaffMobile && <p className="text-[9px] font-medium text-slate-500">{order.deliveryStaffMobile}</p>}
+                </div>
+              </div>
+            )}
 
             {order.note && (
                 <div className="bg-amber-50 p-4 rounded-2xl mb-4 text-[10px] text-amber-800 border border-amber-100 flex gap-3 italic font-bold uppercase tracking-wider">

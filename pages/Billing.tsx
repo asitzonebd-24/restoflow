@@ -1,11 +1,11 @@
 
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { OrderStatus, Order, Transaction, OrderItem } from '../types';
-import { Receipt, CheckCheck, Printer, Download, X, FileText, Hash, MapPin, ShoppingBag, CreditCard, Store } from 'lucide-react';
+import { OrderStatus, Order, Transaction, OrderItem, Role } from '../types';
+import { Receipt, CheckCheck, Printer, Download, X, FileText, Hash, MapPin, ShoppingBag, CreditCard, Store, User as UserIcon } from 'lucide-react';
 
 export const Billing = () => {
-  const { orders, currentTenant, updateOrderStatus, addTransaction, users } = useApp();
+  const { orders, currentTenant, updateOrderStatus, updateOrderItems, addTransaction, users } = useApp();
   const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
   
   const readyOrders = orders.filter(o => o.status === OrderStatus.READY);
@@ -117,6 +117,47 @@ export const Billing = () => {
                     <span className="text-2xl font-bold text-slate-900 tracking-tight">{currentTenant?.currency}{total.toFixed(2)}</span>
                   </div>
 
+                  {isOnline && (
+                    <div className="mb-6">
+                      <label className="text-[9px] font-bold uppercase tracking-widest text-slate-400 block mb-2">Assign Delivery Staff</label>
+                      <select 
+                        value={order.deliveryStaffId || ''}
+                        onChange={(e) => {
+                          const staff = users.find(u => u.id === e.target.value);
+                          updateOrderItems(
+                            order.id, 
+                            order.items, 
+                            order.totalAmount, 
+                            order.note || undefined, 
+                            order.status,
+                            staff?.id || null,
+                            staff?.name || null,
+                            staff?.mobile || null
+                          );
+                        }}
+                        className="w-full p-3 text-[10px] font-bold bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                      >
+                        <option value="">Select Staff</option>
+                        {users.filter(u => u.role === Role.DELIVERY).map(staff => (
+                          <option key={staff.id} value={staff.id}>{staff.name} ({staff.mobile})</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {order.deliveryStaffName && (
+                    <div className="mb-6 p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100/50">
+                      <div className="flex items-center gap-2 mb-2">
+                        <ShoppingBag size={14} className="text-indigo-500" />
+                        <span className="text-[9px] font-bold uppercase tracking-widest text-indigo-500">Assigned Delivery</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <p className="text-[11px] font-bold text-slate-900">{order.deliveryStaffName}</p>
+                        <p className="text-[10px] font-medium text-slate-500 mt-0.5">{order.deliveryStaffMobile}</p>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex-1 space-y-3 mb-8 max-h-48 overflow-y-auto no-scrollbar py-2 border-y border-slate-50">
                   {groupedItems.map((item, idx) => (
                     <div key={idx} className="flex justify-between items-center text-xs">
@@ -185,9 +226,16 @@ export const Billing = () => {
                   <div className="flex flex-col items-center gap-2">
                     <span className="text-5xl text-slate-900 font-bold tracking-tight">#{invoiceOrder.tokenNumber}</span>
                     {invoiceOrder.deliveryStaffName && (
-                      <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest bg-indigo-50 px-3 py-1 rounded-full border border-indigo-100">
-                        Delivery: {invoiceOrder.deliveryStaffName}
-                      </span>
+                      <div className="flex flex-col items-center gap-1">
+                        <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest bg-indigo-50 px-3 py-1 rounded-full border border-indigo-100">
+                          Delivery: {invoiceOrder.deliveryStaffName}
+                        </span>
+                        {invoiceOrder.deliveryStaffMobile && (
+                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                            Mob: {invoiceOrder.deliveryStaffMobile}
+                          </span>
+                        )}
+                      </div>
                     )}
                   </div>
               </div>

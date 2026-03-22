@@ -194,6 +194,7 @@ export const POS = () => {
           note: orderNote,
           deliveryStaffId: isDelivery ? selectedDeliveryStaffId : null,
           deliveryStaffName: isDelivery ? (selectedStaff?.name || null) : null,
+          deliveryStaffMobile: isDelivery ? (selectedStaff?.mobile || null) : null,
           deliveryAddress: isDelivery ? (deliveryAddress || null) : null
         };
         await addOrder(newOrder);
@@ -216,6 +217,7 @@ export const POS = () => {
           hasNewItems ? OrderStatus.PENDING : null,
           isDelivery ? selectedDeliveryStaffId : null,
           isDelivery ? (selectedStaff?.name || null) : null,
+          isDelivery ? (selectedStaff?.mobile || null) : null,
           isDelivery ? (deliveryAddress || null) : null
         );
       }
@@ -464,6 +466,13 @@ export const POS = () => {
                         </div>
                       )}
                     </div>
+
+                    {order.deliveryStaffName && (
+                      <div className="mb-4 text-center">
+                        <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{order.deliveryStaffName}</p>
+                        {order.deliveryStaffMobile && <p className="text-[9px] font-bold text-slate-400 mt-0.5">{order.deliveryStaffMobile}</p>}
+                      </div>
+                    )}
 
                     {/* Status Grid */}
                     <div className="grid grid-cols-3 gap-2 mb-6">
