@@ -694,7 +694,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     
     try {
       const userRef = doc(db, 'users', newUser.id);
-      await setDoc(userRef, newUser);
+      await setDoc(userRef, cleanObject(newUser));
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'users');
     }
@@ -703,7 +703,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const updateUser = async (userId: string, updates: Partial<User>) => {
     try {
       const userRef = doc(db, 'users', userId);
-      await updateDoc(userRef, updates);
+      await updateDoc(userRef, cleanObject(updates));
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `users/${userId}`);
     }

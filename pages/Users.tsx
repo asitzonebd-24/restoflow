@@ -4,7 +4,7 @@ import { useApp } from '../context/AppContext';
 import { Role, User } from '../types';
 import { UserPlus, Users as UsersIcon, Shield, Trash2, Mail, Phone, Lock, CheckSquare, Square, Edit2, X, ChevronRight, Search, AlertTriangle, User as UserCircle } from 'lucide-react';
 
-const AVAILABLE_MODULES = ['Dashboard', 'POS', 'Kitchen', 'Billing', 'Transactions', 'Expenses', 'Reports', 'Inventory', 'Users', 'Settings'];
+const AVAILABLE_MODULES = ['Dashboard', 'POS', 'Kitchen', 'Menu', 'Billing', 'Transactions', 'Expenses', 'Reports', 'Inventory', 'Users', 'Settings'];
 
 export const Users = () => {
     const { users, allUsers, currentTenant, addUser, updateUser, deleteUser } = useApp();
@@ -58,7 +58,7 @@ export const Users = () => {
         switch(role) {
             case Role.SUPER_ADMIN: perms = AVAILABLE_MODULES; break;
             case Role.OWNER: perms = AVAILABLE_MODULES; break;
-            case Role.MANAGER: perms = ['Dashboard', 'POS', 'Kitchen', 'Billing', 'Transactions', 'Expenses', 'Reports', 'Inventory', 'Users']; break;
+            case Role.MANAGER: perms = ['Dashboard', 'POS', 'Kitchen', 'Menu', 'Billing', 'Transactions', 'Expenses', 'Reports', 'Inventory', 'Users']; break;
             case Role.WAITER: perms = ['POS']; break;
             case Role.KITCHEN: perms = ['Kitchen']; break;
             case Role.CASHIER: perms = ['Billing', 'Transactions', 'Reports']; break;
