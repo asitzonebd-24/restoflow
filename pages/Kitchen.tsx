@@ -58,7 +58,7 @@ export const Kitchen = () => {
   };
 
   const canMoveToReady = (userRole: Role) => {
-    return [Role.OWNER, Role.MANAGER, Role.WAITER].includes(userRole);
+    return [Role.OWNER, Role.MANAGER, Role.WAITER, Role.KITCHEN].includes(userRole);
   };
 
   const getCreatorName = (userId: string) => {

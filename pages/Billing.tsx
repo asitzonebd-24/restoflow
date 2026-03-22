@@ -156,7 +156,7 @@ export const Billing = () => {
       {invoiceOrder && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 print:p-0 print:static print:block">
           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm print:hidden" onClick={() => setInvoiceOrder(null)}></div>
-          <div className="relative bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 print:shadow-none print:max-w-none print:rounded-none border-2 border-indigo-500 print:border-none print:static print:block print:w-full print:opacity-100 print:transform-none">
+          <div className="relative bg-white w-full max-w-md md:rounded-[2.5rem] rounded-t-[2rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 print:shadow-none print:max-w-none print:rounded-none border-2 border-indigo-500 print:border-none print:static print:block print:w-full print:opacity-100 print:transform-none self-end md:self-center">
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 print:hidden">
               <h3 className="font-bold text-slate-900 flex items-center gap-3 uppercase text-[10px] tracking-widest">
                 <FileText size={18} className="text-indigo-500"/> Payment Confirmation
@@ -246,9 +246,15 @@ export const Billing = () => {
             <div className="p-8 border-t border-slate-50 bg-slate-50 flex gap-4 print:hidden">
               <button 
                 onClick={printInvoice} 
-                className="flex-1 flex items-center justify-center gap-3 bg-slate-900 text-white py-4 rounded-2xl hover:bg-slate-800 transition-all font-bold uppercase tracking-widest text-[10px] shadow-lg active:scale-95"
+                className="flex-1 hidden md:flex items-center justify-center gap-3 bg-slate-900 text-white py-4 rounded-2xl hover:bg-slate-800 transition-all font-bold uppercase tracking-widest text-[10px] shadow-lg active:scale-95"
               >
                 <Printer size={18} /> Print Invoice
+              </button>
+              <button 
+                onClick={() => setInvoiceOrder(null)} 
+                className="flex-1 md:hidden flex items-center justify-center gap-3 bg-indigo-600 text-white py-4 rounded-2xl hover:bg-indigo-700 transition-all font-bold uppercase tracking-widest text-[10px] shadow-lg active:scale-95"
+              >
+                Done
               </button>
             </div>
           </div>
