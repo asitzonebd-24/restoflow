@@ -25,7 +25,7 @@ import { TenantLanding } from './pages/TenantLanding';
 import { PendingBills } from './pages/PendingBills';
 import { ApprovedBills } from './pages/ApprovedBills';
 import { Role } from './types';
-import { LayoutDashboard, UtensilsCrossed, ChefHat, Receipt, Package, LogOut, Settings, Users as UsersIcon, History, Wallet, PieChart, Menu as MenuIcon, User as UserCircle, ShieldCheck, PowerOff, FileText, CheckCircle, Menu, X, Globe } from 'lucide-react';
+import { LayoutDashboard, UtensilsCrossed, ChefHat, Receipt, Package, LogOut, Settings, Users as UsersIcon, History, Wallet, PieChart, Menu as MenuIcon, User as UserCircle, ShieldCheck, PowerOff, FileText, CheckCircle, Menu, X } from 'lucide-react';
 
 const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) => {
   const { business, currentUser, logout } = useApp();
@@ -85,13 +85,13 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
             ) : (
               <>
                 {permissions.includes('Dashboard') && (
-                  <NavLink to={`/${tId}/dashboard`} onClick={() => onClose()} className={navItemClass('/dashboard')} title="Restaurant Portal">
+                  <NavLink to={`/${tId}/dashboard`} onClick={() => onClose()} className={navItemClass('/dashboard')} title="Dashboard">
                     <LayoutDashboard size={22} />
                   </NavLink>
                 )}
-
+                
                 {permissions.includes('POS') && (
-                  <NavLink to={`/${tId}/pos`} onClick={() => onClose()} className={navItemClass('/pos')} title="Staff Terminal">
+                  <NavLink to={`/${tId}/pos`} onClick={() => onClose()} className={navItemClass('/pos')} title="Terminal">
                     <UtensilsCrossed size={22} />
                   </NavLink>
                 )}
@@ -137,10 +137,6 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
                     <UsersIcon size={22} />
                   </NavLink>
                 )}
-
-                <NavLink to={`/${tId}/order`} target="_blank" className={navItemClass('/order')} title="Customer Portal">
-                  <Globe size={22} className="text-emerald-400" />
-                </NavLink>
 
                 {currentUser.role === Role.SUPER_ADMIN && (
                   <>
@@ -289,6 +285,7 @@ const ProtectedLayout = ({ children, allowedRoles }: { children?: React.ReactNod
 
 const AppContent = () => {
   const { currentUser, isLoading, business } = useApp();
+  const location = useLocation();
 
   React.useEffect(() => {
     if (business.name) {
@@ -308,7 +305,47 @@ const AppContent = () => {
         document.head.appendChild(newLink);
       }
     }
-  }, [business.name, business.logo]);
+
+    // Dynamic Manifest for "Add to Home Screen"
+    const manifest = {
+      short_name: business.name || 'RestoFlow',
+      name: business.name ? `${business.name} - RestoFlow` : 'RestoFlow Management',
+      icons: [
+        {
+          src: business.logo || 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?q=80&w=192&h=192&auto=format&fit=crop',
+          sizes: "192x192",
+          type: "image/png"
+        },
+        {
+          src: business.logo || 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?q=80&w=512&h=512&auto=format&fit=crop',
+          type: "image/png",
+          sizes: "512x512"
+        }
+      ],
+      start_url: window.location.href,
+      display: "standalone",
+      theme_color: "#11112b",
+      background_color: "#ffffff"
+    };
+
+    const stringManifest = JSON.stringify(manifest);
+    const blob = new Blob([stringManifest], {type: 'application/json'});
+    const manifestURL = URL.createObjectURL(blob);
+    
+    let manifestLink = document.querySelector("link[rel='manifest']") as HTMLLinkElement;
+    if (manifestLink) {
+      manifestLink.href = manifestURL;
+    } else {
+      manifestLink = document.createElement('link');
+      manifestLink.rel = 'manifest';
+      manifestLink.href = manifestURL;
+      document.head.appendChild(manifestLink);
+    }
+
+    return () => {
+      URL.revokeObjectURL(manifestURL);
+    };
+  }, [business.name, business.logo, location.pathname, location.search, location.hash]);
 
   if (isLoading) {
     return (
