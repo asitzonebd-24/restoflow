@@ -42,13 +42,13 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
     return location.pathname === fullPath;
   };
 
-  const navItemClass = (path: string) => {
+  const navItemClass = (path: string, margin = 'mb-3') => {
     const active = isActive(path);
     return `
-      flex items-center justify-center w-12 h-12 rounded-2xl transition-all duration-300 mb-4 group relative
+      flex items-center justify-center w-12 h-12 rounded-2xl transition-all duration-300 ${margin} group relative border
       ${active 
-        ? 'bg-white text-[#1a1a37] shadow-xl' 
-        : 'text-white/40 hover:bg-white/10 hover:text-white'}
+        ? 'bg-white text-[#1a1a37] shadow-xl border-white' 
+        : 'text-white/40 hover:bg-white/10 hover:text-white border-white/10 hover:border-white/20'}
     `;
   };
 
@@ -56,10 +56,10 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
 
   return (
     <div 
-      className="sticky top-0 left-0 h-screen flex flex-col items-center py-8 text-white transition-all duration-500 shrink-0 z-[70] shadow-2xl w-20 print:hidden"
+      className="sticky top-0 left-0 h-screen flex flex-col items-center py-4 text-white transition-all duration-500 shrink-0 z-[70] shadow-2xl w-20 print:hidden"
       style={{ background: '#11112b' }}
     >
-      <div className="mb-12 shrink-0">
+      <div className="mb-4 shrink-0">
           <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center border border-white/10">
             {business.logo ? (
               <img src={business.logo} alt="Logo" className="w-8 h-8 object-contain" />
@@ -102,14 +102,6 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
                   </NavLink>
                 )}
 
-                <div className="w-10 h-px bg-white/10 my-4 shrink-0" />
-
-                {permissions.includes('Menu') && (
-                  <NavLink to={`/${tId}/menu`} onClick={() => onClose()} className={navItemClass('/menu')} title="Menu">
-                    <MenuIcon size={22} />
-                  </NavLink>
-                )}
-
                 {permissions.includes('Billing') && (
                   <NavLink to={`/${tId}/billing`} onClick={() => onClose()} className={navItemClass('/billing')} title="Billing">
                     <Receipt size={22} />
@@ -119,6 +111,12 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
                 {permissions.includes('Transactions') && (
                   <NavLink to={`/${tId}/transactions`} onClick={() => onClose()} className={navItemClass('/transactions')} title="History">
                     <History size={22} />
+                  </NavLink>
+                )}
+
+                {permissions.includes('Menu') && (
+                  <NavLink to={`/${tId}/menu`} onClick={() => onClose()} className={navItemClass('/menu')} title="Menu">
+                    <MenuIcon size={22} />
                   </NavLink>
                 )}
 
@@ -152,12 +150,12 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
             )}
         </nav>
 
-        <div className="mt-auto pt-4 space-y-4 flex flex-col items-center shrink-0">
-            <NavLink to={currentUser.role === Role.SUPER_ADMIN && !urlTenantId ? "/settings" : `/${tId}/settings`} onClick={() => onClose()} className={navItemClass('/settings')} title="Settings">
+        <div className="mt-auto pt-2 space-y-1 flex flex-col items-center shrink-0">
+            <NavLink to={currentUser.role === Role.SUPER_ADMIN && !urlTenantId ? "/settings" : `/${tId}/settings`} onClick={() => onClose()} className={navItemClass('/settings', 'mb-0')} title="Settings">
                 <Settings size={22} />
             </NavLink>
             
-            <div className="w-10 h-10 rounded-full border-2 border-white/20 p-0.5 mb-2 flex items-center justify-center overflow-hidden">
+            <div className="w-10 h-10 rounded-full border-2 border-white/20 p-0.5 flex items-center justify-center overflow-hidden">
               {currentUser.avatar ? (
                 <img 
                   src={currentUser.avatar} 

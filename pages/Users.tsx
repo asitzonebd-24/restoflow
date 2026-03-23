@@ -8,7 +8,7 @@ import { UserPlus, Users as UsersIcon, Shield, Trash2, Mail, Phone, Lock, CheckS
 const AVAILABLE_MODULES = ['Dashboard', 'POS', 'Kitchen', 'Menu', 'Billing', 'Transactions', 'Expenses', 'Reports', 'Inventory', 'Users', 'Settings'];
 
 export const Users = () => {
-    const { users, allUsers, currentTenant, addUser, updateUser, deleteUser } = useApp();
+    const { users, allUsers, currentTenant, addUser, updateUser, deleteUser, currentUser } = useApp();
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editingUserId, setEditingUserId] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
@@ -213,7 +213,12 @@ export const Users = () => {
                                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Position / Role</label>
                                             <div className="relative">
                                                 <select value={formData.role} onChange={e => handleRoleChange(e.target.value as Role)} className="w-full p-4 bg-slate-50 border-2 border-slate-900 rounded-2xl outline-none font-black uppercase text-[10px] appearance-none focus:bg-white shadow-inner">
-                                                    {Object.values(Role).map(role => <option key={role} value={role}>{role}</option>)}
+                                                    {Object.values(Role).filter(role => {
+                                                        if (role === Role.SUPER_ADMIN) {
+                                                            return currentUser?.role === Role.SUPER_ADMIN;
+                                                        }
+                                                        return true;
+                                                    }).map(role => <option key={role} value={role}>{role}</option>)}
                                                 </select>
                                                 <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 rotate-90 text-slate-900 pointer-events-none" size={16} strokeWidth={3} />
                                             </div>

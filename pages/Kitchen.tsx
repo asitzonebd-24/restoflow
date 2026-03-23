@@ -15,10 +15,10 @@ export const Kitchen = () => {
       // Show orders that are not completed and not ready (or ready but still in kitchen)
       // Actually, let's follow the user's "Pending" vs "Done"
       // Pending: PENDING, PREPARING
-      // Done: READY, COMPLETED
+      // Done: READY
       filtered = filtered.filter(o => o.status === OrderStatus.PENDING || o.status === OrderStatus.PREPARING);
     } else {
-      filtered = filtered.filter(o => o.status === OrderStatus.READY || o.status === OrderStatus.COMPLETED);
+      filtered = filtered.filter(o => o.status === OrderStatus.READY);
     }
 
     // Sort by creation time (newest first for done, oldest first for pending)
@@ -129,7 +129,8 @@ export const Kitchen = () => {
             </div>
         ) : activeOrders.map(order => {
           const targetStatus = nextStatus(order.status);
-          const isAllowedToUpdate = targetStatus === OrderStatus.READY ? canMoveToReady(currentUser!.role) : true;
+          const isAdmin = currentUser?.role === Role.OWNER || currentUser?.role === Role.MANAGER || currentUser?.role === Role.SUPER_ADMIN;
+          const isAllowedToUpdate = isAdmin; // Only admin can edit value of kitchen item menu
           const creatorName = getCreatorName(order.createdBy);
           const statusColors = getStatusColors(order.status);
           
@@ -202,8 +203,9 @@ export const Kitchen = () => {
                     <div className="relative">
                         <select 
                             value={item.status || OrderStatus.PENDING}
+                            disabled={!isAdmin}
                             onChange={(e) => updateOrderItemStatus(order.id, item.rowId, e.target.value as ItemStatus)}
-                            className={`text-[9px] font-black uppercase py-1.5 pl-4 pr-8 rounded-full border-2 outline-none cursor-pointer transition-all appearance-none ${itemStatusColors.lightBg} ${itemStatusColors.border} ${itemStatusColors.text}`}
+                            className={`text-[9px] font-black uppercase py-1.5 pl-4 pr-8 rounded-full border-2 outline-none transition-all appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${itemStatusColors.lightBg} ${itemStatusColors.border} ${itemStatusColors.text}`}
                         >
                             <option value={OrderStatus.PENDING}>New</option>
                             <option value={OrderStatus.PREPARING}>Fire</option>
@@ -227,7 +229,7 @@ export const Kitchen = () => {
                     </button>
                  ) : (
                     <div className="text-center text-[10px] font-black uppercase tracking-widest text-slate-400 py-5 border-2 border-dashed border-slate-200 rounded-[1.5rem] flex items-center justify-center gap-3 bg-slate-50/50">
-                        <Lock size={14} /> WAITER REQUIRED
+                        <Lock size={14} /> ADMIN REQUIRED
                     </div>
                  )
                ) : (

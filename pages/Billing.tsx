@@ -2,38 +2,16 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { OrderStatus, Order, Transaction, OrderItem, Role } from '../types';
-import { Receipt, CheckCheck, Printer, Download, X, FileText, Hash, MapPin, ShoppingBag, CreditCard, Store, User as UserIcon } from 'lucide-react';
+import { Receipt, CheckCheck, Printer, X, FileText, Store, Search, Users, Eye } from 'lucide-react';
 
 export const Billing = () => {
   const { orders, currentTenant, updateOrderStatus, updateOrderItems, addTransaction, users } = useApp();
   const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
   const [discounts, setDiscounts] = useState<{ [key: string]: number }>({});
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedStaffId, setSelectedStaffId] = useState<string>('all');
+  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   
-  const [filter, setFilter] = useState<'ready' | 'completed'>('ready');
-  
-  const filteredOrders = useMemo(() => {
-    return orders
-      .filter(o => {
-        if (filter === 'ready') return o.status === OrderStatus.READY;
-        return o.status === OrderStatus.COMPLETED;
-      })
-      .sort((a, b) => {
-        const timeA = new Date(a.createdAt).getTime();
-        const timeB = new Date(b.createdAt).getTime();
-        return filter === 'ready' ? timeA - timeB : timeB - timeA;
-      });
-  }, [orders, filter]);
-
-  const getStatusStyles = (status: OrderStatus) => {
-    switch(status) {
-      case OrderStatus.READY: 
-      case OrderStatus.COMPLETED:
-        return { bg: 'bg-emerald-500', text: 'text-emerald-600', lightBg: 'bg-emerald-50' };
-      default: 
-        return { bg: 'bg-slate-900', text: 'text-slate-900', lightBg: 'bg-slate-50' };
-    }
-  };
-
   const getCreator = (userId: string) => {
     return users.find(u => u.id === userId);
   };
@@ -44,6 +22,35 @@ export const Billing = () => {
     const total = Math.max(0, subtotal + vat - discount);
     return { subtotal, vat, total };
   };
+
+  const filteredOrders = useMemo(() => {
+    return orders
+      .filter(o => {
+        const isReady = o.status === OrderStatus.READY;
+        const matchesSearch = o.tokenNumber.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesStaff = selectedStaffId === 'all' || o.createdBy === selectedStaffId;
+        return isReady && matchesSearch && matchesStaff;
+      })
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  }, [orders, searchTerm, selectedStaffId]);
+
+  const totalAwaitingAmount = useMemo(() => {
+    return filteredOrders.reduce((acc, order) => {
+      const discount = discounts[order.id] || 0;
+      const { total } = calculateTotal(order, discount);
+      return acc + total;
+    }, 0);
+  }, [filteredOrders, discounts, currentTenant]);
+
+  const selectedTotalAmount = useMemo(() => {
+    return filteredOrders
+      .filter(o => selectedOrderIds.includes(o.id))
+      .reduce((acc, order) => {
+        const discount = discounts[order.id] || 0;
+        const { total } = calculateTotal(order, discount);
+        return acc + total;
+      }, 0);
+  }, [filteredOrders, selectedOrderIds, discounts, currentTenant]);
 
   const groupItems = (items: OrderItem[]) => {
     const grouped = items.reduce((acc, item) => {
@@ -79,9 +86,53 @@ export const Billing = () => {
     addTransaction(transaction);
     updateOrderStatus(order.id, OrderStatus.COMPLETED, discount);
     
-    // Store the discount in the order object temporarily for the invoice modal
-    const orderWithDiscount = { ...order, discount };
-    setInvoiceOrder(orderWithDiscount as any);
+    // Invoice preview not required
+    setSelectedOrderIds(prev => prev.filter(id => id !== order.id));
+  };
+
+  const handleBulkPayment = () => {
+    const selectedOrders = filteredOrders.filter(o => selectedOrderIds.includes(o.id));
+    if (selectedOrders.length === 0) return;
+
+    selectedOrders.forEach(order => {
+      const discount = discounts[order.id] || 0;
+      const { total } = calculateTotal(order, discount);
+      const groupedItems = groupItems(order.items);
+      const creator = getCreator(order.createdBy);
+      
+      const transaction = {
+          id: `txn-${Date.now()}-${order.id}`,
+          tenantId: currentTenant.id,
+          orderId: order.id,
+          amount: total,
+          discount: discount,
+          date: new Date().toISOString(),
+          paymentMethod: 'CASH',
+          itemsSummary: groupedItems.map(i => `${i.quantity}x ${i.name}`).join(', '),
+          creatorName: creator?.name || 'Unknown'
+      };
+      
+      addTransaction(transaction);
+      updateOrderStatus(order.id, OrderStatus.COMPLETED, discount);
+    });
+
+    setSelectedOrderIds([]);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedOrderIds.length === filteredOrders.length) {
+      setSelectedOrderIds([]);
+    } else {
+      setSelectedOrderIds(filteredOrders.map(o => o.id));
+    }
+  };
+
+  const toggleSelectOrder = (orderId: string) => {
+    setSelectedOrderIds(prev => 
+      prev.includes(orderId) 
+        ? prev.filter(id => id !== orderId) 
+        : [...prev, orderId]
+    );
   };
 
   const printInvoice = () => {
@@ -92,182 +143,255 @@ export const Billing = () => {
   };
 
   return (
-    <div className="p-6 md:p-10 h-full overflow-y-auto bg-slate-50/50 no-scrollbar">
-      <div className="mb-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+    <div className="p-4 md:p-10 h-full overflow-y-auto bg-slate-50/50 no-scrollbar">
+      <div className="mb-6 md:mb-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-6">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-4">
-             <Receipt className="text-indigo-500" size={32} /> Billing Hub
+          <h1 className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-3 md:gap-4">
+             <Receipt className="text-indigo-500" size={28} /> Billing Hub
           </h1>
-          <p className="text-slate-400 text-xs font-medium uppercase tracking-widest mt-2 opacity-80">Finalize payments and generate invoices</p>
+          <p className="text-slate-400 text-[10px] md:text-xs font-medium uppercase tracking-widest mt-1 md:mt-2 opacity-80">Finalize payments and generate invoices</p>
         </div>
-        <div className="flex items-center gap-3 bg-white p-1.5 rounded-2xl border-2 border-slate-100 shadow-sm">
+        <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3 w-full md:w-auto">
+          <div className="flex flex-col gap-3 flex-1 md:w-64">
+            <div className="relative">
+              <Users className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+              <select 
+                value={selectedStaffId}
+                onChange={(e) => setSelectedStaffId(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 bg-white border-2 border-black rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500 outline-none transition-all shadow-sm appearance-none"
+              >
+                <option value="all">All Staff</option>
+                {users.map(u => (
+                  <option key={u.id} value={u.id}>{u.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+              <input 
+                type="text"
+                placeholder="Search Token Number..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 bg-white border-2 border-black rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500 outline-none transition-all shadow-sm"
+              />
+            </div>
+          </div>
+          <div className="bg-pink-500 border-2 border-black px-4 md:px-6 py-2 md:py-3 rounded-2xl shadow-lg shadow-pink-200 transition-all hover:scale-105 flex flex-col justify-center items-center">
+            <p className="text-[9px] md:text-[10px] font-bold text-white uppercase tracking-widest mb-0.5 md:mb-1">Total Amount</p>
+            <p className="text-lg md:text-xl font-bold text-white leading-none">
+              {currentTenant?.currency}{selectedTotalAmount.toFixed(2)}
+            </p>
+          </div>
           <button 
-            onClick={() => setFilter('ready')}
-            className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'ready' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
+            onClick={handleBulkPayment}
+            disabled={selectedOrderIds.length === 0}
+            className={`px-4 md:px-6 py-2 md:py-3 rounded-2xl shadow-lg transition-all border-2 border-black flex flex-col justify-center ${
+              selectedOrderIds.length > 0 
+                ? 'bg-emerald-500 text-white shadow-emerald-100 hover:scale-105' 
+                : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed opacity-60'
+            }`}
           >
-            Ready
+            <p className={`text-[9px] md:text-[10px] font-bold uppercase tracking-widest mb-0.5 md:mb-1 ${selectedOrderIds.length > 0 ? 'text-white/80' : 'text-slate-400'}`}>Collect Selected</p>
+            <p className="text-sm md:text-base font-bold leading-none">Total Order: {selectedOrderIds.length}</p>
           </button>
-          <button 
-            onClick={() => setFilter('completed')}
-            className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'completed' ? 'bg-emerald-500 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
-          >
-            Paid
-          </button>
-        </div>
-        <div className="bg-white border-2 border-indigo-500 px-6 py-3 rounded-2xl shadow-lg shadow-indigo-100 transition-all hover:scale-105">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{filter === 'ready' ? 'Awaiting Checkout' : 'Completed Today'}</p>
-          <p className="text-xl font-bold text-slate-900">{filteredOrders.length} Orders</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
-        {filteredOrders.length === 0 ? (
-          <div className="col-span-full py-24 flex flex-col items-center justify-center text-slate-300 bg-white rounded-3xl border-2 border-dashed border-slate-200 shadow-xl">
-              <Receipt size={64} strokeWidth={1} className="mb-6 opacity-40" />
-              <p className="text-sm font-medium opacity-60 uppercase tracking-widest">No {filter} orders at the moment</p>
-          </div>
-        ) : (
-          filteredOrders.map(order => {
-            const discount = discounts[order.id] || 0;
-            const { total } = calculateTotal(order, discount);
-            const groupedItems = groupItems(order.items);
-            const prefix = currentTenant.customerTokenPrefix || 'WEB';
-            const isOnline = order.tokenNumber.startsWith(prefix) || order.tokenNumber === 'OO';
-            const headerLabel = isOnline ? 'Online Order' : 'Counter Token';
-            const statusStyles = getStatusStyles(order.status);
-
-            return (
-              <div key={order.id} className="group relative bg-white rounded-[2.5rem] shadow-2xl border-4 border-black transition-all duration-300 text-left flex flex-col min-h-[400px] hover:scale-[1.02] overflow-hidden">
-                {/* Top Border Bar */}
-                <div className={`absolute top-0 left-0 right-0 h-4 ${statusStyles.bg}`}></div>
-                
-                <div className="relative z-10 flex flex-col h-full p-6 pt-10">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center text-[10px] font-black shadow-lg border-b-2 border-slate-700">
-                        {getCreator(order.createdBy)?.name?.[0] || '?'}
-                      </div>
-                      <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">{getCreator(order.createdBy)?.name.split(' ')[0].toUpperCase()}</span>
+      <div className="bg-white rounded-[1.5rem] md:rounded-[2.5rem] shadow-xl shadow-slate-200/50 border-2 border-black overflow-hidden">
+        {/* Desktop Table View */}
+        <div className="hidden md:block overflow-x-auto no-scrollbar">
+          <table className="w-full text-left border-collapse">
+            <thead className="bg-slate-50/80 text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em] border-b-2 border-black">
+              <tr>
+                <th className="px-4 py-6 text-center border-r border-black">
+                  <input 
+                    type="checkbox" 
+                    checked={filteredOrders.length > 0 && selectedOrderIds.length === filteredOrders.length}
+                    onChange={toggleSelectAll}
+                    className="w-4 h-4 rounded border-2 border-black text-indigo-600 focus:ring-indigo-500"
+                  />
+                </th>
+                <th className="px-8 py-6 text-center border-r border-black">Token</th>
+                <th className="px-8 py-6 border-r border-black">Table/Staff</th>
+                <th className="px-8 py-6 border-r border-black">Staff</th>
+                <th className="px-8 py-6 border-r border-black">Discount</th>
+                <th className="px-8 py-6 border-r border-black">Total Due</th>
+                <th className="px-8 py-6 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-black">
+              {filteredOrders.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-8 py-24 text-center">
+                    <div className="flex flex-col items-center justify-center text-slate-300">
+                      <Receipt size={64} strokeWidth={1} className="mb-6 opacity-40" />
+                      <p className="text-sm font-medium opacity-60 uppercase tracking-widest">No matching orders</p>
                     </div>
-                    <div className="text-right">
-                      <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-900 mb-1">{headerLabel}</p>
-                      <div className={`w-8 h-1.5 ml-auto rounded-full ${statusStyles.bg}`}></div>
-                    </div>
-                  </div>
+                  </td>
+                </tr>
+              ) : (
+                filteredOrders.map(order => {
+                  const discount = discounts[order.id] || 0;
+                  const { total } = calculateTotal(order, discount);
+                  const creator = getCreator(order.createdBy);
+                  const isSelected = selectedOrderIds.includes(order.id);
 
-                  {/* Token Number Pill */}
-                  <div className="flex justify-center mb-6 relative">
-                    <div className={`w-12 h-12 rounded-full border-2 border-black flex items-center justify-center font-black text-xl text-white shadow-xl ${statusStyles.bg}`}>
-                      {order.tokenNumber}
-                    </div>
-                    {(order.tableNumber || order.deliveryStaffName) && (
-                      <div className="absolute -top-1 -right-1 bg-black text-white text-[9px] font-black px-2 py-0.5 rounded-full border-2 border-white shadow-lg">
-                        {order.deliveryStaffName ? `D-${order.deliveryStaffName.split(' ')[0]}` : `T-${order.tableNumber}`}
-                      </div>
-                    )}
-                  </div>
+                  return (
+                    <tr key={order.id} className={`hover:bg-indigo-50/30 transition-all group ${isSelected ? 'bg-indigo-50/50' : ''}`}>
+                      <td className="px-4 py-6 border-r border-black text-center">
+                        <input 
+                          type="checkbox" 
+                          checked={isSelected}
+                          onChange={() => toggleSelectOrder(order.id)}
+                          className="w-4 h-4 rounded border-2 border-black text-indigo-600 focus:ring-indigo-500"
+                        />
+                      </td>
+                      <td className="px-8 py-6 border-r border-black">
+                        <div className="flex justify-center">
+                          <div className="px-4 py-2 rounded-xl border-2 border-black flex items-center justify-center font-black text-xl text-white bg-emerald-500 shadow-lg min-w-[3.5rem]">
+                            {order.tokenNumber}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-8 py-6 border-r border-black">
+                        <div className="flex flex-col gap-1">
+                          {(order.tableNumber || order.deliveryStaffName) && (
+                            <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-100 w-fit uppercase tracking-widest">
+                              {order.deliveryStaffName ? `D-${order.deliveryStaffName.split(' ')[0]}` : `T-${order.tableNumber}`}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-8 py-6 border-r border-black">
+                        <span className="text-xs font-black text-slate-900 uppercase tracking-tight">{creator?.name || '-'}</span>
+                      </td>
+                      <td className="px-8 py-6 border-r border-black">
+                        <div className="relative w-24">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">{currentTenant?.currency}</span>
+                          <input 
+                            type="number"
+                            value={discounts[order.id] || ''}
+                            onChange={(e) => setDiscounts(prev => ({ ...prev, [order.id]: parseFloat(e.target.value) || 0 }))}
+                            placeholder="0.00"
+                            className="w-full pl-7 pr-3 py-2 text-[10px] font-bold bg-slate-50 border-2 border-black rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                          />
+                        </div>
+                      </td>
+                      <td className="px-8 py-6 border-r border-black">
+                        <span className="text-sm font-black text-slate-900 tracking-tighter">
+                          {currentTenant?.currency}{total.toFixed(2)}
+                        </span>
+                      </td>
+                      <td className="px-8 py-6 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button 
+                            onClick={() => {
+                              const discount = discounts[order.id] || 0;
+                              setInvoiceOrder({ ...order, discount } as any);
+                            }}
+                            className="w-10 h-10 bg-slate-900 text-white rounded-xl flex items-center justify-center hover:bg-slate-800 shadow-lg border-2 border-black transition-all active:scale-95"
+                            title="Preview & Collect"
+                          >
+                            <Eye size={18} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
 
-                  <div className="text-center mb-6">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 block mb-1">Total Due</span>
-                    <span className="text-2xl font-bold text-slate-900 tracking-tight">{currentTenant?.currency}{total.toFixed(2)}</span>
-                  </div>
-
-                  <div className="mb-6">
-                    <label className="text-[9px] font-bold uppercase tracking-widest text-slate-400 block mb-2">Discount ({currentTenant?.currency})</label>
-                    <input 
-                      type="number"
-                      value={discounts[order.id] || ''}
-                      onChange={(e) => setDiscounts(prev => ({ ...prev, [order.id]: parseFloat(e.target.value) || 0 }))}
-                      placeholder="0.00"
-                      className="w-full p-3 text-[10px] font-bold bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                    />
-                  </div>
-
-                  {isOnline && (
-                    <div className="mb-6">
-                      <label className="text-[9px] font-bold uppercase tracking-widest text-slate-400 block mb-2">Assign Delivery Staff</label>
-                      <select 
-                        value={order.deliveryStaffId || ''}
-                        onChange={(e) => {
-                          const staff = users.find(u => u.id === e.target.value);
-                          updateOrderItems(
-                            order.id, 
-                            order.items, 
-                            order.totalAmount, 
-                            order.note || undefined, 
-                            order.status,
-                            staff?.id || null,
-                            staff?.name || null,
-                            staff?.mobile || null
-                          );
-                        }}
-                        className="w-full p-3 text-[10px] font-bold bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-                      >
-                        <option value="">Select Staff</option>
-                        {users.filter(u => u.role === Role.DELIVERY).map(staff => (
-                          <option key={staff.id} value={staff.id}>{staff.name} ({staff.mobile})</option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-
-                  {order.deliveryStaffName && (
-                    <div className="mb-6 p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100/50">
-                      <div className="flex items-center gap-2 mb-2">
-                        <ShoppingBag size={14} className="text-indigo-500" />
-                        <span className="text-[9px] font-bold uppercase tracking-widest text-indigo-500">Assigned Delivery</span>
-                      </div>
-                      <div className="flex flex-col">
-                        <p className="text-[11px] font-bold text-slate-900">{order.deliveryStaffName}</p>
-                        <p className="text-[10px] font-medium text-slate-500 mt-0.5">{order.deliveryStaffMobile}</p>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="flex-1 space-y-3 mb-8 max-h-48 overflow-y-auto no-scrollbar py-2 border-y border-slate-50">
-                  {groupedItems.map((item, idx) => (
-                    <div key={idx} className="flex justify-between items-center text-xs">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="font-bold text-indigo-500 shrink-0">{item.quantity}x</span>
-                        <span className="text-slate-600 truncate font-medium">{item.name}</span>
-                      </div>
-                      <span className="text-slate-400 font-bold shrink-0">{currentTenant?.currency}{(item.price * item.quantity).toFixed(2)}</span>
-                    </div>
-                  ))}
-                </div>
-
-                {order.deliveryAddress && (
-                  <div className="mb-6 p-3 bg-slate-50 rounded-xl border border-slate-100">
-                    <div className="flex items-center gap-2 mb-1">
-                      <MapPin size={12} className="text-slate-400" />
-                      <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Destination</span>
-                    </div>
-                    <p className="text-[10px] font-medium text-slate-600 truncate">{order.deliveryAddress}</p>
-                  </div>
-                )}
-
-                <div className="mt-auto space-y-3">
-                  <button 
-                    onClick={() => {
-                      const discount = discounts[order.id] || 0;
-                      setInvoiceOrder({ ...order, discount } as any);
-                    }}
-                    className="w-full py-3 bg-white border-2 border-slate-900 text-slate-900 rounded-2xl font-bold uppercase tracking-widest text-[10px] hover:bg-slate-50 transition-all active:scale-95 flex items-center justify-center gap-3"
-                  >
-                    Print Invoice <Printer size={16} />
-                  </button>
-                  <button 
-                    onClick={() => handlePayment(order)}
-                    className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold uppercase tracking-widest text-[10px] shadow-lg hover:bg-slate-800 transition-all active:scale-95 flex items-center justify-center gap-3"
-                  >
-                    Collect Payment <CheckCheck size={16} />
-                  </button>
-                </div>
+        {/* Mobile Card View */}
+        <div className="md:hidden divide-y divide-black">
+          {filteredOrders.length > 0 && (
+            <div className="p-4 bg-slate-50 border-b border-black flex items-center justify-between">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  checked={filteredOrders.length > 0 && selectedOrderIds.length === filteredOrders.length}
+                  onChange={toggleSelectAll}
+                  className="w-5 h-5 rounded border-2 border-black text-indigo-600 focus:ring-indigo-500"
+                />
+                <span className="text-[10px] font-bold text-slate-900 uppercase tracking-widest">Select All</span>
+              </label>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{selectedOrderIds.length} Selected</span>
+            </div>
+          )}
+          {filteredOrders.length === 0 ? (
+            <div className="px-8 py-24 text-center">
+              <div className="flex flex-col items-center justify-center text-slate-300">
+                <Receipt size={64} strokeWidth={1} className="mb-6 opacity-40" />
+                <p className="text-sm font-medium opacity-60 uppercase tracking-widest">No matching orders</p>
               </div>
             </div>
-          );
-          })
-        )}
+          ) : (
+            filteredOrders.map(order => {
+              const discount = discounts[order.id] || 0;
+              const { total } = calculateTotal(order, discount);
+              const creator = getCreator(order.createdBy);
+
+              return (
+                <div key={order.id} className={`p-5 flex flex-col gap-4 border-b border-black ${selectedOrderIds.includes(order.id) ? 'bg-indigo-50/30' : ''}`}>
+                  <div className="flex justify-between items-start">
+                    <div className="flex items-center gap-3">
+                      <input 
+                        type="checkbox" 
+                        checked={selectedOrderIds.includes(order.id)}
+                        onChange={() => toggleSelectOrder(order.id)}
+                        className="w-5 h-5 rounded border-2 border-black text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <div className="px-3 py-1.5 rounded-xl border-2 border-black flex items-center justify-center font-black text-lg text-white bg-emerald-500 shadow-md min-w-[3rem]">
+                        {order.tokenNumber}
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        {(order.tableNumber || order.deliveryStaffName) && (
+                          <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-100 w-fit uppercase tracking-widest">
+                            {order.deliveryStaffName ? `D-${order.deliveryStaffName.split(' ')[0]}` : `T-${order.tableNumber}`}
+                          </span>
+                        )}
+                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">{creator?.name || '-'}</span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Due</p>
+                      <span className="text-xl font-black text-slate-900 tracking-tighter">
+                        {currentTenant?.currency}{total.toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center justify-between gap-4 bg-slate-50 p-3 rounded-2xl">
+                    <div className="relative flex-1">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">{currentTenant?.currency}</span>
+                      <input 
+                        type="number"
+                        value={discounts[order.id] || ''}
+                        onChange={(e) => setDiscounts(prev => ({ ...prev, [order.id]: parseFloat(e.target.value) || 0 }))}
+                        placeholder="Discount"
+                        className="w-full pl-7 pr-3 py-2 text-[10px] font-bold bg-white border-2 border-black rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <button 
+                        onClick={() => {
+                          const discount = discounts[order.id] || 0;
+                          setInvoiceOrder({ ...order, discount } as any);
+                        }}
+                        className="h-10 px-4 bg-slate-900 text-white rounded-xl flex items-center justify-center gap-2 font-bold uppercase tracking-widest text-[9px] shadow-lg border-2 border-black active:scale-95 transition-all"
+                      >
+                        Preview <Eye size={16} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
       </div>
 
       {/* Invoice Modal */}
@@ -284,31 +408,31 @@ export const Billing = () => {
               </button>
             </div>
             
-            <div className="p-10 overflow-y-auto no-scrollbar print:p-0 print:overflow-visible flex-1" id="invoice-content">
-              <div className="text-center mb-10">
-                <div className="h-16 w-16 mx-auto mb-4 rounded-2xl border border-slate-100 bg-slate-50 flex items-center justify-center overflow-hidden shadow-sm">
+            <div className="p-4 md:p-10 overflow-y-auto no-scrollbar print:p-0 print:overflow-visible flex-1" id="invoice-content">
+              <div className="text-center mb-6 md:mb-10">
+                <div className="h-12 w-12 md:h-16 md:w-16 mx-auto mb-3 md:mb-4 rounded-xl md:rounded-2xl border border-slate-100 bg-slate-50 flex items-center justify-center overflow-hidden shadow-sm">
                   {currentTenant?.logo ? (
                     <img src={currentTenant.logo} className="h-full w-full object-contain" alt="Logo"/>
                   ) : (
-                    <Store size={32} className="text-indigo-600" />
+                    <Store size={24} className="text-indigo-600 md:size-32" />
                   )}
                 </div>
-                <h2 className="text-2xl font-bold text-slate-900 tracking-tight mb-1">{currentTenant?.name}</h2>
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{currentTenant?.address}</p>
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Tel: {currentTenant?.phone}</p>
+                <h2 className="text-xl md:text-2xl font-bold text-slate-900 tracking-tight mb-1">{currentTenant?.name}</h2>
+                <p className="text-[8px] md:text-[10px] text-slate-400 font-bold uppercase tracking-widest">{currentTenant?.address}</p>
+                <p className="text-[8px] md:text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Tel: {currentTenant?.phone}</p>
               </div>
               
-              <div className="border-y border-slate-100 py-8 mb-8 text-center bg-slate-50/50 rounded-3xl">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Service Token</span>
-                  <div className="flex flex-col items-center gap-2">
-                    <span className="text-5xl text-slate-900 font-bold tracking-tight">#{invoiceOrder.tokenNumber}</span>
+              <div className="border-y border-slate-100 py-6 md:py-8 mb-6 md:mb-8 text-center bg-slate-50/50 rounded-2xl md:rounded-3xl">
+                  <span className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1 md:mb-2">Service Token</span>
+                  <div className="flex flex-col items-center gap-1 md:gap-2">
+                    <span className="text-4xl md:text-5xl text-slate-900 font-bold tracking-tight">#{invoiceOrder.tokenNumber}</span>
                     {invoiceOrder.deliveryStaffName && (
                       <div className="flex flex-col items-center gap-1">
-                        <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest bg-indigo-50 px-3 py-1 rounded-full border border-indigo-100">
+                        <span className="text-[9px] md:text-[10px] font-black text-indigo-600 uppercase tracking-widest bg-indigo-50 px-2 md:px-3 py-0.5 md:py-1 rounded-full border border-indigo-100">
                           Delivery: {invoiceOrder.deliveryStaffName}
                         </span>
                         {invoiceOrder.deliveryStaffMobile && (
-                          <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+                          <span className="text-[8px] md:text-[9px] font-bold text-slate-400 uppercase tracking-widest">
                             Mob: {invoiceOrder.deliveryStaffMobile}
                           </span>
                         )}
@@ -375,18 +499,21 @@ export const Billing = () => {
               </div>
             </div>
 
-            <div className="p-8 border-t border-slate-50 bg-slate-50 flex gap-4 print:hidden shrink-0">
+            <div className="p-8 border-t border-slate-50 bg-slate-50 flex flex-col md:flex-row gap-4 print:hidden shrink-0">
               <button 
-                onClick={printInvoice} 
-                className="flex-1 flex items-center justify-center gap-3 bg-slate-900 text-white py-4 rounded-2xl hover:bg-slate-800 transition-all font-bold uppercase tracking-widest text-[10px] shadow-lg active:scale-95"
+                onClick={() => {
+                  handlePayment(invoiceOrder);
+                  setInvoiceOrder(null);
+                }} 
+                className="flex-1 flex items-center justify-center gap-3 bg-emerald-500 text-white py-4 rounded-2xl hover:bg-emerald-600 transition-all font-bold uppercase tracking-widest text-[10px] shadow-lg active:scale-95 border-2 border-black"
               >
-                <Printer size={18} /> Print Invoice
+                <CheckCheck size={18} /> Collect Payment
               </button>
               <button 
-                onClick={() => setInvoiceOrder(null)} 
-                className="flex-1 md:hidden flex items-center justify-center gap-3 bg-indigo-600 text-white py-4 rounded-2xl hover:bg-indigo-700 transition-all font-bold uppercase tracking-widest text-[10px] shadow-lg active:scale-95"
+                onClick={printInvoice} 
+                className="flex-1 flex items-center justify-center gap-3 bg-slate-900 text-white py-4 rounded-2xl hover:bg-slate-800 transition-all font-bold uppercase tracking-widest text-[10px] shadow-lg active:scale-95 border-2 border-black"
               >
-                Done
+                <Printer size={18} /> Print Invoice
               </button>
             </div>
           </div>

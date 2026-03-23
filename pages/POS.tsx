@@ -26,12 +26,252 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+const StatusBadge = ({ label, count, styles, active }: { label: string, count: number, styles: any, active?: boolean }) => (
+  <div className={`flex flex-col items-center justify-center p-3 rounded-2xl border-2 transition-all ${active ? `${styles.bg} ${styles.border} ${styles.text} border-current` : 'bg-slate-50/50 border-slate-100 text-slate-300'}`}>
+    <span className="text-[7px] font-black uppercase tracking-widest mb-1 opacity-60">{label}</span>
+    <span className="text-lg font-black">{count}</span>
+  </div>
+);
+
+const POSCartContent = ({ 
+  onClose, 
+  isEmbedded = false,
+  isCreatingNew,
+  newTableNum,
+  selectedOrderId,
+  orders,
+  cartCount,
+  currentUser,
+  isDelivery,
+  setIsDelivery,
+  deliveryStaff,
+  selectedDeliveryStaffId,
+  setSelectedDeliveryStaffId,
+  deliveryAddress,
+  setDeliveryAddress,
+  cart,
+  updateQuantity,
+  orderNote,
+  setOrderNote,
+  isNoteEditable,
+  setIsNoteEditable,
+  currentTenant,
+  cartTotal,
+  createAndSubmitOrder,
+  isTokenDuplicate,
+  isSubmitting
+}: { 
+  onClose?: () => void, 
+  isEmbedded?: boolean,
+  isCreatingNew: boolean,
+  newTableNum: string,
+  selectedOrderId: string | null,
+  orders: Order[],
+  cartCount: number,
+  currentUser: any,
+  isDelivery: boolean,
+  setIsDelivery: (val: boolean) => void,
+  deliveryStaff: any[],
+  selectedDeliveryStaffId: string,
+  setSelectedDeliveryStaffId: (val: string) => void,
+  deliveryAddress: string,
+  setDeliveryAddress: (val: string) => void,
+  cart: OrderItem[],
+  updateQuantity: (rowId: string, delta: number) => void,
+  orderNote: string,
+  setOrderNote: (val: string) => void,
+  isNoteEditable: boolean,
+  setIsNoteEditable: (val: boolean) => void,
+  currentTenant: any,
+  cartTotal: number,
+  createAndSubmitOrder: () => void,
+  isTokenDuplicate: boolean,
+  isSubmitting: boolean
+}) => (
+  <div className={`flex flex-col ${isEmbedded ? 'h-auto' : 'h-full'} bg-white border-l-2 border-indigo-500 shadow-2xl shadow-indigo-100`}>
+    <div className="p-6 md:p-8 border-b border-slate-100 bg-slate-50/30 shrink-0">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex flex-col">
+          <h2 className="text-lg font-bold text-slate-900 tracking-tight flex items-center gap-3">
+             <ShoppingBasket size={20} className="text-indigo-500" /> {isEmbedded ? 'Current Selection' : 'Order Basket'}
+          </h2>
+          {isCreatingNew ? (
+            newTableNum && (
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1 ml-8">
+                Table: {newTableNum}
+              </span>
+            )
+          ) : (
+            selectedOrderId && (
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1 ml-8">
+                Table: {orders.find(o => o.id === selectedOrderId)?.tableNumber || 'N/A'}
+              </span>
+            )
+          )}
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="px-3 py-1.5 rounded-xl bg-slate-900 text-white text-[10px] font-bold uppercase tracking-widest shadow-sm">
+            {cartCount} Items
+          </span>
+          {onClose && (
+            <button 
+              onClick={onClose}
+              className="lg:hidden w-8 h-8 flex items-center justify-center rounded-xl bg-slate-100 text-slate-500 hover:bg-rose-50 hover:text-rose-500 transition-all"
+            >
+              <X size={18} />
+            </button>
+          )}
+        </div>
+      </div>
+      <p className="text-xs text-slate-400 font-medium">Review selection before processing</p>
+    </div>
+
+    <div className={`${isEmbedded ? 'h-auto' : 'flex-1 overflow-y-auto'} p-6 md:p-8 space-y-4 no-scrollbar`}>
+      {/* Delivery Options */}
+      {(currentUser?.role === Role.OWNER || currentUser?.role === Role.MANAGER || currentUser?.role === Role.SUPER_ADMIN) && (
+        <div className="bg-indigo-50/50 p-4 rounded-2xl border-2 border-indigo-100 mb-4">
+          <div className="flex items-center justify-between mb-3">
+            <label className="text-[10px] font-black uppercase text-indigo-600 tracking-widest flex items-center gap-2">
+              <ShoppingBag size={14} /> Online / Delivery Order
+            </label>
+            <button 
+              onClick={() => setIsDelivery(!isDelivery)}
+              className={`w-10 h-5 rounded-full transition-all relative ${isDelivery ? 'bg-indigo-600' : 'bg-slate-200'}`}
+            >
+              <div className={`absolute top-1 w-3 h-3 rounded-full bg-white transition-all ${isDelivery ? 'left-6' : 'left-1'}`} />
+            </button>
+          </div>
+          
+          {isDelivery && (
+            <motion.div 
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              className="space-y-3 overflow-hidden"
+            >
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-bold uppercase text-slate-400 tracking-widest ml-1">Assign Delivery Staff</label>
+                <select 
+                  value={selectedDeliveryStaffId}
+                  onChange={(e) => setSelectedDeliveryStaffId(e.target.value)}
+                  className="w-full p-3 bg-white border-2 border-indigo-200 rounded-xl text-xs font-bold outline-none focus:border-indigo-500 transition-all"
+                >
+                  <option value="">Select Staff...</option>
+                  {deliveryStaff.map(staff => (
+                    <option key={staff.id} value={staff.id}>{staff.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-bold uppercase text-slate-400 tracking-widest ml-1">Delivery Address</label>
+                <input 
+                  type="text"
+                  value={deliveryAddress}
+                  onChange={(e) => setDeliveryAddress(e.target.value)}
+                  placeholder="Enter full address..."
+                  className="w-full p-3 bg-white border-2 border-indigo-200 rounded-xl text-xs font-medium outline-none focus:border-indigo-500 transition-all"
+                />
+              </div>
+            </motion.div>
+          )}
+        </div>
+      )}
+
+      <AnimatePresence mode="popLayout">
+        {cart.length === 0 ? (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="py-20 flex flex-col items-center justify-center text-slate-300"
+          >
+              <ShoppingCart size={48} strokeWidth={1} className="mb-4 opacity-20" />
+              <p className="text-[10px] font-bold uppercase tracking-widest opacity-40">Basket is empty</p>
+          </motion.div>
+        ) : (
+              cart.map(item => {
+                const isExisting = (item as any).isExisting;
+                const isAdmin = currentUser?.role === Role.OWNER || currentUser?.role === Role.MANAGER || currentUser?.role === Role.SUPER_ADMIN;
+                const canUpdate = !isExisting || isAdmin;
+
+                return (
+                  <motion.div 
+                    layout
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    key={item.rowId} 
+                    className="bg-white p-4 rounded-2xl border border-slate-100 flex justify-between items-center hover:border-slate-200 transition-all group shadow-sm"
+                  >
+                    <div className="min-w-0 pr-4">
+                        <h4 className="font-bold text-slate-900 text-sm truncate">{item.name}</h4>
+                        <div className="flex items-center gap-2">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{currentTenant.currency}{item.price.toFixed(2)}</p>
+                          {isExisting && (
+                            <span className="text-[8px] font-black bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded uppercase tracking-tighter">Existing</span>
+                          )}
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-xl border border-slate-100 group-hover:bg-white transition-colors">
+                        <button 
+                          onClick={() => updateQuantity(item.rowId, -1)} 
+                          disabled={!canUpdate}
+                          className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all ${canUpdate ? 'hover:bg-rose-50 text-slate-400 hover:text-rose-500' : 'opacity-20 cursor-not-allowed text-slate-300'}`}
+                        >
+                          <Minus size={14} />
+                        </button>
+                        <span className="font-bold text-sm w-8 text-center text-slate-900">{item.quantity}</span>
+                        <button 
+                          onClick={() => updateQuantity(item.rowId, 1)} 
+                          disabled={!canUpdate}
+                          className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all ${canUpdate ? 'hover:bg-emerald-50 text-slate-400 hover:text-emerald-500' : 'opacity-20 cursor-not-allowed text-slate-300'}`}
+                        >
+                          <Plus size={14} />
+                        </button>
+                    </div>
+                  </motion.div>
+                );
+              })
+        )}
+      </AnimatePresence>
+    </div>
+
+    <div className="p-6 md:p-8 border-t border-slate-100 bg-slate-50/30 shrink-0 space-y-6">
+      <div className="space-y-3">
+        <label className="text-[10px] font-bold uppercase text-slate-400 tracking-widest flex items-center gap-2 ml-1">
+          <FileText size={12} /> Kitchen Notes
+        </label>
+        <textarea 
+          value={orderNote}
+          onChange={(e) => setOrderNote(e.target.value)}
+          placeholder="Special instructions..."
+          className="w-full p-4 bg-white border-2 border-indigo-500 rounded-2xl text-xs font-medium outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all shadow-xl shadow-indigo-100 h-24 resize-none"
+        />
+      </div>
+      
+      <div className="space-y-4">
+        <div className="flex justify-between items-center">
+            <span className="font-bold uppercase text-[10px] text-slate-400 tracking-widest">Total Amount</span>
+            <span className="text-3xl font-bold text-slate-900 tracking-tight">{currentTenant.currency}{cartTotal.toFixed(2)}</span>
+        </div>
+
+        <button 
+          onClick={createAndSubmitOrder}
+          disabled={cart.length === 0 || isTokenDuplicate || (isCreatingNew && !newTableNum.trim() && !isDelivery) || (isDelivery && !selectedDeliveryStaffId) || isSubmitting}
+          className={`w-full py-4 rounded-2xl font-bold uppercase tracking-widest text-[10px] shadow-xl flex items-center justify-center gap-3 active:scale-95 transition-all disabled:opacity-30 border-2 ${isTokenDuplicate ? 'bg-rose-500 text-white border-rose-600 shadow-rose-100' : 'bg-slate-900 text-white hover:bg-slate-800 border-indigo-500 shadow-indigo-100'}`}
+        >
+          {isSubmitting ? 'Processing...' : (isCreatingNew ? (isTokenDuplicate ? 'Duplicate Token' : (!newTableNum.trim() && !isDelivery ? 'Table Required' : (isDelivery && !selectedDeliveryStaffId ? 'Select Staff' : 'Send to Kitchen'))) : 'Update Order')} <ArrowRight size={18} />
+        </button>
+      </div>
+    </div>
+  </div>
+);
+
 export const POS = () => {
   const { menu, currentTenant, currentUser, addOrder, updateOrderItems, orders, users } = useApp();
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [cart, setCart] = useState<OrderItem[]>([]);
   const [activeCategory, setActiveCategory] = useState<string>('All');
   const [orderNote, setOrderNote] = useState('');
+  const [isNoteEditable, setIsNoteEditable] = useState(true);
   const [isCreatingNew, setIsCreatingNew] = useState(false);
   const [newTokenNum, setNewTokenNum] = useState('');
   const [newTableNum, setNewTableNum] = useState('');
@@ -247,168 +487,6 @@ export const POS = () => {
   const cartTotal = cart.reduce((sum, i) => sum + (i.price * i.quantity), 0);
   const cartCount = cart.reduce((acc, i) => acc + i.quantity, 0);
 
-  const StatusBadge = ({ label, count, styles, active }: { label: string, count: number, styles: any, active?: boolean }) => (
-    <div className={`flex flex-col items-center justify-center p-3 rounded-2xl border-2 transition-all ${active ? `${styles.bg} ${styles.border} ${styles.text} border-current` : 'bg-slate-50/50 border-slate-100 text-slate-300'}`}>
-      <span className="text-[7px] font-black uppercase tracking-widest mb-1 opacity-60">{label}</span>
-      <span className="text-lg font-black">{count}</span>
-    </div>
-  );
-
-  const POSCartContent = ({ onClose, isEmbedded = false }: { onClose?: () => void, isEmbedded?: boolean }) => (
-    <div className={`flex flex-col ${isEmbedded ? 'h-auto' : 'h-full'} bg-white border-l-2 border-indigo-500 shadow-2xl shadow-indigo-100`}>
-      <div className="p-6 md:p-8 border-b border-slate-100 bg-slate-50/30 shrink-0">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex flex-col">
-            <h2 className="text-lg font-bold text-slate-900 tracking-tight flex items-center gap-3">
-               <ShoppingBasket size={20} className="text-indigo-500" /> {isEmbedded ? 'Current Selection' : 'Order Basket'}
-            </h2>
-            {isCreatingNew ? (
-              newTableNum && (
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1 ml-8">
-                  Table: {newTableNum}
-                </span>
-              )
-            ) : (
-              selectedOrderId && (
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1 ml-8">
-                  Table: {orders.find(o => o.id === selectedOrderId)?.tableNumber || 'N/A'}
-                </span>
-              )
-            )}
-          </div>
-          <div className="flex items-center gap-3">
-            <span className="px-3 py-1.5 rounded-xl bg-slate-900 text-white text-[10px] font-bold uppercase tracking-widest shadow-sm">
-              {cartCount} Items
-            </span>
-            {onClose && (
-              <button 
-                onClick={onClose}
-                className="lg:hidden w-8 h-8 flex items-center justify-center rounded-xl bg-slate-100 text-slate-500 hover:bg-rose-50 hover:text-rose-500 transition-all"
-              >
-                <X size={18} />
-              </button>
-            )}
-          </div>
-        </div>
-        <p className="text-xs text-slate-400 font-medium">Review selection before processing</p>
-      </div>
-
-      <div className={`${isEmbedded ? 'h-auto' : 'flex-1 overflow-y-auto'} p-6 md:p-8 space-y-4 no-scrollbar`}>
-        {/* Delivery Options */}
-        {(currentUser?.role === Role.OWNER || currentUser?.role === Role.MANAGER || currentUser?.role === Role.SUPER_ADMIN) && (
-          <div className="bg-indigo-50/50 p-4 rounded-2xl border-2 border-indigo-100 mb-4">
-            <div className="flex items-center justify-between mb-3">
-              <label className="text-[10px] font-black uppercase text-indigo-600 tracking-widest flex items-center gap-2">
-                <ShoppingBag size={14} /> Online / Delivery Order
-              </label>
-              <button 
-                onClick={() => setIsDelivery(!isDelivery)}
-                className={`w-10 h-5 rounded-full transition-all relative ${isDelivery ? 'bg-indigo-600' : 'bg-slate-200'}`}
-              >
-                <div className={`absolute top-1 w-3 h-3 rounded-full bg-white transition-all ${isDelivery ? 'left-6' : 'left-1'}`} />
-              </button>
-            </div>
-            
-            {isDelivery && (
-              <motion.div 
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                className="space-y-3 overflow-hidden"
-              >
-                <div className="space-y-1.5">
-                  <label className="text-[9px] font-bold uppercase text-slate-400 tracking-widest ml-1">Assign Delivery Staff</label>
-                  <select 
-                    value={selectedDeliveryStaffId}
-                    onChange={(e) => setSelectedDeliveryStaffId(e.target.value)}
-                    className="w-full p-3 bg-white border-2 border-indigo-200 rounded-xl text-xs font-bold outline-none focus:border-indigo-500 transition-all"
-                  >
-                    <option value="">Select Staff...</option>
-                    {deliveryStaff.map(staff => (
-                      <option key={staff.id} value={staff.id}>{staff.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-[9px] font-bold uppercase text-slate-400 tracking-widest ml-1">Delivery Address</label>
-                  <input 
-                    type="text"
-                    value={deliveryAddress}
-                    onChange={(e) => setDeliveryAddress(e.target.value)}
-                    placeholder="Enter full address..."
-                    className="w-full p-3 bg-white border-2 border-indigo-200 rounded-xl text-xs font-medium outline-none focus:border-indigo-500 transition-all"
-                  />
-                </div>
-              </motion.div>
-            )}
-          </div>
-        )}
-
-        <AnimatePresence mode="popLayout">
-          {cart.length === 0 ? (
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="py-20 flex flex-col items-center justify-center text-slate-300"
-            >
-                <ShoppingCart size={48} strokeWidth={1} className="mb-4 opacity-20" />
-                <p className="text-[10px] font-bold uppercase tracking-widest opacity-40">Basket is empty</p>
-            </motion.div>
-          ) : (
-            cart.map(item => (
-              <motion.div 
-                layout
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                key={item.rowId} 
-                className="bg-white p-4 rounded-2xl border border-slate-100 flex justify-between items-center hover:border-slate-200 transition-all group shadow-sm"
-              >
-                <div className="min-w-0 pr-4">
-                    <h4 className="font-bold text-slate-900 text-sm truncate">{item.name}</h4>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{currentTenant.currency}{item.price.toFixed(2)}</p>
-                </div>
-                <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-xl border border-slate-100 group-hover:bg-white transition-colors">
-                    <button onClick={() => updateQuantity(item.rowId, -1)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-500 transition-all"><Minus size={14} /></button>
-                    <span className="font-bold text-sm w-8 text-center text-slate-900">{item.quantity}</span>
-                    <button onClick={() => updateQuantity(item.rowId, 1)} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-emerald-50 text-slate-400 hover:text-emerald-500 transition-all"><Plus size={14} /></button>
-                </div>
-              </motion.div>
-            ))
-          )}
-        </AnimatePresence>
-      </div>
-
-      <div className="p-6 md:p-8 border-t border-slate-100 bg-slate-50/30 shrink-0 space-y-6">
-        <div className="space-y-3">
-          <label className="text-[10px] font-bold uppercase text-slate-400 tracking-widest flex items-center gap-2 ml-1">
-            <FileText size={12} /> Kitchen Notes
-          </label>
-          <textarea 
-            value={orderNote}
-            onChange={(e) => setOrderNote(e.target.value)}
-            placeholder="Special instructions..."
-            className="w-full p-4 bg-white border-2 border-indigo-500 rounded-2xl text-xs font-medium outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all shadow-xl shadow-indigo-100 h-24 resize-none"
-          />
-        </div>
-        
-        <div className="space-y-4">
-          <div className="flex justify-between items-center">
-              <span className="font-bold uppercase text-[10px] text-slate-400 tracking-widest">Total Amount</span>
-              <span className="text-3xl font-bold text-slate-900 tracking-tight">{currentTenant.currency}{cartTotal.toFixed(2)}</span>
-          </div>
-
-          <button 
-            onClick={createAndSubmitOrder}
-            disabled={cart.length === 0 || isTokenDuplicate || (isCreatingNew && !newTableNum.trim() && !isDelivery) || (isDelivery && !selectedDeliveryStaffId) || isSubmitting}
-            className={`w-full py-4 rounded-2xl font-bold uppercase tracking-widest text-[10px] shadow-xl flex items-center justify-center gap-3 active:scale-95 transition-all disabled:opacity-30 border-2 ${isTokenDuplicate ? 'bg-rose-500 text-white border-rose-600 shadow-rose-100' : 'bg-slate-900 text-white hover:bg-slate-800 border-indigo-500 shadow-indigo-100'}`}
-          >
-            {isSubmitting ? 'Processing...' : (isCreatingNew ? (isTokenDuplicate ? 'Duplicate Token' : (!newTableNum.trim() && !isDelivery ? 'Table Required' : (isDelivery && !selectedDeliveryStaffId ? 'Select Staff' : 'Send to Kitchen'))) : 'Update Order')} <ArrowRight size={18} />
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-
   if (!selectedOrderId && !isCreatingNew) {
     return (
       <div className="p-4 md:p-10 h-full bg-slate-50/50 overflow-y-auto no-scrollbar">
@@ -618,43 +696,25 @@ export const POS = () => {
                   exit={{ opacity: 0, scale: 0.9 }}
                   key={item.id} 
                   onClick={() => addToCart(item)}
-                  className="group bg-white rounded-[2.5rem] border-2 border-black p-5 flex flex-col hover:border-indigo-500 shadow-xl shadow-slate-200/20 hover:shadow-2xl transition-all active:scale-95 relative overflow-hidden hover:-translate-y-1"
+                  className="group bg-white rounded-[1.5rem] border-2 border-black p-3 flex flex-col hover:border-indigo-500 shadow-xl shadow-slate-200/20 hover:shadow-2xl transition-all active:scale-95 relative overflow-hidden hover:-translate-y-1"
                 >
-                  <div className="w-full aspect-square rounded-[2rem] overflow-hidden mb-4 bg-slate-50 relative border border-slate-100">
-                    {item.image ? (
-                      <img src={item.image} alt={item.name} className={`w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 ${item.stock !== undefined && item.stock !== null && item.stock <= 0 ? 'grayscale opacity-50' : ''}`} referrerPolicy="no-referrer" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-slate-50">
-                        <Utensils size={40} className="text-slate-200" />
-                      </div>
-                    )}
-                    <div className="absolute inset-0 bg-indigo-600/0 group-hover:bg-indigo-600/5 transition-colors"></div>
-                    <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-xl border border-slate-100 shadow-sm">
-                      <span className="text-xs font-black text-slate-900">{currentTenant.currency}{item.price.toFixed(0)}</span>
+                  <div className="text-center flex flex-col items-center justify-center h-full">
+                    <div className="mb-2">
+                      <h4 className="font-black text-slate-900 text-[11px] uppercase tracking-tight group-hover:text-indigo-600 transition-colors mb-1">{item.name}</h4>
+                      <span className="text-[14px] font-black text-indigo-600">{currentTenant.currency}{item.price.toFixed(0)}</span>
                     </div>
-                    {item.stock !== undefined && item.stock !== null && item.stock <= 0 ? (
-                      <div className="absolute inset-0 flex items-center justify-center bg-slate-900/40 backdrop-blur-[2px]">
-                        <span className="bg-rose-600 text-white text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-2xl shadow-2xl transform -rotate-6 border-2 border-white/20">
-                          Sold Out
-                        </span>
+                    
+                    <div className="flex items-center justify-center mt-auto w-full">
+                      <div className="flex flex-col items-center">
+                        {item.stock !== undefined && item.stock !== null && (
+                          <span className={`text-[8px] font-black uppercase tracking-tighter ${item.stock <= 5 ? 'text-rose-500' : 'text-slate-400'}`}>
+                            Stock: {item.stock}
+                          </span>
+                        )}
                       </div>
-                    ) : (
-                      <div className="absolute bottom-3 left-3 w-10 h-10 bg-indigo-600 rounded-2xl shadow-lg flex items-center justify-center text-white group-hover:scale-110 transition-all opacity-0 group-hover:opacity-100 translate-y-4 group-hover:translate-y-0 duration-300">
-                          <Plus size={20} strokeWidth={3} />
-                      </div>
-                    )}
-                    {item.stock !== undefined && item.stock !== null && item.stock > 0 && item.stock <= 10 && (
-                      <div className="absolute top-3 left-3 bg-amber-500 text-white text-[8px] font-black uppercase tracking-widest px-2.5 py-1.5 rounded-xl shadow-lg border border-white/20">
-                        Low Stock: {item.stock}
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="text-left">
-                    <h4 className="font-black text-slate-900 text-sm uppercase tracking-tight mb-1 group-hover:text-indigo-600 transition-colors">{item.name}</h4>
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{item.category}</span>
-                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
+                    </div>
+                    <div className={`absolute bottom-2 right-2 w-7 h-7 rounded-lg flex items-center justify-center transition-all ${item.stock !== undefined && item.stock !== null && item.stock <= 0 ? 'bg-slate-100 text-slate-300' : 'bg-slate-900 text-white group-hover:bg-indigo-600 group-hover:scale-110 shadow-lg'}`}>
+                      {item.stock !== undefined && item.stock !== null && item.stock <= 0 ? <X size={12} /> : <Plus size={12} strokeWidth={3} />}
                     </div>
                   </div>
                 </motion.button>
@@ -671,7 +731,33 @@ export const POS = () => {
           {/* Mobile Embedded Basket - Visible below menu items */}
           {cart.length > 0 && (
             <div className="lg:hidden mt-12 mb-20">
-              <POSCartContent isEmbedded />
+              <POSCartContent 
+                isEmbedded 
+                isCreatingNew={isCreatingNew}
+                newTableNum={newTableNum}
+                selectedOrderId={selectedOrderId}
+                orders={orders}
+                cartCount={cartCount}
+                currentUser={currentUser}
+                isDelivery={isDelivery}
+                setIsDelivery={setIsDelivery}
+                deliveryStaff={deliveryStaff}
+                selectedDeliveryStaffId={selectedDeliveryStaffId}
+                setSelectedDeliveryStaffId={setSelectedDeliveryStaffId}
+                deliveryAddress={deliveryAddress}
+                setDeliveryAddress={setDeliveryAddress}
+                cart={cart}
+                updateQuantity={updateQuantity}
+                orderNote={orderNote}
+                setOrderNote={setOrderNote}
+                isNoteEditable={isNoteEditable}
+                setIsNoteEditable={setIsNoteEditable}
+                currentTenant={currentTenant}
+                cartTotal={cartTotal}
+                createAndSubmitOrder={createAndSubmitOrder}
+                isTokenDuplicate={isTokenDuplicate}
+                isSubmitting={isSubmitting}
+              />
             </div>
           )}
         </div>
@@ -679,7 +765,32 @@ export const POS = () => {
 
       {/* Desktop Sidebar Basket */}
       <div className="hidden lg:flex w-[400px] xl:w-[450px] bg-white flex-col shadow-2xl shrink-0">
-         <POSCartContent />
+         <POSCartContent 
+            isCreatingNew={isCreatingNew}
+            newTableNum={newTableNum}
+            selectedOrderId={selectedOrderId}
+            orders={orders}
+            cartCount={cartCount}
+            currentUser={currentUser}
+            isDelivery={isDelivery}
+            setIsDelivery={setIsDelivery}
+            deliveryStaff={deliveryStaff}
+            selectedDeliveryStaffId={selectedDeliveryStaffId}
+            setSelectedDeliveryStaffId={setSelectedDeliveryStaffId}
+            deliveryAddress={deliveryAddress}
+            setDeliveryAddress={setDeliveryAddress}
+            cart={cart}
+            updateQuantity={updateQuantity}
+            orderNote={orderNote}
+            setOrderNote={setOrderNote}
+            isNoteEditable={isNoteEditable}
+            setIsNoteEditable={setIsNoteEditable}
+            currentTenant={currentTenant}
+            cartTotal={cartTotal}
+            createAndSubmitOrder={createAndSubmitOrder}
+            isTokenDuplicate={isTokenDuplicate}
+            isSubmitting={isSubmitting}
+         />
       </div>
 
       {/* Mobile Sticky Summary Bar Removed as per request - User can scroll to embedded basket */}
@@ -700,7 +811,33 @@ export const POS = () => {
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
               className="absolute right-0 top-0 bottom-0 w-[85%] max-w-md"
             >
-              <POSCartContent onClose={() => setIsCartOpen(false)} />
+              <POSCartContent 
+                onClose={() => setIsCartOpen(false)} 
+                isCreatingNew={isCreatingNew}
+                newTableNum={newTableNum}
+                selectedOrderId={selectedOrderId}
+                orders={orders}
+                cartCount={cartCount}
+                currentUser={currentUser}
+                isDelivery={isDelivery}
+                setIsDelivery={setIsDelivery}
+                deliveryStaff={deliveryStaff}
+                selectedDeliveryStaffId={selectedDeliveryStaffId}
+                setSelectedDeliveryStaffId={setSelectedDeliveryStaffId}
+                deliveryAddress={deliveryAddress}
+                setDeliveryAddress={setDeliveryAddress}
+                cart={cart}
+                updateQuantity={updateQuantity}
+                orderNote={orderNote}
+                setOrderNote={setOrderNote}
+                isNoteEditable={isNoteEditable}
+                setIsNoteEditable={setIsNoteEditable}
+                currentTenant={currentTenant}
+                cartTotal={cartTotal}
+                createAndSubmitOrder={createAndSubmitOrder}
+                isTokenDuplicate={isTokenDuplicate}
+                isSubmitting={isSubmitting}
+              />
             </motion.div>
           </motion.div>
         )}
