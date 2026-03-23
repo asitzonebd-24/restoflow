@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { Order, OrderStatus, ItemStatus, Role } from '../types';
 import { Clock, CheckCircle, Flame, Timer, PlayCircle, CheckSquare, FileText, Lock, Hash, User as UserIcon, ChevronDown, ShoppingBag } from 'lucide-react';
@@ -48,6 +48,7 @@ export const Kitchen = () => {
           cardBorder: 'border-black',
         };
       case OrderStatus.READY: 
+      case OrderStatus.COMPLETED:
         return { 
           bg: 'bg-emerald-500', 
           text: 'text-emerald-600', 
@@ -98,8 +99,24 @@ export const Kitchen = () => {
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Real-time token monitoring</p>
             </div>
         </div>
+
+        <div className="flex items-center gap-3 bg-white p-1.5 rounded-2xl border-2 border-slate-100 shadow-sm">
+          <button 
+            onClick={() => setFilter('pending')}
+            className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'pending' ? 'bg-[#1a1a37] text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
+          >
+            Pending
+          </button>
+          <button 
+            onClick={() => setFilter('done')}
+            className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'done' ? 'bg-emerald-500 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
+          >
+            Done
+          </button>
+        </div>
+
         <div className="bg-white border-2 border-slate-100 px-5 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-400 shadow-sm flex items-center gap-3">
-          Current Active: <span className="text-[#1a1a37]">{activeOrders.length}</span>
+          {filter === 'pending' ? 'Active Orders' : 'Completed Orders'}: <span className="text-[#1a1a37]">{activeOrders.length}</span>
         </div>
       </div>
 
@@ -108,7 +125,7 @@ export const Kitchen = () => {
             <div className="col-span-full flex flex-col items-center justify-center h-96 bg-white rounded-[2.5rem] shadow-xl border-2 border-dashed border-slate-200">
                 <CheckCircle size={64} strokeWidth={1} className="text-slate-200 mb-6" />
                 <h3 className="text-xl font-bold text-slate-400 uppercase tracking-widest">Kitchen Clear</h3>
-                <p className="text-sm text-slate-400 mt-2">All orders have been prepared and served.</p>
+                <p className="text-sm text-slate-400 mt-2">No {filter} orders at the moment.</p>
             </div>
         ) : activeOrders.map(order => {
           const targetStatus = nextStatus(order.status);
@@ -122,9 +139,17 @@ export const Kitchen = () => {
             <div className={`absolute top-0 left-0 right-0 h-4 ${statusColors.bg}`}></div>
             
             <div className="relative z-10 flex flex-col h-full p-6 pt-10">
-              <div className="text-center mb-4">
-                <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-900 mb-1">Kitchen Token</p>
-                <div className={`w-8 h-1.5 mx-auto rounded-full ${statusColors.bg}`}></div>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center text-[10px] font-black shadow-lg border-b-2 border-slate-700">
+                    {creatorName?.[0] || '?'}
+                  </div>
+                  <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">{creatorName.split(' ')[0].toUpperCase()}</span>
+                </div>
+                <div className="text-right">
+                  <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-900 mb-1">Kitchen Token</p>
+                  <div className={`w-8 h-1.5 ml-auto rounded-full ${statusColors.bg}`}></div>
+                </div>
               </div>
 
               {/* Centered Token Number Pill with Table Number Badge */}
@@ -192,13 +217,6 @@ export const Kitchen = () => {
             </div>
 
             <div className="mt-auto pt-6 border-t border-slate-100 flex flex-col gap-4">
-               <div className="flex items-center gap-3">
-                  <div className="text-slate-400">
-                      <UserIcon size={14} />
-                  </div>
-                  <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{creatorName.toUpperCase()}</span>
-               </div>
-               
                {order.status !== OrderStatus.READY ? (
                  isAllowedToUpdate ? (
                     <button 

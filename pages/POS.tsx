@@ -53,7 +53,7 @@ export const POS = () => {
     if (currentUser?.role === Role.WAITER) {
       filtered = filtered.filter(o => o.createdBy === currentUser.id);
     }
-    return filtered;
+    return filtered.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
   }, [orders, currentUser]);
 
   const isTokenDuplicate = useMemo(() => {
@@ -78,6 +78,7 @@ export const POS = () => {
       case OrderStatus.PREPARING: 
         return { bg: 'bg-amber-50', text: 'text-amber-600', border: 'border-amber-200', dot: 'bg-amber-500', topBorder: 'bg-amber-500' };
       case OrderStatus.READY: 
+      case OrderStatus.COMPLETED:
         return { bg: 'bg-emerald-50', text: 'text-emerald-600', border: 'border-emerald-200', dot: 'bg-emerald-500', topBorder: 'bg-emerald-500' };
       default: 
         return { bg: 'bg-slate-50', text: 'text-slate-600', border: 'border-slate-200', dot: 'bg-slate-500', topBorder: 'bg-slate-500' };
@@ -450,9 +451,17 @@ export const POS = () => {
                   <div className={`absolute top-0 left-0 right-0 h-4 ${statusStyles.topBorder}`}></div>
                   
                   <div className="relative z-10 flex flex-col h-full p-4 pt-8">
-                    <div className="text-center mb-3">
-                      <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-900 mb-1">Status Overview</p>
-                      <div className={`w-8 h-1.5 mx-auto rounded-full ${statusStyles.topBorder}`}></div>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center text-[10px] font-black shadow-lg border-b-2 border-slate-700">
+                          {getWaiterName(order.createdBy)?.[0] || '?'}
+                        </div>
+                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-900">{getWaiterName(order.createdBy).split(' ')[0].toUpperCase()}</span>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-900 mb-1">Status Overview</p>
+                        <div className={`w-8 h-1.5 ml-auto rounded-full ${statusStyles.topBorder}`}></div>
+                      </div>
                     </div>
 
                     {/* Token Number Pill (Exactly like image) */}
@@ -485,17 +494,7 @@ export const POS = () => {
                     <div className="border-t-2 border-dashed border-black mb-6"></div>
 
                     {/* Footer */}
-                    <div className="mt-auto flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        {getWaiterAvatar(order.createdBy) ? (
-                          <img src={getWaiterAvatar(order.createdBy)} className="w-10 h-10 rounded-full border-2 border-black object-cover" alt="W" />
-                        ) : (
-                          <div className="w-10 h-10 rounded-full border-2 border-black bg-slate-50 flex items-center justify-center overflow-hidden">
-                            <UserIcon size={18} className="text-slate-400" />
-                          </div>
-                        )}
-                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-900">{getWaiterName(order.createdBy).split(' ')[0].toUpperCase()}</span>
-                      </div>
+                    <div className="mt-auto flex items-center justify-end">
                       <div className="bg-black text-white px-5 py-2.5 rounded-full font-black text-sm flex items-center gap-1 shadow-lg">
                         <span className="text-xs">{currentTenant?.currency}</span>
                         {order.totalAmount.toFixed(0)}

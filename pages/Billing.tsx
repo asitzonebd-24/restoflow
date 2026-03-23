@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { OrderStatus, Order, Transaction, OrderItem, Role } from '../types';
 import { Receipt, CheckCheck, Printer, Download, X, FileText, Hash, MapPin, ShoppingBag, CreditCard, Store, User as UserIcon } from 'lucide-react';
@@ -9,7 +9,30 @@ export const Billing = () => {
   const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
   const [discounts, setDiscounts] = useState<{ [key: string]: number }>({});
   
-  const readyOrders = orders.filter(o => o.status === OrderStatus.READY);
+  const [filter, setFilter] = useState<'ready' | 'completed'>('ready');
+  
+  const filteredOrders = useMemo(() => {
+    return orders
+      .filter(o => {
+        if (filter === 'ready') return o.status === OrderStatus.READY;
+        return o.status === OrderStatus.COMPLETED;
+      })
+      .sort((a, b) => {
+        const timeA = new Date(a.createdAt).getTime();
+        const timeB = new Date(b.createdAt).getTime();
+        return filter === 'ready' ? timeA - timeB : timeB - timeA;
+      });
+  }, [orders, filter]);
+
+  const getStatusStyles = (status: OrderStatus) => {
+    switch(status) {
+      case OrderStatus.READY: 
+      case OrderStatus.COMPLETED:
+        return { bg: 'bg-emerald-500', text: 'text-emerald-600', lightBg: 'bg-emerald-50' };
+      default: 
+        return { bg: 'bg-slate-900', text: 'text-slate-900', lightBg: 'bg-slate-50' };
+    }
+  };
 
   const getCreator = (userId: string) => {
     return users.find(u => u.id === userId);
@@ -77,41 +100,64 @@ export const Billing = () => {
           </h1>
           <p className="text-slate-400 text-xs font-medium uppercase tracking-widest mt-2 opacity-80">Finalize payments and generate invoices</p>
         </div>
+        <div className="flex items-center gap-3 bg-white p-1.5 rounded-2xl border-2 border-slate-100 shadow-sm">
+          <button 
+            onClick={() => setFilter('ready')}
+            className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'ready' ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
+          >
+            Ready
+          </button>
+          <button 
+            onClick={() => setFilter('completed')}
+            className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'completed' ? 'bg-emerald-500 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
+          >
+            Paid
+          </button>
+        </div>
         <div className="bg-white border-2 border-indigo-500 px-6 py-3 rounded-2xl shadow-lg shadow-indigo-100 transition-all hover:scale-105">
-          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Awaiting Checkout</p>
-          <p className="text-xl font-bold text-slate-900">{readyOrders.length} Orders</p>
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{filter === 'ready' ? 'Awaiting Checkout' : 'Completed Today'}</p>
+          <p className="text-xl font-bold text-slate-900">{filteredOrders.length} Orders</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
-        {readyOrders.length === 0 ? (
+        {filteredOrders.length === 0 ? (
           <div className="col-span-full py-24 flex flex-col items-center justify-center text-slate-300 bg-white rounded-3xl border-2 border-dashed border-slate-200 shadow-xl">
               <Receipt size={64} strokeWidth={1} className="mb-6 opacity-40" />
-              <p className="text-sm font-medium opacity-60 uppercase tracking-widest">No orders ready for billing</p>
+              <p className="text-sm font-medium opacity-60 uppercase tracking-widest">No {filter} orders at the moment</p>
           </div>
         ) : (
-          readyOrders.map(order => {
+          filteredOrders.map(order => {
             const discount = discounts[order.id] || 0;
             const { total } = calculateTotal(order, discount);
             const groupedItems = groupItems(order.items);
             const prefix = currentTenant.customerTokenPrefix || 'WEB';
             const isOnline = order.tokenNumber.startsWith(prefix) || order.tokenNumber === 'OO';
             const headerLabel = isOnline ? 'Online Order' : 'Counter Token';
+            const statusStyles = getStatusStyles(order.status);
 
             return (
               <div key={order.id} className="group relative bg-white rounded-[2.5rem] shadow-2xl border-4 border-black transition-all duration-300 text-left flex flex-col min-h-[400px] hover:scale-[1.02] overflow-hidden">
                 {/* Top Border Bar */}
-                <div className="absolute top-0 left-0 right-0 h-4 bg-emerald-500"></div>
+                <div className={`absolute top-0 left-0 right-0 h-4 ${statusStyles.bg}`}></div>
                 
                 <div className="relative z-10 flex flex-col h-full p-6 pt-10">
-                  <div className="text-center mb-4">
-                    <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-900 mb-1">{headerLabel}</p>
-                    <div className="w-8 h-1.5 mx-auto rounded-full bg-emerald-500"></div>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center text-[10px] font-black shadow-lg border-b-2 border-slate-700">
+                        {getCreator(order.createdBy)?.name?.[0] || '?'}
+                      </div>
+                      <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">{getCreator(order.createdBy)?.name.split(' ')[0].toUpperCase()}</span>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-900 mb-1">{headerLabel}</p>
+                      <div className={`w-8 h-1.5 ml-auto rounded-full ${statusStyles.bg}`}></div>
+                    </div>
                   </div>
 
                   {/* Token Number Pill */}
                   <div className="flex justify-center mb-6 relative">
-                    <div className="w-12 h-12 rounded-full border-2 border-black flex items-center justify-center font-black text-xl text-white shadow-xl bg-emerald-500">
+                    <div className={`w-12 h-12 rounded-full border-2 border-black flex items-center justify-center font-black text-xl text-white shadow-xl ${statusStyles.bg}`}>
                       {order.tokenNumber}
                     </div>
                     {(order.tableNumber || order.deliveryStaffName) && (
