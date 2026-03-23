@@ -61,23 +61,6 @@ export const TenantLanding = () => {
 
         {/* Right Side: Portal Selection */}
         <div className="space-y-4 animate-in fade-in slide-in-from-right-8 duration-700 delay-150">
-          {/* Customer Portal */}
-          <button 
-            onClick={() => navigate(`/${tenantId}/order/auth?tenantId=${tenantId}`)}
-            className="w-full group bg-white hover:bg-indigo-600 p-8 rounded-[2.5rem] border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-1 hover:translate-y-1 transition-all flex items-center justify-between"
-          >
-            <div className="flex items-center gap-6">
-              <div className="w-16 h-16 bg-indigo-100 rounded-2xl flex items-center justify-center border-4 border-black group-hover:bg-white transition-colors">
-                <User size={32} className="text-indigo-600" />
-              </div>
-              <div className="text-left">
-                <h3 className="text-xl font-black text-slate-900 group-hover:text-white uppercase tracking-tight">Customer Portal</h3>
-                <p className="text-[10px] font-bold text-slate-400 group-hover:text-indigo-100 uppercase tracking-widest">Order food & track history</p>
-              </div>
-            </div>
-            <ArrowRight size={24} className="text-slate-300 group-hover:text-white transition-colors" />
-          </button>
-
           {/* Staff Portal */}
           <button 
             onClick={() => navigate(`/login?tenantId=${tenantId}`)}

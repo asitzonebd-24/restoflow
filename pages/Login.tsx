@@ -129,33 +129,6 @@ export const Login = () => {
               </button>
             </form>
 
-            {tenantId && business.customerAppEnabled && (
-              <div className="mt-10 pt-10 border-t-2 border-dashed border-slate-100">
-                <div className="mb-6 text-center">
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 text-indigo-500 text-[8px] font-black uppercase tracking-widest mb-3">
-                    <ShoppingBag size={10} /> Customer Portal
-                  </div>
-                  <h2 className="text-xl font-bold text-slate-900 tracking-tight mb-1">
-                    Customer Login
-                  </h2>
-                  <p className="text-slate-400 text-[9px] font-bold uppercase tracking-widest">
-                    Order food & track history
-                  </p>
-                </div>
-
-                <button 
-                  onClick={() => navigate(`/${tenantId}/order/auth`)}
-                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl transition-all duration-300 shadow-lg shadow-indigo-100 flex items-center justify-center gap-3 uppercase text-[10px] tracking-widest group"
-                >
-                  Go to Customer Portal <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
-                </button>
-                
-                <p className="mt-4 text-[9px] text-slate-400 text-center leading-relaxed">
-                  New here? You can create a customer account in the portal.
-                </p>
-              </div>
-            )}
-
             {!tenantId && (
               <div className="mt-10 pt-6 border-t border-slate-50">
                  <p className="text-[9px] font-bold text-slate-300 uppercase tracking-[0.3em] text-center mb-3">Demo Credentials</p>
