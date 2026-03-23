@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { OrderStatus, Order, Transaction, OrderItem, Role } from '../types';
-import { Receipt, CheckCheck, Printer, X, FileText, Store, Search, Users, Eye } from 'lucide-react';
+import { Receipt, CheckCheck, Printer, X, FileText, Store, Search, Users, Eye, AlertTriangle } from 'lucide-react';
 
 export const Billing = () => {
   const { orders, currentTenant, updateOrderStatus, updateOrderItems, addTransaction, users } = useApp();
@@ -11,6 +11,7 @@ export const Billing = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStaffId, setSelectedStaffId] = useState<string>('all');
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
+  const [showConfirmCollect, setShowConfirmCollect] = useState(false);
   
   const getCreator = (userId: string) => {
     return users.find(u => u.id === userId);
@@ -91,6 +92,11 @@ export const Billing = () => {
   };
 
   const handleBulkPayment = () => {
+    if (selectedOrderIds.length === 0) return;
+    setShowConfirmCollect(true);
+  };
+
+  const confirmBulkPayment = () => {
     const selectedOrders = filteredOrders.filter(o => selectedOrderIds.includes(o.id));
     if (selectedOrders.length === 0) return;
 
@@ -117,6 +123,7 @@ export const Billing = () => {
     });
 
     setSelectedOrderIds([]);
+    setShowConfirmCollect(false);
   };
 
   const toggleSelectAll = () => {
@@ -515,6 +522,38 @@ export const Billing = () => {
               >
                 <Printer size={18} /> Print Invoice
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Confirmation Modal */}
+      {showConfirmCollect && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-6">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowConfirmCollect(false)}></div>
+          <div className="relative bg-white w-full max-w-sm rounded-[2rem] shadow-2xl overflow-hidden border-2 border-black p-8 animate-in fade-in zoom-in duration-200">
+            <div className="text-center space-y-4">
+              <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <AlertTriangle size={32} />
+              </div>
+              <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Are you sure to approve bill?</h3>
+              <div className="bg-slate-50 p-4 rounded-2xl border-2 border-slate-100 text-left space-y-2">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Staff Name: <span className="text-slate-900">{selectedStaffId === 'all' ? 'All Staff' : users.find(u => u.id === selectedStaffId)?.name || 'Unknown'}</span></p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Bill Amount: <span className="text-emerald-600">{currentTenant?.currency}{selectedTotalAmount.toFixed(2)}</span></p>
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button 
+                  onClick={() => setShowConfirmCollect(false)}
+                  className="flex-1 py-3 bg-slate-100 text-slate-500 rounded-xl font-bold uppercase tracking-widest text-[10px] border-2 border-transparent hover:border-slate-200 transition-all"
+                >
+                  No
+                </button>
+                <button 
+                  onClick={confirmBulkPayment}
+                  className="flex-1 py-3 bg-emerald-500 text-white rounded-xl font-bold uppercase tracking-widest text-[10px] border-2 border-black shadow-lg shadow-emerald-100 hover:scale-105 transition-all"
+                >
+                  Yes
+                </button>
+              </div>
             </div>
           </div>
         </div>
