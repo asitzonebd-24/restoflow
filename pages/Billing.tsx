@@ -62,9 +62,10 @@ export const Billing = () => {
   };
 
   const printInvoice = () => {
+    // Ensure the modal is fully rendered before printing
     setTimeout(() => {
       window.print();
-    }, 1000);
+    }, 500);
   };
 
   return (
@@ -328,10 +329,10 @@ export const Billing = () => {
               </div>
             </div>
 
-            <div className="p-8 border-t border-slate-50 bg-slate-50 flex gap-4 print:hidden">
+            <div className="p-8 border-t border-slate-50 bg-slate-50 flex gap-4 print:hidden shrink-0">
               <button 
                 onClick={printInvoice} 
-                className="flex-1 hidden md:flex items-center justify-center gap-3 bg-slate-900 text-white py-4 rounded-2xl hover:bg-slate-800 transition-all font-bold uppercase tracking-widest text-[10px] shadow-lg active:scale-95"
+                className="flex-1 flex items-center justify-center gap-3 bg-slate-900 text-white py-4 rounded-2xl hover:bg-slate-800 transition-all font-bold uppercase tracking-widest text-[10px] shadow-lg active:scale-95"
               >
                 <Printer size={18} /> Print Invoice
               </button>

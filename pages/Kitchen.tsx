@@ -6,8 +6,28 @@ import { Clock, CheckCircle, Flame, Timer, PlayCircle, CheckSquare, FileText, Lo
 
 export const Kitchen = () => {
   const { orders, updateOrderStatus, updateOrderItemStatus, currentTenant, currentUser, users } = useApp();
+  const [filter, setFilter] = React.useState<'pending' | 'done'>('pending');
 
-  const activeOrders = orders.filter(o => o.status !== OrderStatus.COMPLETED && o.status !== OrderStatus.CANCELLED);
+  const activeOrders = useMemo(() => {
+    let filtered = orders.filter(o => o.status !== OrderStatus.CANCELLED);
+    
+    if (filter === 'pending') {
+      // Show orders that are not completed and not ready (or ready but still in kitchen)
+      // Actually, let's follow the user's "Pending" vs "Done"
+      // Pending: PENDING, PREPARING
+      // Done: READY, COMPLETED
+      filtered = filtered.filter(o => o.status === OrderStatus.PENDING || o.status === OrderStatus.PREPARING);
+    } else {
+      filtered = filtered.filter(o => o.status === OrderStatus.READY || o.status === OrderStatus.COMPLETED);
+    }
+
+    // Sort by creation time (newest first for done, oldest first for pending)
+    return filtered.sort((a, b) => {
+      const timeA = new Date(a.createdAt).getTime();
+      const timeB = new Date(b.createdAt).getTime();
+      return filter === 'pending' ? timeA - timeB : timeB - timeA;
+    });
+  }, [orders, filter]);
 
   const getStatusColors = (status: OrderStatus | ItemStatus) => {
     switch(status) {
