@@ -25,7 +25,7 @@ import { TenantLanding } from './pages/TenantLanding';
 import { PendingBills } from './pages/PendingBills';
 import { ApprovedBills } from './pages/ApprovedBills';
 import { Role } from './types';
-import { LayoutDashboard, UtensilsCrossed, ChefHat, Receipt, Package, LogOut, Settings, Users as UsersIcon, History, Wallet, PieChart, Menu as MenuIcon, User as UserCircle, ShieldCheck, PowerOff, FileText, CheckCircle, Menu, X } from 'lucide-react';
+import { LayoutDashboard, UtensilsCrossed, ChefHat, Receipt, Package, LogOut, Settings, Users as UsersIcon, History, Wallet, PieChart, Menu as MenuIcon, User as UserCircle, ShieldCheck, PowerOff, FileText, CheckCircle, Menu, X, Globe } from 'lucide-react';
 
 const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) => {
   const { business, currentUser, logout } = useApp();
@@ -85,13 +85,13 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
             ) : (
               <>
                 {permissions.includes('Dashboard') && (
-                  <NavLink to={`/${tId}/dashboard`} onClick={() => onClose()} className={navItemClass('/dashboard')} title="Dashboard">
+                  <NavLink to={`/${tId}/dashboard`} onClick={() => onClose()} className={navItemClass('/dashboard')} title="Restaurant Portal">
                     <LayoutDashboard size={22} />
                   </NavLink>
                 )}
-                
+
                 {permissions.includes('POS') && (
-                  <NavLink to={`/${tId}/pos`} onClick={() => onClose()} className={navItemClass('/pos')} title="Terminal">
+                  <NavLink to={`/${tId}/pos`} onClick={() => onClose()} className={navItemClass('/pos')} title="Staff Terminal">
                     <UtensilsCrossed size={22} />
                   </NavLink>
                 )}
@@ -137,6 +137,10 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
                     <UsersIcon size={22} />
                   </NavLink>
                 )}
+
+                <NavLink to={`/${tId}/order`} target="_blank" className={navItemClass('/order')} title="Customer Portal">
+                  <Globe size={22} className="text-emerald-400" />
+                </NavLink>
 
                 {currentUser.role === Role.SUPER_ADMIN && (
                   <>
@@ -284,7 +288,27 @@ const ProtectedLayout = ({ children, allowedRoles }: { children?: React.ReactNod
 };
 
 const AppContent = () => {
-  const { currentUser, isLoading } = useApp();
+  const { currentUser, isLoading, business } = useApp();
+
+  React.useEffect(() => {
+    if (business.name) {
+      document.title = business.name;
+    } else {
+      document.title = 'RestoFlow';
+    }
+
+    if (business.logo) {
+      const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
+      if (link) {
+        link.href = business.logo;
+      } else {
+        const newLink = document.createElement('link');
+        newLink.rel = 'icon';
+        newLink.href = business.logo;
+        document.head.appendChild(newLink);
+      }
+    }
+  }, [business.name, business.logo]);
 
   if (isLoading) {
     return (

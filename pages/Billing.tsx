@@ -161,7 +161,7 @@ export const Billing = () => {
                 className="w-full pl-10 pr-4 py-2.5 bg-white border-2 border-black rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500 outline-none transition-all shadow-sm appearance-none"
               >
                 <option value="all">All Staff</option>
-                {users.map(u => (
+                {users.filter(u => u.permissions?.includes('POS')).map(u => (
                   <option key={u.id} value={u.id}>{u.name}</option>
                 ))}
               </select>

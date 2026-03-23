@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Role } from '../types';
-import { LogIn, ChefHat, Mail, Lock, AlertCircle, Utensils, ArrowRight } from 'lucide-react';
+import { LogIn, ChefHat, Mail, Lock, AlertCircle, Utensils, ArrowRight, User as UserIcon, ShoppingBag } from 'lucide-react';
 
 export const Login = () => {
   const { login, business, dbStatus, setCurrentTenantId } = useApp();
@@ -54,15 +54,18 @@ export const Login = () => {
           </div>
         </div>
 
-        <div className="p-8 md:p-10 flex flex-col flex-1">
+        <div className="p-8 md:p-10 flex flex-col flex-1 gap-10">
           {/* Staff Section */}
           <div className="w-full bg-white flex flex-col justify-center">
-            <div className="mb-8 text-center">
-               <h2 className="text-2xl font-bold text-slate-900 tracking-tight mb-1">
+            <div className="mb-6 text-center">
+               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-slate-500 text-[8px] font-black uppercase tracking-widest mb-3">
+                 <Lock size={10} /> Staff Terminal
+               </div>
+               <h2 className="text-xl font-bold text-slate-900 tracking-tight mb-1">
                  {tenantId ? 'Staff Login' : 'Super Admin Login'}
                </h2>
-               <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">
-                 {tenantId ? 'Enter credentials to access terminal' : 'Restricted to portal administrators only'}
+               <p className="text-slate-400 text-[9px] font-bold uppercase tracking-widest">
+                 {tenantId ? 'Access POS & Kitchen' : 'Restricted Access'}
                </p>
             </div>
 
@@ -87,31 +90,31 @@ export const Login = () => {
               </div>
             )}
             
-            <form onSubmit={handleStaffSubmit} className="space-y-5">
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Email Address</label>
+            <form onSubmit={handleStaffSubmit} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Email / Mobile</label>
                 <div className="relative">
-                  <Mail className="absolute inset-y-0 left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
+                  <Mail className="absolute inset-y-0 left-4 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
                   <input 
-                    type="email" 
+                    type="text" 
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-indigo-50 outline-none transition-all font-medium text-sm"
+                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:bg-white focus:ring-4 focus:ring-indigo-50 outline-none transition-all font-medium text-xs"
                     placeholder={tenantId ? "staff@bistro.com" : "admin@portal.com"}
                     required
                   />
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Access Key</label>
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-bold text-slate-400 uppercase tracking-widest ml-1">Access Key</label>
                 <div className="relative">
-                  <Lock className="absolute inset-y-0 left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
+                  <Lock className="absolute inset-y-0 left-4 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
                   <input 
                     type="password" 
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl focus:bg-white focus:ring-4 focus:ring-indigo-50 outline-none transition-all font-medium text-sm"
+                    className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:bg-white focus:ring-4 focus:ring-indigo-50 outline-none transition-all font-medium text-xs"
                     placeholder="••••••••"
                     required
                   />
@@ -120,11 +123,38 @@ export const Login = () => {
 
               <button 
                 type="submit"
-                className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 rounded-2xl transition-all duration-300 shadow-lg shadow-slate-200 flex items-center justify-center gap-3 uppercase text-xs tracking-widest group mt-2"
+                className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 rounded-xl transition-all duration-300 shadow-lg shadow-slate-200 flex items-center justify-center gap-3 uppercase text-[10px] tracking-widest group"
               >
-                Enter Terminal <LogIn size={18} className="group-hover:translate-x-1 transition-transform" />
+                Enter Terminal <LogIn size={16} className="group-hover:translate-x-1 transition-transform" />
               </button>
             </form>
+
+            {tenantId && business.customerAppEnabled && (
+              <div className="mt-10 pt-10 border-t-2 border-dashed border-slate-100">
+                <div className="mb-6 text-center">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 text-indigo-500 text-[8px] font-black uppercase tracking-widest mb-3">
+                    <ShoppingBag size={10} /> Customer Portal
+                  </div>
+                  <h2 className="text-xl font-bold text-slate-900 tracking-tight mb-1">
+                    Customer Login
+                  </h2>
+                  <p className="text-slate-400 text-[9px] font-bold uppercase tracking-widest">
+                    Order food & track history
+                  </p>
+                </div>
+
+                <button 
+                  onClick={() => navigate(`/${tenantId}/order/auth`)}
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl transition-all duration-300 shadow-lg shadow-indigo-100 flex items-center justify-center gap-3 uppercase text-[10px] tracking-widest group"
+                >
+                  Go to Customer Portal <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+                </button>
+                
+                <p className="mt-4 text-[9px] text-slate-400 text-center leading-relaxed">
+                  New here? You can create a customer account in the portal.
+                </p>
+              </div>
+            )}
 
             {!tenantId && (
               <div className="mt-10 pt-6 border-t border-slate-50">
