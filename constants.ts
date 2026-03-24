@@ -31,34 +31,12 @@ const ALL_PERMISSIONS = ['Dashboard', 'POS', 'Kitchen', 'Menu', 'Billing', 'Tran
 
 export const MOCK_USERS: User[] = [
   {
-    id: 'sa-user', name: 'Super Admin', email: 'asitzonebd@gmail.com', password: '', mobile: '0000000', role: Role.SUPER_ADMIN, avatar: '',
+    id: 'sa-user', name: 'Super Admin', email: 'asitzonebd@gmail.com', password: 'admin', mobile: '0000000', role: Role.SUPER_ADMIN, avatar: '',
     permissions: ['Portal']
   }
 ];
 
-export const MOCK_MENU: MenuItem[] = [
-  { id: 'm1', tenantId: '01', name: 'Signature Ramen', price: 18.00, category: 'Main', image: 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?q=80&w=200&h=200&auto=format&fit=crop', isAvailable: true },
-  { id: 'm2', tenantId: '01', name: 'Gyoza Dumplings', price: 9.00, category: 'Starter', image: 'https://images.unsplash.com/photo-1496116218417-1a781b1c416c?q=80&w=200&h=200&auto=format&fit=crop', isAvailable: true },
-  { id: 'm3', tenantId: '01', name: 'Matcha Iced Tea', price: 5.50, category: 'Beverage', image: 'https://images.unsplash.com/photo-1582722872445-41ca501ea146?q=80&w=200&h=200&auto=format&fit=crop', isAvailable: true },
-];
-
-export const MOCK_INVENTORY: InventoryItem[] = [
-  { id: 'i1', tenantId: '01', name: 'Flour', unit: 'kg', quantity: 50, minThreshold: 10, supplier: 'Grain Co', pricePerUnit: 2 },
-];
-
-export const INITIAL_ORDERS: Order[] = [
-  {
-    id: 'o1',
-    tenantId: '01',
-    tokenNumber: '12',
-    items: [
-      { rowId: 'row-1', itemId: 'm1', name: 'Signature Ramen', quantity: 2, price: 18.00, status: OrderStatus.PREPARING }
-    ],
-    status: OrderStatus.PREPARING,
-    createdAt: new Date().toISOString(),
-    createdBy: 'u2',
-    totalAmount: 36.00
-  }
-];
-
+export const MOCK_MENU: MenuItem[] = [];
+export const MOCK_INVENTORY: InventoryItem[] = [];
+export const INITIAL_ORDERS: Order[] = [];
 export const MOCK_EXPENSES: Expense[] = [];
