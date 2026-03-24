@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { Utensils, ShieldCheck, ArrowRight, ChefHat } from 'lucide-react';
+import { Utensils, ShieldCheck, ArrowRight, ChefHat, ShoppingBag } from 'lucide-react';
 
 export const Landing = () => {
   const { business } = useApp();
@@ -25,7 +25,7 @@ export const Landing = () => {
       </div>
 
       {/* Portal Selection */}
-      <div className="w-full max-w-md">
+      <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Staff Terminal Card */}
         <button 
           onClick={() => navigate('/login')}
@@ -44,6 +44,27 @@ export const Landing = () => {
           </div>
           <div className="flex items-center gap-2 font-bold uppercase text-[10px] tracking-widest text-white/30 group-hover:text-white transition-colors">
             Enter Administrator Terminal <ArrowRight size={16} />
+          </div>
+        </button>
+
+        {/* Customer Portal Card */}
+        <button 
+          onClick={() => navigate('/order/auth')}
+          className="group w-full bg-white rounded-3xl border border-slate-100 shadow-lg p-10 text-left transition-all hover:shadow-xl hover:-translate-y-1 active:scale-[0.98] flex flex-col justify-between h-[320px]"
+        >
+          <div>
+            <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center mb-8 group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+              <ShoppingBag size={24} />
+            </div>
+            <h2 className="text-3xl font-bold text-slate-900 tracking-tight mb-3">
+              Customer <span className="text-indigo-600">Portal</span>
+            </h2>
+            <p className="text-sm text-slate-400 font-medium leading-relaxed">
+              Integrated ordering experience for valued customers.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 font-bold uppercase text-[10px] tracking-widest text-slate-300 group-hover:text-indigo-600 transition-colors">
+            Enter Customer Portal <ArrowRight size={16} />
           </div>
         </button>
       </div>

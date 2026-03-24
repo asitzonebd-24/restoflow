@@ -2,7 +2,7 @@
 import React, { useEffect } from 'react';
 import { useParams, useNavigate, Navigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { Utensils, ShieldCheck, User, ArrowRight, Store, Globe, MapPin, Phone } from 'lucide-react';
+import { Utensils, ShieldCheck, User, ArrowRight, Store, Globe, MapPin, Phone, ShoppingBag } from 'lucide-react';
 
 export const TenantLanding = () => {
   const { tenantId } = useParams<{ tenantId: string }>();
@@ -77,6 +77,25 @@ export const TenantLanding = () => {
             </div>
             <ArrowRight size={24} className="text-white/20 group-hover:text-white transition-colors" />
           </button>
+
+          {/* Customer Portal */}
+          {tenant.customerAppEnabled && (
+            <button 
+              onClick={() => navigate(`/${tenantId}/order/auth`)}
+              className="w-full group bg-white hover:bg-slate-50 p-8 rounded-[2.5rem] border-4 border-slate-200 shadow-[8px_8px_0px_0px_rgba(226,232,240,1)] hover:shadow-none hover:translate-x-1 hover:translate-y-1 transition-all flex items-center justify-between"
+            >
+              <div className="flex items-center gap-6">
+                <div className="w-16 h-16 bg-indigo-50 rounded-2xl flex items-center justify-center border-4 border-indigo-100 group-hover:bg-indigo-100 transition-colors">
+                  <ShoppingBag size={32} className="text-indigo-600" />
+                </div>
+                <div className="text-left">
+                  <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Customer Portal</h3>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Order online & track history</p>
+                </div>
+              </div>
+              <ArrowRight size={24} className="text-slate-200 group-hover:text-indigo-600 transition-colors" />
+            </button>
+          )}
         </div>
       </div>
 
