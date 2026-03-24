@@ -501,7 +501,7 @@ export const Billing = () => {
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Thank You For Dining With Us</p>
                 <div className="flex items-center justify-center gap-2 opacity-20">
                   <Receipt size={12} />
-                  <p className="text-[8px] font-bold uppercase tracking-widest">RestoFlow Professional OS</p>
+                  <p className="text-[8px] font-bold uppercase tracking-widest">RestoKeep Professional OS</p>
                 </div>
               </div>
             </div>

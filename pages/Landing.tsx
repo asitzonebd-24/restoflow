@@ -72,7 +72,7 @@ export const Landing = () => {
       {/* Footer Branding */}
       <div className="mt-20 flex items-center gap-2 opacity-20">
          <ChefHat size={16} />
-         <p className="text-[9px] font-bold uppercase tracking-[0.4em]">RestoFlow Professional OS</p>
+         <p className="text-[9px] font-bold uppercase tracking-[0.4em]">RestoKeep Professional OS</p>
       </div>
     </div>
   );

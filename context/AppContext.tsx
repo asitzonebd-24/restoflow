@@ -122,18 +122,7 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 const ENHANCED_MOCK_USERS: User[] = [
-  ...MOCK_USERS,
-  {
-    id: 'u-cust',
-    tenantId: '01',
-    name: 'Guest Customer',
-    email: 'guest@customer.com',
-    password: 'password',
-    mobile: '0000000',
-    role: Role.CUSTOMER,
-    avatar: '',
-    permissions: []
-  }
+  ...MOCK_USERS
 ];
 
 const cleanObject = (obj: any) => {
@@ -148,7 +137,7 @@ const cleanObject = (obj: any) => {
 
 export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
-    const savedUser = localStorage.getItem('resto_flow_user');
+    const savedUser = localStorage.getItem('resto_keep_user');
     return savedUser ? JSON.parse(savedUser) : null;
   });
   const [currentTenantId, setCurrentTenantId] = useState<string | null>(null);
@@ -247,7 +236,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
         if (hasChanged) {
           setCurrentUser(updatedUser);
-          localStorage.setItem('resto_flow_user', JSON.stringify(updatedUser));
+          localStorage.setItem('resto_keep_user', JSON.stringify(updatedUser));
         }
       }
     }
@@ -310,7 +299,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       }
 
       setCurrentUser(user);
-      localStorage.setItem('resto_flow_user', JSON.stringify(user));
+      localStorage.setItem('resto_keep_user', JSON.stringify(user));
       return true;
     }
     return false;
@@ -318,7 +307,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
   const logout = () => {
     setCurrentUser(null);
-    localStorage.removeItem('resto_flow_user');
+    localStorage.removeItem('resto_keep_user');
   };
 
   const addOrder = async (order: Omit<Order, 'tenantId'>) => {
@@ -819,7 +808,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       tenantId: newTenantId,
       name: ownerData.name || 'Owner',
       email: ownerData.email || '',
-      password: ownerData.password || 'password',
+      password: ownerData.password || '',
       mobile: ownerData.mobile || '',
       role: Role.OWNER,
       avatar: '',

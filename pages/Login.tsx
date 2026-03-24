@@ -100,7 +100,7 @@ export const Login = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:bg-white focus:ring-4 focus:ring-indigo-50 outline-none transition-all font-medium text-xs"
-                    placeholder={tenantId ? "staff@bistro.com" : "admin@portal.com"}
+                    placeholder={tenantId ? "staff@restaurant.com" : "admin@portal.com"}
                     required
                   />
                 </div>
@@ -150,23 +150,8 @@ export const Login = () => {
 
             {!tenantId && (
               <div className="mt-10 pt-6 border-t border-slate-50">
-                 <p className="text-[9px] font-bold text-slate-300 uppercase tracking-[0.3em] text-center mb-3">Demo Credentials</p>
-                 <div className="bg-slate-50 p-4 rounded-2xl space-y-3">
-                    <div className="flex flex-col items-center gap-1">
-                      <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Super Admin (Portal)</p>
-                      <p className="text-[10px] font-medium text-slate-600">
-                        <span className="text-slate-900 font-bold">admin@portal.com</span> / <span className="text-slate-900 font-bold">admin</span>
-                      </p>
-                    </div>
-                    <div className="flex flex-col items-center gap-1">
-                      <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">Business Owner (Bistro)</p>
-                      <p className="text-[10px] font-medium text-slate-600">
-                        <span className="text-slate-900 font-bold">owner@bistro.com</span> / <span className="text-slate-900 font-bold">password</span>
-                      </p>
-                    </div>
-                 </div>
-                 <p className="mt-4 text-[9px] text-slate-400 text-center leading-relaxed">
-                   Business owners can log in here or via their <span className="text-indigo-500 font-bold">Tenant-Specific Link</span>.
+                 <p className="mt-4 text-[9px] text-slate-400 text-center leading-relaxed italic">
+                   Please use your authorized credentials to access the terminal.
                  </p>
               </div>
             )}

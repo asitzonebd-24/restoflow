@@ -31,24 +31,8 @@ const ALL_PERMISSIONS = ['Dashboard', 'POS', 'Kitchen', 'Menu', 'Billing', 'Tran
 
 export const MOCK_USERS: User[] = [
   {
-    id: 'sa1', name: 'Super Admin', email: 'admin@portal.com', password: 'admin', mobile: '0000000', role: Role.SUPER_ADMIN, avatar: '',
+    id: 'sa-user', name: 'Super Admin', email: 'asitzonebd@gmail.com', password: '', mobile: '0000000', role: Role.SUPER_ADMIN, avatar: '',
     permissions: ['Portal']
-  },
-  {
-    id: 'sa-user', name: 'Super Admin (User)', email: 'asitzonebd@gmail.com', password: 'admin', mobile: '0000000', role: Role.SUPER_ADMIN, avatar: '',
-    permissions: ['Portal']
-  },
-  { 
-    id: 'u1', tenantId: '01', name: 'Raj Patel', email: 'owner@bistro.com', password: 'password', mobile: '5550101', role: Role.OWNER, avatar: '',
-    permissions: ALL_PERMISSIONS 
-  },
-  { 
-    id: 'u2', tenantId: '01', name: 'Mike Waiter', email: 'waiter@bistro.com', password: 'password', mobile: '5550102', role: Role.WAITER, avatar: '',
-    permissions: ['POS']
-  },
-  { 
-    id: 'u3', tenantId: '01', name: 'Chef Gordon', email: 'kitchen@bistro.com', password: 'password', mobile: '5550103', role: Role.KITCHEN, avatar: '',
-    permissions: ['Kitchen']
   }
 ];
 

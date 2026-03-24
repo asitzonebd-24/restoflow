@@ -36,7 +36,7 @@ export const SuperAdmin = () => {
   const [newOwner, setNewOwner] = useState({
     name: '',
     email: '',
-    password: 'password',
+    password: '',
     mobile: ''
   });
 
@@ -62,7 +62,7 @@ export const SuperAdmin = () => {
       setEditingTenant(null);
       setShowModal(false);
       setNewBusiness({ name: '', address: '', phone: '', currency: '৳', themeColor: '#0f172a', monthlyBill: 500, billingDay: 1 });
-      setNewOwner({ name: '', email: '', password: 'password', mobile: '' });
+      setNewOwner({ name: '', email: '', password: '', mobile: '' });
       return;
     }
 
@@ -76,7 +76,7 @@ export const SuperAdmin = () => {
     createBusiness(newBusiness, newOwner);
     setShowModal(false);
     setNewBusiness({ name: '', address: '', phone: '', currency: '৳', themeColor: '#0f172a', monthlyBill: 500, billingDay: 1 });
-    setNewOwner({ name: '', email: '', password: 'password', mobile: '' });
+    setNewOwner({ name: '', email: '', password: '', mobile: '' });
   };
 
   const handleEditTenant = (tenant: Business) => {
@@ -100,7 +100,7 @@ export const SuperAdmin = () => {
         mobile: owner.mobile || ''
       });
     } else {
-      setNewOwner({ name: '', email: '', password: 'password', mobile: '' });
+      setNewOwner({ name: '', email: '', password: '', mobile: '' });
     }
     
     setShowModal(true);

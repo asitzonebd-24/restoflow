@@ -291,7 +291,7 @@ const AppContent = () => {
     if (business.name) {
       document.title = business.name;
     } else {
-      document.title = 'RestoFlow';
+      document.title = 'RestoKeep';
     }
 
     if (business.logo) {
@@ -308,8 +308,8 @@ const AppContent = () => {
 
     // Dynamic Manifest for "Add to Home Screen"
     const manifest = {
-      short_name: business.name || 'RestoFlow',
-      name: business.name ? `${business.name} - RestoFlow` : 'RestoFlow Management',
+      short_name: business.name || 'RestoKeep',
+      name: business.name ? `${business.name} - RestoKeep` : 'RestoKeep Management',
       icons: [
         {
           src: business.logo || 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?q=80&w=192&h=192&auto=format&fit=crop',

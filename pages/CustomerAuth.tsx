@@ -52,7 +52,7 @@ export const CustomerAuth = () => {
         
         // Set user directly to avoid state propagation delay
         setCurrentUser(newUser);
-        localStorage.setItem('resto_flow_user', JSON.stringify(newUser));
+        localStorage.setItem('resto_keep_user', JSON.stringify(newUser));
         navigate(`/${tenantId}/order`);
       } else {
         // Try to login with email or mobile
