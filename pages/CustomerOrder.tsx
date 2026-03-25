@@ -8,8 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 export const CustomerOrder = () => {
   const { tenantId: urlTenantId } = useParams<{ tenantId: string }>();
-  const { menu, business, addOrder, currentUser, logout, updateBusiness, setCurrentTenantId } = useApp();
-  const [activeCategory, setActiveCategory] = useState<string>('All');
+  const { menu, business, addOrder, currentUser, logout, updateBusiness, setCurrentTenantId, activeCategory, setActiveCategory, categories } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
   const [cart, setCart] = useState<OrderItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -30,8 +29,6 @@ export const CustomerOrder = () => {
       setCurrentTenantId(tenantId);
     }
   }, [tenantId, setCurrentTenantId]);
-
-  const categories = useMemo(() => ['All', ...Array.from(new Set(menu.map(m => m.category)))], [menu]);
 
   const filteredMenu = menu.filter(item => 
     item.isAvailable &&
@@ -298,7 +295,7 @@ export const CustomerOrder = () => {
              <X size={24} />
            </button>
         </div>
-        <nav className="flex-1 space-y-4 px-6">
+        <nav className="flex-1 space-y-2 px-6 overflow-y-auto no-scrollbar">
            <button onClick={() => { navigate(`/${tenantId}/order`); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl transition font-black uppercase tracking-widest text-[10px] ${isActive(`/${tenantId}/order`) ? 'bg-indigo-600 shadow-xl' : 'bg-white/5 hover:bg-white/10'}`}>
              <ShoppingBag size={20} /> <span>Digital Menu</span>
            </button>
@@ -308,6 +305,28 @@ export const CustomerOrder = () => {
            <button onClick={() => { navigate(`/${tenantId}/order/history`); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl transition font-black uppercase tracking-widest text-[10px] ${isActive(`/${tenantId}/order/history`) ? 'bg-indigo-600 shadow-xl' : 'bg-white/5 hover:bg-white/10'}`}>
              <History size={20} /> <span>History</span>
            </button>
+
+           <div className="pt-6 mt-6 border-t border-white/10">
+             <p className="text-[9px] font-black uppercase text-white/30 tracking-[0.2em] mb-4 px-2">Categories</p>
+             <div className="space-y-1">
+               {categories.map(cat => (
+                 <button
+                   key={cat}
+                   onClick={() => {
+                     setActiveCategory(cat);
+                     setIsSidebarOpen(false);
+                     if (!isActive(`/${tenantId}/order`)) navigate(`/${tenantId}/order`);
+                   }}
+                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition font-bold uppercase tracking-widest text-[9px] ${
+                     activeCategory === cat ? 'bg-indigo-500 text-white shadow-lg' : 'text-white/60 hover:bg-white/5 hover:text-white'
+                   }`}
+                 >
+                   <div className={`w-1.5 h-1.5 rounded-full ${activeCategory === cat ? 'bg-white' : 'bg-white/20'}`} />
+                   {cat}
+                 </button>
+               ))}
+             </div>
+           </div>
         </nav>
         <div className="pt-8 border-t border-white/10 mt-auto px-8 flex flex-col items-start">
            <div className="flex items-center gap-3 mb-6">
@@ -350,18 +369,6 @@ export const CustomerOrder = () => {
                   className="w-full pl-10 pr-4 py-2 bg-white border-2 border-indigo-500 rounded-xl font-black uppercase text-[10px] outline-none focus:ring-4 focus:ring-indigo-500/10 transition"
                 />
               </div>
-              <div className="relative">
-                <select 
-                  value={activeCategory}
-                  onChange={(e) => setActiveCategory(e.target.value)}
-                  className="w-full pl-4 pr-10 py-2.5 bg-white border-2 border-slate-100 rounded-xl text-[10px] font-bold uppercase tracking-widest outline-none focus:border-indigo-500 appearance-none cursor-pointer shadow-sm"
-                >
-                  {categories.map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                </select>
-                <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 rotate-90 pointer-events-none" size={14} />
-              </div>
             </div>
             <div className="text-right flex items-center gap-4 shrink-0">
               <div className="hidden sm:block">
@@ -385,22 +392,6 @@ export const CustomerOrder = () => {
 
         <div className="flex-1 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden min-h-0 no-scrollbar">
           <div className="flex-none lg:flex-1 p-4 md:p-8 lg:overflow-y-auto no-scrollbar pb-12 lg:pb-32 min-h-0">
-            <div className="mb-8 hidden md:flex flex-col md:flex-row gap-4 items-start md:items-center">
-              <div className="overflow-x-auto pb-2 no-scrollbar flex gap-2 snap-x w-full md:w-auto">
-                {categories.map(cat => (
-                  <button
-                    key={cat}
-                    onClick={() => setActiveCategory(cat)}
-                    className={`px-5 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest border-2 transition-all shrink-0 snap-start ${
-                      activeCategory === cat ? 'bg-slate-900 text-white border-slate-900 shadow-xl shadow-indigo-100 scale-105' : 'bg-white text-slate-500 border-slate-100 hover:border-indigo-500 hover:text-indigo-500'
-                    }`}
-                  >
-                    {cat}
-                  </button>
-                ))}
-              </div>
-            </div>
-
             {filteredMenu.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 text-slate-400">
                 <MenuIcon size={48} className="mb-4 opacity-20" />

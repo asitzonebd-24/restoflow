@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { MenuItem } from '../types';
-import { Plus, Edit2, Trash2, X, Save, Utensils, Sparkles, Search, ImageOff, ListTree, ChevronDown } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Save, Utensils, Sparkles, Search, ImageOff, ListTree, ChevronDown, ChevronRight } from 'lucide-react';
 import { generateMenuDescription } from '../services/geminiService';
 
 export const MenuManagement = () => {
@@ -11,6 +11,9 @@ export const MenuManagement = () => {
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [activeCategory, setActiveCategory] = useState<string>('All');
+  const [statusFilter, setStatusFilter] = useState<'All' | 'Available' | 'Sold Out'>('All');
+  const [stockFilter, setStockFilter] = useState<'All' | 'In Stock' | 'Out of Stock'>('All');
 
   // Category Management state
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -28,8 +31,11 @@ export const MenuManagement = () => {
   const categories = useMemo(() => business.menuCategories || [], [business.menuCategories]);
 
   const filteredMenu = menu.filter(item => 
-    item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    item.category.toLowerCase().includes(searchTerm.toLowerCase())
+    (activeCategory === 'All' || item.category === activeCategory) &&
+    (item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+     item.category.toLowerCase().includes(searchTerm.toLowerCase())) &&
+    (statusFilter === 'All' || (statusFilter === 'Available' ? item.isAvailable : !item.isAvailable)) &&
+    (stockFilter === 'All' || (stockFilter === 'In Stock' ? (item.stock === undefined || item.stock > 0) : (item.stock !== undefined && item.stock <= 0)))
   );
 
   const openAddModal = () => {
@@ -166,6 +172,55 @@ export const MenuManagement = () => {
         </div>
       </div>
 
+      {/* Filter Section */}
+      <div className="mb-12 flex flex-wrap gap-4 w-full">
+        <div className="relative group flex-1 lg:flex-none">
+          <select
+            value={activeCategory}
+            onChange={(e) => setActiveCategory(e.target.value)}
+            className="w-full lg:w-48 px-6 py-3 bg-white border-2 border-black rounded-2xl text-[10px] font-black uppercase tracking-widest appearance-none focus:outline-none focus:ring-4 focus:ring-slate-900/10 transition-all cursor-pointer"
+          >
+            <option value="All">All Categories</option>
+            {categories.map(cat => (
+              <option key={cat} value={cat}>{cat}</option>
+            ))}
+          </select>
+          <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+            <ChevronRight size={14} className="rotate-90" />
+          </div>
+        </div>
+
+        <div className="relative group flex-1 lg:flex-none">
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as any)}
+            className="w-full lg:w-40 px-6 py-3 bg-white border-2 border-black rounded-2xl text-[10px] font-black uppercase tracking-widest appearance-none focus:outline-none focus:ring-4 focus:ring-slate-900/10 transition-all cursor-pointer"
+          >
+            <option value="All">All Status</option>
+            <option value="Available">Available</option>
+            <option value="Sold Out">Sold Out</option>
+          </select>
+          <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+            <ChevronRight size={14} className="rotate-90" />
+          </div>
+        </div>
+
+        <div className="relative group flex-1 lg:flex-none">
+          <select
+            value={stockFilter}
+            onChange={(e) => setStockFilter(e.target.value as any)}
+            className="w-full lg:w-44 px-6 py-3 bg-white border-2 border-black rounded-2xl text-[10px] font-black uppercase tracking-widest appearance-none focus:outline-none focus:ring-4 focus:ring-slate-900/10 transition-all cursor-pointer"
+          >
+            <option value="All">All Stock</option>
+            <option value="In Stock">In Stock</option>
+            <option value="Out of Stock">Out of Stock</option>
+          </select>
+          <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
+            <ChevronRight size={14} className="rotate-90" />
+          </div>
+        </div>
+      </div>
+
       {/* Menu Grid */}
       <div className="space-y-16">
         {categories.length === 0 ? (
@@ -174,7 +229,9 @@ export const MenuManagement = () => {
              <p className="text-slate-300 font-bold uppercase tracking-widest">Your menu is empty</p>
              <button onClick={openAddModal} className="mt-6 text-indigo-500 font-bold text-sm hover:underline">Create your first dish</button>
            </div>
-        ) : categories.map(cat => {
+        ) : categories
+            .filter(cat => activeCategory === 'All' || cat === activeCategory)
+            .map(cat => {
           const itemsInCat = filteredMenu.filter(m => m.category === cat);
           if (itemsInCat.length === 0 && !searchTerm) return null;
           if (itemsInCat.length === 0 && searchTerm) return null;

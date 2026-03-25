@@ -112,6 +112,9 @@ interface AppContextType {
   approveBill: (billId: string) => Promise<void>;
   allUsers: User[];
   isLoading: boolean;
+  activeCategory: string;
+  setActiveCategory: (category: string) => void;
+  categories: string[];
   dbStatus: {
     isConfigured: boolean;
     hasTables: boolean;
@@ -150,6 +153,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [allExpenses, setAllExpenses] = useState<Expense[]>([]);
   const [monthlyBills, setMonthlyBills] = useState<MonthlyBill[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeCategory, setActiveCategory] = useState<string>('All');
   const [dbStatus, setDbStatus] = useState<{
     isConfigured: boolean;
     hasTables: boolean;
@@ -271,6 +275,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     const targetId = currentUser?.tenantId || currentTenantId;
     return allMenu.filter(m => String(m.tenantId) === String(targetId));
   }, [allMenu, currentUser, currentTenantId]);
+
+  const categories = useMemo(() => ['All', ...Array.from(new Set(menu.map(m => m.category)))], [menu]);
 
   const users = useMemo(() => {
     if (currentUser?.role === Role.SUPER_ADMIN) return allUsers;
@@ -1074,6 +1080,9 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       approveBill,
       allUsers,
       isLoading,
+      activeCategory,
+      setActiveCategory,
+      categories,
       dbStatus
     }}>
       {children}

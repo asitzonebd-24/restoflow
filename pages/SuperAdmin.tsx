@@ -6,7 +6,7 @@ import { Plus, Building2, User, Mail, Phone, Globe, MapPin, Search, ExternalLink
 import { useNavigate } from 'react-router-dom';
 
 export const SuperAdmin = () => {
-  const { tenants, createBusiness, currentUser, toggleBusinessStatus, updateTenant, deleteTenant, allUsers, updateUser } = useApp();
+  const { tenants, createBusiness, currentUser, toggleBusinessStatus, updateTenant, deleteTenant, allUsers, updateUser, currentTenant } = useApp();
   const navigate = useNavigate();
   const [showModal, setShowModal] = useState(false);
   const [editingTenant, setEditingTenant] = useState<Business | null>(null);

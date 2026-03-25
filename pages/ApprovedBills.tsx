@@ -5,7 +5,7 @@ import { BillStatus, Role } from '../types';
 import { FileText, CheckCircle, Calendar, Search, Building2, ExternalLink } from 'lucide-react';
 
 export const ApprovedBills = () => {
-  const { monthlyBills, currentUser } = useApp();
+  const { monthlyBills, currentUser, tenants } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
 
   if (currentUser?.role !== Role.SUPER_ADMIN) {
