@@ -108,7 +108,7 @@ interface AppContextType {
   addExpense: (expense: Omit<Expense, 'tenantId'>) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
   monthlyBills: MonthlyBill[];
-  generateMonthlyBills: (month: string) => Promise<void>;
+  generateMonthlyBills: (month: string) => Promise<number>;
   approveBill: (billId: string) => Promise<void>;
   allUsers: User[];
   isLoading: boolean;
@@ -936,7 +936,6 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       customerAppEnabled: true,
       isActive: true,
       monthlyBill: businessData.monthlyBill || 500,
-      billingDay: businessData.billingDay || 1,
       createdAt: new Date().toISOString()
     };
 
@@ -995,9 +994,20 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     }
   };
 
-  const generateMonthlyBills = async (month: string) => {
+  const generateMonthlyBills = async (month: string): Promise<number> => {
     const activeTenants = tenants.filter(t => t.isActive);
-    const billsToCreate: MonthlyBill[] = activeTenants.map(tenant => ({
+    
+    // Filter out tenants who already have a bill for this month (regardless of status)
+    const tenantsToBill = activeTenants.filter(tenant => {
+      const existingBill = monthlyBills.find(b => b.tenantId === tenant.id && b.month === month);
+      return !existingBill;
+    });
+
+    if (tenantsToBill.length === 0) {
+      return 0;
+    }
+
+    const billsToCreate: MonthlyBill[] = tenantsToBill.map(tenant => ({
       id: `bill-${tenant.id}-${month.replace(' ', '-')}-${Date.now()}`,
       tenantId: tenant.id,
       tenantName: tenant.name,
@@ -1013,8 +1023,10 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         batch.set(doc(db, 'monthly_bills', bill.id), bill);
       });
       await batch.commit();
+      return billsToCreate.length;
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'monthly_bills');
+      return 0;
     }
   };
 

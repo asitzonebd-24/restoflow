@@ -39,7 +39,6 @@ export interface Business {
   customerAppEnabled: boolean;
   isActive: boolean;
   monthlyBill: number;
-  billingDay: number;
   createdAt: string;
 }
 

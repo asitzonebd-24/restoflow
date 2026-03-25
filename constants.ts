@@ -23,7 +23,6 @@ export const BUSINESS_DETAILS: Business = {
   customerAppEnabled: true,
   isActive: true,
   monthlyBill: 500,
-  billingDay: 1,
   createdAt: new Date().toISOString()
 };
 

@@ -1,0 +1,348 @@
+
+import React, { useState, useMemo } from 'react';
+import { useApp } from '../context/AppContext';
+import { Expense, Role } from '../types';
+import { Wallet, Plus, Trash2, X, ListTree, Edit2, Save, ChevronDown, Calendar, Search, ShieldCheck } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+
+type DateFilter = 'all' | 'today' | 'week' | 'month' | 'custom';
+
+export const PlatformExpenses = () => {
+    const { expenses, addExpense, deleteExpense, currentUser, currentTenant } = useApp();
+    const navigate = useNavigate();
+    const [isFormOpen, setIsFormOpen] = useState(false);
+    
+    // Filtering State
+    const [dateFilter, setDateFilter] = useState<DateFilter>('all');
+    const [customRange, setCustomRange] = useState({
+        start: new Date().toISOString().split('T')[0],
+        end: new Date().toISOString().split('T')[0]
+    });
+
+    // Form State
+    const [title, setTitle] = useState('');
+    const [amount, setAmount] = useState('');
+    const [category, setCategory] = useState('Other');
+    const [note, setNote] = useState('');
+
+    const superAdminCategories = ['Server', 'Marketing', 'Legal', 'Salaries', 'Other'];
+
+    const filteredExpenses = useMemo(() => {
+        const now = new Date();
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const startOfWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const startOfMonth = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+        return expenses.filter(exp => {
+            // Filter for platform expenses
+            if (exp.tenantId !== 'SUPER_ADMIN' && exp.tenantId !== '') return false;
+
+            const expDate = new Date(exp.date);
+            let matchesDate = true;
+
+            if (dateFilter === 'today') {
+                matchesDate = expDate >= startOfToday;
+            } else if (dateFilter === 'week') {
+                matchesDate = expDate >= startOfWeek;
+            } else if (dateFilter === 'month') {
+                matchesDate = expDate >= startOfMonth;
+            } else if (dateFilter === 'custom') {
+                const start = new Date(customRange.start);
+                start.setHours(0, 0, 0, 0);
+                const end = new Date(customRange.end);
+                end.setHours(23, 59, 59, 999);
+                matchesDate = expDate >= start && expDate <= end;
+            }
+
+            return matchesDate;
+        });
+    }, [expenses, dateFilter, customRange]);
+
+    if (currentUser?.role !== Role.SUPER_ADMIN) {
+        return (
+            <div className="p-8 text-center">
+                <h1 className="text-2xl font-bold text-red-600">Access Denied</h1>
+                <p className="text-slate-600">You do not have permission to view this page.</p>
+            </div>
+        );
+    }
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!currentUser) return;
+
+        const newExpense = {
+            id: `exp-sa-${Date.now()}`,
+            title,
+            amount: parseFloat(amount),
+            category,
+            date: new Date().toISOString(),
+            note,
+            recordedBy: currentUser.id,
+            tenantId: 'SUPER_ADMIN'
+        };
+
+        addExpense(newExpense);
+        setTitle('');
+        setAmount('');
+        setCategory('Other');
+        setNote('');
+        setIsFormOpen(false);
+    };
+
+    const handleDelete = (id: string) => {
+        if(window.confirm('Are you sure you want to delete this platform expense?')) {
+            deleteExpense(id);
+        }
+    };
+
+    return (
+        <div className="p-6 md:p-10 h-full overflow-y-auto bg-slate-50/50 no-scrollbar">
+            <div className="mb-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                <div className="flex items-center gap-4">
+                    <button 
+                        onClick={() => navigate('/portal')}
+                        className="p-3 bg-white rounded-2xl border border-slate-100 text-slate-400 hover:text-indigo-600 transition shadow-sm"
+                    >
+                        <ShieldCheck size={24} />
+                    </button>
+                    <div>
+                        <h1 className="text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-4">
+                            <Wallet className="text-rose-500" size={32} /> Platform Expenses
+                        </h1>
+                        <p className="text-slate-400 text-xs font-medium uppercase tracking-widest mt-2 opacity-80">Track operational costs of the entire portal</p>
+                    </div>
+                </div>
+                
+                <div className="flex gap-3">
+                    <button 
+                        onClick={() => setIsFormOpen(true)}
+                        className="bg-slate-900 text-white px-8 py-4 rounded-2xl text-xs font-bold uppercase tracking-widest shadow-lg hover:bg-slate-800 transition-all flex items-center gap-2 active:scale-95"
+                    >
+                        <Plus size={16} /> Record Expense
+                    </button>
+                </div>
+            </div>
+
+            {/* Filters & Stats */}
+            <div className="mb-10 flex flex-col lg:flex-row gap-6 items-end">
+                <div className="flex-1 w-full grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="bg-white border-2 border-rose-100 border-b-8 border-b-rose-500 px-6 py-6 rounded-3xl shadow-xl shadow-rose-100/20 group hover:scale-[1.02] transition-all">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Total Platform Expenses</p>
+                        <p className="text-3xl font-black text-rose-600 tracking-tighter">{currentTenant?.currency || '৳'}{filteredExpenses.reduce((sum, e) => sum + e.amount, 0).toLocaleString()}</p>
+                    </div>
+                    <div className="bg-white border-2 border-amber-100 border-b-8 border-b-amber-500 px-6 py-6 rounded-3xl shadow-xl shadow-amber-100/20 group hover:scale-[1.02] transition-all">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Transaction Count</p>
+                        <p className="text-3xl font-black text-slate-900 tracking-tighter">{filteredExpenses.length}</p>
+                    </div>
+                    <div className="bg-white border-2 border-indigo-100 border-b-8 border-b-indigo-500 px-6 py-6 rounded-3xl shadow-xl shadow-indigo-100/20 group hover:scale-[1.02] transition-all">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Top Category</p>
+                        <p className="text-2xl font-black text-indigo-600 truncate uppercase tracking-tight">
+                            {filteredExpenses.length > 0 ? (
+                                Object.entries(filteredExpenses.reduce((acc, e) => {
+                                    acc[e.category] = (acc[e.category] || 0) + e.amount;
+                                    return acc;
+                                }, {} as Record<string, number>)).sort((a: [string, number], b: [string, number]) => b[1] - a[1])[0][0]
+                            ) : '-'}
+                        </p>
+                    </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-4 w-full lg:w-auto">
+                    <div className="relative min-w-[220px]">
+                        <Calendar className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                        <select 
+                            value={dateFilter}
+                            onChange={(e) => setDateFilter(e.target.value as any)}
+                            className="w-full pl-14 pr-12 py-4 bg-white border-2 border-slate-100 rounded-2xl text-[10px] font-black uppercase tracking-[0.2em] focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all appearance-none shadow-xl shadow-slate-200/20 cursor-pointer"
+                        >
+                            <option value="all">All Time</option>
+                            <option value="today">Today</option>
+                            <option value="week">Last 7 Days</option>
+                            <option value="month">Last 30 Days</option>
+                            <option value="custom">Custom Range</option>
+                        </select>
+                        <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={18} />
+                    </div>
+                </div>
+            </div>
+
+            {/* Custom Range Bar */}
+            {dateFilter === 'custom' && (
+                <div className="mb-8 p-6 bg-white rounded-3xl border border-slate-100 shadow-sm animate-in slide-in-from-top-2 flex flex-col sm:flex-row items-center gap-6">
+                    <div className="w-full sm:flex-1">
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Start Date</label>
+                        <input 
+                            type="date" 
+                            value={customRange.start}
+                            onChange={(e) => setCustomRange({...customRange, start: e.target.value})}
+                            className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                        />
+                    </div>
+                    <div className="hidden sm:block text-slate-300 font-bold mt-6">TO</div>
+                    <div className="w-full sm:flex-1">
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">End Date</label>
+                        <input 
+                            type="date" 
+                            value={customRange.end}
+                            onChange={(e) => setCustomRange({...customRange, end: e.target.value})}
+                            className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all"
+                        />
+                    </div>
+                </div>
+            )}
+
+            {/* Expense Table */}
+            <div className="bg-white rounded-[2.5rem] border-2 border-slate-100 shadow-2xl shadow-slate-200/50 overflow-hidden">
+                <div className="overflow-x-auto no-scrollbar">
+                    <table className="w-full text-left border-collapse min-w-[800px]">
+                        <thead className="bg-slate-50/80 text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] border-b-2 border-slate-100">
+                            <tr>
+                                <th className="px-8 py-6">Date</th>
+                                <th className="px-8 py-6">Transaction Details</th>
+                                <th className="px-8 py-6">Category</th>
+                                <th className="px-8 py-6">Amount</th>
+                                <th className="px-8 py-6 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50">
+                            {filteredExpenses.length === 0 ? (
+                                <tr>
+                                    <td colSpan={5} className="px-8 py-24 text-center">
+                                        <div className="flex flex-col items-center gap-6 opacity-30">
+                                            <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center border-2 border-dashed border-slate-200">
+                                                <Wallet size={32} />
+                                            </div>
+                                            <p className="text-sm font-black uppercase tracking-[0.2em]">No platform expenses recorded</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ) : (
+                                filteredExpenses.map(exp => (
+                                    <tr key={exp.id} className="hover:bg-rose-50/30 transition-all group">
+                                        <td className="px-8 py-6">
+                                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{new Date(exp.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                                        </td>
+                                        <td className="px-8 py-6">
+                                            <p className="font-black text-slate-900 uppercase tracking-tight">{exp.title}</p>
+                                            {exp.note && <p className="text-[10px] text-slate-400 font-bold mt-1 italic opacity-60">"{exp.note}"</p>}
+                                        </td>
+                                        <td className="px-8 py-6">
+                                            <span className="px-4 py-2 bg-white text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest border-2 border-slate-100 shadow-sm group-hover:border-indigo-200 transition-colors">
+                                                {exp.category}
+                                            </span>
+                                        </td>
+                                        <td className="px-8 py-6">
+                                            <span className="text-lg font-black text-rose-600 tracking-tighter">
+                                                -{currentTenant?.currency || '৳'}{exp.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                            </span>
+                                        </td>
+                                        <td className="px-8 py-6 text-right">
+                                            <button 
+                                                onClick={() => handleDelete(exp.id)}
+                                                className="w-11 h-11 bg-white rounded-2xl flex items-center justify-center text-slate-300 hover:text-rose-600 shadow-lg border-2 border-slate-100 hover:border-rose-200 opacity-0 group-hover:opacity-100 transition-all hover:scale-110 active:scale-95"
+                                            >
+                                                <Trash2 size={18} />
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {isFormOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6">
+                    <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setIsFormOpen(false)}></div>
+                    <div className="relative bg-white w-full max-w-xl md:rounded-[2.5rem] rounded-t-[2rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 self-end md:self-center max-h-[90vh] flex flex-col">
+                        <div className="p-8 md:p-10 overflow-y-auto no-scrollbar flex-1">
+                            <div className="flex justify-between items-center mb-8 shrink-0">
+                                <div>
+                                    <h2 className="text-2xl font-bold text-slate-900">Record Platform Expense</h2>
+                                    <p className="text-slate-400 text-sm mt-1">Log a new operational cost for the platform</p>
+                                </div>
+                                <button onClick={() => setIsFormOpen(false)} className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-all">
+                                    <X size={24} />
+                                </button>
+                            </div>
+
+                            <form onSubmit={handleSubmit} className="space-y-6">
+                                <div className="space-y-6">
+                                    <div>
+                                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Expense Title</label>
+                                        <input 
+                                            type="text" 
+                                            required
+                                            value={title}
+                                            onChange={e => setTitle(e.target.value)}
+                                            placeholder="e.g. Server Hosting"
+                                            className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                                        />
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div>
+                                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Amount</label>
+                                            <div className="relative">
+                                                <span className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 font-bold">{currentTenant?.currency || '৳'}</span>
+                                                <input 
+                                                    type="number" 
+                                                    required
+                                                    min="0"
+                                                    step="0.01"
+                                                    value={amount}
+                                                    onChange={e => setAmount(e.target.value)}
+                                                    className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Category</label>
+                                            <div className="relative">
+                                                <select 
+                                                    value={category}
+                                                    onChange={e => setCategory(e.target.value)}
+                                                    className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all appearance-none"
+                                                >
+                                                    {superAdminCategories.map(c => <option key={c} value={c}>{c}</option>)}
+                                                </select>
+                                                <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Note (Optional)</label>
+                                        <textarea 
+                                            value={note}
+                                            onChange={e => setNote(e.target.value)}
+                                            placeholder="Add any additional details..."
+                                            rows={3}
+                                            className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="pt-4 flex gap-4 shrink-0">
+                                    <button 
+                                        type="button"
+                                        onClick={() => setIsFormOpen(false)}
+                                        className="flex-1 py-4 rounded-2xl font-bold text-slate-400 uppercase tracking-widest text-[10px] bg-slate-50 hover:bg-slate-100 transition-all"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button 
+                                        type="submit"
+                                        className="flex-[2] py-4 rounded-2xl font-bold text-white uppercase tracking-widest text-[10px] bg-slate-900 hover:bg-slate-800 transition-all shadow-lg active:scale-95 flex items-center justify-center gap-3"
+                                    >
+                                        <Save size={16} /> Save Record
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};

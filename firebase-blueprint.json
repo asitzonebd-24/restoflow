@@ -22,7 +22,6 @@
         "customerAppEnabled": { "type": "boolean" },
         "isActive": { "type": "boolean" },
         "monthlyBill": { "type": "number" },
-        "billingDay": { "type": "number" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "name"]

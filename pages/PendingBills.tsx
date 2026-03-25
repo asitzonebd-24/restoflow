@@ -6,10 +6,9 @@ import { FileText, CheckCircle, Calendar, Plus, Search, Building2 } from 'lucide
 
 export const PendingBills = () => {
   const { monthlyBills, generateMonthlyBills, approveBill, currentUser, tenants } = useApp();
-  const [selectedMonth, setSelectedMonth] = useState(() => {
-    const d = new Date();
-    return `${d.toLocaleString('default', { month: 'long' })} ${d.getFullYear()}`;
-  });
+  const [month, setMonth] = useState(() => new Date().toLocaleString('default', { month: 'long' }));
+  const [year, setYear] = useState(() => new Date().getFullYear().toString());
+  const [message, setMessage] = useState<{ text: string; type: 'success' | 'info' | 'error' } | null>(null);
 
   if (currentUser?.role !== Role.SUPER_ADMIN) {
     return (
@@ -22,9 +21,24 @@ export const PendingBills = () => {
 
   const pendingBills = monthlyBills.filter(bill => bill.status === BillStatus.PENDING);
 
-  const handleGenerate = () => {
-    generateMonthlyBills(selectedMonth);
+  const handleGenerate = async () => {
+    setMessage(null);
+    const combinedMonth = `${month} ${year}`;
+    const count = await generateMonthlyBills(combinedMonth);
+    if (count > 0) {
+      setMessage({ text: `Successfully generated ${count} new bills for ${combinedMonth}.`, type: 'success' });
+    } else {
+      setMessage({ text: `No new bills were generated. All active restaurants already have bills for ${combinedMonth}.`, type: 'info' });
+    }
+    setTimeout(() => setMessage(null), 5000);
   };
+
+  const months = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  const years = Array.from({ length: 11 }).map((_, i) => (new Date().getFullYear() - 5 + i).toString());
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto">
@@ -34,19 +48,26 @@ export const PendingBills = () => {
           <p className="text-slate-500">Generate and approve monthly bills for active restaurants</p>
         </div>
         <div className="flex items-center gap-3">
-          <select 
-            value={selectedMonth}
-            onChange={(e) => setSelectedMonth(e.target.value)}
-            className="px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none bg-white font-medium"
-          >
-            {/* Generate last 6 months and next 2 months */}
-            {Array.from({ length: 9 }).map((_, i) => {
-              const d = new Date();
-              d.setMonth(d.getMonth() - 6 + i);
-              const m = `${d.toLocaleString('default', { month: 'long' })} ${d.getFullYear()}`;
-              return <option key={m} value={m}>{m}</option>;
-            })}
-          </select>
+          <div className="flex items-center gap-2">
+            <select 
+              value={month}
+              onChange={(e) => setMonth(e.target.value)}
+              className="px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none bg-white font-medium text-sm"
+            >
+              {months.map(m => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
+            <select 
+              value={year}
+              onChange={(e) => setYear(e.target.value)}
+              className="px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none bg-white font-medium text-sm"
+            >
+              {years.map(y => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+          </div>
           <button 
             onClick={handleGenerate}
             className="flex items-center gap-2 bg-indigo-600 text-white px-6 py-2 rounded-xl font-bold hover:bg-indigo-700 transition shadow-lg shadow-indigo-200"
@@ -56,6 +77,17 @@ export const PendingBills = () => {
           </button>
         </div>
       </div>
+
+      {message && (
+        <div className={`mb-6 p-4 rounded-xl border-2 flex items-center gap-3 animate-in fade-in slide-in-from-top-2 ${
+          message.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' :
+          message.type === 'error' ? 'bg-red-50 border-red-200 text-red-700' :
+          'bg-indigo-50 border-indigo-200 text-indigo-700'
+        }`}>
+          {message.type === 'success' ? <CheckCircle size={20} /> : <FileText size={20} />}
+          <p className="text-sm font-bold uppercase tracking-widest">{message.text}</p>
+        </div>
+      )}
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">

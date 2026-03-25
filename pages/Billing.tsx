@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { OrderStatus, Order, Transaction, OrderItem, Role } from '../types';
-import { Receipt, CheckCheck, Printer, X, FileText, Store, Search, Users, Eye, AlertTriangle } from 'lucide-react';
+import { Receipt, CheckCheck, Printer, X, FileText, Store, Search, Users, Eye, AlertTriangle, Truck, ChevronDown } from 'lucide-react';
 
 export const Billing = () => {
   const { orders, currentTenant, updateOrderStatus, updateOrderItems, addTransaction, users } = useApp();
@@ -142,6 +142,41 @@ export const Billing = () => {
     );
   };
 
+  const handleAssignDelivery = async (orderId: string, staffId: string) => {
+    const order = orders.find(o => o.id === orderId);
+    if (!order) return;
+
+    if (staffId === 'none') {
+      await updateOrderItems(
+        orderId,
+        order.items,
+        order.totalAmount,
+        order.note || undefined,
+        order.status,
+        null,
+        null,
+        null,
+        order.deliveryAddress
+      );
+      return;
+    }
+
+    const staff = users.find(u => u.id === staffId);
+    if (staff) {
+      await updateOrderItems(
+        orderId,
+        order.items,
+        order.totalAmount,
+        order.note || undefined,
+        order.status,
+        staff.id,
+        staff.name,
+        staff.mobile,
+        order.deliveryAddress
+      );
+    }
+  };
+
   const printInvoice = () => {
     // Ensure the modal is fully rendered before printing
     setTimeout(() => {
@@ -221,7 +256,8 @@ export const Billing = () => {
                 </th>
                 <th className="px-8 py-6 text-center border-r border-black">Token</th>
                 <th className="px-8 py-6 border-r border-black">Table/Staff</th>
-                <th className="px-8 py-6 border-r border-black">Staff</th>
+                <th className="px-8 py-6 border-r border-black">Created By</th>
+                <th className="px-8 py-6 border-r border-black">Assign Delivery</th>
                 <th className="px-8 py-6 border-r border-black">Discount</th>
                 <th className="px-8 py-6 border-r border-black">Total Due</th>
                 <th className="px-8 py-6 text-right">Actions</th>
@@ -272,6 +308,26 @@ export const Billing = () => {
                       </td>
                       <td className="px-8 py-6 border-r border-black">
                         <span className="text-xs font-black text-slate-900 uppercase tracking-tight">{creator?.name || '-'}</span>
+                      </td>
+                      <td className="px-8 py-6 border-r border-black">
+                        {!order.tableNumber ? (
+                          <div className="relative w-40">
+                            <Truck className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                            <select 
+                              value={order.deliveryStaffId || 'none'}
+                              onChange={(e) => handleAssignDelivery(order.id, e.target.value)}
+                              className="w-full pl-9 pr-8 py-2 text-[10px] font-bold bg-slate-50 border-2 border-black rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all appearance-none"
+                            >
+                              <option value="none">No Delivery</option>
+                              {users.filter(u => u.role === Role.DELIVERY).map(u => (
+                                <option key={u.id} value={u.id}>{u.name}</option>
+                              ))}
+                            </select>
+                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+                          </div>
+                        ) : (
+                          <div className="text-center text-slate-300 font-bold text-[10px] uppercase tracking-widest">Dine-in</div>
+                        )}
                       </td>
                       <td className="px-8 py-6 border-r border-black">
                         <div className="relative w-24">
@@ -371,6 +427,25 @@ export const Billing = () => {
                     </div>
                   </div>
                   
+                  {!order.tableNumber && (
+                    <div className="flex items-center justify-between gap-4 bg-slate-50 p-3 rounded-2xl">
+                      <div className="relative flex-1">
+                        <Truck className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                        <select 
+                          value={order.deliveryStaffId || 'none'}
+                          onChange={(e) => handleAssignDelivery(order.id, e.target.value)}
+                          className="w-full pl-9 pr-8 py-2 text-[10px] font-bold bg-white border-2 border-black rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all appearance-none"
+                        >
+                          <option value="none">No Delivery</option>
+                          {users.filter(u => u.role === Role.DELIVERY).map(u => (
+                            <option key={u.id} value={u.id}>{u.name}</option>
+                          ))}
+                        </select>
+                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+                      </div>
+                    </div>
+                  )}
+                  
                   <div className="flex items-center justify-between gap-4 bg-slate-50 p-3 rounded-2xl">
                     <div className="relative flex-1">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400">{currentTenant?.currency}</span>
@@ -433,21 +508,23 @@ export const Billing = () => {
                   <span className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1 md:mb-2">Service Token</span>
                   <div className="flex flex-col items-center gap-1 md:gap-2">
                     <span className="text-4xl md:text-5xl text-slate-900 font-bold tracking-tight">#{invoiceOrder.tokenNumber}</span>
-                    <span className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                      Staff: {getCreator(invoiceOrder.createdBy)?.name || 'Unknown'}
-                    </span>
-                    {invoiceOrder.deliveryStaffName && (
-                      <div className="flex flex-col items-center gap-1">
-                        <span className="text-[9px] md:text-[10px] font-black text-indigo-600 uppercase tracking-widest bg-indigo-50 px-2 md:px-3 py-0.5 md:py-1 rounded-full border border-indigo-100">
-                          Delivery: {invoiceOrder.deliveryStaffName}
-                        </span>
-                        {invoiceOrder.deliveryStaffMobile && (
-                          <span className="text-[8px] md:text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-                            Mob: {invoiceOrder.deliveryStaffMobile}
+                    <div className="flex flex-col items-center gap-1 mt-2">
+                      <span className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                        Order By: {getCreator(invoiceOrder.createdBy)?.name || 'Unknown'}
+                      </span>
+                      {invoiceOrder.deliveryStaffName && (
+                        <div className="flex flex-col items-center gap-1 mt-1 p-3 bg-indigo-50 rounded-2xl border-2 border-indigo-100 w-full">
+                          <span className="text-[10px] md:text-xs font-black text-indigo-600 uppercase tracking-widest flex items-center gap-2">
+                            <Truck size={14} /> Delivery: {invoiceOrder.deliveryStaffName}
                           </span>
-                        )}
-                      </div>
-                    )}
+                          {invoiceOrder.deliveryStaffMobile && (
+                            <span className="text-[9px] md:text-[10px] font-bold text-indigo-400 uppercase tracking-widest">
+                              Contact: {invoiceOrder.deliveryStaffMobile}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
               </div>
 
