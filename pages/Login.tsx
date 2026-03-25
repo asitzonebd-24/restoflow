@@ -6,7 +6,7 @@ import { Role } from '../types';
 import { LogIn, ChefHat, Mail, Lock, AlertCircle, Utensils, ArrowRight, User as UserIcon, ShoppingBag } from 'lucide-react';
 
 export const Login = () => {
-  const { login, business, dbStatus, setCurrentTenantId } = useApp();
+  const { login, business, dbStatus, setCurrentTenantId, isLoading } = useApp();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [staffError, setStaffError] = useState('');
@@ -123,9 +123,10 @@ export const Login = () => {
 
               <button 
                 type="submit"
-                className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-3.5 rounded-xl transition-all duration-300 shadow-lg shadow-slate-200 flex items-center justify-center gap-3 uppercase text-[10px] tracking-widest group"
+                disabled={isLoading}
+                className="w-full bg-slate-900 hover:bg-slate-800 disabled:bg-slate-400 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl transition-all duration-300 shadow-lg shadow-slate-200 flex items-center justify-center gap-3 uppercase text-[10px] tracking-widest group"
               >
-                Enter Terminal <LogIn size={16} className="group-hover:translate-x-1 transition-transform" />
+                {isLoading ? 'Connecting...' : 'Enter Terminal'} <LogIn size={16} className="group-hover:translate-x-1 transition-transform" />
               </button>
             </form>
 
@@ -150,7 +151,7 @@ export const Login = () => {
 
             {!tenantId && (
               <div className="mt-10 pt-6 border-t border-slate-50">
-                 <p className="mt-4 text-[9px] text-slate-400 text-center leading-relaxed italic">
+                 <p className="text-[9px] text-slate-400 text-center leading-relaxed italic">
                    Please use your authorized credentials to access the terminal.
                  </p>
               </div>

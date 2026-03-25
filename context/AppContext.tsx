@@ -187,8 +187,17 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
           
           const mergedUsers = [...firestoreUsers];
           mockSuperAdmins.forEach(mockSA => {
-            if (!mergedUsers.some(u => u.email.toLowerCase() === mockSA.email.toLowerCase())) {
+            const existingIndex = mergedUsers.findIndex(u => u.email.toLowerCase() === mockSA.email.toLowerCase());
+            if (existingIndex === -1) {
               mergedUsers.push(mockSA);
+            } else {
+              // If it's a super admin, ensure it has the mock credentials as a fallback
+              // but keep other Firestore data like avatar, etc.
+              mergedUsers[existingIndex] = { 
+                ...mergedUsers[existingIndex], 
+                role: Role.SUPER_ADMIN,
+                password: mergedUsers[existingIndex].password || mockSA.password
+              };
             }
           });
           
@@ -278,6 +287,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     const targetId = currentUser?.tenantId || currentTenantId;
     return allExpenses.filter(e => String(e.tenantId) === String(targetId));
   }, [allExpenses, currentUser, currentTenantId]);
+
 
   const login = (emailOrMobile: string, password: string, tenantId?: string | null): boolean => {
     const user = allUsers.find(u => 

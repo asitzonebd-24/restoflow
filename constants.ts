@@ -33,6 +33,10 @@ export const MOCK_USERS: User[] = [
   {
     id: 'sa-user', name: 'Super Admin', email: 'asitzonebd@gmail.com', password: 'admin', mobile: '0000000', role: Role.SUPER_ADMIN, avatar: '',
     permissions: ['Portal']
+  },
+  {
+    id: 'demo-sa', name: 'Demo Admin', email: 'admin@portal.com', password: 'admin', mobile: '1111111', role: Role.SUPER_ADMIN, avatar: '',
+    permissions: ['Portal']
   }
 ];
 
