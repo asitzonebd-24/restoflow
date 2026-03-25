@@ -142,9 +142,6 @@ export const Kitchen = () => {
             <div className="relative z-10 flex flex-col h-full p-6 pt-10">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center text-[10px] font-black shadow-lg border-b-2 border-slate-700">
-                    {creatorName?.[0] || '?'}
-                  </div>
                   <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">{creatorName.split(' ')[0].toUpperCase()}</span>
                 </div>
                 <div className="text-right">
@@ -208,7 +205,7 @@ export const Kitchen = () => {
                             className={`text-[9px] font-black uppercase py-1.5 pl-4 pr-8 rounded-full border-2 outline-none transition-all appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${itemStatusColors.lightBg} ${itemStatusColors.border} ${itemStatusColors.text}`}
                         >
                             <option value={OrderStatus.PENDING}>New</option>
-                            <option value={OrderStatus.PREPARING}>Fire</option>
+                            <option value={OrderStatus.PREPARING}>Ready</option>
                             <option value={OrderStatus.READY}>Done</option>
                         </select>
                         <ChevronDown className={`absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none ${itemStatusColors.text}`} size={12} />
@@ -225,7 +222,7 @@ export const Kitchen = () => {
                       onClick={() => updateOrderStatus(order.id, targetStatus!)}
                       className="w-full py-5 rounded-[1.5rem] font-black text-white transition-all transform active:scale-95 hover:brightness-110 shadow-xl text-xs uppercase tracking-[0.2em] flex items-center justify-center gap-3 bg-[#1a1a37]"
                     >
-                      BUMP {targetStatus === OrderStatus.READY ? 'READY' : targetStatus?.toUpperCase()}
+                      BUMP {targetStatus === OrderStatus.PREPARING ? 'READY' : 'DONE'}
                     </button>
                  ) : (
                     <div className="text-center text-[10px] font-black uppercase tracking-widest text-slate-400 py-5 border-2 border-dashed border-slate-200 rounded-[1.5rem] flex items-center justify-center gap-3 bg-slate-50/50">

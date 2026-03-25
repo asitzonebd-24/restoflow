@@ -281,6 +281,7 @@ export const POS = () => {
   const [selectedDeliveryStaffId, setSelectedDeliveryStaffId] = useState<string>('');
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [filter, setFilter] = useState<'pending' | 'done'>('pending');
 
   const categories = useMemo(() => ['All', ...Array.from(new Set(menu.map(m => m.category)))], [menu]);
 
@@ -293,8 +294,19 @@ export const POS = () => {
     if (currentUser?.role === Role.WAITER) {
       filtered = filtered.filter(o => o.createdBy === currentUser.id);
     }
-    return filtered.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-  }, [orders, currentUser]);
+    
+    if (filter === 'pending') {
+      filtered = filtered.filter(o => o.status === OrderStatus.PENDING || o.status === OrderStatus.PREPARING);
+    } else {
+      filtered = filtered.filter(o => o.status === OrderStatus.READY);
+    }
+    
+    return filtered.sort((a, b) => {
+      const timeA = new Date(a.createdAt).getTime();
+      const timeB = new Date(b.createdAt).getTime();
+      return filter === 'pending' ? timeA - timeB : timeB - timeA;
+    });
+  }, [orders, currentUser, filter]);
 
   const isTokenDuplicate = useMemo(() => {
     const allActive = orders.filter(o => o.status !== OrderStatus.COMPLETED && o.status !== OrderStatus.CANCELLED);
@@ -499,12 +511,30 @@ export const POS = () => {
               {currentUser?.role === Role.WAITER ? 'Your active service tokens' : 'Global floor tracking & management'}
             </p>
           </div>
-          <button 
-            onClick={startNewOrder}
-            className="w-full md:w-auto bg-slate-900 text-white px-6 py-3.5 rounded-2xl font-bold uppercase tracking-widest text-[10px] shadow-xl shadow-indigo-200 hover:bg-slate-800 transition-all transform hover:-translate-y-1 active:scale-95 flex items-center justify-center gap-3 border-2 border-indigo-500"
-          >
-            <Plus size={18} /> New Order
-          </button>
+
+          <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 w-full md:w-auto">
+            <div className="flex items-center gap-3 bg-white p-1.5 rounded-2xl border-2 border-slate-100 shadow-sm">
+              <button 
+                onClick={() => setFilter('pending')}
+                className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'pending' ? 'bg-[#1a1a37] text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
+              >
+                Pending
+              </button>
+              <button 
+                onClick={() => setFilter('done')}
+                className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'done' ? 'bg-emerald-500 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
+              >
+                Done
+              </button>
+            </div>
+
+            <button 
+              onClick={startNewOrder}
+              className="bg-slate-900 text-white px-6 py-3.5 rounded-2xl font-bold uppercase tracking-widest text-[10px] shadow-xl shadow-indigo-200 hover:bg-slate-800 transition-all transform hover:-translate-y-1 active:scale-95 flex items-center justify-center gap-3 border-2 border-indigo-500"
+            >
+              <Plus size={18} /> New Order
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-6 pb-12">
@@ -531,9 +561,6 @@ export const POS = () => {
                   <div className="relative z-10 flex flex-col h-full p-4 pt-8">
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center text-[10px] font-black shadow-lg border-b-2 border-slate-700">
-                          {getWaiterName(order.createdBy)?.[0] || '?'}
-                        </div>
                         <span className="text-[10px] font-black uppercase tracking-widest text-slate-900">{getWaiterName(order.createdBy).split(' ')[0].toUpperCase()}</span>
                       </div>
                       <div className="text-right">
@@ -564,9 +591,21 @@ export const POS = () => {
                     {/* Status Grid */}
                     <div className="grid grid-cols-3 gap-2 mb-6">
                       <StatusBadge label="Pending" count={pendingCount} styles={getStatusStyles(OrderStatus.PENDING)} active={order.status === OrderStatus.PENDING} />
-                      <StatusBadge label="Preparing" count={preparingCount} styles={getStatusStyles(OrderStatus.PREPARING)} active={order.status === OrderStatus.PREPARING} />
+                      <StatusBadge label="Ready" count={preparingCount} styles={getStatusStyles(OrderStatus.PREPARING)} active={order.status === OrderStatus.PREPARING} />
                       <StatusBadge label="Done" count={readyCount} styles={getStatusStyles(OrderStatus.READY)} active={order.status === OrderStatus.READY} />
                     </div>
+
+                    {/* Ready Items List */}
+                    {preparingCount > 0 && (
+                      <div className="mb-4 space-y-1 max-h-24 overflow-y-auto no-scrollbar">
+                        {order.items.filter(i => i.status === OrderStatus.PREPARING).map((item, idx) => (
+                          <div key={idx} className="flex justify-between items-center text-[10px] font-black text-amber-600 uppercase tracking-tight bg-amber-50 px-3 py-1.5 rounded-xl border border-amber-100">
+                            <span className="truncate pr-2">{item.name}</span>
+                            <span className="shrink-0">x{item.quantity}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
 
                     {/* Dashed Divider */}
                     <div className="border-t-2 border-dashed border-black mb-6"></div>

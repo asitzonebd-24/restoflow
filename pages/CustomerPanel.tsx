@@ -35,9 +35,9 @@ export const CustomerPanel = () => {
       case OrderStatus.PENDING: 
         return { label: 'Online Order', color: 'bg-red-500', border: 'border-t-red-500', lightBg: 'bg-red-50', text: 'text-red-600', borderLight: 'border-red-200' };
       case OrderStatus.PREPARING: 
-        return { label: 'Preparing', color: 'bg-amber-500', border: 'border-t-amber-500', lightBg: 'bg-amber-50', text: 'text-amber-600', borderLight: 'border-amber-200' };
+        return { label: 'Ready', color: 'bg-amber-500', border: 'border-t-amber-500', lightBg: 'bg-amber-50', text: 'text-amber-600', borderLight: 'border-amber-200' };
       case OrderStatus.READY: 
-        return { label: 'Ready!', color: 'bg-emerald-500', border: 'border-t-emerald-500', lightBg: 'bg-emerald-50', text: 'text-emerald-600', borderLight: 'border-emerald-200' };
+        return { label: 'Done!', color: 'bg-emerald-500', border: 'border-t-emerald-500', lightBg: 'bg-emerald-50', text: 'text-emerald-600', borderLight: 'border-emerald-200' };
       default: 
         return { label: status, color: 'bg-slate-500', border: 'border-t-slate-500', lightBg: 'bg-slate-50', text: 'text-slate-600', borderLight: 'border-slate-200' };
     }
@@ -168,23 +168,21 @@ export const CustomerPanel = () => {
                             <div className="w-full">
                                 <div className="grid grid-cols-3 gap-2 mb-4">
                                     <StatusBox label="Pending" count={pendingCount} colorClass="bg-slate-50 border-slate-100 text-slate-300" activeColor="bg-red-50 border-red-200 text-red-600 shadow-sm" />
-                                    <StatusBox label="Kitchen" count={preparingCount} colorClass="bg-slate-50 border-slate-100 text-slate-300" activeColor="bg-amber-50 border-amber-200 text-amber-600 shadow-sm" />
-                                    <StatusBox label="Ready" count={readyCount} colorClass="bg-slate-50 border-slate-100 text-slate-300" activeColor="bg-emerald-50 border-emerald-200 text-emerald-600 shadow-sm" />
+                                    <StatusBox label="Ready" count={preparingCount} colorClass="bg-slate-50 border-slate-100 text-slate-300" activeColor="bg-amber-50 border-amber-200 text-amber-600 shadow-sm" />
+                                    <StatusBox label="Done" count={readyCount} colorClass="bg-slate-50 border-slate-100 text-slate-300" activeColor="bg-emerald-50 border-emerald-200 text-emerald-600 shadow-sm" />
                                 </div>
 
-                                <div className="mb-4 space-y-1 max-h-20 overflow-y-auto no-scrollbar">
-                                    {order.items.slice(0, 3).map((item: any, i: number) => (
-                                        <div key={i} className="flex justify-between items-center text-[9px] font-bold text-slate-500 uppercase tracking-tight">
-                                            <span className="truncate pr-2">{item.name}</span>
-                                            <span className="shrink-0">x{item.quantity}</span>
-                                        </div>
-                                    ))}
-                                    {order.items.length > 3 && (
-                                        <div className="text-[8px] font-black text-indigo-500 uppercase tracking-widest mt-1">
-                                            + {order.items.length - 3} more items
-                                        </div>
-                                    )}
-                                </div>
+                                {/* Ready Items List */}
+                                {preparingCount > 0 && (
+                                    <div className="mb-4 space-y-1 max-h-24 overflow-y-auto no-scrollbar">
+                                        {order.items.filter((i: any) => i.status === OrderStatus.PREPARING).map((item: any, idx: number) => (
+                                            <div key={idx} className="flex justify-between items-center text-[10px] font-black text-amber-600 uppercase tracking-tight bg-amber-50 px-3 py-1.5 rounded-xl border border-amber-100">
+                                                <span className="truncate pr-2">{item.name}</span>
+                                                <span className="shrink-0">x{item.quantity}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
 
                                 <div className="pt-4 border-t-2 border-slate-200 border-dashed flex items-center justify-between">
                                     <div className="flex items-center gap-2">
