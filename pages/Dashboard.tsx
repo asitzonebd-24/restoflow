@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Cell } from 'recharts';
-import { TrendingUp, AlertTriangle, DollarSign, Wallet, ArrowUpRight, ArrowDownRight, PlusCircle, LayoutPanelTop, History, Globe, Calendar, ChevronRight } from 'lucide-react';
+import { TrendingUp, AlertTriangle, Wallet, ArrowUpRight, ArrowDownRight, PlusCircle, LayoutPanelTop, History, Globe, Calendar, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export const Dashboard = () => {
@@ -197,7 +197,7 @@ export const Dashboard = () => {
         <div className="bg-white p-8 rounded-[2.5rem] border-2 border-emerald-500 border-b-8 shadow-xl shadow-emerald-100 transition-all hover:scale-[1.02]">
           <div className="flex items-center justify-between mb-8">
             <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center border border-emerald-100">
-              <DollarSign size={24} />
+              <TrendingUp size={24} />
             </div>
             <span className="flex items-center text-emerald-600 text-[10px] font-black tracking-widest bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-100">
               <ArrowUpRight size={14} className="mr-1" /> 12%
@@ -328,7 +328,7 @@ export const Dashboard = () => {
               <div key={exp.id} className="flex items-center justify-between p-5 rounded-[2rem] bg-slate-50 border border-indigo-100 transition-all hover:shadow-md hover:border-rose-500 group">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-rose-300 shadow-sm border border-slate-100 group-hover:scale-110 transition-transform">
-                    <DollarSign size={20} className="text-rose-500" />
+                    <Wallet size={20} className="text-rose-500" />
                   </div>
                   <div>
                     <h4 className="font-black text-sm text-slate-900 truncate max-w-[120px] uppercase tracking-tight">{exp.title}</h4>

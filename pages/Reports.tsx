@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
-import { TrendingUp, TrendingDown, DollarSign, PieChart as PieChartIcon, Calendar, Search, ChevronDown } from 'lucide-react';
+import { TrendingUp, TrendingDown, PieChart as PieChartIcon, Calendar, Search, ChevronDown } from 'lucide-react';
 
 type DateFilter = 'all' | 'today' | 'week' | 'month' | 'custom';
 
@@ -158,7 +158,7 @@ export const Reports = () => {
                 <div className="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-xl border-2 border-indigo-500 flex flex-col justify-between transition-all hover:-translate-y-1 hover:shadow-2xl md:col-span-2 lg:col-span-1 shadow-indigo-100">
                     <div className="flex items-start justify-between mb-4">
                         <div className="p-3 md:p-4 bg-indigo-50 text-indigo-600 rounded-[1.5rem] border-2 border-indigo-100">
-                            <DollarSign size={24} md:size={28} strokeWidth={3} />
+                            <TrendingUp size={24} md:size={28} strokeWidth={3} />
                         </div>
                         <span className="text-[9px] font-black text-indigo-600 uppercase tracking-widest bg-indigo-50 px-3 py-1 rounded-full border border-indigo-200">Net Profit</span>
                     </div>

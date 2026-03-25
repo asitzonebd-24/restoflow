@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { Transaction, Order, Role } from '../types';
-import { History, Search, Calendar, Eye, FileText, Printer, X, Hash, ChevronRight, User as UserIcon, Receipt, TrendingUp, DollarSign, Trophy, Award, Filter, Store } from 'lucide-react';
+import { History, Search, Calendar, Eye, FileText, Printer, X, Hash, ChevronRight, User as UserIcon, Receipt, TrendingUp, Trophy, Award, Filter, Store } from 'lucide-react';
 
 type DateFilter = 'all' | 'today' | 'week' | 'month' | 'custom';
 
@@ -134,7 +134,7 @@ export const Transactions = () => {
                             placeholder="Search Order ID..." 
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-14 pr-6 py-3.5 bg-white border border-slate-100 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm"
+                            className="w-full pl-14 pr-6 py-3.5 bg-white border-2 border-black rounded-2xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm"
                         />
                     </div>
 
@@ -144,7 +144,7 @@ export const Transactions = () => {
                         <select 
                             value={selectedStaffId}
                             onChange={(e) => setSelectedStaffId(e.target.value)}
-                            className="w-full pl-11 pr-10 py-3.5 bg-white border border-slate-100 rounded-2xl text-[10px] font-bold uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm appearance-none"
+                            className="w-full pl-11 pr-10 py-3.5 bg-white border-2 border-black rounded-2xl text-[10px] font-bold uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm appearance-none"
                         >
                             <option value="all">All Staff</option>
                             {staffList.map(s => (
@@ -160,7 +160,7 @@ export const Transactions = () => {
                         <select 
                             value={dateFilter}
                             onChange={(e) => setDateFilter(e.target.value as any)}
-                            className="w-full pl-11 pr-10 py-3.5 bg-white border border-slate-100 rounded-2xl text-[10px] font-bold uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm appearance-none"
+                            className="w-full pl-11 pr-10 py-3.5 bg-white border-2 border-black rounded-2xl text-[10px] font-bold uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm appearance-none"
                         >
                             <option value="all">All Time</option>
                             <option value="today">Today</option>
@@ -175,14 +175,14 @@ export const Transactions = () => {
 
             {/* Custom Range Inputs */}
             {dateFilter === 'custom' && (
-                <div className="mb-10 bg-white p-6 rounded-3xl border border-slate-100 shadow-sm animate-in slide-in-from-top-2 flex flex-col sm:flex-row items-center gap-6">
+                <div className="mb-10 bg-white p-6 rounded-3xl border-2 border-black shadow-sm animate-in slide-in-from-top-2 flex flex-col sm:flex-row items-center gap-6">
                     <div className="w-full sm:flex-1">
                         <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Start Date</label>
                         <input 
                             type="date" 
                             value={customRange.start}
                             onChange={(e) => setCustomRange({...customRange, start: e.target.value})}
-                            className="w-full px-6 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold outline-none focus:border-indigo-500 transition-all"
+                            className="w-full px-6 py-3 bg-slate-50 border-2 border-black rounded-xl text-xs font-bold outline-none focus:border-indigo-500 transition-all"
                         />
                     </div>
                     <div className="hidden sm:block text-slate-200 mt-6">
@@ -194,7 +194,7 @@ export const Transactions = () => {
                             type="date" 
                             value={customRange.end}
                             onChange={(e) => setCustomRange({...customRange, end: e.target.value})}
-                            className="w-full px-6 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-bold outline-none focus:border-indigo-500 transition-all"
+                            className="w-full px-6 py-3 bg-slate-50 border-2 border-black rounded-xl text-xs font-bold outline-none focus:border-indigo-500 transition-all"
                         />
                     </div>
                 </div>
@@ -202,29 +202,29 @@ export const Transactions = () => {
 
             {/* Performance Summary Section */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-                <div className="bg-white p-6 rounded-3xl shadow-xl shadow-indigo-100/20 border-2 border-indigo-100 border-b-8 border-b-indigo-500 flex items-center justify-between group hover:scale-[1.02] transition-all">
+                <div className="bg-white p-6 rounded-3xl shadow-xl shadow-indigo-100/20 border-2 border-black border-b-8 border-b-indigo-500 flex items-center justify-between group hover:scale-[1.02] transition-all">
                     <div>
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Orders</p>
                         <h3 className="text-3xl font-black text-slate-900 tracking-tight">{stats.count}</h3>
                     </div>
-                    <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center border border-indigo-100 group-hover:rotate-12 transition-transform">
+                    <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center border-2 border-black group-hover:rotate-12 transition-transform">
                         <Receipt size={24} />
                     </div>
                 </div>
 
-                <div className="bg-white p-6 rounded-3xl shadow-xl shadow-emerald-100/20 border-2 border-emerald-100 border-b-8 border-b-emerald-500 flex items-center justify-between group hover:scale-[1.02] transition-all">
+                <div className="bg-white p-6 rounded-3xl shadow-xl shadow-emerald-100/20 border-2 border-black border-b-8 border-b-emerald-500 flex items-center justify-between group hover:scale-[1.02] transition-all">
                     <div>
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Revenue</p>
                         <h3 className="text-3xl font-black text-slate-900 tracking-tight">
                             {currentTenant?.currency}{stats.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </h3>
                     </div>
-                    <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center border border-emerald-100 group-hover:rotate-12 transition-transform">
-                        <DollarSign size={24} />
+                    <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center border-2 border-black group-hover:rotate-12 transition-transform">
+                        <TrendingUp size={24} />
                     </div>
                 </div>
 
-                <div className="bg-white p-6 rounded-3xl shadow-xl shadow-amber-100/20 border-2 border-amber-100 border-b-8 border-b-amber-500 flex flex-col justify-center group hover:scale-[1.02] transition-all relative overflow-hidden">
+                <div className="bg-white p-6 rounded-3xl shadow-xl shadow-amber-100/20 border-2 border-black border-b-8 border-b-amber-500 flex flex-col justify-center group hover:scale-[1.02] transition-all relative overflow-hidden">
                     <div className="absolute -right-4 -top-4 opacity-10 group-hover:rotate-12 transition-transform text-amber-500">
                         <Trophy size={100} />
                     </div>
@@ -257,21 +257,21 @@ export const Transactions = () => {
             </div>
 
             {/* Transactions Table */}
-            <div className="bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/50 border-2 border-slate-100 overflow-hidden">
+            <div className="bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/50 border-2 border-black overflow-hidden">
                 <div className="overflow-x-auto no-scrollbar">
                     <table className="w-full text-left border-collapse min-w-[700px]">
-                        <thead className="bg-slate-50/80 text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em] border-b-2 border-slate-100">
+                        <thead className="bg-slate-50/80 text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em] border-b-2 border-black">
                             <tr>
-                                <th className="px-8 py-6">Timestamp</th>
-                                <th className="px-8 py-6">Order ID</th>
-                                <th className="px-8 py-6">Items Summary</th>
-                                <th className="px-8 py-6">Processor</th>
-                                <th className="px-8 py-6">Discount</th>
-                                <th className="px-8 py-6">Total Amount</th>
+                                <th className="px-8 py-6 border-r border-black">Timestamp</th>
+                                <th className="px-8 py-6 border-r border-black">Order ID</th>
+                                <th className="px-8 py-6 border-r border-black">Items Summary</th>
+                                <th className="px-8 py-6 border-r border-black">Processor</th>
+                                <th className="px-8 py-6 border-r border-black">Discount</th>
+                                <th className="px-8 py-6 border-r border-black">Total Amount</th>
                                 <th className="px-8 py-6 text-right">Receipt</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-50">
+                        <tbody className="divide-y divide-black">
                             {filteredTransactions.length === 0 ? (
                                 <tr>
                                     <td colSpan={6} className="px-8 py-24 text-center">
@@ -286,21 +286,21 @@ export const Transactions = () => {
                             ) : (
                                 filteredTransactions.map(txn => (
                                     <tr key={txn.id} className="hover:bg-indigo-50/30 transition-all group">
-                                        <td className="px-8 py-6">
+                                        <td className="px-8 py-6 border-r border-black">
                                             <p className="text-xs font-black text-slate-900 uppercase tracking-tight">{new Date(txn.date).toLocaleDateString()}</p>
                                             <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-widest">{new Date(txn.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                                         </td>
-                                        <td className="px-8 py-6">
-                                            <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-xl border border-indigo-100 uppercase tracking-widest shadow-sm">
+                                        <td className="px-8 py-6 border-r border-black">
+                                            <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-xl border-2 border-black uppercase tracking-widest shadow-sm">
                                                 #{txn.id.slice(-6).toUpperCase()}
                                             </span>
                                         </td>
-                                        <td className="px-8 py-6">
+                                        <td className="px-8 py-6 border-r border-black">
                                             <p className="text-xs font-bold text-slate-600 max-w-[240px] truncate uppercase tracking-tight" title={txn.itemsSummary}>
                                                 {txn.itemsSummary}
                                             </p>
                                         </td>
-                                        <td className="px-8 py-6">
+                                        <td className="px-8 py-6 border-r border-black">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-9 h-9 rounded-xl bg-slate-900 text-white flex items-center justify-center text-[10px] font-black shadow-lg border-b-2 border-slate-700">
                                                     {txn.creatorName?.[0] || '?'}
@@ -308,12 +308,12 @@ export const Transactions = () => {
                                                 <span className="text-xs font-black text-slate-900 uppercase tracking-tight">{txn.creatorName || '-'}</span>
                                             </div>
                                         </td>
-                                        <td className="px-8 py-6">
+                                        <td className="px-8 py-6 border-r border-black">
                                             <span className="text-sm font-black text-red-500 tracking-tighter">
                                                 {txn.discount ? `-${currentTenant?.currency}${txn.discount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
                                             </span>
                                         </td>
-                                        <td className="px-8 py-6">
+                                        <td className="px-8 py-6 border-r border-black">
                                             <span className="text-sm font-black text-slate-900 tracking-tighter">
                                                 {currentTenant?.currency}{txn.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                             </span>
@@ -322,7 +322,7 @@ export const Transactions = () => {
                                             <button 
                                                 type="button"
                                                 onClick={() => openInvoice(txn)}
-                                                className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 hover:text-indigo-500 shadow-sm border-2 border-slate-100 hover:border-indigo-500/50 transition-all opacity-0 group-hover:opacity-100 group-hover:scale-110"
+                                                className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 hover:text-indigo-500 shadow-sm border-2 border-black hover:border-indigo-500/50 transition-all group-hover:scale-110"
                                                 title="View Receipt"
                                             >
                                                 <Eye size={18} />
@@ -366,9 +366,13 @@ export const Transactions = () => {
                                     <span className="text-slate-400">Order Ref</span>
                                     <span className="text-slate-900">#{viewInvoice.order.id.slice(-8).toUpperCase()}</span>
                                 </div>
-                                <div className="flex justify-between text-[10px] mb-4 font-bold uppercase tracking-widest">
+                                <div className="flex justify-between text-[10px] mb-3 font-bold uppercase tracking-widest">
                                     <span className="text-slate-400">Date/Time</span>
                                     <span className="text-slate-900">{new Date(viewInvoice.order.createdAt).toLocaleString()}</span>
+                                </div>
+                                <div className="flex justify-between text-[10px] mb-4 font-bold uppercase tracking-widest">
+                                    <span className="text-slate-400">Staff</span>
+                                    <span className="text-slate-900">{viewInvoice.transaction.creatorName || 'Unknown'}</span>
                                 </div>
                                 <div className="flex justify-between items-center pt-4 border-t border-slate-100">
                                     <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Token Number</span>
@@ -425,10 +429,11 @@ export const Transactions = () => {
                             </div>
                             
                             <div className="text-center mt-16 pt-8 border-t border-slate-50">
-                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Official Transaction Record</p>
-                                <div className="flex items-center justify-center gap-2 opacity-20">
-                                  <Receipt size={12} />
-                                  <p className="text-[8px] font-bold uppercase tracking-widest">RestoKeep Professional OS</p>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Thank You! Come Again</p>
+                                <div className="flex flex-col items-center justify-center gap-1 opacity-40">
+                                  <p className="text-[8px] font-bold tracking-widest">Powered by: RestoKeep</p>
+                                  <p className="text-[8px] font-bold tracking-widest">Web: www.restokeep.app</p>
+                                  <p className="text-[8px] font-bold tracking-widest">Mobile: 01303565316</p>
                                 </div>
                             </div>
                         </div>

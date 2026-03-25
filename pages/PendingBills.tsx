@@ -91,7 +91,7 @@ export const PendingBills = () => {
                       {bill.month}
                     </td>
                     <td className="px-6 py-4 font-bold text-slate-900">
-                      ৳{bill.amount}
+                      {currentUser?.role === Role.SUPER_ADMIN ? '৳' : (tenants.find(t => t.id === bill.tenantId)?.currency || '৳')}{bill.amount}
                     </td>
                     <td className="px-6 py-4 text-sm text-slate-500">
                       {new Date(bill.createdAt).toLocaleDateString()}

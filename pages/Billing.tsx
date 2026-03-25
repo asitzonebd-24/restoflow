@@ -433,6 +433,9 @@ export const Billing = () => {
                   <span className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1 md:mb-2">Service Token</span>
                   <div className="flex flex-col items-center gap-1 md:gap-2">
                     <span className="text-4xl md:text-5xl text-slate-900 font-bold tracking-tight">#{invoiceOrder.tokenNumber}</span>
+                    <span className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                      Staff: {getCreator(invoiceOrder.createdBy)?.name || 'Unknown'}
+                    </span>
                     {invoiceOrder.deliveryStaffName && (
                       <div className="flex flex-col items-center gap-1">
                         <span className="text-[9px] md:text-[10px] font-black text-indigo-600 uppercase tracking-widest bg-indigo-50 px-2 md:px-3 py-0.5 md:py-1 rounded-full border border-indigo-100">
@@ -498,10 +501,11 @@ export const Billing = () => {
               </div>
               
               <div className="text-center mt-16 pt-8 border-t border-slate-50">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Thank You For Dining With Us</p>
-                <div className="flex items-center justify-center gap-2 opacity-20">
-                  <Receipt size={12} />
-                  <p className="text-[8px] font-bold uppercase tracking-widest">RestoKeep Professional OS</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Thank You! Come Again</p>
+                <div className="flex flex-col items-center justify-center gap-1 opacity-40">
+                  <p className="text-[8px] font-bold tracking-widest">Powered by: RestoKeep</p>
+                  <p className="text-[8px] font-bold tracking-widest">Web: www.restokeep.app</p>
+                  <p className="text-[8px] font-bold tracking-widest">Mobile: 01303565316</p>
                 </div>
               </div>
             </div>

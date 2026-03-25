@@ -77,7 +77,7 @@ export const ApprovedBills = () => {
                       {bill.month}
                     </td>
                     <td className="px-6 py-4 font-bold text-slate-900">
-                      ৳{bill.amount}
+                      {tenants.find(t => t.id === bill.tenantId)?.currency || '৳'}{bill.amount}
                     </td>
                     <td className="px-6 py-4 text-sm text-slate-500">
                       {bill.approvedAt ? new Date(bill.approvedAt).toLocaleDateString() : 'N/A'}

@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Business, Role } from '../types';
-import { Plus, Building2, User, Mail, Phone, Globe, MapPin, Search, ExternalLink, Calendar, Power, PowerOff, DollarSign, Edit3, Save, X as CloseIcon, AlertTriangle, Copy, Check } from 'lucide-react';
+import { Plus, Building2, User, Mail, Phone, Globe, MapPin, Search, ExternalLink, Calendar, Power, PowerOff, Edit3, Save, X as CloseIcon, AlertTriangle, Copy, Check } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export const SuperAdmin = () => {
@@ -27,7 +27,7 @@ export const SuperAdmin = () => {
     name: '',
     address: '',
     phone: '',
-    currency: '৳',
+    currency: '',
     themeColor: '#0f172a',
     monthlyBill: 500,
     billingDay: 1
@@ -61,7 +61,7 @@ export const SuperAdmin = () => {
       }
       setEditingTenant(null);
       setShowModal(false);
-      setNewBusiness({ name: '', address: '', phone: '', currency: '৳', themeColor: '#0f172a', monthlyBill: 500, billingDay: 1 });
+      setNewBusiness({ name: '', address: '', phone: '', currency: '', themeColor: '#0f172a', monthlyBill: 500, billingDay: 1 });
       setNewOwner({ name: '', email: '', password: '', mobile: '' });
       return;
     }
@@ -75,7 +75,7 @@ export const SuperAdmin = () => {
 
     createBusiness(newBusiness, newOwner);
     setShowModal(false);
-    setNewBusiness({ name: '', address: '', phone: '', currency: '৳', themeColor: '#0f172a', monthlyBill: 500, billingDay: 1 });
+    setNewBusiness({ name: '', address: '', phone: '', currency: '', themeColor: '#0f172a', monthlyBill: 500, billingDay: 1 });
     setNewOwner({ name: '', email: '', password: '', mobile: '' });
   };
 
@@ -159,7 +159,7 @@ export const SuperAdmin = () => {
         <div className="bg-white p-6 rounded-2xl border-2 border-indigo-500 shadow-lg shadow-indigo-100 transition-all hover:scale-105">
           <p className="text-slate-500 text-sm font-medium mb-1">Monthly Revenue</p>
           <h3 className="text-3xl font-bold text-indigo-600">
-            ৳{tenants.filter(t => t.isActive).reduce((sum, t) => sum + t.monthlyBill, 0)}
+            {currentTenant?.currency || '৳'}{tenants.filter(t => t.isActive).reduce((sum, t) => sum + t.monthlyBill, 0)}
           </h3>
         </div>
       </div>
@@ -256,7 +256,7 @@ export const SuperAdmin = () => {
                       </div>
                     ) : (
                       <div className="flex items-center gap-2 group">
-                        <span className="font-bold text-slate-700">৳{tenant.monthlyBill}</span>
+                        <span className="font-bold text-slate-700">{currentTenant?.currency || '৳'}{tenant.monthlyBill}</span>
                         <button 
                           onClick={() => handleEditBill(tenant)}
                           className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-indigo-600 transition"
@@ -324,7 +324,7 @@ export const SuperAdmin = () => {
                 onClick={() => {
                   setShowModal(false);
                   setEditingTenant(null);
-                  setNewBusiness({ name: '', address: '', phone: '', currency: '৳', themeColor: '#0f172a', monthlyBill: 500, billingDay: 1 });
+                  setNewBusiness({ name: '', address: '', phone: '', currency: '', themeColor: '#0f172a', monthlyBill: 500, billingDay: 1 });
                 }} 
                 className="text-slate-400 hover:text-slate-600"
               >
@@ -386,7 +386,7 @@ export const SuperAdmin = () => {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Monthly Bill (৳)</label>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Monthly Bill ({currentTenant?.currency || '৳'})</label>
                       <input 
                         type="number" 
                         className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
@@ -460,7 +460,7 @@ export const SuperAdmin = () => {
                   onClick={() => {
                     setShowModal(false);
                     setEditingTenant(null);
-                    setNewBusiness({ name: '', address: '', phone: '', currency: '৳', themeColor: '#0f172a', monthlyBill: 500, billingDay: 1 });
+                    setNewBusiness({ name: '', address: '', phone: '', currency: '', themeColor: '#0f172a', monthlyBill: 500, billingDay: 1 });
                   }}
                   className="flex-1 px-6 py-3 rounded-xl font-bold text-slate-600 hover:bg-slate-100 transition"
                 >
