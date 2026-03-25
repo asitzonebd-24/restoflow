@@ -6,8 +6,9 @@ import { Package, AlertTriangle, RefreshCw, Plus, Edit2, X, Save, Search, Chevro
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const Inventory = () => {
-  const { inventory, updateInventory, addInventoryItem, editInventoryItem, currentTenant } = useApp();
+  const { inventory, updateInventory, addInventoryItem, editInventoryItem, currentTenant, menu } = useApp();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<'inventory' | 'menu'>('inventory');
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -17,18 +18,30 @@ export const Inventory = () => {
     unit: 'kg',
     quantity: 0,
     minThreshold: 5,
-    pricePerUnit: 0
+    pricePerUnit: 0,
+    menuItemId: '',
+    menuCategory: ''
   });
 
   const openAddModal = () => {
     setEditingItem(null);
-    setFormData({ name: '', supplier: '', unit: 'kg', quantity: 0, minThreshold: 5, pricePerUnit: 0 });
+    setFormData({ name: '', supplier: '', unit: 'kg', quantity: 0, minThreshold: 5, pricePerUnit: 0, menuItemId: '', menuCategory: '' });
     setIsModalOpen(true);
   };
 
   const openEditModal = (item: InventoryItem) => {
     setEditingItem(item);
-    setFormData({ name: item.name, supplier: item.supplier, unit: item.unit, quantity: item.quantity, minThreshold: item.minThreshold, pricePerUnit: item.pricePerUnit });
+    const linkedMenu = menu.find(m => m.id === item.menuItemId);
+    setFormData({ 
+      name: item.name, 
+      supplier: item.supplier, 
+      unit: item.unit, 
+      quantity: item.quantity, 
+      minThreshold: item.minThreshold, 
+      pricePerUnit: item.pricePerUnit,
+      menuItemId: item.menuItemId || '',
+      menuCategory: item.menuCategory || linkedMenu?.category || ''
+    });
     setIsModalOpen(true);
   };
 
@@ -36,10 +49,16 @@ export const Inventory = () => {
     e.preventDefault();
     if (!currentTenant) return;
 
+    const data = {
+      ...formData,
+      menuItemId: formData.menuItemId || null,
+      menuCategory: formData.menuCategory || null
+    };
+
     if (editingItem) {
-      editInventoryItem(editingItem.id, formData);
+      editInventoryItem(editingItem.id, data);
     } else {
-      const newItem: InventoryItem = { id: `inv-${Date.now()}`, ...formData };
+      const newItem: InventoryItem = { id: `inv-${Date.now()}`, ...data, tenantId: currentTenant.id };
       addInventoryItem(newItem);
     }
     setIsModalOpen(false);
@@ -141,103 +160,210 @@ export const Inventory = () => {
         />
       </div>
 
-      {/* Inventory Table */}
-      <div className="bg-white rounded-[2rem] border-2 border-indigo-500 shadow-xl shadow-indigo-100 overflow-hidden mb-10">
-        <div className="overflow-x-auto no-scrollbar">
-          <table className="w-full text-left border-collapse min-w-[900px]">
-            <thead>
-              <tr className="bg-slate-50/80 border-b-2 border-slate-100">
-                <th className="px-8 py-6 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Material Details</th>
-                <th className="px-8 py-6 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Supplier</th>
-                <th className="px-8 py-6 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Unit Price</th>
-                <th className="px-8 py-6 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Current Stock</th>
-                <th className="px-8 py-6 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Status</th>
-                <th className="px-8 py-6 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y-2 divide-slate-50">
-              <AnimatePresence mode="popLayout">
-                {filteredInventory.map(item => {
-                  const isLow = item.quantity <= item.minThreshold;
-                  return (
-                    <motion.tr 
-                      layout
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      key={item.id} 
-                      className="hover:bg-slate-50/30 transition-colors group"
-                    >
-                      <td className="px-8 py-6">
+      {/* Tabs */}
+      <div className="flex gap-4 mb-8">
+        <button 
+          onClick={() => setActiveTab('inventory')}
+          className={`px-6 py-3 rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === 'inventory' ? 'bg-slate-900 text-white shadow-lg' : 'bg-white text-slate-400 hover:bg-slate-50'}`}
+        >
+          Raw Materials
+        </button>
+        <button 
+          onClick={() => setActiveTab('menu')}
+          className={`px-6 py-3 rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === 'menu' ? 'bg-slate-900 text-white shadow-lg' : 'bg-white text-slate-400 hover:bg-slate-50'}`}
+        >
+          Menu Stock Sync
+        </button>
+      </div>
+
+      {activeTab === 'inventory' ? (
+        <>
+          {/* Inventory Table */}
+          <div className="bg-white rounded-[2rem] border-2 border-indigo-500 shadow-xl shadow-indigo-100 overflow-hidden mb-10">
+            <div className="overflow-x-auto no-scrollbar">
+              <table className="w-full text-left border-collapse min-w-[900px]">
+                <thead>
+                  <tr className="bg-slate-50/80 border-b-2 border-slate-100">
+                    <th className="px-8 py-6 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Material Details</th>
+                    <th className="px-8 py-6 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Supplier</th>
+                    <th className="px-8 py-6 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Unit Price</th>
+                    <th className="px-8 py-6 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Current Stock</th>
+                    <th className="px-8 py-6 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Linked Menu Item</th>
+                    <th className="px-8 py-6 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Status</th>
+                    <th className="px-8 py-6 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y-2 divide-slate-50">
+                  <AnimatePresence mode="popLayout">
+                    {filteredInventory.map(item => {
+                      const isLow = item.quantity <= item.minThreshold;
+                      const linkedMenu = menu.find(m => m.id === item.menuItemId);
+                      return (
+                        <motion.tr 
+                          layout
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          key={item.id} 
+                          className="hover:bg-slate-50/30 transition-colors group"
+                        >
+                          <td className="px-8 py-6">
+                            <div className="flex items-center gap-4">
+                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs ${isLow ? 'bg-rose-50 text-rose-600' : 'bg-slate-50 text-slate-400'}`}>
+                                {item.name.charAt(0).toUpperCase()}
+                              </div>
+                              <div>
+                                <p className="font-bold text-slate-900 text-sm">{item.name}</p>
+                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">ID: {item.id.slice(-6).toUpperCase()}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-8 py-6">
+                            <span className="text-xs font-bold text-slate-600">{item.supplier}</span>
+                          </td>
+                          <td className="px-8 py-6">
+                            <div className="flex flex-col">
+                              <span className="text-sm font-bold text-slate-900">{currentTenant?.currency}{item.pricePerUnit.toFixed(2)}</span>
+                              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Per {item.unit}</span>
+                            </div>
+                          </td>
+                          <td className="px-8 py-6">
+                            <div className="flex items-center gap-3">
+                              <span className={`text-lg font-bold ${isLow ? 'text-rose-600' : 'text-slate-900'}`}>{item.quantity}</span>
+                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{item.unit}</span>
+                            </div>
+                          </td>
+                          <td className="px-8 py-6">
+                            {linkedMenu ? (
+                              <div className="flex items-center gap-2">
+                                <div className="w-6 h-6 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600">
+                                  <ChevronRight size={14} />
+                                </div>
+                                <span className="text-xs font-bold text-slate-600">{linkedMenu.name}</span>
+                              </div>
+                            ) : item.menuCategory ? (
+                              <div className="flex items-center gap-2">
+                                <div className="w-6 h-6 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600">
+                                  <RefreshCw size={12} />
+                                </div>
+                                <span className="text-xs font-bold text-slate-600">Category: {item.menuCategory}</span>
+                              </div>
+                            ) : (
+                              <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest italic">Not Linked</span>
+                            )}
+                          </td>
+                          <td className="px-8 py-6">
+                            {isLow ? (
+                              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-rose-50 text-rose-600 rounded-xl border border-rose-100">
+                                <AlertTriangle size={12} />
+                                <span className="text-[9px] font-bold uppercase tracking-widest">Low Stock</span>
+                              </div>
+                            ) : (
+                              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-xl border border-emerald-100">
+                                <CheckCircle size={12} />
+                                <span className="text-[9px] font-bold uppercase tracking-widest">Healthy</span>
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-8 py-6 text-right">
+                            <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                              <button 
+                                onClick={() => openEditModal(item)}
+                                className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 hover:text-indigo-600 shadow-sm border border-slate-100 transition-all"
+                              >
+                                <Edit2 size={16} />
+                              </button>
+                              <button 
+                                onClick={() => updateInventory(item.id, 1)}
+                                className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 hover:text-emerald-500 shadow-sm border border-slate-100 transition-all"
+                                title="Quick Restock +1"
+                              >
+                                <RefreshCw size={16} />
+                              </button>
+                            </div>
+                          </td>
+                        </motion.tr>
+                      );
+                    })}
+                  </AnimatePresence>
+                </tbody>
+              </table>
+            </div>
+            {filteredInventory.length === 0 && (
+              <div className="py-20 flex flex-col items-center justify-center text-slate-300">
+                <Search size={48} strokeWidth={1} className="mb-4 opacity-20" />
+                <p className="text-[10px] font-bold uppercase tracking-widest opacity-40">No items found</p>
+              </div>
+            )}
+          </div>
+        </>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
+          {currentTenant?.menuCategories.map(category => {
+            const categoryItems = menu.filter(m => m.category === category);
+            if (categoryItems.length === 0) return null;
+            return (
+              <div key={category} className="bg-white rounded-[2rem] border-2 border-slate-100 overflow-hidden shadow-sm">
+                <div className="px-8 py-6 bg-slate-50/50 border-b-2 border-slate-100 flex justify-between items-center">
+                  <h3 className="text-sm font-bold text-slate-900 uppercase tracking-widest">{category}</h3>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{categoryItems.length} Items</span>
+                </div>
+                <div className="divide-y-2 divide-slate-50">
+                  {categoryItems.map(item => {
+                    const linkedInv = inventory.find(inv => 
+                      inv.menuItemId === item.id || 
+                      (inv.menuCategory === item.category && !inv.menuItemId)
+                    );
+                    const isOutOfStock = item.stock === 0;
+                    return (
+                      <div key={item.id} className="px-8 py-6 flex items-center justify-between group hover:bg-slate-50/30 transition-colors">
                         <div className="flex items-center gap-4">
-                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs ${isLow ? 'bg-rose-50 text-rose-600' : 'bg-slate-50 text-slate-400'}`}>
-                            {item.name.charAt(0).toUpperCase()}
+                          <div className="w-12 h-12 rounded-xl bg-slate-100 overflow-hidden flex-shrink-0">
+                            {item.image ? (
+                              <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-slate-300 font-bold text-xl">
+                                {item.name.charAt(0)}
+                              </div>
+                            )}
                           </div>
                           <div>
                             <p className="font-bold text-slate-900 text-sm">{item.name}</p>
-                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">ID: {item.id.slice(-6).toUpperCase()}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                              {linkedInv ? (
+                                <div className="flex items-center gap-1 text-emerald-600">
+                                  <RefreshCw size={10} />
+                                  <span className="text-[9px] font-bold uppercase tracking-widest">
+                                    Synced with {linkedInv.name} 
+                                    {linkedInv.menuCategory === item.category && !linkedInv.menuItemId ? ' (Category)' : ''}
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest italic">Manual Stock</span>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </td>
-                      <td className="px-8 py-6">
-                        <span className="text-xs font-bold text-slate-600">{item.supplier}</span>
-                      </td>
-                      <td className="px-8 py-6">
-                        <div className="flex flex-col">
-                          <span className="text-sm font-bold text-slate-900">{currentTenant?.currency}{item.pricePerUnit.toFixed(2)}</span>
-                          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Per {item.unit}</span>
-                        </div>
-                      </td>
-                      <td className="px-8 py-6">
-                        <div className="flex items-center gap-3">
-                          <span className={`text-lg font-bold ${isLow ? 'text-rose-600' : 'text-slate-900'}`}>{item.quantity}</span>
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{item.unit}</span>
-                        </div>
-                      </td>
-                      <td className="px-8 py-6">
-                        {isLow ? (
-                          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-rose-50 text-rose-600 rounded-xl border border-rose-100">
-                            <AlertTriangle size={12} />
-                            <span className="text-[9px] font-bold uppercase tracking-widest">Low Stock</span>
+                        <div className="text-right">
+                          <div className="flex items-center justify-end gap-3 mb-1">
+                            <span className={`text-lg font-bold ${isOutOfStock ? 'text-rose-600' : 'text-slate-900'}`}>
+                              {item.stock ?? 0}
+                            </span>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">In Stock</span>
                           </div>
-                        ) : (
-                          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-xl border border-emerald-100">
-                            <CheckCircle size={12} />
-                            <span className="text-[9px] font-bold uppercase tracking-widest">Healthy</span>
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-8 py-6 text-right">
-                        <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                          <button 
-                            onClick={() => openEditModal(item)}
-                            className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 hover:text-indigo-600 shadow-sm border border-slate-100 transition-all"
-                          >
-                            <Edit2 size={16} />
-                          </button>
-                          <button 
-                            onClick={() => updateInventory(item.id, item.quantity + 1)}
-                            className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 hover:text-emerald-500 shadow-sm border border-slate-100 transition-all"
-                            title="Quick Restock +1"
-                          >
-                            <RefreshCw size={16} />
-                          </button>
+                          {isOutOfStock && (
+                            <span className="text-[9px] font-bold text-rose-500 uppercase tracking-widest">Out of Stock</span>
+                          )}
                         </div>
-                      </td>
-                    </motion.tr>
-                  );
-                })}
-              </AnimatePresence>
-            </tbody>
-          </table>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
         </div>
-        {filteredInventory.length === 0 && (
-          <div className="py-20 flex flex-col items-center justify-center text-slate-300">
-            <Search size={48} strokeWidth={1} className="mb-4 opacity-20" />
-            <p className="text-[10px] font-bold uppercase tracking-widest opacity-40">No items found</p>
-          </div>
-        )}
-      </div>
+      )}
 
       {/* Inventory Modal */}
       <AnimatePresence>
@@ -268,6 +394,40 @@ export const Inventory = () => {
 
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Menu Category (Sync All)</label>
+                        <select 
+                          value={formData.menuCategory}
+                          onChange={(e) => setFormData({...formData, menuCategory: e.target.value, menuItemId: ''})}
+                          className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all appearance-none"
+                        >
+                          <option value="">No Category Link</option>
+                          {currentTenant?.menuCategories.map(cat => (
+                            <option key={cat} value={cat}>{cat}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Specific Menu Item (Optional)</label>
+                        <select 
+                          value={formData.menuItemId}
+                          onChange={(e) => setFormData({...formData, menuItemId: e.target.value})}
+                          className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all appearance-none"
+                        >
+                          <option value="">No Specific Item Link</option>
+                          {menu
+                            .filter(m => !formData.menuCategory || m.category === formData.menuCategory)
+                            .map(m => (
+                              <option key={m.id} value={m.id}>{m.name}</option>
+                            ))}
+                        </select>
+                      </div>
+                      <p className="md:col-span-2 text-[9px] text-slate-400 mt-2 ml-1 italic">
+                        Linking to a category will sync stock for ALL items in that category. 
+                        Linking to a specific item overrides category sync for that item.
+                      </p>
+                    </div>
                     <div className="md:col-span-2">
                       <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Material Name</label>
                       <input 

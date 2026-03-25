@@ -127,6 +127,8 @@ export interface InventoryItem {
   minThreshold: number;
   supplier: string;
   pricePerUnit: number;
+  menuItemId?: string; // Link to menu item for auto-sync
+  menuCategory?: string; // Link to menu category for auto-sync
 }
 
 export enum BillStatus {
