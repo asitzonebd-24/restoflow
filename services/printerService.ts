@@ -90,12 +90,23 @@ export class BluetoothPrinterService {
     ctx.fillStyle = 'black';
     ctx.textBaseline = 'top';
 
-    // Draw left text
-    ctx.fillText(leftText, 0, 0);
-
-    // Draw right text
+    // Draw right text first to know how much space is left
     const rightWidth = ctx.measureText(rightText).width;
     ctx.fillText(rightText, width - rightWidth, 0);
+
+    // Draw left text, truncating if necessary to avoid overlap
+    const availableWidthForLeft = width - rightWidth - 10; // 10px margin
+    let finalLeftText = leftText;
+    
+    if (ctx.measureText(finalLeftText).width > availableWidthForLeft) {
+        let truncated = finalLeftText;
+        while (ctx.measureText(truncated + '...').width > availableWidthForLeft && truncated.length > 0) {
+            truncated = truncated.slice(0, -1);
+        }
+        finalLeftText = truncated + '...';
+    }
+    
+    ctx.fillText(finalLeftText, 0, 0);
 
     return canvas;
   }
