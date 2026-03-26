@@ -293,7 +293,6 @@ export const POS = () => {
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [filter, setFilter] = useState<'pending' | 'done'>('pending');
-  const [showKOT, setShowKOT] = useState(false);
 
   const categories = useMemo(() => ['All', ...Array.from(new Set(menu.map(m => m.category)))], [menu]);
 
@@ -512,17 +511,25 @@ export const POS = () => {
   const cartCount = cart.reduce((acc, i) => acc + i.quantity, 0);
 
   const printKOT = () => {
-    setShowKOT(true);
+    const printContent = document.getElementById('kot-content');
+    if (!printContent) return;
+
     const originalTitle = document.title;
     const token = isCreatingNew ? newTokenNum : orders.find(o => o.id === selectedOrderId)?.tokenNumber;
     document.title = `KOT - #${token}`;
     
-    setTimeout(() => {
-      window.focus();
-      window.print();
-      setShowKOT(false);
-      document.title = originalTitle;
-    }, 200);
+    // Create a temporary container for printing
+    const printContainer = document.createElement('div');
+    printContainer.id = 'print-container';
+    printContainer.innerHTML = printContent.innerHTML;
+    document.body.appendChild(printContainer);
+
+    window.focus();
+    window.print();
+    
+    // Clean up
+    document.body.removeChild(printContainer);
+    document.title = originalTitle;
   };
 
   if (!selectedOrderId && !isCreatingNew) {
@@ -861,35 +868,33 @@ export const POS = () => {
       </div>
 
       {/* KOT Print Content (Hidden normally, visible during print) */}
-      {showKOT && (
-        <div id="kot-content" className="hidden print:block p-4 font-mono print-visible">
-          <div className="text-center border-b-2 border-black pb-4 mb-4">
-            <h2 className="text-xl font-bold uppercase tracking-widest">KITCHEN TICKET</h2>
-            <p className="text-sm">Token: #{isCreatingNew ? newTokenNum : orders.find(o => o.id === selectedOrderId)?.tokenNumber}</p>
-            <p className="text-sm">Table: {isCreatingNew ? (isDelivery ? 'Delivery' : newTableNum) : orders.find(o => o.id === selectedOrderId)?.tableNumber}</p>
-            <p className="text-xs mt-1">{new Date().toLocaleString()}</p>
-          </div>
-          
-          <div className="space-y-2 mb-4">
-            {cart.map((item, i) => (
-              <div key={i} className="flex justify-between items-start text-sm">
-                <span className="font-bold">x{item.quantity} {item.name}</span>
-              </div>
-            ))}
-          </div>
-
-          {orderNote && (
-            <div className="border-t border-black pt-2 mb-4">
-              <p className="text-xs font-bold uppercase">Note:</p>
-              <p className="text-sm italic">{orderNote}</p>
-            </div>
-          )}
-
-          <div className="text-center border-t-2 border-black pt-4">
-            <p className="text-xs">End of Ticket</p>
-          </div>
+      <div id="kot-content" className="hidden print:block p-4 font-mono print-visible">
+        <div className="text-center border-b-2 border-black pb-4 mb-4">
+          <h2 className="text-xl font-bold uppercase tracking-widest">KITCHEN TICKET</h2>
+          <p className="text-sm">Token: #{isCreatingNew ? newTokenNum : orders.find(o => o.id === selectedOrderId)?.tokenNumber}</p>
+          <p className="text-sm">Table: {isCreatingNew ? (isDelivery ? 'Delivery' : newTableNum) : orders.find(o => o.id === selectedOrderId)?.tableNumber}</p>
+          <p className="text-xs mt-1">{new Date().toLocaleString()}</p>
         </div>
-      )}
+        
+        <div className="space-y-2 mb-4">
+          {cart.map((item, i) => (
+            <div key={i} className="flex justify-between items-start text-sm">
+              <span className="font-bold">x{item.quantity} {item.name}</span>
+            </div>
+          ))}
+        </div>
+
+        {orderNote && (
+          <div className="border-t border-black pt-2 mb-4">
+            <p className="text-xs font-bold uppercase">Note:</p>
+            <p className="text-sm italic">{orderNote}</p>
+          </div>
+        )}
+
+        <div className="text-center border-t-2 border-black pt-4">
+          <p className="text-xs">End of Ticket</p>
+        </div>
+      </div>
 
       {/* Mobile Sticky Summary Bar Removed as per request - User can scroll to embedded basket */}
 

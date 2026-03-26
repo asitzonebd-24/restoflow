@@ -178,15 +178,24 @@ export const Billing = () => {
   };
 
   const printInvoice = () => {
+    const printContent = document.getElementById('invoice-content');
+    if (!printContent) return;
+
     const originalTitle = document.title;
     document.title = `${currentTenant?.name || 'Invoice'} - #${invoiceOrder?.tokenNumber}`;
     
+    // Create a temporary container for printing
+    const printContainer = document.createElement('div');
+    printContainer.id = 'print-container';
+    printContainer.innerHTML = printContent.innerHTML;
+    document.body.appendChild(printContainer);
+
     window.focus();
-    // Short delay to ensure title is set and layout is ready
-    setTimeout(() => {
-      window.print();
-      document.title = originalTitle;
-    }, 200);
+    window.print();
+    
+    // Clean up
+    document.body.removeChild(printContainer);
+    document.title = originalTitle;
   };
 
   return (
@@ -596,10 +605,10 @@ export const Billing = () => {
                     <Printer size={12} /> Mobile Printing Guide
                   </p>
                   <p className="text-[8px] text-slate-500 font-bold uppercase leading-relaxed">
-                    1. Pair your Bluetooth printer in phone settings.<br/>
-                    2. Install a free "Print Service" app from Play Store.<br/>
-                    3. Enable the service in Settings &gt; Printing.<br/>
-                    4. Select your printer in the print preview.
+                    1. Open app in a new tab for best results.<br/>
+                    2. Ensure printer is paired in phone settings.<br/>
+                    3. If printer doesn't show, install a free "Print Service" app.<br/>
+                    4. Enable the service in Settings &gt; Printing.
                   </p>
                 </div>
               </div>

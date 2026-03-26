@@ -39,89 +39,62 @@
           background: #fff !important;
           width: 100% !important;
           height: auto !important;
-          visibility: hidden !important;
           -webkit-print-color-adjust: exact !important;
           print-color-adjust: exact !important;
         }
 
-        /* Target the specific invoice/KOT container and make it visible */
-        #invoice-content,
-        #kot-content,
-        .print-visible {
-          visibility: visible !important;
-          display: block !important;
-          position: absolute !important;
-          left: 0 !important;
-          top: 0 !important;
-          width: 80mm !important; /* Standard thermal printer width */
-          margin: 0 !important;
-          padding: 4mm !important;
-          background: #fff !important;
-          z-index: 99999 !important;
-          box-shadow: none !important;
+        /* Hide the main app and all other elements */
+        body > *:not(#print-container) {
+          display: none !important;
         }
 
-        /* Ensure all children of the content are visible and preserve their layout */
-        #invoice-content *,
-        #kot-content *,
-        .print-visible * {
+        /* Show only the temporary print container */
+        #print-container {
+          display: block !important;
+          width: 100% !important;
+          margin: 0 !important;
+          padding: 5mm !important;
+          background: #fff !important;
+          position: relative !important;
+        }
+
+        /* Ensure all children are visible and use high-contrast text */
+        #print-container * {
           visibility: visible !important;
-          display: block !important; /* Force block for better thermal printer compatibility */
-          width: auto !important;
-          float: none !important;
+          color: #000 !important;
+          border-color: #000 !important;
+          font-family: 'Courier New', Courier, monospace !important;
+          display: block !important;
         }
 
         /* Specific overrides for flex items in print */
-        #invoice-content .flex,
-        #kot-content .flex {
+        #print-container .flex {
           display: flex !important;
           flex-direction: row !important;
           justify-content: space-between !important;
           width: 100% !important;
         }
 
-        /* Hide everything else */
-        #root > *:not(.print-visible),
-        .print\:hidden,
-        button,
-        nav,
-        aside,
-        .sidebar,
-        .no-print,
-        .close-button,
-        .bg-slate-900\/60,
-        .backdrop-blur-sm {
-          display: none !important;
-          visibility: hidden !important;
-        }
-
-        /* Ensure text is high contrast black for thermal printers */
-        #invoice-content *,
-        #kot-content * {
-          color: #000 !important;
-          border-color: #000 !important;
-          font-family: 'Courier New', Courier, monospace !important; /* Monospace often prints better on thermal */
+        /* Standardize font sizes for thermal printers */
+        #print-container {
           font-size: 12pt !important;
           line-height: 1.2 !important;
         }
 
-        #invoice-content h2,
-        #kot-content h2 {
+        #print-container h2 {
           font-size: 16pt !important;
           font-weight: bold !important;
           margin-bottom: 5pt !important;
+          text-align: center !important;
         }
 
-        #invoice-content .text-[10px],
-        #kot-content .text-[10px],
-        #invoice-content .text-[8px],
-        #kot-content .text-[8px] {
+        #print-container .text-[10px],
+        #print-container .text-[8px] {
           font-size: 10pt !important;
         }
 
         /* Force images to be visible and centered */
-        #invoice-content img,
-        #kot-content img {
+        #print-container img {
           display: block !important;
           visibility: visible !important;
           max-width: 40mm !important;
