@@ -37,24 +37,13 @@ export class BluetoothPrinterService {
     align?: 'left' | 'center' | 'right' 
   } = {}): Promise<HTMLCanvasElement> {
     const canvas = document.createElement('canvas');
-    const scale = 2; // Increase scale for better rendering
-    canvas.width = width * scale;
+    canvas.width = width;
     const ctx = canvas.getContext('2d');
     if (!ctx) return canvas;
 
-    const fontSize = (options.fontSize || 24) * scale;
-    const fontName = '"Inter", "Hind Siliguri", sans-serif';
-    const fontString = `${options.bold ? 'bold ' : ''}${fontSize}px ${fontName}`;
-    
-    // Ensure font is loaded
-    try {
-      await document.fonts.load(fontString);
-    } catch (e) {
-      console.warn('Font loading failed, falling back to default:', e);
-    }
-    
-    ctx.font = fontString;
-    ctx.scale(scale, scale);
+    const fontSize = options.fontSize || 24;
+    const fontName = '"Inter", "Arial", sans-serif';
+    ctx.font = `${options.bold ? 'bold ' : ''}${fontSize}px ${fontName}`;
 
     const lines = text.split('\n');
     canvas.height = lines.length * (fontSize + 8);
@@ -65,7 +54,7 @@ export class BluetoothPrinterService {
 
     // Draw text
     ctx.fillStyle = 'black';
-    ctx.font = fontString;
+    ctx.font = `${options.bold ? 'bold ' : ''}${fontSize}px ${fontName}`;
     ctx.textBaseline = 'top';
 
     lines.forEach((line, i) => {
@@ -91,65 +80,37 @@ export class BluetoothPrinterService {
 
     const imageData = context.getImageData(0, 0, width, height);
     const pixels = imageData.data;
-    const grayscale = new Float32Array(width * height);
 
-    // Convert to grayscale
-    for (let i = 0; i < pixels.length; i += 4) {
-      const r = pixels[i];
-      const g = pixels[i + 1];
-      const b = pixels[i + 2];
-      const a = pixels[i + 3];
-      // If transparent, treat as white (255)
-      grayscale[i / 4] = a < 128 ? 255 : (0.299 * r + 0.587 * g + 0.114 * b);
-    }
-
-    // Apply Floyd-Steinberg dithering
-    for (let y = 0; y < height; y++) {
-      for (let x = 0; x < width; x++) {
-        const idx = y * width + x;
-        const oldPixel = grayscale[idx];
-        const newPixel = oldPixel < 128 ? 0 : 255;
-        grayscale[idx] = newPixel;
-        const error = oldPixel - newPixel;
-
-        if (x + 1 < width) grayscale[idx + 1] += error * 7 / 16;
-        if (y + 1 < height) {
-          if (x - 1 >= 0) grayscale[idx + width - 1] += error * 3 / 16;
-          grayscale[idx + width] += error * 5 / 16;
-          if (x + 1 < width) grayscale[idx + width + 1] += error * 1 / 16;
-        }
-      }
-    }
-
-    const header: number[] = [
-      0x0A, // LF to ensure we are at the start of a line
-      0x1D, 0x76, 0x30, 0x01, // GS v 0 with mode 1 (double density)
+    const data: number[] = [
+      ...this.COMMANDS.GS_V_0,
       widthBytes & 0xFF, (widthBytes >> 8) & 0xFF,
       height & 0xFF, (height >> 8) & 0xFF
     ];
 
-    const imageDataBytes: number[] = [];
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < widthBytes; x++) {
         let byte = 0;
         for (let bit = 0; bit < 8; bit++) {
           const px = x * 8 + bit;
-          if (px < width && grayscale[y * width + px] === 0) {
-            byte |= (1 << (7 - bit));
+          if (px < width) {
+            const idx = (y * width + px) * 4;
+            const r = pixels[idx];
+            const g = pixels[idx + 1];
+            const b = pixels[idx + 2];
+            const a = pixels[idx + 3];
+            
+            // Threshold for black/white
+            const brightness = (r + g + b) / 3;
+            if (a > 128 && brightness < 128) {
+              byte |= (1 << (7 - bit));
+            }
           }
         }
-        imageDataBytes.push(byte);
+        data.push(byte);
       }
     }
 
-    // Send header first
-    await this.printRaw(new Uint8Array(header));
-
-    // Send image data in chunks to avoid buffer overflow
-    const CHUNK_SIZE = 512;
-    for (let i = 0; i < imageDataBytes.length; i += CHUNK_SIZE) {
-      await this.printRaw(new Uint8Array(imageDataBytes.slice(i, i + CHUNK_SIZE)));
-    }
+    await this.printRaw(new Uint8Array(data));
   }
 
   public static async printTextLine(text: string, width: number, options: any = {}) {
@@ -266,32 +227,28 @@ export class BluetoothPrinterService {
   static async printRaw(data: Uint8Array) {
     if (!this.characteristic) throw new Error('Printer not connected');
     
-    // Increased chunk size for faster printing. 
-    // Most modern Bluetooth thermal printers can handle 512 or even 1024 bytes.
-    const chunkSize = 512; 
-    
+    // Use a smaller chunk size for better compatibility with various thermal printers
+    const chunkSize = 20; 
     for (let i = 0; i < data.length; i += chunkSize) {
       const chunk = data.slice(i, i + chunkSize);
       try {
-        // writeValueWithoutResponse is significantly faster than writeValueWithResponse
-        if (this.characteristic.writeValueWithoutResponse && this.characteristic.properties.writeWithoutResponse) {
-          await this.characteristic.writeValueWithoutResponse(chunk);
-          // Very small delay to prevent buffer overflow on the printer side
-          await new Promise(resolve => setTimeout(resolve, 1));
-        } else if (this.characteristic.writeValueWithResponse && this.characteristic.properties.write) {
-          await this.characteristic.writeValueWithResponse(chunk);
-          // No delay needed for writeWithResponse as it waits for acknowledgement
+        // Try newer methods first, fallback to deprecated writeValue for older browsers
+        if (this.characteristic.writeValueWithResponse) {
+          if (this.characteristic.properties.write) {
+            await this.characteristic.writeValueWithResponse(chunk);
+          } else {
+            await this.characteristic.writeValueWithoutResponse(chunk);
+          }
         } else {
-          // Fallback for older browsers/devices
           await this.characteristic.writeValue(chunk);
-          await new Promise(resolve => setTimeout(resolve, 2));
         }
+        // Very small delay to prevent buffer overflow on slower printer controllers
+        await new Promise(resolve => setTimeout(resolve, 10));
       } catch (error) {
         console.error('Chunk write failed:', error);
-        // Final fallback attempt
+        // Final attempt with writeValue if other methods failed
         try {
           await this.characteristic.writeValue(chunk);
-          await new Promise(resolve => setTimeout(resolve, 5));
         } catch (innerError) {
           throw new Error('Failed to write to printer characteristic');
         }
@@ -325,11 +282,10 @@ export class BluetoothPrinterService {
     try {
       // Small delay to ensure any rendering/animations are finished
       await new Promise(resolve => setTimeout(resolve, 500));
-      await document.fonts.ready;
       
       const canvas = await html2canvas(clone, {
         width: pixelWidth,
-        scale: 2,
+        scale: 1,
         useCORS: true,
         backgroundColor: '#ffffff',
         logging: false
@@ -375,65 +331,15 @@ export class BluetoothPrinterService {
 
     // Items
     for (const item of order.items) {
-      const qty = `x${item.quantity}`;
-      const price = (item.price * item.quantity).toFixed(2);
-      
       if (this.containsBangla(item.name)) {
-        // For Bangla, we render the whole line to canvas to ensure alignment
-        const canvas = document.createElement('canvas');
-        const scale = 2;
-        canvas.width = pixelWidth * scale;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          const fontSize = 32 * scale;
-          const fontString = `bold ${fontSize}px "Inter", "Hind Siliguri", sans-serif`;
-          
-          try {
-            await document.fonts.load(fontString);
-          } catch (e) {
-            console.warn('Font loading failed:', e);
-          }
-          
-          ctx.font = fontString;
-          ctx.scale(scale, scale);
-          canvas.height = (fontSize + 10) * scale;
-          ctx.fillStyle = 'white';
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-          ctx.fillStyle = 'black';
-          ctx.textBaseline = 'top';
-          
-          // Draw Name + Qty on left
-          ctx.fillText(`${item.name} ${qty}`, 0, 0);
-          
-          // Draw Price on right
-          ctx.textAlign = 'right';
-          ctx.fillText(price, pixelWidth, 0);
-          
-          await this.printCanvas(canvas);
-        }
+        const qty = `x${item.quantity}`;
+        const price = (item.price * item.quantity).toFixed(2);
+        await this.printTextLine(`${item.name} ${qty} ${price}`, pixelWidth, { align: 'left' });
       } else {
-        // For standard text, use padding for speed
-        const priceStr = price;
-        const qtyStr = qty;
-        const nameStr = item.name;
-        
-        // Calculate how many spaces we can fit
-        // Line format: "Name xQty         Price"
-        // We want Price to be right-aligned
-        const leftPart = `${nameStr} ${qtyStr}`;
-        const rightPart = priceStr;
-        
-        const spacesNeeded = width - leftPart.length - rightPart.length;
-        
-        let line = '';
-        if (spacesNeeded > 0) {
-          line = leftPart + ' '.repeat(spacesNeeded) + rightPart + '\n';
-        } else {
-          // If name is too long, wrap it or truncate
-          const truncatedName = nameStr.substring(0, width - qtyStr.length - rightPart.length - 3);
-          line = `${truncatedName} ${qtyStr} ${rightPart}\n`;
-        }
-        
+        const name = item.name.substring(0, width - 15);
+        const qty = `x${item.quantity}`.padEnd(5);
+        const price = (item.price * item.quantity).toFixed(2);
+        const line = `${name.padEnd(width - 15)} ${qty} ${price.padStart(8)}\n`;
         await this.printRaw(new Uint8Array(new TextEncoder().encode(line)));
       }
     }
