@@ -141,11 +141,14 @@ export class BluetoothPrinterService {
     try {
       // 1. Check if already connected in memory
       if (this.characteristic && this.device?.gatt?.connected) {
-        return { success: true, device: this.device };
+        try {
+          return { success: true, device: this.device };
+        } catch (e) {
+          this.characteristic = null;
+        }
       }
 
       // 2. If deviceId is provided, try to reconnect without showing the picker
-      // This works in Chrome 85+ if the user has previously granted permission
       if (deviceId && (navigator as any).bluetooth.getDevices) {
         try {
           const devices = await (navigator as any).bluetooth.getDevices();
@@ -155,7 +158,6 @@ export class BluetoothPrinterService {
             this.device = existingDevice;
             this.server = await this.device.gatt.connect();
             
-            // Try to find a writable characteristic
             const services = await this.server.getPrimaryServices();
             for (const service of services) {
               const characteristics = await service.getCharacteristics();
@@ -168,24 +170,27 @@ export class BluetoothPrinterService {
             }
           }
         } catch (err) {
-          console.warn('Silent reconnection failed, falling back to requestDevice:', err);
+          console.warn('Silent reconnection failed:', err);
         }
       }
 
-      // 3. If no deviceId or reconnection failed, show the browser's device picker
+      // 3. Show the browser's device picker
       const options: any = {
         acceptAllDevices: true,
         optionalServices: [
           '00001101-0000-1000-8000-00805f9b34fb', // SPP
           '000018f0-0000-1000-8000-00805f9b34fb', // Generic
-          0xFF00, 0x4953 // Common thermal printer services
+          '0000ff00-0000-1000-8000-00805f9b34fb',
+          '00004953-0000-1000-8000-00805f9b34fb',
+          '49535343-fe7d-4ae5-8fa9-9fafd205e455',
+          'e7e11001-49d2-4d03-8058-20a4003b90c5',
+          0xFF00, 0x4953, 0x18f0, 0x18f1, 0x1101
         ]
       };
 
       this.device = await (navigator as any).bluetooth.requestDevice(options);
       this.server = await this.device.gatt.connect();
       
-      // Try to find a writable characteristic
       const services = await this.server.getPrimaryServices();
       for (const service of services) {
         const characteristics = await service.getCharacteristics();
@@ -197,7 +202,7 @@ export class BluetoothPrinterService {
         }
       }
       
-      throw new Error('No writable characteristic found on this device.');
+      throw new Error('No writable characteristic found.');
     } catch (error) {
       console.error('Bluetooth connection failed:', error);
       return { success: false };
@@ -209,31 +214,43 @@ export class BluetoothPrinterService {
       if (this.device && this.device.gatt.connected) {
         await this.device.gatt.disconnect();
       }
+    } catch (error) {
+      console.error('Bluetooth disconnect failed:', error);
+    } finally {
       this.device = null;
       this.server = null;
       this.characteristic = null;
-      return true;
-    } catch (error) {
-      console.error('Bluetooth disconnect failed:', error);
-      return false;
     }
+    return true;
   }
 
   static async printRaw(data: Uint8Array) {
     if (!this.characteristic) throw new Error('Printer not connected');
     
-    // Split into chunks if data is large
-    // BLE limit is usually 20-512 bytes. 100 is a safe middle ground for thermal printers.
-    const chunkSize = 100;
+    // Use a smaller chunk size for better compatibility with various thermal printers
+    const chunkSize = 20; 
     for (let i = 0; i < data.length; i += chunkSize) {
       const chunk = data.slice(i, i + chunkSize);
       try {
-        await this.characteristic.writeValue(chunk);
+        // Try newer methods first, fallback to deprecated writeValue for older browsers
+        if (this.characteristic.writeValueWithResponse) {
+          if (this.characteristic.properties.write) {
+            await this.characteristic.writeValueWithResponse(chunk);
+          } else {
+            await this.characteristic.writeValueWithoutResponse(chunk);
+          }
+        } else {
+          await this.characteristic.writeValue(chunk);
+        }
+        // Very small delay to prevent buffer overflow on slower printer controllers
+        await new Promise(resolve => setTimeout(resolve, 10));
       } catch (error) {
-        // Fallback to smaller chunks if 100 fails
-        const smallChunkSize = 20;
-        for (let j = 0; j < chunk.length; j += smallChunkSize) {
-          await this.characteristic.writeValue(chunk.slice(j, j + smallChunkSize));
+        console.error('Chunk write failed:', error);
+        // Final attempt with writeValue if other methods failed
+        try {
+          await this.characteristic.writeValue(chunk);
+        } catch (innerError) {
+          throw new Error('Failed to write to printer characteristic');
         }
       }
     }
@@ -283,23 +300,15 @@ export class BluetoothPrinterService {
   }
 
   static async printInvoice(business: Business, order: Order, transaction?: any, elementId: string = 'invoice-content') {
-    const element = document.getElementById(elementId);
-    if (element) {
-      await this.printElement(element, business.printerSettings?.paperWidth || '80mm');
-      return;
-    }
-
-    // Fallback to text-based printing if element not found
+    // We prefer text-based printing because it's much more reliable on thermal printers
+    // and handles Bangla correctly by rendering only text lines to canvas when needed.
+    
     const width = business.printerSettings?.paperWidth === '58mm' ? 32 : 48;
     const pixelWidth = business.printerSettings?.paperWidth === '58mm' ? 384 : 576;
     
     await this.printRaw(new Uint8Array(this.COMMANDS.INIT));
 
     // Header
-    if (business.printerSettings?.showLogo !== false) {
-      // Logo printing could be added here
-    }
-    
     await this.printTextLine(business.name, pixelWidth, { align: 'center', doubleSize: true, bold: true });
     
     if (business.printerSettings?.receiptHeader) {
@@ -322,7 +331,6 @@ export class BluetoothPrinterService {
 
     // Items
     for (const item of order.items) {
-      // If item name has Bangla, we might want to render the whole line as image
       if (this.containsBangla(item.name)) {
         const qty = `x${item.quantity}`;
         const price = (item.price * item.quantity).toFixed(2);
@@ -366,12 +374,6 @@ export class BluetoothPrinterService {
   }
 
   static async printKOT(business: Business, order: Order | any, elementId: string = 'kot-content') {
-    const element = document.getElementById(elementId);
-    if (element) {
-      await this.printElement(element, business.printerSettings?.paperWidth || '80mm');
-      return;
-    }
-
     const width = business.printerSettings?.paperWidth === '58mm' ? 32 : 48;
     const pixelWidth = business.printerSettings?.paperWidth === '58mm' ? 384 : 576;
     
