@@ -227,28 +227,32 @@ export class BluetoothPrinterService {
   static async printRaw(data: Uint8Array) {
     if (!this.characteristic) throw new Error('Printer not connected');
     
-    // Use a smaller chunk size for better compatibility with various thermal printers
-    const chunkSize = 20; 
+    // Increased chunk size for faster printing. 
+    // Most modern Bluetooth thermal printers can handle 512 or even 1024 bytes.
+    const chunkSize = 512; 
+    
     for (let i = 0; i < data.length; i += chunkSize) {
       const chunk = data.slice(i, i + chunkSize);
       try {
-        // Try newer methods first, fallback to deprecated writeValue for older browsers
-        if (this.characteristic.writeValueWithResponse) {
-          if (this.characteristic.properties.write) {
-            await this.characteristic.writeValueWithResponse(chunk);
-          } else {
-            await this.characteristic.writeValueWithoutResponse(chunk);
-          }
+        // writeValueWithoutResponse is significantly faster than writeValueWithResponse
+        if (this.characteristic.writeValueWithoutResponse && this.characteristic.properties.writeWithoutResponse) {
+          await this.characteristic.writeValueWithoutResponse(chunk);
+          // Very small delay to prevent buffer overflow on the printer side
+          await new Promise(resolve => setTimeout(resolve, 1));
+        } else if (this.characteristic.writeValueWithResponse && this.characteristic.properties.write) {
+          await this.characteristic.writeValueWithResponse(chunk);
+          // No delay needed for writeWithResponse as it waits for acknowledgement
         } else {
+          // Fallback for older browsers/devices
           await this.characteristic.writeValue(chunk);
+          await new Promise(resolve => setTimeout(resolve, 2));
         }
-        // Very small delay to prevent buffer overflow on slower printer controllers
-        await new Promise(resolve => setTimeout(resolve, 10));
       } catch (error) {
         console.error('Chunk write failed:', error);
-        // Final attempt with writeValue if other methods failed
+        // Final fallback attempt
         try {
           await this.characteristic.writeValue(chunk);
+          await new Promise(resolve => setTimeout(resolve, 5));
         } catch (innerError) {
           throw new Error('Failed to write to printer characteristic');
         }
@@ -331,15 +335,55 @@ export class BluetoothPrinterService {
 
     // Items
     for (const item of order.items) {
+      const qty = `x${item.quantity}`;
+      const price = (item.price * item.quantity).toFixed(2);
+      
       if (this.containsBangla(item.name)) {
-        const qty = `x${item.quantity}`;
-        const price = (item.price * item.quantity).toFixed(2);
-        await this.printTextLine(`${item.name} ${qty} ${price}`, pixelWidth, { align: 'left' });
+        // For Bangla, we render the whole line to canvas to ensure alignment
+        const canvas = document.createElement('canvas');
+        canvas.width = pixelWidth;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          const fontSize = 24;
+          ctx.font = `bold ${fontSize}px "Inter", "Arial", sans-serif`;
+          canvas.height = fontSize + 10;
+          ctx.fillStyle = 'white';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.fillStyle = 'black';
+          ctx.textBaseline = 'top';
+          
+          // Draw Name + Qty on left
+          ctx.fillText(`${item.name} ${qty}`, 0, 0);
+          
+          // Draw Price on right
+          ctx.textAlign = 'right';
+          ctx.fillText(price, pixelWidth, 0);
+          
+          await this.printCanvas(canvas);
+        }
       } else {
-        const name = item.name.substring(0, width - 15);
-        const qty = `x${item.quantity}`.padEnd(5);
-        const price = (item.price * item.quantity).toFixed(2);
-        const line = `${name.padEnd(width - 15)} ${qty} ${price.padStart(8)}\n`;
+        // For standard text, use padding for speed
+        const priceStr = price;
+        const qtyStr = qty;
+        const nameStr = item.name;
+        
+        // Calculate how many spaces we can fit
+        // Line format: "Name xQty         Price"
+        // We want Price to be right-aligned
+        const leftPart = `${nameStr} ${qtyStr}`;
+        const rightPart = priceStr;
+        
+        const spacesNeeded = width - leftPart.length - rightPart.length;
+        
+        let line = '';
+        if (spacesNeeded > 0) {
+          line = leftPart + ' '.repeat(spacesNeeded) + rightPart + '\n';
+        } else {
+          // If name is too long, wrap it or truncate
+          const truncatedName = nameStr.substring(0, width - qtyStr.length - rightPart.length - 3);
+          line = `${truncatedName} ${qtyStr} ${rightPart}\n`;
+        }
+        
         await this.printRaw(new Uint8Array(new TextEncoder().encode(line)));
       }
     }

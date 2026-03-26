@@ -913,8 +913,8 @@ export const POS = () => {
         
         <div className="space-y-3 mb-4">
           {cart.map((item, i) => (
-            <div key={i} className="flex justify-between items-start text-lg">
-              <span className="font-black text-black">x{item.quantity} {item.name}</span>
+            <div key={i} className="flex justify-between items-start text-xl font-black">
+              <span className="text-black">x{item.quantity} {item.name}</span>
             </div>
           ))}
         </div>

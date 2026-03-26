@@ -64,7 +64,6 @@
           color: #000 !important;
           border-color: #000 !important;
           font-family: 'Courier New', Courier, monospace !important;
-          display: block !important;
         }
 
         /* Specific overrides for flex items in print */
@@ -72,7 +71,32 @@
           display: flex !important;
           flex-direction: row !important;
           justify-content: space-between !important;
+          align-items: center !important;
           width: 100% !important;
+        }
+
+        #print-container .flex-col {
+          flex-direction: column !important;
+        }
+
+        #print-container .items-center {
+          align-items: center !important;
+        }
+
+        #print-container .justify-between {
+          justify-content: space-between !important;
+        }
+
+        #print-container .justify-center {
+          justify-content: center !important;
+        }
+
+        #print-container .text-center {
+          text-align: center !important;
+        }
+
+        #print-container .text-right {
+          text-align: right !important;
         }
 
         /* Standardize font sizes for thermal printers */
