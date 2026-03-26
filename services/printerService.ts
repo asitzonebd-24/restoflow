@@ -121,12 +121,13 @@ export class BluetoothPrinterService {
       }
     }
 
-    const data: number[] = [
+    const header: number[] = [
       ...this.COMMANDS.GS_V_0,
       widthBytes & 0xFF, (widthBytes >> 8) & 0xFF,
       height & 0xFF, (height >> 8) & 0xFF
     ];
 
+    const imageDataBytes: number[] = [];
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < widthBytes; x++) {
         let byte = 0;
@@ -136,11 +137,18 @@ export class BluetoothPrinterService {
             byte |= (1 << (7 - bit));
           }
         }
-        data.push(byte);
+        imageDataBytes.push(byte);
       }
     }
 
-    await this.printRaw(new Uint8Array(data));
+    // Send header first
+    await this.printRaw(new Uint8Array(header));
+
+    // Send image data in chunks to avoid buffer overflow
+    const CHUNK_SIZE = 512;
+    for (let i = 0; i < imageDataBytes.length; i += CHUNK_SIZE) {
+      await this.printRaw(new Uint8Array(imageDataBytes.slice(i, i + CHUNK_SIZE)));
+    }
   }
 
   public static async printTextLine(text: string, width: number, options: any = {}) {
