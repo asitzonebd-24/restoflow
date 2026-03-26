@@ -122,7 +122,8 @@ export class BluetoothPrinterService {
     }
 
     const header: number[] = [
-      ...this.COMMANDS.GS_V_0,
+      0x0A, // LF to ensure we are at the start of a line
+      0x1D, 0x76, 0x30, 0x01, // GS v 0 with mode 1 (double density)
       widthBytes & 0xFF, (widthBytes >> 8) & 0xFF,
       height & 0xFF, (height >> 8) & 0xFF
     ];
