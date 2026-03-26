@@ -27,6 +27,9 @@ export const Settings = () => {
     const [autoPrintKOT, setAutoPrintKOT] = useState(false);
     const [autoPrintInvoice, setAutoPrintInvoice] = useState(false);
     const [showLogo, setShowLogo] = useState(true);
+    const [pairedPrinterName, setPairedPrinterName] = useState('');
+    const [pairedPrinterId, setPairedPrinterId] = useState('');
+    const [isBluetoothSearching, setIsBluetoothSearching] = useState(false);
 
     // User Profile state
     const [userName, setUserName] = useState('');
@@ -59,6 +62,8 @@ export const Settings = () => {
                 setAutoPrintKOT(business.printerSettings.autoPrintKOT || false);
                 setAutoPrintInvoice(business.printerSettings.autoPrintInvoice || false);
                 setShowLogo(business.printerSettings.showLogo ?? true);
+                setPairedPrinterName(business.printerSettings.pairedPrinterName || '');
+                setPairedPrinterId(business.printerSettings.pairedPrinterId || '');
             }
         }
         if (currentUser) {
@@ -113,7 +118,9 @@ export const Settings = () => {
                     paperWidth,
                     autoPrintKOT,
                     autoPrintInvoice,
-                    showLogo
+                    showLogo,
+                    pairedPrinterName,
+                    pairedPrinterId
                 }
             });
             alert('Business settings saved successfully!');
@@ -131,6 +138,36 @@ export const Settings = () => {
                 avatar: userAvatar
             });
             alert('Profile updated successfully!');
+        }
+    };
+
+    const handleAddBluetoothPrinter = async () => {
+        if (!('bluetooth' in navigator)) {
+            alert('Web Bluetooth is not supported in this browser or context. Please use Chrome or Edge and open the app in a new tab.');
+            return;
+        }
+
+        setIsBluetoothSearching(true);
+        try {
+            // Request a bluetooth device
+            // We use acceptAllDevices: true for maximum compatibility with generic thermal printers
+            const device = await (navigator as any).bluetooth.requestDevice({
+                acceptAllDevices: true,
+                optionalServices: ['00001101-0000-1000-8000-00805f9b34fb'] // Common SPP UUID for thermal printers
+            });
+
+            if (device) {
+                setPairedPrinterName(device.name || 'Unknown Printer');
+                setPairedPrinterId(device.id);
+                alert(`Printer "${device.name || 'Unknown Printer'}" paired successfully! Don't forget to save your settings.`);
+            }
+        } catch (error) {
+            console.error('Bluetooth error:', error);
+            if (error instanceof Error && error.name !== 'NotFoundError') {
+                alert('Failed to connect to printer: ' + error.message);
+            }
+        } finally {
+            setIsBluetoothSearching(false);
         }
     };
 
@@ -492,19 +529,32 @@ export const Settings = () => {
                                             <br/>
                                             <span className="text-indigo-600">Note: For the best results, open this app in a new tab.</span>
                                         </p>
+                                        
+                                        {pairedPrinterName && (
+                                            <div className="mb-4 p-4 bg-emerald-50 border-2 border-emerald-100 rounded-2xl flex items-center justify-between">
+                                                <div>
+                                                    <p className="text-[8px] font-bold text-emerald-600 uppercase tracking-widest mb-1">Paired Printer</p>
+                                                    <p className="text-sm font-bold text-slate-900">{pairedPrinterName}</p>
+                                                </div>
+                                                <button 
+                                                    onClick={() => {
+                                                        setPairedPrinterName('');
+                                                        setPairedPrinterId('');
+                                                    }}
+                                                    className="text-[10px] font-bold text-rose-500 uppercase tracking-widest hover:text-rose-600"
+                                                >
+                                                    Remove
+                                                </button>
+                                            </div>
+                                        )}
+
                                         <button 
-                                            onClick={() => {
-                                                if ('bluetooth' in navigator) {
-                                                    alert('Bluetooth printer search initiated. Please select your ESC/POS printer from the browser dialog.');
-                                                    // In a real implementation with a library, we'd call navigator.bluetooth.requestDevice
-                                                } else {
-                                                    alert('Web Bluetooth is not supported in this browser or context. Please use the system print dialog or open in a new tab.');
-                                                }
-                                            }}
-                                            className="w-full md:w-auto bg-white border-2 border-slate-900 text-slate-900 px-8 py-3 rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-slate-50 transition-all active:scale-95 flex items-center justify-center gap-3 shadow-sm"
+                                            onClick={handleAddBluetoothPrinter}
+                                            disabled={isBluetoothSearching}
+                                            className={`w-full md:w-auto bg-white border-2 border-slate-900 text-slate-900 px-8 py-3 rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-slate-50 transition-all active:scale-95 flex items-center justify-center gap-3 shadow-sm ${isBluetoothSearching ? 'opacity-50 cursor-not-allowed' : ''}`}
                                         >
-                                            <Globe size={18} />
-                                            Add Bluetooth Printer
+                                            <Globe size={18} className={isBluetoothSearching ? 'animate-spin' : ''} />
+                                            {isBluetoothSearching ? 'Searching...' : 'Add Bluetooth Printer'}
                                         </button>
                                     </div>
                                 </div>

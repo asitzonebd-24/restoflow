@@ -28,6 +28,8 @@ export interface PrinterSettings {
   autoPrintKOT: boolean;
   autoPrintInvoice: boolean;
   showLogo: boolean;
+  pairedPrinterName?: string;
+  pairedPrinterId?: string;
 }
 
 export interface Business {
