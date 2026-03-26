@@ -2,7 +2,8 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { Transaction, Order, Role } from '../types';
-import { History, Search, Calendar, Eye, FileText, Printer, X, Hash, ChevronRight, User as UserIcon, Receipt, TrendingUp, Trophy, Award, Filter, Store } from 'lucide-react';
+import { History, Search, Calendar, Eye, FileText, Printer, X, Hash, ChevronRight, User as UserIcon, Receipt, TrendingUp, Trophy, Award, Filter, Store, Bluetooth } from 'lucide-react';
+import { BluetoothPrinterService } from '../services/printerService';
 
 type DateFilter = 'all' | 'today' | 'week' | 'month' | 'custom';
 
@@ -103,7 +104,20 @@ export const Transactions = () => {
         }
     };
 
-    const printInvoice = () => {
+    const printInvoice = async () => {
+      // If a bluetooth printer is paired, try to print directly
+      if (currentTenant?.printerSettings?.pairedPrinterId && viewInvoice) {
+        try {
+          const connected = await BluetoothPrinterService.connect(currentTenant.printerSettings.pairedPrinterId);
+          if (connected) {
+            await BluetoothPrinterService.printInvoice(currentTenant, viewInvoice.order, { discount: viewInvoice.transaction.discount });
+            return; // Skip system print if bluetooth worked
+          }
+        } catch (error) {
+          console.error('Bluetooth print failed, falling back to system print:', error);
+        }
+      }
+
       const printContent = document.getElementById('invoice-content');
       if (!printContent) return;
 

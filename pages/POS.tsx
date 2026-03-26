@@ -23,9 +23,11 @@ import {
   Clock,
   ChevronRight,
   Printer,
-  Utensils
+  Utensils,
+  Bluetooth
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { BluetoothPrinterService } from '../services/printerService';
 
 const StatusBadge = ({ label, count, styles, active }: { label: string, count: number, styles: any, active?: boolean }) => (
   <div className={`flex flex-col items-center justify-center p-3 rounded-2xl border-2 transition-all ${active ? `${styles.bg} ${styles.border} ${styles.text} border-current` : 'bg-slate-50/50 border-slate-100 text-slate-300'}`}>
@@ -517,7 +519,27 @@ export const POS = () => {
   const cartTotal = cart.reduce((sum, i) => sum + (i.price * i.quantity), 0);
   const cartCount = cart.reduce((acc, i) => acc + i.quantity, 0);
 
-  const printKOT = () => {
+  const printKOT = async () => {
+    // If a bluetooth printer is paired, try to print directly
+    if (currentTenant?.printerSettings?.pairedPrinterId) {
+      try {
+        const connected = await BluetoothPrinterService.connect(currentTenant.printerSettings.pairedPrinterId);
+        if (connected) {
+          const token = isCreatingNew ? newTokenNum : orders.find(o => o.id === selectedOrderId)?.tokenNumber;
+          const orderData = {
+            tokenNumber: token || '000',
+            items: cart,
+            note: orderNote,
+            createdAt: new Date().toISOString()
+          };
+          await BluetoothPrinterService.printKOT(currentTenant, orderData as any);
+          return; // Skip system print if bluetooth worked
+        }
+      } catch (error) {
+        console.error('Bluetooth KOT print failed, falling back to system print:', error);
+      }
+    }
+
     const printContent = document.getElementById('kot-content');
     if (!printContent) return;
 

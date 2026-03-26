@@ -2,7 +2,8 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { OrderStatus, Order, Transaction, OrderItem, Role } from '../types';
-import { Receipt, CheckCheck, Printer, X, FileText, Store, Search, Users, Eye, AlertTriangle, Truck, ChevronDown } from 'lucide-react';
+import { Receipt, CheckCheck, Printer, X, FileText, Store, Search, Users, Eye, AlertTriangle, Truck, ChevronDown, Bluetooth } from 'lucide-react';
+import { BluetoothPrinterService } from '../services/printerService';
 
 export const Billing = () => {
   const { orders, currentTenant, updateOrderStatus, updateOrderItems, addTransaction, users } = useApp();
@@ -186,7 +187,21 @@ export const Billing = () => {
     }
   };
 
-  const printInvoice = () => {
+  const printInvoice = async () => {
+    // If a bluetooth printer is paired, try to print directly
+    if (currentTenant?.printerSettings?.pairedPrinterId && invoiceOrder) {
+      try {
+        const connected = await BluetoothPrinterService.connect(currentTenant.printerSettings.pairedPrinterId);
+        if (connected) {
+          const discount = discounts[invoiceOrder.id] || 0;
+          await BluetoothPrinterService.printInvoice(currentTenant, invoiceOrder, { discount });
+          return; // Skip system print if bluetooth worked
+        }
+      } catch (error) {
+        console.error('Bluetooth print failed, falling back to system print:', error);
+      }
+    }
+
     const printContent = document.getElementById('invoice-content');
     if (!printContent) return;
 

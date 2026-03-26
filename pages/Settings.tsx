@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { Settings as SettingsIcon, Save, Store, Globe, Percent, Upload, Image as ImageIcon, User as UserIcon, Lock, Mail, Phone } from 'lucide-react';
+import { Settings as SettingsIcon, Save, Store, Globe, Percent, Upload, Image as ImageIcon, User as UserIcon, Lock, Mail, Phone, Printer } from 'lucide-react';
 import { Role } from '../types';
+import { BluetoothPrinterService } from '../services/printerService';
 
 export const Settings = () => {
     const { business, updateBusiness, currentUser, updateUser } = useApp();
@@ -142,32 +143,65 @@ export const Settings = () => {
     };
 
     const handleAddBluetoothPrinter = async () => {
-        if (!('bluetooth' in navigator)) {
-            alert('Web Bluetooth is not supported in this browser or context. Please use Chrome or Edge and open the app in a new tab.');
-            return;
+        const connected = await BluetoothPrinterService.connect();
+        if (connected) {
+            // The device is stored in the service, but we need to get its info
+            // Since we don't have a direct way to get the device from the service easily without exposing it,
+            // let's assume the connection was successful and we can just use the navigator to get the device again or store it.
+            // Actually, the requestDevice returns the device.
+            
+            // Re-implementing the request part here to get the device object
+            try {
+                const device = await (navigator as any).bluetooth.requestDevice({
+                    acceptAllDevices: true,
+                    optionalServices: [
+                        '00001101-0000-1000-8000-00805f9b34fb',
+                        '000018f0-0000-1000-8000-00805f9b34fb',
+                        0xFF00, 0x4953
+                    ]
+                });
+                if (device) {
+                    setPairedPrinterName(device.name || 'Unknown Printer');
+                    setPairedPrinterId(device.id);
+                    alert(`Printer "${device.name || 'Unknown Printer'}" paired successfully! Don't forget to save your settings.`);
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        } else {
+            alert('Failed to connect to printer. Please ensure it is turned on and in range.');
         }
+        setIsBluetoothSearching(false);
+    };
 
-        setIsBluetoothSearching(true);
+    const handleTestPrint = async () => {
         try {
-            // Request a bluetooth device
-            // We use acceptAllDevices: true for maximum compatibility with generic thermal printers
-            const device = await (navigator as any).bluetooth.requestDevice({
-                acceptAllDevices: true,
-                optionalServices: ['00001101-0000-1000-8000-00805f9b34fb'] // Common SPP UUID for thermal printers
-            });
-
-            if (device) {
-                setPairedPrinterName(device.name || 'Unknown Printer');
-                setPairedPrinterId(device.id);
-                alert(`Printer "${device.name || 'Unknown Printer'}" paired successfully! Don't forget to save your settings.`);
+            const connected = await BluetoothPrinterService.connect(pairedPrinterId);
+            if (!connected) {
+                alert('Could not connect to the paired printer. Please try pairing again.');
+                return;
             }
+            
+            // Send a simple test print
+            const encoder = new TextEncoder();
+            const testData = new Uint8Array([
+                0x1B, 0x40, // Init
+                0x1B, 0x61, 0x01, // Center
+                ...Array.from(encoder.encode('RestoKeep Test Print\n')),
+                ...Array.from(encoder.encode('--------------------------------\n')),
+                ...Array.from(encoder.encode('Printer: ' + pairedPrinterName + '\n')),
+                ...Array.from(encoder.encode('Status: Working Correctly\n')),
+                ...Array.from(encoder.encode('Date: ' + new Date().toLocaleString() + '\n')),
+                ...Array.from(encoder.encode('--------------------------------\n')),
+                ...Array.from(encoder.encode('\n\n\n\n')),
+                0x1D, 0x56, 0x41, 0x03 // Cut
+            ]);
+            
+            await BluetoothPrinterService.printRaw(testData);
+            alert('Test print sent!');
         } catch (error) {
-            console.error('Bluetooth error:', error);
-            if (error instanceof Error && error.name !== 'NotFoundError') {
-                alert('Failed to connect to printer: ' + error.message);
-            }
-        } finally {
-            setIsBluetoothSearching(false);
+            console.error('Test print error:', error);
+            alert('Test print failed. Check console for details.');
         }
     };
 
@@ -532,19 +566,32 @@ export const Settings = () => {
                                         
                                         {pairedPrinterName && (
                                             <div className="mb-4 p-4 bg-emerald-50 border-2 border-emerald-100 rounded-2xl flex items-center justify-between">
-                                                <div>
-                                                    <p className="text-[8px] font-bold text-emerald-600 uppercase tracking-widest mb-1">Paired Printer</p>
-                                                    <p className="text-sm font-bold text-slate-900">{pairedPrinterName}</p>
+                                                <div className="flex items-center gap-3">
+                                                    <div className="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center">
+                                                        <Printer size={20} />
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-[8px] font-bold text-emerald-600 uppercase tracking-widest mb-1">Paired Printer</p>
+                                                        <p className="text-sm font-bold text-slate-900">{pairedPrinterName}</p>
+                                                    </div>
                                                 </div>
-                                                <button 
-                                                    onClick={() => {
-                                                        setPairedPrinterName('');
-                                                        setPairedPrinterId('');
-                                                    }}
-                                                    className="text-[10px] font-bold text-rose-500 uppercase tracking-widest hover:text-rose-600"
-                                                >
-                                                    Remove
-                                                </button>
+                                                <div className="flex items-center gap-4">
+                                                    <button 
+                                                        onClick={handleTestPrint}
+                                                        className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest hover:text-emerald-700 underline underline-offset-4"
+                                                    >
+                                                        Test Print
+                                                    </button>
+                                                    <button 
+                                                        onClick={() => {
+                                                            setPairedPrinterName('');
+                                                            setPairedPrinterId('');
+                                                        }}
+                                                        className="text-[10px] font-bold text-rose-500 uppercase tracking-widest hover:text-rose-600"
+                                                    >
+                                                        Remove
+                                                    </button>
+                                                </div>
                                             </div>
                                         )}
 
