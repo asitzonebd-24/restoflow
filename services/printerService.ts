@@ -227,8 +227,8 @@ export class BluetoothPrinterService {
   static async printRaw(data: Uint8Array) {
     if (!this.characteristic) throw new Error('Printer not connected');
     
-    // Use a smaller chunk size for better compatibility with various thermal printers
-    const chunkSize = 20; 
+    // Use a larger chunk size for better performance
+    const chunkSize = 512; 
     for (let i = 0; i < data.length; i += chunkSize) {
       const chunk = data.slice(i, i + chunkSize);
       try {
@@ -242,8 +242,8 @@ export class BluetoothPrinterService {
         } else {
           await this.characteristic.writeValue(chunk);
         }
-        // Very small delay to prevent buffer overflow on slower printer controllers
-        await new Promise(resolve => setTimeout(resolve, 10));
+        // Reduced delay to prevent buffer overflow on slower printer controllers
+        await new Promise(resolve => setTimeout(resolve, 2));
       } catch (error) {
         console.error('Chunk write failed:', error);
         // Final attempt with writeValue if other methods failed

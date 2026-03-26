@@ -433,7 +433,7 @@ export const Transactions = () => {
                                                 <span className="text-black font-bold">x{item.quantity}</span>
                                                 <span className="text-black">{item.name}</span>
                                             </div>
-                                            <span className="text-black font-bold">{currentTenant?.currency}{(item.price * item.quantity).toFixed(2)}</span>
+                                            <span className="text-black font-bold shrink-0">{currentTenant?.currency}{(item.price * item.quantity).toFixed(2)}</span>
                                         </div>
                                     ))}
                                 </div>
