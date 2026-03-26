@@ -36,13 +36,16 @@ export class BluetoothPrinterService {
     bold?: boolean, 
     align?: 'left' | 'center' | 'right' 
   } = {}): Promise<HTMLCanvasElement> {
+    if ((document as any).fonts) {
+      await (document as any).fonts.ready;
+    }
     const canvas = document.createElement('canvas');
     canvas.width = width;
     const ctx = canvas.getContext('2d');
     if (!ctx) return canvas;
 
     const fontSize = options.fontSize || 32;
-    const fontName = '"Inter", "Arial", sans-serif';
+    const fontName = '"Inter", "Hind Siliguri", "Arial", sans-serif';
     ctx.font = `${options.bold ? 'bold ' : ''}${fontSize}px ${fontName}`;
 
     const lines = text.split('\n');
@@ -317,6 +320,10 @@ export class BluetoothPrinterService {
       });
       
       await Promise.all(imagePromises);
+      // Wait for fonts to be loaded to ensure Bangla and other fonts render correctly
+      if ((document as any).fonts) {
+        await (document as any).fonts.ready;
+      }
       await new Promise(resolve => setTimeout(resolve, 300));
       
       const capturedCanvas = await html2canvas(clone, {
