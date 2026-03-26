@@ -43,7 +43,16 @@ export class BluetoothPrinterService {
 
     const fontSize = options.fontSize || 24;
     const fontName = '"Inter", "Hind Siliguri", sans-serif';
-    ctx.font = `${options.bold ? 'bold ' : ''}${fontSize}px ${fontName}`;
+    const fontString = `${options.bold ? 'bold ' : ''}${fontSize}px ${fontName}`;
+    
+    // Ensure font is loaded
+    try {
+      await document.fonts.load(fontString);
+    } catch (e) {
+      console.warn('Font loading failed, falling back to default:', e);
+    }
+    
+    ctx.font = fontString;
 
     const lines = text.split('\n');
     canvas.height = lines.length * (fontSize + 8);
@@ -54,7 +63,7 @@ export class BluetoothPrinterService {
 
     // Draw text
     ctx.fillStyle = 'black';
-    ctx.font = `${options.bold ? 'bold ' : ''}${fontSize}px ${fontName}`;
+    ctx.font = fontString;
     ctx.textBaseline = 'top';
 
     lines.forEach((line, i) => {
@@ -286,6 +295,7 @@ export class BluetoothPrinterService {
     try {
       // Small delay to ensure any rendering/animations are finished
       await new Promise(resolve => setTimeout(resolve, 500));
+      await document.fonts.ready;
       
       const canvas = await html2canvas(clone, {
         width: pixelWidth,
