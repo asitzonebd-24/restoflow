@@ -37,11 +37,12 @@ export class BluetoothPrinterService {
     align?: 'left' | 'center' | 'right' 
   } = {}): Promise<HTMLCanvasElement> {
     const canvas = document.createElement('canvas');
-    canvas.width = width;
+    const scale = 2; // Increase scale for better rendering
+    canvas.width = width * scale;
     const ctx = canvas.getContext('2d');
     if (!ctx) return canvas;
 
-    const fontSize = options.fontSize || 24;
+    const fontSize = (options.fontSize || 24) * scale;
     const fontName = '"Inter", "Hind Siliguri", sans-serif';
     const fontString = `${options.bold ? 'bold ' : ''}${fontSize}px ${fontName}`;
     
@@ -53,6 +54,7 @@ export class BluetoothPrinterService {
     }
     
     ctx.font = fontString;
+    ctx.scale(scale, scale);
 
     const lines = text.split('\n');
     canvas.height = lines.length * (fontSize + 8);
@@ -89,6 +91,35 @@ export class BluetoothPrinterService {
 
     const imageData = context.getImageData(0, 0, width, height);
     const pixels = imageData.data;
+    const grayscale = new Float32Array(width * height);
+
+    // Convert to grayscale
+    for (let i = 0; i < pixels.length; i += 4) {
+      const r = pixels[i];
+      const g = pixels[i + 1];
+      const b = pixels[i + 2];
+      const a = pixels[i + 3];
+      // If transparent, treat as white (255)
+      grayscale[i / 4] = a < 128 ? 255 : (0.299 * r + 0.587 * g + 0.114 * b);
+    }
+
+    // Apply Floyd-Steinberg dithering
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const idx = y * width + x;
+        const oldPixel = grayscale[idx];
+        const newPixel = oldPixel < 128 ? 0 : 255;
+        grayscale[idx] = newPixel;
+        const error = oldPixel - newPixel;
+
+        if (x + 1 < width) grayscale[idx + 1] += error * 7 / 16;
+        if (y + 1 < height) {
+          if (x - 1 >= 0) grayscale[idx + width - 1] += error * 3 / 16;
+          grayscale[idx + width] += error * 5 / 16;
+          if (x + 1 < width) grayscale[idx + width + 1] += error * 1 / 16;
+        }
+      }
+    }
 
     const data: number[] = [
       ...this.COMMANDS.GS_V_0,
@@ -101,18 +132,8 @@ export class BluetoothPrinterService {
         let byte = 0;
         for (let bit = 0; bit < 8; bit++) {
           const px = x * 8 + bit;
-          if (px < width) {
-            const idx = (y * width + px) * 4;
-            const r = pixels[idx];
-            const g = pixels[idx + 1];
-            const b = pixels[idx + 2];
-            const a = pixels[idx + 3];
-            
-            // Threshold for black/white
-            const brightness = (r + g + b) / 3;
-            if (a > 128 && brightness < 128) {
-              byte |= (1 << (7 - bit));
-            }
+          if (px < width && grayscale[y * width + px] === 0) {
+            byte |= (1 << (7 - bit));
           }
         }
         data.push(byte);
@@ -299,7 +320,7 @@ export class BluetoothPrinterService {
       
       const canvas = await html2canvas(clone, {
         width: pixelWidth,
-        scale: 1,
+        scale: 2,
         useCORS: true,
         backgroundColor: '#ffffff',
         logging: false
@@ -351,10 +372,11 @@ export class BluetoothPrinterService {
       if (this.containsBangla(item.name)) {
         // For Bangla, we render the whole line to canvas to ensure alignment
         const canvas = document.createElement('canvas');
-        canvas.width = pixelWidth;
+        const scale = 2;
+        canvas.width = pixelWidth * scale;
         const ctx = canvas.getContext('2d');
         if (ctx) {
-          const fontSize = 32;
+          const fontSize = 32 * scale;
           const fontString = `bold ${fontSize}px "Inter", "Hind Siliguri", sans-serif`;
           
           try {
@@ -364,7 +386,8 @@ export class BluetoothPrinterService {
           }
           
           ctx.font = fontString;
-          canvas.height = fontSize + 10;
+          ctx.scale(scale, scale);
+          canvas.height = (fontSize + 10) * scale;
           ctx.fillStyle = 'white';
           ctx.fillRect(0, 0, canvas.width, canvas.height);
           ctx.fillStyle = 'black';
