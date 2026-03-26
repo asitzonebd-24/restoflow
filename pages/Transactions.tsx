@@ -343,7 +343,7 @@ export const Transactions = () => {
             </div>
 
              {viewInvoice && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 print:p-0 print:static print:block">
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 print:p-0 print:static print:block print-visible">
                     <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm print:hidden" onClick={() => setViewInvoice(null)}></div>
                     <div className="relative bg-white w-full max-w-md md:rounded-[2.5rem] rounded-t-[2rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 print:shadow-none print:max-w-none print:rounded-none print:static print:block print:w-full print:opacity-100 print:transform-none self-end md:self-center max-h-[90vh] flex flex-col">
                         <div className="p-6 border-b border-slate-50 flex justify-between items-center print:hidden bg-slate-50/50 shrink-0">
@@ -443,9 +443,15 @@ export const Transactions = () => {
                                 </div>
                                 
                                 {/* Mobile Print Tip */}
-                                <div className="md:hidden print:hidden mt-6 p-3 bg-amber-50 rounded-xl border border-amber-100">
-                                  <p className="text-[8px] text-amber-600 font-bold uppercase leading-tight">
-                                    Mobile Tip: If your Bluetooth printer doesn't show, ensure you have a "Print Service" app installed (like RawBT) and the printer is paired.
+                                <div className="md:hidden print:hidden mt-6 p-4 bg-indigo-50 rounded-2xl border-2 border-indigo-100">
+                                  <p className="text-[9px] text-indigo-600 font-black uppercase leading-tight mb-2 flex items-center gap-2">
+                                    <Printer size={12} /> Mobile Printing Guide
+                                  </p>
+                                  <p className="text-[8px] text-slate-500 font-bold uppercase leading-relaxed text-left">
+                                    1. Pair your Bluetooth printer in phone settings.<br/>
+                                    2. Install a free "Print Service" app from Play Store.<br/>
+                                    3. Enable the service in Settings &gt; Printing.<br/>
+                                    4. Select your printer in the print preview.
                                   </p>
                                 </div>
                             </div>

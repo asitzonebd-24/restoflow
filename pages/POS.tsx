@@ -862,7 +862,7 @@ export const POS = () => {
 
       {/* KOT Print Content (Hidden normally, visible during print) */}
       {showKOT && (
-        <div id="kot-content" className="hidden print:block p-4 font-mono">
+        <div id="kot-content" className="hidden print:block p-4 font-mono print-visible">
           <div className="text-center border-b-2 border-black pb-4 mb-4">
             <h2 className="text-xl font-bold uppercase tracking-widest">KITCHEN TICKET</h2>
             <p className="text-sm">Token: #{isCreatingNew ? newTokenNum : orders.find(o => o.id === selectedOrderId)?.tokenNumber}</p>
