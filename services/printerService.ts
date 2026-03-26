@@ -1,4 +1,5 @@
 
+import html2canvas from 'html2canvas';
 import { Business, Order, OrderItem } from '../types';
 
 export class BluetoothPrinterService {
@@ -23,7 +24,118 @@ export class BluetoothPrinterService {
     DOUBLE_SIZE_ON: [0x1B, 0x21, 0x30],
     SIZE_NORMAL: [0x1B, 0x21, 0x00],
     CUT: [0x1D, 0x56, 0x41, 0x03],
+    GS_V_0: [0x1D, 0x76, 0x30, 0x00],
   };
+
+  private static containsBangla(text: string): boolean {
+    return /[\u0980-\u09FF]/.test(text);
+  }
+
+  private static async renderTextToCanvas(text: string, width: number, options: { 
+    fontSize?: number, 
+    bold?: boolean, 
+    align?: 'left' | 'center' | 'right' 
+  } = {}): Promise<HTMLCanvasElement> {
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return canvas;
+
+    const fontSize = options.fontSize || 24;
+    const fontName = '"Inter", "Arial", sans-serif';
+    ctx.font = `${options.bold ? 'bold ' : ''}${fontSize}px ${fontName}`;
+
+    const lines = text.split('\n');
+    canvas.height = lines.length * (fontSize + 8);
+
+    // Fill background white
+    ctx.fillStyle = 'white';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Draw text
+    ctx.fillStyle = 'black';
+    ctx.font = `${options.bold ? 'bold ' : ''}${fontSize}px ${fontName}`;
+    ctx.textBaseline = 'top';
+
+    lines.forEach((line, i) => {
+      let x = 0;
+      if (options.align === 'center') {
+        x = (width - ctx.measureText(line).width) / 2;
+      } else if (options.align === 'right') {
+        x = width - ctx.measureText(line).width;
+      }
+      ctx.fillText(line, x, i * (fontSize + 8));
+    });
+
+    return canvas;
+  }
+
+  private static async printCanvas(canvas: HTMLCanvasElement) {
+    const width = canvas.width;
+    const height = canvas.height;
+    const widthBytes = Math.ceil(width / 8);
+    
+    const context = canvas.getContext('2d');
+    if (!context) return;
+
+    const imageData = context.getImageData(0, 0, width, height);
+    const pixels = imageData.data;
+
+    const data: number[] = [
+      ...this.COMMANDS.GS_V_0,
+      widthBytes & 0xFF, (widthBytes >> 8) & 0xFF,
+      height & 0xFF, (height >> 8) & 0xFF
+    ];
+
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < widthBytes; x++) {
+        let byte = 0;
+        for (let bit = 0; bit < 8; bit++) {
+          const px = x * 8 + bit;
+          if (px < width) {
+            const idx = (y * width + px) * 4;
+            const r = pixels[idx];
+            const g = pixels[idx + 1];
+            const b = pixels[idx + 2];
+            const a = pixels[idx + 3];
+            
+            // Threshold for black/white
+            const brightness = (r + g + b) / 3;
+            if (a > 128 && brightness < 128) {
+              byte |= (1 << (7 - bit));
+            }
+          }
+        }
+        data.push(byte);
+      }
+    }
+
+    await this.printRaw(new Uint8Array(data));
+  }
+
+  public static async printTextLine(text: string, width: number, options: any = {}) {
+    if (this.containsBangla(text)) {
+      const canvas = await this.renderTextToCanvas(text, width, options);
+      await this.printCanvas(canvas);
+    } else {
+      const encoder = new TextEncoder();
+      let commands: number[] = [];
+      
+      if (options.align === 'center') commands.push(...this.COMMANDS.ALIGN_CENTER);
+      else if (options.align === 'right') commands.push(...this.COMMANDS.ALIGN_RIGHT);
+      else commands.push(...this.COMMANDS.ALIGN_LEFT);
+
+      if (options.bold) commands.push(...this.COMMANDS.BOLD_ON);
+      if (options.doubleSize) commands.push(...this.COMMANDS.DOUBLE_SIZE_ON);
+
+      commands.push(...Array.from(encoder.encode(text + '\n')));
+
+      if (options.doubleSize) commands.push(...this.COMMANDS.SIZE_NORMAL);
+      if (options.bold) commands.push(...this.COMMANDS.BOLD_OFF);
+      
+      await this.printRaw(new Uint8Array(commands));
+    }
+  }
 
   static async connect(deviceId?: string): Promise<boolean> {
     try {
@@ -65,116 +177,176 @@ export class BluetoothPrinterService {
   static async printRaw(data: Uint8Array) {
     if (!this.characteristic) throw new Error('Printer not connected');
     
-    // Split into chunks if data is large (BLE limit is usually 20-512 bytes)
-    const chunkSize = 20;
+    // Split into chunks if data is large
+    // BLE limit is usually 20-512 bytes. 100 is a safe middle ground for thermal printers.
+    const chunkSize = 100;
     for (let i = 0; i < data.length; i += chunkSize) {
       const chunk = data.slice(i, i + chunkSize);
-      await this.characteristic.writeValue(chunk);
+      try {
+        await this.characteristic.writeValue(chunk);
+      } catch (error) {
+        // Fallback to smaller chunks if 100 fails
+        const smallChunkSize = 20;
+        for (let j = 0; j < chunk.length; j += smallChunkSize) {
+          await this.characteristic.writeValue(chunk.slice(j, j + smallChunkSize));
+        }
+      }
     }
   }
 
-  static async printInvoice(business: Business, order: Order, transaction?: any) {
-    const encoder = new TextEncoder();
-    const width = business.printerSettings?.paperWidth === '58mm' ? 32 : 48;
+  static async printElement(element: HTMLElement, paperWidth: string = '80mm') {
+    const pixelWidth = paperWidth === '58mm' ? 384 : 576;
     
-    let commands: number[] = [...this.COMMANDS.INIT];
+    // Create a temporary container to fix the width for rendering
+    const container = document.createElement('div');
+    container.style.position = 'absolute';
+    container.style.left = '-9999px';
+    container.style.top = '0';
+    container.style.width = `${pixelWidth}px`;
+    container.style.backgroundColor = 'white';
+    
+    // Clone the element to avoid modifying the original
+    const clone = element.cloneNode(true) as HTMLElement;
+    clone.style.width = '100%';
+    clone.style.margin = '0';
+    clone.style.padding = '10px'; // Add some padding for better look
+    clone.style.boxSizing = 'border-box';
+    clone.style.display = 'block'; // Ensure it's visible for capture
+    clone.classList.remove('hidden'); // Remove tailwind hidden if present
+    
+    container.appendChild(clone);
+    document.body.appendChild(container);
+    
+    try {
+      // Small delay to ensure any rendering/animations are finished
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      const canvas = await html2canvas(clone, {
+        width: pixelWidth,
+        scale: 1,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        logging: false
+      });
+      
+      await this.printRaw(new Uint8Array(this.COMMANDS.INIT));
+      await this.printCanvas(canvas);
+      await this.printRaw(new Uint8Array([...Array(4).fill(0x0A), ...this.COMMANDS.CUT]));
+    } finally {
+      document.body.removeChild(container);
+    }
+  }
+
+  static async printInvoice(business: Business, order: Order, transaction?: any, elementId: string = 'invoice-content') {
+    const element = document.getElementById(elementId);
+    if (element) {
+      await this.printElement(element, business.printerSettings?.paperWidth || '80mm');
+      return;
+    }
+
+    // Fallback to text-based printing if element not found
+    const width = business.printerSettings?.paperWidth === '58mm' ? 32 : 48;
+    const pixelWidth = business.printerSettings?.paperWidth === '58mm' ? 384 : 576;
+    
+    await this.printRaw(new Uint8Array(this.COMMANDS.INIT));
 
     // Header
-    commands.push(...this.COMMANDS.ALIGN_CENTER);
     if (business.printerSettings?.showLogo !== false) {
-      // Logo printing is complex (bitmaps), skipping for now, using text name
+      // Logo printing could be added here
     }
-    commands.push(...this.COMMANDS.DOUBLE_SIZE_ON, ...Array.from(encoder.encode(business.name + '\n')), ...this.COMMANDS.SIZE_NORMAL);
+    
+    await this.printTextLine(business.name, pixelWidth, { align: 'center', doubleSize: true, bold: true });
     
     if (business.printerSettings?.receiptHeader) {
-      commands.push(...Array.from(encoder.encode(business.printerSettings.receiptHeader + '\n')));
+      await this.printTextLine(business.printerSettings.receiptHeader, pixelWidth, { align: 'center' });
     } else {
-      commands.push(...Array.from(encoder.encode(business.address + '\n')));
-      commands.push(...Array.from(encoder.encode('Tel: ' + business.phone + '\n')));
+      await this.printTextLine(business.address, pixelWidth, { align: 'center' });
+      await this.printTextLine('Tel: ' + business.phone, pixelWidth, { align: 'center' });
     }
     
-    commands.push(...Array.from(encoder.encode('-'.repeat(width) + '\n')));
+    await this.printRaw(new Uint8Array(new TextEncoder().encode('-'.repeat(width) + '\n')));
 
     // Order Info
-    commands.push(...this.COMMANDS.ALIGN_LEFT);
-    commands.push(...Array.from(encoder.encode(`Token: #${order.tokenNumber}\n`)));
-    commands.push(...Array.from(encoder.encode(`Date: ${new Date(order.createdAt).toLocaleString()}\n`)));
-    if (order.tableNumber) commands.push(...Array.from(encoder.encode(`Table: ${order.tableNumber}\n`)));
+    await this.printTextLine(`Token: #${order.tokenNumber}`, pixelWidth, { align: 'left', bold: true });
+    await this.printTextLine(`Date: ${new Date(order.createdAt).toLocaleString()}`, pixelWidth, { align: 'left' });
+    if (order.tableNumber) {
+      await this.printTextLine(`Table: ${order.tableNumber}`, pixelWidth, { align: 'left' });
+    }
     
-    commands.push(...Array.from(encoder.encode('-'.repeat(width) + '\n')));
+    await this.printRaw(new Uint8Array(new TextEncoder().encode('-'.repeat(width) + '\n')));
 
     // Items
-    order.items.forEach(item => {
-      const name = item.name.substring(0, width - 15);
-      const qty = `x${item.quantity}`.padEnd(5);
-      const price = (item.price * item.quantity).toFixed(2);
-      const line = `${name.padEnd(width - 15)} ${qty} ${price.padStart(8)}\n`;
-      commands.push(...Array.from(encoder.encode(line)));
-    });
+    for (const item of order.items) {
+      // If item name has Bangla, we might want to render the whole line as image
+      if (this.containsBangla(item.name)) {
+        const qty = `x${item.quantity}`;
+        const price = (item.price * item.quantity).toFixed(2);
+        await this.printTextLine(`${item.name} ${qty} ${price}`, pixelWidth, { align: 'left' });
+      } else {
+        const name = item.name.substring(0, width - 15);
+        const qty = `x${item.quantity}`.padEnd(5);
+        const price = (item.price * item.quantity).toFixed(2);
+        const line = `${name.padEnd(width - 15)} ${qty} ${price.padStart(8)}\n`;
+        await this.printRaw(new Uint8Array(new TextEncoder().encode(line)));
+      }
+    }
 
-    commands.push(...Array.from(encoder.encode('-'.repeat(width) + '\n')));
+    await this.printRaw(new Uint8Array(new TextEncoder().encode('-'.repeat(width) + '\n')));
 
     // Totals
-    commands.push(...this.COMMANDS.ALIGN_RIGHT);
     const subtotal = order.totalAmount;
     const vat = business.includeVat ? (subtotal * (business.vatRate / 100)) : 0;
     const discount = transaction?.discount || order.discount || 0;
     const total = subtotal + vat - discount;
 
-    commands.push(...Array.from(encoder.encode(`Subtotal: ${business.currency}${subtotal.toFixed(2)}\n`)));
+    await this.printTextLine(`Subtotal: ${business.currency}${subtotal.toFixed(2)}`, pixelWidth, { align: 'right' });
     if (business.includeVat) {
-      commands.push(...Array.from(encoder.encode(`VAT (${business.vatRate}%): ${business.currency}${vat.toFixed(2)}\n`)));
+      await this.printTextLine(`VAT (${business.vatRate}%): ${business.currency}${vat.toFixed(2)}`, pixelWidth, { align: 'right' });
     }
     if (discount > 0) {
-      commands.push(...Array.from(encoder.encode(`Discount: -${business.currency}${discount.toFixed(2)}\n`)));
+      await this.printTextLine(`Discount: -${business.currency}${discount.toFixed(2)}`, pixelWidth, { align: 'right' });
     }
-    commands.push(...this.COMMANDS.BOLD_ON);
-    commands.push(...Array.from(encoder.encode(`TOTAL: ${business.currency}${total.toFixed(2)}\n`)));
-    commands.push(...this.COMMANDS.BOLD_OFF);
+    await this.printTextLine(`TOTAL: ${business.currency}${total.toFixed(2)}`, pixelWidth, { align: 'right', bold: true });
 
     // Footer
-    commands.push(...this.COMMANDS.ALIGN_CENTER);
-    commands.push(...Array.from(encoder.encode('\n')));
+    await this.printRaw(new Uint8Array([0x0A])); // LF
     if (business.printerSettings?.receiptFooter) {
-      commands.push(...Array.from(encoder.encode(business.printerSettings.receiptFooter + '\n')));
+      await this.printTextLine(business.printerSettings.receiptFooter, pixelWidth, { align: 'center' });
     } else {
-      commands.push(...Array.from(encoder.encode('Thank You! Come Again\n')));
+      await this.printTextLine('Thank You! Come Again', pixelWidth, { align: 'center' });
     }
     
-    commands.push(...Array.from(encoder.encode('\nPowered by RestoKeep\n\n\n\n')));
-    commands.push(...this.COMMANDS.CUT);
-
-    await this.printRaw(new Uint8Array(commands));
+    await this.printTextLine('Powered by RestoKeep', pixelWidth, { align: 'center', fontSize: 18 });
+    await this.printRaw(new Uint8Array([...Array(4).fill(0x0A), ...this.COMMANDS.CUT]));
   }
 
-  static async printKOT(business: Business, order: Order | any) {
-    const encoder = new TextEncoder();
-    const width = business.printerSettings?.paperWidth === '58mm' ? 32 : 48;
-    
-    let commands: number[] = [...this.COMMANDS.INIT];
-
-    commands.push(...this.COMMANDS.ALIGN_CENTER);
-    commands.push(...this.COMMANDS.DOUBLE_SIZE_ON, ...Array.from(encoder.encode('KITCHEN TICKET\n')), ...this.COMMANDS.SIZE_NORMAL);
-    commands.push(...Array.from(encoder.encode(`Token: #${order.tokenNumber}\n`)));
-    commands.push(...Array.from(encoder.encode(`Table: ${order.tableNumber || 'Delivery'}\n`)));
-    commands.push(...Array.from(encoder.encode(`${new Date().toLocaleString()}\n`)));
-    commands.push(...Array.from(encoder.encode('-'.repeat(width) + '\n')));
-
-    commands.push(...this.COMMANDS.ALIGN_LEFT);
-    order.items.forEach((item: any) => {
-      commands.push(...this.COMMANDS.BOLD_ON);
-      commands.push(...Array.from(encoder.encode(`x${item.quantity} ${item.name}\n`)));
-      commands.push(...this.COMMANDS.BOLD_OFF);
-    });
-
-    if (order.note) {
-      commands.push(...Array.from(encoder.encode('-'.repeat(width) + '\n')));
-      commands.push(...Array.from(encoder.encode(`NOTE: ${order.note}\n`)));
+  static async printKOT(business: Business, order: Order | any, elementId: string = 'kot-content') {
+    const element = document.getElementById(elementId);
+    if (element) {
+      await this.printElement(element, business.printerSettings?.paperWidth || '80mm');
+      return;
     }
 
-    commands.push(...Array.from(encoder.encode('\n\n\n\n')));
-    commands.push(...this.COMMANDS.CUT);
+    const width = business.printerSettings?.paperWidth === '58mm' ? 32 : 48;
+    const pixelWidth = business.printerSettings?.paperWidth === '58mm' ? 384 : 576;
+    
+    await this.printRaw(new Uint8Array(this.COMMANDS.INIT));
 
-    await this.printRaw(new Uint8Array(commands));
+    await this.printTextLine('KITCHEN TICKET', pixelWidth, { align: 'center', doubleSize: true, bold: true });
+    await this.printTextLine(`Token: #${order.tokenNumber}`, pixelWidth, { align: 'center' });
+    await this.printTextLine(`Table: ${order.tableNumber || 'Delivery'}`, pixelWidth, { align: 'center' });
+    await this.printTextLine(new Date().toLocaleString(), pixelWidth, { align: 'center' });
+    await this.printRaw(new Uint8Array(new TextEncoder().encode('-'.repeat(width) + '\n')));
+
+    for (const item of order.items) {
+      await this.printTextLine(`x${item.quantity} ${item.name}`, pixelWidth, { align: 'left', bold: true });
+    }
+
+    if (order.note) {
+      await this.printRaw(new Uint8Array(new TextEncoder().encode('-'.repeat(width) + '\n')));
+      await this.printTextLine(`NOTE: ${order.note}`, pixelWidth, { align: 'left' });
+    }
+
+    await this.printRaw(new Uint8Array([...Array(4).fill(0x0A), ...this.COMMANDS.CUT]));
   }
 }

@@ -184,20 +184,22 @@ export const Settings = () => {
             
             // Send a simple test print
             const encoder = new TextEncoder();
-            const testData = new Uint8Array([
-                0x1B, 0x40, // Init
-                0x1B, 0x61, 0x01, // Center
-                ...Array.from(encoder.encode('RestoKeep Test Print\n')),
-                ...Array.from(encoder.encode('--------------------------------\n')),
-                ...Array.from(encoder.encode('Printer: ' + pairedPrinterName + '\n')),
-                ...Array.from(encoder.encode('Status: Working Correctly\n')),
-                ...Array.from(encoder.encode('Date: ' + new Date().toLocaleString() + '\n')),
-                ...Array.from(encoder.encode('--------------------------------\n')),
-                ...Array.from(encoder.encode('\n\n\n\n')),
-                0x1D, 0x56, 0x41, 0x03 // Cut
-            ]);
             
-            await BluetoothPrinterService.printRaw(testData);
+            // We use the service's printTextLine logic for the test print too
+            const pixelWidth = business.printerSettings?.paperWidth === '58mm' ? 384 : 576;
+            
+            await BluetoothPrinterService.printRaw(new Uint8Array([0x1B, 0x40])); // Init
+            
+            await BluetoothPrinterService.printTextLine('RestoKeep Test Print', pixelWidth, { align: 'center', doubleSize: true, bold: true });
+            await BluetoothPrinterService.printTextLine('--------------------------------', pixelWidth, { align: 'center' });
+            await BluetoothPrinterService.printTextLine('বাংলা ফন্ট টেস্ট (Bangla Test)', pixelWidth, { align: 'center' });
+            await BluetoothPrinterService.printTextLine('Printer: ' + pairedPrinterName, pixelWidth, { align: 'center' });
+            await BluetoothPrinterService.printTextLine('Status: Working Correctly', pixelWidth, { align: 'center' });
+            await BluetoothPrinterService.printTextLine('Date: ' + new Date().toLocaleString(), pixelWidth, { align: 'center' });
+            await BluetoothPrinterService.printTextLine('--------------------------------', pixelWidth, { align: 'center' });
+            
+            await BluetoothPrinterService.printRaw(new Uint8Array([...Array(4).fill(0x0A), 0x1D, 0x56, 0x41, 0x03])); // Feed & Cut
+            
             alert('Test print sent!');
         } catch (error) {
             console.error('Test print error:', error);
