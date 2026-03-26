@@ -42,7 +42,7 @@ export class BluetoothPrinterService {
     if (!ctx) return canvas;
 
     const fontSize = options.fontSize || 24;
-    const fontName = '"Inter", "Arial", sans-serif';
+    const fontName = '"Inter", "Arial", "Nirmala UI", sans-serif';
     ctx.font = `${options.bold ? 'bold ' : ''}${fontSize}px ${fontName}`;
 
     const lines = text.split('\n');
