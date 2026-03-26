@@ -38,64 +38,34 @@
           padding: 0 !important;
           background: #fff !important;
           width: 100% !important;
-        }
-
-        /* Hide everything */
-        body * {
-          visibility: hidden !important;
-          display: none !important;
-        }
-
-        /* Show only the invoice/KOT and its parents in a way that doesn't break layout */
-        #root, 
-        #root > div, 
-        main, 
-        .fixed, 
-        .relative, 
-        #invoice-content, 
-        #invoice-content *,
-        #kot-content,
-        #kot-content * {
-          visibility: visible !important;
-          display: block !important;
-        }
-
-        /* Reset fixed/absolute positioning for parents to ensure normal flow */
-        #root, 
-        #root > div, 
-        main, 
-        .fixed, 
-        .relative {
-          position: static !important;
-          width: 100% !important;
           height: auto !important;
-          margin: 0 !important;
-          padding: 0 !important;
-          border: none !important;
-          box-shadow: none !important;
-          transform: none !important;
-          overflow: visible !important;
+          visibility: hidden !important;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
         }
 
-        /* Target the specific invoice/KOT container */
+        /* Target the specific invoice/KOT container and make it visible */
         #invoice-content,
         #kot-content {
+          visibility: visible !important;
+          display: block !important;
+          position: absolute !important;
+          left: 0 !important;
+          top: 0 !important;
           width: 80mm !important; /* Standard thermal printer width */
-          max-width: 100% !important;
-          margin: 0 auto !important;
+          margin: 0 !important;
           padding: 5mm !important;
           background: #fff !important;
-          position: relative !important;
+          z-index: 99999 !important;
         }
 
-        /* Ensure text is black and visible */
+        /* Ensure all children of the content are visible and preserve their layout */
         #invoice-content *,
         #kot-content * {
-          color: #000 !important;
-          background: transparent !important;
+          visibility: visible !important;
         }
 
-        /* Hide specific UI elements that might still be visible */
+        /* Hide specific UI elements that should never be printed */
         .print\:hidden,
         button,
         nav,
@@ -104,13 +74,21 @@
         .no-print,
         .close-button,
         .bg-slate-900\/60,
-        .backdrop-blur-sm {
+        .backdrop-blur-sm,
+        .fixed.inset-0:not(.print-visible) {
           display: none !important;
-          visibility: hidden !important;
+        }
+
+        /* Ensure text is black for thermal printers */
+        #invoice-content *,
+        #kot-content * {
+          color: #000 !important;
+          border-color: #000 !important;
         }
 
         /* Force images to be visible */
-        #invoice-content img {
+        #invoice-content img,
+        #kot-content img {
           display: block !important;
           visibility: visible !important;
           max-width: 100% !important;

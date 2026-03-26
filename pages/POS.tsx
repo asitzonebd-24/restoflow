@@ -513,11 +513,16 @@ export const POS = () => {
 
   const printKOT = () => {
     setShowKOT(true);
+    const originalTitle = document.title;
+    const token = isCreatingNew ? newTokenNum : orders.find(o => o.id === selectedOrderId)?.tokenNumber;
+    document.title = `KOT - #${token}`;
+    
     setTimeout(() => {
       window.focus();
       window.print();
       setShowKOT(false);
-    }, 500);
+      document.title = originalTitle;
+    }, 200);
   };
 
   if (!selectedOrderId && !isCreatingNew) {

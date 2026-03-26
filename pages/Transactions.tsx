@@ -104,10 +104,15 @@ export const Transactions = () => {
     };
 
     const printInvoice = () => {
+      const originalTitle = document.title;
+      document.title = `${currentTenant?.name || 'Invoice'} - #${viewInvoice?.order.tokenNumber}`;
+      
+      window.focus();
+      // Short delay to ensure title is set and layout is ready
       setTimeout(() => {
-        window.focus();
         window.print();
-      }, 1000);
+        document.title = originalTitle;
+      }, 200);
     };
 
     const calculateInvoiceTotal = (order: Order, discount: number = 0) => {
@@ -435,6 +440,13 @@ export const Transactions = () => {
                                   <p className="text-[8px] font-bold tracking-widest">Powered by: RestoKeep</p>
                                   <p className="text-[8px] font-bold tracking-widest">Web: www.restokeep.app</p>
                                   <p className="text-[8px] font-bold tracking-widest">Mobile: 01303565316</p>
+                                </div>
+                                
+                                {/* Mobile Print Tip */}
+                                <div className="md:hidden print:hidden mt-6 p-3 bg-amber-50 rounded-xl border border-amber-100">
+                                  <p className="text-[8px] text-amber-600 font-bold uppercase leading-tight">
+                                    Mobile Tip: If your Bluetooth printer doesn't show, ensure you have a "Print Service" app installed (like RawBT) and the printer is paired.
+                                  </p>
                                 </div>
                             </div>
                         </div>
