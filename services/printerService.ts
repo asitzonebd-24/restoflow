@@ -76,25 +76,27 @@ export class BluetoothPrinterService {
     const ctx = canvas.getContext('2d');
     if (!ctx) return canvas;
 
-    const fontSize = options.fontSize || 24;
+    const leftFontSize = options.leftFontSize || 24;
+    const rightFontSize = options.rightFontSize || 24;
     const fontName = '"Inter", "Arial", sans-serif';
-    ctx.font = `${options.bold ? 'bold ' : ''}${fontSize}px ${fontName}`;
 
-    canvas.height = fontSize + 8;
+    // Set canvas height based on the larger font
+    canvas.height = Math.max(leftFontSize, rightFontSize) + 8;
 
     // Fill background white
     ctx.fillStyle = 'white';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Draw text
-    ctx.fillStyle = 'black';
     ctx.textBaseline = 'top';
 
     // Draw right text first to know how much space is left
+    ctx.font = `${options.bold ? 'bold ' : ''}${rightFontSize}px ${fontName}`;
+    ctx.fillStyle = 'black';
     const rightWidth = ctx.measureText(rightText).width;
     ctx.fillText(rightText, width - rightWidth, 0);
 
     // Draw left text, truncating if necessary to avoid overlap
+    ctx.font = `${options.bold ? 'bold ' : ''}${leftFontSize}px ${fontName}`;
     const availableWidthForLeft = width - rightWidth - 10; // 10px margin
     let finalLeftText = leftText;
     
@@ -112,7 +114,7 @@ export class BluetoothPrinterService {
   }
 
   private static async printBanglaItemLine(name: string, qty: string, price: string, width: number) {
-    const canvas = await this.renderLineToCanvas(`${name} ${qty}`, price, width, { fontSize: 24 });
+    const canvas = await this.renderLineToCanvas(`${name} ${qty}`, price, width, { leftFontSize: 32, rightFontSize: 24 });
     await this.printCanvas(canvas);
   }
 
@@ -377,17 +379,12 @@ export class BluetoothPrinterService {
 
     // Items
     for (const item of order.items) {
-      if (this.containsBangla(item.name)) {
-        const qty = `x${item.quantity}`;
-        const price = (item.price * item.quantity).toFixed(2);
-        await this.printBanglaItemLine(item.name, qty, price, pixelWidth);
-      } else {
-        const name = item.name.substring(0, width - 15);
-        const qty = `x${item.quantity}`.padEnd(5);
-        const price = (item.price * item.quantity).toFixed(2);
-        const line = `${name.padEnd(width - 15)} ${qty} ${price.padStart(8)}\n`;
-        await this.printRaw(new Uint8Array(new TextEncoder().encode(line)));
-      }
+      const qty = `x${item.quantity}`;
+      const price = (item.price * item.quantity).toFixed(2);
+      const name = item.name;
+      
+      const canvas = await this.renderLineToCanvas(`${name} ${qty}`, price, pixelWidth, { leftFontSize: 32, rightFontSize: 24 });
+      await this.printCanvas(canvas);
     }
 
     await this.printRaw(new Uint8Array(new TextEncoder().encode('-'.repeat(width) + '\n')));
