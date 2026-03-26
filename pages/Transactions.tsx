@@ -108,8 +108,8 @@ export const Transactions = () => {
       // If a bluetooth printer is paired, try to print directly
       if (currentTenant?.printerSettings?.pairedPrinterId && viewInvoice) {
         try {
-          const connected = await BluetoothPrinterService.connect(currentTenant.printerSettings.pairedPrinterId);
-          if (connected) {
+          const result = await BluetoothPrinterService.connect(currentTenant.printerSettings.pairedPrinterId);
+          if (result.success) {
             await BluetoothPrinterService.printInvoice(currentTenant, viewInvoice.order, { discount: viewInvoice.transaction.discount });
             return; // Skip system print if bluetooth worked
           }

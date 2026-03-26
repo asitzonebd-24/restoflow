@@ -523,8 +523,8 @@ export const POS = () => {
     // If a bluetooth printer is paired, try to print directly
     if (currentTenant?.printerSettings?.pairedPrinterId) {
       try {
-        const connected = await BluetoothPrinterService.connect(currentTenant.printerSettings.pairedPrinterId);
-        if (connected) {
+        const result = await BluetoothPrinterService.connect(currentTenant.printerSettings.pairedPrinterId);
+        if (result.success) {
           const token = isCreatingNew ? newTokenNum : orders.find(o => o.id === selectedOrderId)?.tokenNumber;
           const orderData = {
             tokenNumber: token || '000',

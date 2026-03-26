@@ -143,31 +143,30 @@ export const Settings = () => {
     };
 
     const handleAddBluetoothPrinter = async () => {
-        const connected = await BluetoothPrinterService.connect();
-        if (connected) {
-            // The device is stored in the service, but we need to get its info
-            // Since we don't have a direct way to get the device from the service easily without exposing it,
-            // let's assume the connection was successful and we can just use the navigator to get the device again or store it.
-            // Actually, the requestDevice returns the device.
+        setIsBluetoothSearching(true);
+        const result = await BluetoothPrinterService.connect();
+        if (result.success && result.device) {
+            const newName = result.device.name || 'Unknown Printer';
+            const newId = result.device.id;
+            setPairedPrinterName(newName);
+            setPairedPrinterId(newId);
             
-            // Re-implementing the request part here to get the device object
-            try {
-                const device = await (navigator as any).bluetooth.requestDevice({
-                    acceptAllDevices: true,
-                    optionalServices: [
-                        '00001101-0000-1000-8000-00805f9b34fb',
-                        '000018f0-0000-1000-8000-00805f9b34fb',
-                        0xFF00, 0x4953
-                    ]
+            // Automatically save to business settings
+            if (business) {
+                updateBusiness({
+                    printerSettings: {
+                        receiptHeader,
+                        receiptFooter,
+                        paperWidth,
+                        autoPrintKOT,
+                        autoPrintInvoice,
+                        showLogo,
+                        pairedPrinterName: newName,
+                        pairedPrinterId: newId
+                    }
                 });
-                if (device) {
-                    setPairedPrinterName(device.name || 'Unknown Printer');
-                    setPairedPrinterId(device.id);
-                    alert(`Printer "${device.name || 'Unknown Printer'}" paired successfully! Don't forget to save your settings.`);
-                }
-            } catch (e) {
-                console.error(e);
             }
+            alert(`Printer "${newName}" paired and saved successfully!`);
         } else {
             alert('Failed to connect to printer. Please ensure it is turned on and in range.');
         }
@@ -176,8 +175,8 @@ export const Settings = () => {
 
     const handleTestPrint = async () => {
         try {
-            const connected = await BluetoothPrinterService.connect(pairedPrinterId);
-            if (!connected) {
+            const result = await BluetoothPrinterService.connect(pairedPrinterId);
+            if (!result.success) {
                 alert('Could not connect to the paired printer. Please try pairing again.');
                 return;
             }
@@ -585,9 +584,24 @@ export const Settings = () => {
                                                         Test Print
                                                     </button>
                                                     <button 
-                                                        onClick={() => {
+                                                        onClick={async () => {
+                                                            await BluetoothPrinterService.disconnect();
                                                             setPairedPrinterName('');
                                                             setPairedPrinterId('');
+                                                            if (business) {
+                                                                updateBusiness({
+                                                                    printerSettings: {
+                                                                        receiptHeader,
+                                                                        receiptFooter,
+                                                                        paperWidth,
+                                                                        autoPrintKOT,
+                                                                        autoPrintInvoice,
+                                                                        showLogo,
+                                                                        pairedPrinterName: '',
+                                                                        pairedPrinterId: ''
+                                                                    }
+                                                                });
+                                                            }
                                                         }}
                                                         className="text-[10px] font-bold text-rose-500 uppercase tracking-widest hover:text-rose-600"
                                                     >

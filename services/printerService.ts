@@ -137,12 +137,42 @@ export class BluetoothPrinterService {
     }
   }
 
-  static async connect(deviceId?: string): Promise<boolean> {
+  static async connect(deviceId?: string): Promise<{ success: boolean; device?: any }> {
     try {
+      // 1. Check if already connected in memory
       if (this.characteristic && this.device?.gatt?.connected) {
-        return true;
+        return { success: true, device: this.device };
       }
 
+      // 2. If deviceId is provided, try to reconnect without showing the picker
+      // This works in Chrome 85+ if the user has previously granted permission
+      if (deviceId && (navigator as any).bluetooth.getDevices) {
+        try {
+          const devices = await (navigator as any).bluetooth.getDevices();
+          const existingDevice = devices.find((d: any) => d.id === deviceId);
+          
+          if (existingDevice) {
+            this.device = existingDevice;
+            this.server = await this.device.gatt.connect();
+            
+            // Try to find a writable characteristic
+            const services = await this.server.getPrimaryServices();
+            for (const service of services) {
+              const characteristics = await service.getCharacteristics();
+              for (const char of characteristics) {
+                if (char.properties.write || char.properties.writeWithoutResponse) {
+                  this.characteristic = char;
+                  return { success: true, device: this.device };
+                }
+              }
+            }
+          }
+        } catch (err) {
+          console.warn('Silent reconnection failed, falling back to requestDevice:', err);
+        }
+      }
+
+      // 3. If no deviceId or reconnection failed, show the browser's device picker
       const options: any = {
         acceptAllDevices: true,
         optionalServices: [
@@ -162,7 +192,7 @@ export class BluetoothPrinterService {
         for (const char of characteristics) {
           if (char.properties.write || char.properties.writeWithoutResponse) {
             this.characteristic = char;
-            return true;
+            return { success: true, device: this.device };
           }
         }
       }
@@ -170,6 +200,21 @@ export class BluetoothPrinterService {
       throw new Error('No writable characteristic found on this device.');
     } catch (error) {
       console.error('Bluetooth connection failed:', error);
+      return { success: false };
+    }
+  }
+
+  static async disconnect() {
+    try {
+      if (this.device && this.device.gatt.connected) {
+        await this.device.gatt.disconnect();
+      }
+      this.device = null;
+      this.server = null;
+      this.characteristic = null;
+      return true;
+    } catch (error) {
+      console.error('Bluetooth disconnect failed:', error);
       return false;
     }
   }
