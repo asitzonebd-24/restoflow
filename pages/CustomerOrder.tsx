@@ -342,7 +342,15 @@ export const CustomerOrder = () => {
                <p className="text-[8px] font-bold text-white/40 uppercase tracking-widest">Customer</p>
              </div>
            </div>
-           <button onClick={logout} className="w-full flex items-center gap-4 px-6 py-4 rounded-2xl text-red-400 hover:bg-red-400/10 transition font-black uppercase tracking-widest text-[10px]">
+           <button 
+             onClick={() => {
+               const tId = tenantId;
+               logout();
+               if (tId) navigate(`/${tId}`);
+               else navigate('/login');
+             }} 
+             className="w-full flex items-center gap-4 px-6 py-4 rounded-2xl text-red-400 hover:bg-red-400/10 transition font-black uppercase tracking-widest text-[10px]"
+           >
              <LogOut size={20} /> <span>Sign Out</span>
            </button>
         </div>

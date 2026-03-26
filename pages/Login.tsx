@@ -26,7 +26,11 @@ export const Login = () => {
     e.preventDefault();
     setStaffError('');
     const success = login(email, password, tenantId);
-    if (!success) {
+    if (success) {
+      // App.tsx handles the main redirect via getDefaultRedirect, 
+      // but we can force it here for immediate feedback
+      navigate('/');
+    } else {
       setStaffError('Access denied. Please check your credentials.');
     }
   };

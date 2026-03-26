@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { HashRouter as Router, Routes, Route, Navigate, NavLink, useLocation, useParams } from 'react-router-dom';
+import { HashRouter as Router, Routes, Route, Navigate, NavLink, useLocation, useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AppProvider, useApp } from './context/AppContext';
 import { Login } from './pages/Login';
@@ -32,6 +32,7 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
   const { business, currentUser, logout } = useApp();
   const location = useLocation();
   const { tenantId: urlTenantId } = useParams();
+  const navigate = useNavigate();
 
   if (!currentUser || currentUser.role === Role.CUSTOMER) return null;
 
@@ -172,7 +173,16 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
             </div>
 
             <button 
-                onClick={logout}
+                onClick={() => {
+                  const tId = urlTenantId || currentUser.tenantId;
+                  const role = currentUser.role;
+                  logout();
+                  if (tId && role !== Role.SUPER_ADMIN) {
+                    navigate(`/${tId}`);
+                  } else {
+                    navigate('/login');
+                  }
+                }}
                 className="w-12 h-12 flex items-center justify-center rounded-2xl text-white/40 hover:bg-rose-500/20 hover:text-rose-500 transition-all"
                 title="Logout"
             >
@@ -196,8 +206,11 @@ const ProtectedLayout = ({ children, allowedRoles }: { children?: React.ReactNod
   }, [tenantId, setCurrentTenantId]);
 
   if (!currentUser) {
-    const loginPath = tenantId ? `/login?tenantId=${tenantId}` : '/login';
-    return <Navigate to={loginPath} replace />;
+    // Redirect to the tenant landing page if tenantId is present
+    if (tenantId) {
+      return <Navigate to={`/${tenantId}`} replace />;
+    }
+    return <Navigate to="/login" replace />;
   }
 
   // If no tenantId in URL, redirect non-Super Admins to their tenant-specific route
@@ -294,6 +307,8 @@ const AppContent = () => {
   React.useEffect(() => {
     if (business.name) {
       document.title = business.name;
+      const appleTitle = document.querySelector("meta[name='apple-mobile-web-app-title']") as HTMLMetaElement;
+      if (appleTitle) appleTitle.content = business.name;
     } else {
       document.title = 'RestoKeep';
     }
@@ -308,28 +323,44 @@ const AppContent = () => {
         newLink.href = business.logo;
         document.head.appendChild(newLink);
       }
+
+      // Dynamic apple-touch-icon
+      let appleIcon = document.querySelector("link[rel='apple-touch-icon']") as HTMLLinkElement;
+      if (appleIcon) {
+        appleIcon.href = business.logo;
+      } else {
+        appleIcon = document.createElement('link');
+        appleIcon.rel = 'apple-touch-icon';
+        appleIcon.href = business.logo;
+        document.head.appendChild(appleIcon);
+      }
     }
 
     // Dynamic Manifest for "Add to Home Screen"
+    const tenantId = business.id || 'default';
     const manifest = {
+      id: `restokeep-tenant-${tenantId}`,
       short_name: business.name || 'RestoKeep',
       name: business.name ? `${business.name} - RestoKeep` : 'RestoKeep Management',
       icons: [
         {
           src: business.logo || 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?q=80&w=192&h=192&auto=format&fit=crop',
           sizes: "192x192",
-          type: "image/png"
+          type: "image/png",
+          purpose: "any maskable"
         },
         {
           src: business.logo || 'https://images.unsplash.com/photo-1514933651103-005eec06c04b?q=80&w=512&h=512&auto=format&fit=crop',
           type: "image/png",
-          sizes: "512x512"
+          sizes: "512x512",
+          purpose: "any maskable"
         }
       ],
-      start_url: window.location.href,
+      start_url: business.id ? `${window.location.origin}${window.location.pathname}#/${business.id}` : window.location.href,
       display: "standalone",
       theme_color: "#11112b",
-      background_color: "#ffffff"
+      background_color: "#ffffff",
+      scope: "/"
     };
 
     const stringManifest = JSON.stringify(manifest);
