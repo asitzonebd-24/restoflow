@@ -354,8 +354,16 @@ export class BluetoothPrinterService {
         canvas.width = pixelWidth;
         const ctx = canvas.getContext('2d');
         if (ctx) {
-          const fontSize = 24;
-          ctx.font = `bold ${fontSize}px "Inter", "Arial", sans-serif`;
+          const fontSize = 32;
+          const fontString = `bold ${fontSize}px "Inter", "Hind Siliguri", sans-serif`;
+          
+          try {
+            await document.fonts.load(fontString);
+          } catch (e) {
+            console.warn('Font loading failed:', e);
+          }
+          
+          ctx.font = fontString;
           canvas.height = fontSize + 10;
           ctx.fillStyle = 'white';
           ctx.fillRect(0, 0, canvas.width, canvas.height);
