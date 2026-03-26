@@ -462,6 +462,13 @@ export const POS = () => {
           deliveryAddress: isDelivery ? (deliveryAddress || null) : null
         };
         await addOrder(newOrder);
+
+        // Auto-print KOT if enabled
+        if (currentTenant?.printerSettings?.autoPrintKOT) {
+          setTimeout(() => {
+            printKOT();
+          }, 500);
+        }
       } else if (selectedOrderId) {
         const totalAmount = cart.reduce((sum, i) => sum + (i.price * i.quantity), 0);
         
@@ -521,6 +528,12 @@ export const POS = () => {
     // Create a temporary container for printing
     const printContainer = document.createElement('div');
     printContainer.id = 'print-container';
+    
+    // Apply paper width setting
+    const paperWidth = currentTenant?.printerSettings?.paperWidth || '80mm';
+    printContainer.style.width = paperWidth;
+    printContainer.style.margin = '0 auto';
+    
     printContainer.innerHTML = printContent.innerHTML;
     document.body.appendChild(printContainer);
 

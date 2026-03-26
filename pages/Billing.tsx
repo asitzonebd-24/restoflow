@@ -87,6 +87,15 @@ export const Billing = () => {
     addTransaction(transaction);
     updateOrderStatus(order.id, OrderStatus.COMPLETED, discount);
     
+    // Auto-print invoice if enabled
+    if (currentTenant?.printerSettings?.autoPrintInvoice) {
+      setInvoiceOrder({ ...order, discount } as any);
+      setTimeout(() => {
+        const printBtn = document.getElementById('print-invoice-btn');
+        if (printBtn) printBtn.click();
+      }, 500);
+    }
+
     // Invoice preview not required
     setSelectedOrderIds(prev => prev.filter(id => id !== order.id));
   };
@@ -187,6 +196,12 @@ export const Billing = () => {
     // Create a temporary container for printing
     const printContainer = document.createElement('div');
     printContainer.id = 'print-container';
+    
+    // Apply paper width setting
+    const paperWidth = currentTenant?.printerSettings?.paperWidth || '80mm';
+    printContainer.style.width = paperWidth;
+    printContainer.style.margin = '0 auto';
+    
     printContainer.innerHTML = printContent.innerHTML;
     document.body.appendChild(printContainer);
 
@@ -506,16 +521,24 @@ export const Billing = () => {
             
             <div className="p-4 md:p-10 overflow-y-auto no-scrollbar print:p-0 print:overflow-visible flex-1" id="invoice-content">
               <div className="text-center mb-6 md:mb-10">
-                <div className="h-12 w-12 md:h-16 md:w-16 mx-auto mb-3 md:mb-4 rounded-xl md:rounded-2xl border border-slate-100 bg-slate-50 flex items-center justify-center overflow-hidden shadow-sm">
-                  {currentTenant?.logo ? (
-                    <img src={currentTenant.logo} className="h-full w-full object-contain" alt="Logo"/>
-                  ) : (
-                    <Store size={24} className="text-indigo-600 md:size-32" />
-                  )}
-                </div>
+                {currentTenant?.printerSettings?.showLogo !== false && (
+                  <div className="h-12 w-12 md:h-16 md:w-16 mx-auto mb-3 md:mb-4 rounded-xl md:rounded-2xl border border-slate-100 bg-slate-50 flex items-center justify-center overflow-hidden shadow-sm">
+                    {currentTenant?.logo ? (
+                      <img src={currentTenant.logo} className="h-full w-full object-contain" alt="Logo"/>
+                    ) : (
+                      <Store size={24} className="text-indigo-600 md:size-32" />
+                    )}
+                  </div>
+                )}
                 <h2 className="text-xl md:text-2xl font-bold text-slate-900 tracking-tight mb-1">{currentTenant?.name}</h2>
-                <p className="text-[8px] md:text-[10px] text-slate-400 font-bold uppercase tracking-widest">{currentTenant?.address}</p>
-                <p className="text-[8px] md:text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Tel: {currentTenant?.phone}</p>
+                {currentTenant?.printerSettings?.receiptHeader ? (
+                  <p className="text-[10px] text-slate-500 font-bold whitespace-pre-line mb-2">{currentTenant.printerSettings.receiptHeader}</p>
+                ) : (
+                  <>
+                    <p className="text-[8px] md:text-[10px] text-slate-400 font-bold uppercase tracking-widest">{currentTenant?.address}</p>
+                    <p className="text-[8px] md:text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Tel: {currentTenant?.phone}</p>
+                  </>
+                )}
               </div>
               
               <div className="border-y border-slate-100 py-6 md:py-8 mb-6 md:mb-8 text-center bg-slate-50/50 rounded-2xl md:rounded-3xl">
@@ -592,7 +615,11 @@ export const Billing = () => {
               </div>
               
               <div className="text-center mt-16 pt-8 border-t border-slate-50">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Thank You! Come Again</p>
+                {currentTenant?.printerSettings?.receiptFooter ? (
+                  <p className="text-[10px] text-slate-500 font-bold whitespace-pre-line mb-4">{currentTenant.printerSettings.receiptFooter}</p>
+                ) : (
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Thank You! Come Again</p>
+                )}
                 <div className="flex flex-col items-center justify-center gap-1 opacity-40">
                   <p className="text-[8px] font-bold tracking-widest">Powered by: RestoKeep</p>
                   <p className="text-[8px] font-bold tracking-widest">Web: www.restokeep.app</p>
@@ -625,6 +652,7 @@ export const Billing = () => {
                 <CheckCheck size={18} /> Collect Payment
               </button>
               <button 
+                id="print-invoice-btn"
                 onClick={printInvoice} 
                 className="flex-1 flex items-center justify-center gap-3 bg-slate-900 text-white py-4 rounded-2xl hover:bg-slate-800 transition-all font-bold uppercase tracking-widest text-[10px] shadow-lg active:scale-95 border-2 border-black"
               >

@@ -21,6 +21,15 @@ export enum OrderStatus {
 
 export type ItemStatus = OrderStatus.PENDING | OrderStatus.PREPARING | OrderStatus.READY | OrderStatus.COMPLETED | OrderStatus.CANCELLED;
 
+export interface PrinterSettings {
+  receiptHeader?: string;
+  receiptFooter?: string;
+  paperWidth: '58mm' | '80mm';
+  autoPrintKOT: boolean;
+  autoPrintInvoice: boolean;
+  showLogo: boolean;
+}
+
 export interface Business {
   id: string;
   name: string;
@@ -40,6 +49,7 @@ export interface Business {
   isActive: boolean;
   monthlyBill: number;
   createdAt: string;
+  printerSettings?: PrinterSettings;
 }
 
 export interface User {

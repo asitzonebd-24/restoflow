@@ -20,6 +20,14 @@ export const Settings = () => {
     const [customerTokenPrefix, setCustomerTokenPrefix] = useState('ORD');
     const [nextCustomerToken, setNextCustomerToken] = useState(1);
 
+    // Printer Settings state
+    const [receiptHeader, setReceiptHeader] = useState('');
+    const [receiptFooter, setReceiptFooter] = useState('');
+    const [paperWidth, setPaperWidth] = useState<'58mm' | '80mm'>('80mm');
+    const [autoPrintKOT, setAutoPrintKOT] = useState(false);
+    const [autoPrintInvoice, setAutoPrintInvoice] = useState(false);
+    const [showLogo, setShowLogo] = useState(true);
+
     // User Profile state
     const [userName, setUserName] = useState('');
     const [userEmail, setUserEmail] = useState('');
@@ -43,6 +51,15 @@ export const Settings = () => {
             setCustomerAppEnabled(business.customerAppEnabled ?? true);
             setCustomerTokenPrefix(business.customerTokenPrefix || 'ORD');
             setNextCustomerToken(business.nextCustomerToken || 1);
+            
+            if (business.printerSettings) {
+                setReceiptHeader(business.printerSettings.receiptHeader || '');
+                setReceiptFooter(business.printerSettings.receiptFooter || '');
+                setPaperWidth(business.printerSettings.paperWidth || '80mm');
+                setAutoPrintKOT(business.printerSettings.autoPrintKOT || false);
+                setAutoPrintInvoice(business.printerSettings.autoPrintInvoice || false);
+                setShowLogo(business.printerSettings.showLogo ?? true);
+            }
         }
         if (currentUser) {
             setUserName(currentUser.name);
@@ -89,7 +106,15 @@ export const Settings = () => {
                 includeVat,
                 customerAppEnabled,
                 customerTokenPrefix,
-                nextCustomerToken
+                nextCustomerToken,
+                printerSettings: {
+                    receiptHeader,
+                    receiptFooter,
+                    paperWidth,
+                    autoPrintKOT,
+                    autoPrintInvoice,
+                    showLogo
+                }
             });
             alert('Business settings saved successfully!');
         }
@@ -433,6 +458,121 @@ export const Settings = () => {
                                         />
                                         <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                                     </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Printer & Receipt Settings Section */}
+                        <div className="bg-white p-8 rounded-[2rem] border-2 border-slate-900 shadow-xl shadow-slate-100 hover:scale-[1.01] transition-all duration-300">
+                            <div className="flex items-center justify-between mb-8">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-slate-50 text-slate-900 rounded-xl flex items-center justify-center border border-slate-100">
+                                        <ImageIcon size={20} />
+                                    </div>
+                                    <h2 className="text-lg font-bold text-slate-900 tracking-tight">Printer & Receipt Setup</h2>
+                                </div>
+                                <button 
+                                    onClick={handleBusinessSubmit}
+                                    className="bg-slate-900 text-white px-6 py-2 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center gap-2"
+                                >
+                                    <Save size={16} />
+                                    Save Printer Settings
+                                </button>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                <div className="md:col-span-2 space-y-4">
+                                    <div className="p-6 bg-slate-50 border-2 border-slate-100 rounded-3xl">
+                                        <h3 className="text-sm font-bold text-slate-900 uppercase tracking-tight mb-4 flex items-center gap-2">
+                                            <Store size={16} />
+                                            Bluetooth Printer Connection
+                                        </h3>
+                                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest leading-relaxed mb-4">
+                                            To use a Bluetooth thermal printer directly from the browser, ensure your printer is paired with your device. 
+                                            <br/>
+                                            <span className="text-indigo-600">Note: For the best results, open this app in a new tab.</span>
+                                        </p>
+                                        <button 
+                                            onClick={() => {
+                                                if ('bluetooth' in navigator) {
+                                                    alert('Bluetooth printer search initiated. Please select your ESC/POS printer from the browser dialog.');
+                                                    // In a real implementation with a library, we'd call navigator.bluetooth.requestDevice
+                                                } else {
+                                                    alert('Web Bluetooth is not supported in this browser or context. Please use the system print dialog or open in a new tab.');
+                                                }
+                                            }}
+                                            className="w-full md:w-auto bg-white border-2 border-slate-900 text-slate-900 px-8 py-3 rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-slate-50 transition-all active:scale-95 flex items-center justify-center gap-3 shadow-sm"
+                                        >
+                                            <Globe size={18} />
+                                            Add Bluetooth Printer
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Paper Width</label>
+                                    <div className="flex gap-3">
+                                        <button 
+                                            type="button"
+                                            onClick={() => setPaperWidth('58mm')}
+                                            className={`flex-1 p-4 rounded-2xl border-2 font-bold text-sm transition-all ${paperWidth === '58mm' ? 'border-slate-900 bg-slate-900 text-white shadow-lg' : 'border-slate-100 bg-slate-50 text-slate-400 hover:border-slate-200'}`}
+                                        >
+                                            58mm
+                                        </button>
+                                        <button 
+                                            type="button"
+                                            onClick={() => setPaperWidth('80mm')}
+                                            className={`flex-1 p-4 rounded-2xl border-2 font-bold text-sm transition-all ${paperWidth === '80mm' ? 'border-slate-900 bg-slate-900 text-white shadow-lg' : 'border-slate-100 bg-slate-50 text-slate-400 hover:border-slate-200'}`}
+                                        >
+                                            80mm
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-4">
+                                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Print Options</label>
+                                    <div className="grid grid-cols-1 gap-3">
+                                        <label className="flex items-center justify-between p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl cursor-pointer hover:border-slate-200 transition-all">
+                                            <span className="text-[10px] font-bold uppercase text-slate-700 tracking-widest">Show Logo on Receipt</span>
+                                            <input 
+                                                type="checkbox" 
+                                                className="w-5 h-5 rounded border-slate-300 text-slate-900 focus:ring-slate-900"
+                                                checked={showLogo}
+                                                onChange={e => setShowLogo(e.target.checked)}
+                                            />
+                                        </label>
+                                        <label className="flex items-center justify-between p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl cursor-pointer hover:border-slate-200 transition-all">
+                                            <span className="text-[10px] font-bold uppercase text-slate-700 tracking-widest">Auto-print KOT on Order</span>
+                                            <input 
+                                                type="checkbox" 
+                                                className="w-5 h-5 rounded border-slate-300 text-slate-900 focus:ring-slate-900"
+                                                checked={autoPrintKOT}
+                                                onChange={e => setAutoPrintKOT(e.target.checked)}
+                                            />
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div className="md:col-span-2">
+                                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Receipt Header (Custom Text)</label>
+                                    <textarea 
+                                        value={receiptHeader}
+                                        onChange={e => setReceiptHeader(e.target.value)}
+                                        placeholder="e.g. Welcome to our restaurant!&#10;Open 24/7"
+                                        rows={2}
+                                        className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-slate-900 outline-none font-bold text-sm transition-all resize-none shadow-sm"
+                                    />
+                                </div>
+
+                                <div className="md:col-span-2">
+                                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Receipt Footer (Custom Text)</label>
+                                    <textarea 
+                                        value={receiptFooter}
+                                        onChange={e => setReceiptFooter(e.target.value)}
+                                        placeholder="e.g. Thank you for your visit!&#10;Follow us on Instagram @resto"
+                                        rows={2}
+                                        className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-slate-900 outline-none font-bold text-sm transition-all resize-none shadow-sm"
+                                    />
                                 </div>
                             </div>
                         </div>
