@@ -41,12 +41,12 @@ export class BluetoothPrinterService {
     const ctx = canvas.getContext('2d');
     if (!ctx) return canvas;
 
-    const fontSize = options.fontSize || 24;
+    const fontSize = options.fontSize || 32;
     const fontName = '"Inter", "Arial", sans-serif';
     ctx.font = `${options.bold ? 'bold ' : ''}${fontSize}px ${fontName}`;
 
     const lines = text.split('\n');
-    canvas.height = lines.length * (fontSize + 8);
+    canvas.height = lines.length * (fontSize + 12);
 
     // Fill background white
     ctx.fillStyle = 'white';
@@ -64,7 +64,7 @@ export class BluetoothPrinterService {
       } else if (options.align === 'right') {
         x = width - ctx.measureText(line).width;
       }
-      ctx.fillText(line, x, i * (fontSize + 8));
+      ctx.fillText(line, x, i * (fontSize + 12));
     });
 
     return canvas;
@@ -79,7 +79,7 @@ export class BluetoothPrinterService {
     if (!context) return;
 
     // Print in strips to avoid buffer issues on some printers and handle long receipts
-    const stripHeight = 128; 
+    const stripHeight = 256; 
     
     for (let yStart = 0; yStart < height; yStart += stripHeight) {
       const currentStripHeight = Math.min(stripHeight, height - yStart);
@@ -106,7 +106,7 @@ export class BluetoothPrinterService {
               
               // Threshold for black/white
               const brightness = (r + g + b) / 3;
-              if (a > 128 && brightness < 128) {
+              if (a > 128 && brightness < 160) { // Slightly more aggressive threshold
                 byte |= (1 << (7 - bit));
               }
             }
@@ -116,8 +116,8 @@ export class BluetoothPrinterService {
       }
 
       await this.printRaw(new Uint8Array(data));
-      // Small pause between strips to allow printer to process
-      await new Promise(resolve => setTimeout(resolve, 50));
+      // Minimal pause between strips
+      await new Promise(resolve => setTimeout(resolve, 20));
     }
   }
 
@@ -235,13 +235,15 @@ export class BluetoothPrinterService {
   static async printRaw(data: Uint8Array) {
     if (!this.characteristic) throw new Error('Printer not connected');
     
-    // Use a smaller chunk size for better compatibility with various thermal printers
-    const chunkSize = 20; 
+    // Use a larger chunk size for significantly faster printing
+    // Most modern Bluetooth printers handle 512 bytes easily
+    const chunkSize = 512; 
     for (let i = 0; i < data.length; i += chunkSize) {
       const chunk = data.slice(i, i + chunkSize);
       try {
-        // Try newer methods first, fallback to deprecated writeValue for older browsers
-        if (this.characteristic.writeValueWithResponse) {
+        if (this.characteristic.properties.writeWithoutResponse) {
+          await this.characteristic.writeValueWithoutResponse(chunk);
+        } else if (this.characteristic.writeValueWithResponse) {
           if (this.characteristic.properties.write) {
             await this.characteristic.writeValueWithResponse(chunk);
           } else {
@@ -250,13 +252,13 @@ export class BluetoothPrinterService {
         } else {
           await this.characteristic.writeValue(chunk);
         }
-        // Very small delay to prevent buffer overflow on slower printer controllers
-        await new Promise(resolve => setTimeout(resolve, 10));
+        // Minimal delay to prevent buffer overflow while maintaining high speed
+        await new Promise(resolve => setTimeout(resolve, 2));
       } catch (error) {
         console.error('Chunk write failed:', error);
-        // Final attempt with writeValue if other methods failed
         try {
           await this.characteristic.writeValue(chunk);
+          await new Promise(resolve => setTimeout(resolve, 10)); // Fallback to slower speed on error
         } catch (innerError) {
           throw new Error('Failed to write to printer characteristic');
         }
@@ -271,20 +273,31 @@ export class BluetoothPrinterService {
     const clone = element.cloneNode(true) as HTMLElement;
     
     // Reset some styles on the clone to make it print-friendly
-    clone.style.width = '500px'; // Use a fixed width for consistent layout
+    // We use a smaller width for the clone so that text appears larger relative to the page width
+    clone.style.width = paperWidth === '58mm' ? '300px' : '400px'; 
     clone.style.margin = '0';
-    clone.style.padding = '0'; // Strip large paddings from the UI
+    clone.style.padding = '0'; 
     clone.style.boxSizing = 'border-box';
     clone.style.display = 'block';
     clone.style.position = 'absolute';
     clone.style.left = '-9999px';
     clone.style.top = '0';
-    clone.classList.remove('hidden', 'p-4', 'p-6', 'p-8', 'p-10', 'md:p-10'); // Remove common padding classes
+    clone.style.fontSize = '20px'; // Increase base font size
+    clone.classList.remove('hidden', 'p-4', 'p-6', 'p-8', 'p-10', 'md:p-10'); 
     
-    // Force all text to be black for better contrast on thermal printers
-    const allText = clone.querySelectorAll('*');
-    allText.forEach((el: any) => {
+    // Force all text to be black and increase font weights/sizes
+    const allElements = clone.querySelectorAll('*');
+    allElements.forEach((el: any) => {
       el.style.color = 'black';
+      el.style.borderColor = 'black';
+      
+      // Increase font size for all elements to meet the "3x" request
+      const currentSize = window.getComputedStyle(el).fontSize;
+      const sizeValue = parseFloat(currentSize);
+      if (!isNaN(sizeValue)) {
+        el.style.fontSize = (sizeValue * 1.5) + 'px'; // 1.5x on top of the base increase
+      }
+
       if (el.style.backgroundColor && el.style.backgroundColor !== 'transparent') {
         el.style.backgroundColor = 'white';
       }
@@ -304,11 +317,11 @@ export class BluetoothPrinterService {
       });
       
       await Promise.all(imagePromises);
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 300));
       
       const capturedCanvas = await html2canvas(clone, {
-        width: 500,
-        scale: 2, // Capture at higher quality
+        width: paperWidth === '58mm' ? 300 : 400,
+        scale: 2, 
         useCORS: true,
         backgroundColor: '#ffffff',
         logging: false
