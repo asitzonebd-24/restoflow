@@ -36,20 +36,17 @@ export class BluetoothPrinterService {
     bold?: boolean, 
     align?: 'left' | 'center' | 'right' 
   } = {}): Promise<HTMLCanvasElement> {
-    if ((document as any).fonts) {
-      await (document as any).fonts.ready;
-    }
     const canvas = document.createElement('canvas');
     canvas.width = width;
     const ctx = canvas.getContext('2d');
     if (!ctx) return canvas;
 
-    const fontSize = options.fontSize || 32;
-    const fontName = '"Inter", "Hind Siliguri", "Arial", sans-serif';
+    const fontSize = options.fontSize || 24;
+    const fontName = '"Inter", "Arial", sans-serif';
     ctx.font = `${options.bold ? 'bold ' : ''}${fontSize}px ${fontName}`;
 
     const lines = text.split('\n');
-    canvas.height = lines.length * (fontSize + 12);
+    canvas.height = lines.length * (fontSize + 8);
 
     // Fill background white
     ctx.fillStyle = 'white';
@@ -67,7 +64,7 @@ export class BluetoothPrinterService {
       } else if (options.align === 'right') {
         x = width - ctx.measureText(line).width;
       }
-      ctx.fillText(line, x, i * (fontSize + 12));
+      ctx.fillText(line, x, i * (fontSize + 8));
     });
 
     return canvas;
@@ -81,47 +78,39 @@ export class BluetoothPrinterService {
     const context = canvas.getContext('2d');
     if (!context) return;
 
-    // Print in strips to avoid buffer issues on some printers and handle long receipts
-    const stripHeight = 256; 
-    
-    for (let yStart = 0; yStart < height; yStart += stripHeight) {
-      const currentStripHeight = Math.min(stripHeight, height - yStart);
-      const imageData = context.getImageData(0, yStart, width, currentStripHeight);
-      const pixels = imageData.data;
+    const imageData = context.getImageData(0, 0, width, height);
+    const pixels = imageData.data;
 
-      const data: number[] = [
-        ...this.COMMANDS.GS_V_0,
-        widthBytes & 0xFF, (widthBytes >> 8) & 0xFF,
-        currentStripHeight & 0xFF, (currentStripHeight >> 8) & 0xFF
-      ];
+    const data: number[] = [
+      ...this.COMMANDS.GS_V_0,
+      widthBytes & 0xFF, (widthBytes >> 8) & 0xFF,
+      height & 0xFF, (height >> 8) & 0xFF
+    ];
 
-      for (let y = 0; y < currentStripHeight; y++) {
-        for (let x = 0; x < widthBytes; x++) {
-          let byte = 0;
-          for (let bit = 0; bit < 8; bit++) {
-            const px = x * 8 + bit;
-            if (px < width) {
-              const idx = (y * width + px) * 4;
-              const r = pixels[idx];
-              const g = pixels[idx + 1];
-              const b = pixels[idx + 2];
-              const a = pixels[idx + 3];
-              
-              // Threshold for black/white
-              const brightness = (r + g + b) / 3;
-              if (a > 128 && brightness < 160) { // Slightly more aggressive threshold
-                byte |= (1 << (7 - bit));
-              }
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < widthBytes; x++) {
+        let byte = 0;
+        for (let bit = 0; bit < 8; bit++) {
+          const px = x * 8 + bit;
+          if (px < width) {
+            const idx = (y * width + px) * 4;
+            const r = pixels[idx];
+            const g = pixels[idx + 1];
+            const b = pixels[idx + 2];
+            const a = pixels[idx + 3];
+            
+            // Threshold for black/white
+            const brightness = (r + g + b) / 3;
+            if (a > 128 && brightness < 128) {
+              byte |= (1 << (7 - bit));
             }
           }
-          data.push(byte);
         }
+        data.push(byte);
       }
-
-      await this.printRaw(new Uint8Array(data));
-      // Minimal pause between strips
-      await new Promise(resolve => setTimeout(resolve, 20));
     }
+
+    await this.printRaw(new Uint8Array(data));
   }
 
   public static async printTextLine(text: string, width: number, options: any = {}) {
@@ -238,15 +227,13 @@ export class BluetoothPrinterService {
   static async printRaw(data: Uint8Array) {
     if (!this.characteristic) throw new Error('Printer not connected');
     
-    // Use a larger chunk size for significantly faster printing
-    // Most modern Bluetooth printers handle 512 bytes easily
-    const chunkSize = 512; 
+    // Use a smaller chunk size for better compatibility with various thermal printers
+    const chunkSize = 20; 
     for (let i = 0; i < data.length; i += chunkSize) {
       const chunk = data.slice(i, i + chunkSize);
       try {
-        if (this.characteristic.properties.writeWithoutResponse) {
-          await this.characteristic.writeValueWithoutResponse(chunk);
-        } else if (this.characteristic.writeValueWithResponse) {
+        // Try newer methods first, fallback to deprecated writeValue for older browsers
+        if (this.characteristic.writeValueWithResponse) {
           if (this.characteristic.properties.write) {
             await this.characteristic.writeValueWithResponse(chunk);
           } else {
@@ -255,13 +242,13 @@ export class BluetoothPrinterService {
         } else {
           await this.characteristic.writeValue(chunk);
         }
-        // Minimal delay to prevent buffer overflow while maintaining high speed
-        await new Promise(resolve => setTimeout(resolve, 2));
+        // Very small delay to prevent buffer overflow on slower printer controllers
+        await new Promise(resolve => setTimeout(resolve, 10));
       } catch (error) {
         console.error('Chunk write failed:', error);
+        // Final attempt with writeValue if other methods failed
         try {
           await this.characteristic.writeValue(chunk);
-          await new Promise(resolve => setTimeout(resolve, 10)); // Fallback to slower speed on error
         } catch (innerError) {
           throw new Error('Failed to write to printer characteristic');
         }
@@ -272,104 +259,50 @@ export class BluetoothPrinterService {
   static async printElement(element: HTMLElement, paperWidth: string = '80mm') {
     const pixelWidth = paperWidth === '58mm' ? 384 : 576;
     
+    // Create a temporary container to fix the width for rendering
+    const container = document.createElement('div');
+    container.style.position = 'absolute';
+    container.style.left = '-9999px';
+    container.style.top = '0';
+    container.style.width = `${pixelWidth}px`;
+    container.style.backgroundColor = 'white';
+    
     // Clone the element to avoid modifying the original
     const clone = element.cloneNode(true) as HTMLElement;
-    
-    // Reset some styles on the clone to make it print-friendly
-    // We use a smaller width for the clone so that text appears larger relative to the page width
-    clone.style.width = paperWidth === '58mm' ? '300px' : '400px'; 
+    clone.style.width = '100%';
     clone.style.margin = '0';
-    clone.style.padding = '0'; 
+    clone.style.padding = '10px'; // Add some padding for better look
     clone.style.boxSizing = 'border-box';
-    clone.style.display = 'block';
-    clone.style.position = 'absolute';
-    clone.style.left = '-9999px';
-    clone.style.top = '0';
-    clone.style.fontSize = '20px'; // Increase base font size
-    clone.classList.remove('hidden', 'p-4', 'p-6', 'p-8', 'p-10', 'md:p-10'); 
+    clone.style.display = 'block'; // Ensure it's visible for capture
+    clone.classList.remove('hidden'); // Remove tailwind hidden if present
     
-    // Force all text to be black and increase font weights/sizes
-    const allElements = clone.querySelectorAll('*');
-    allElements.forEach((el: any) => {
-      el.style.color = 'black';
-      el.style.borderColor = 'black';
-      
-      // Increase font size for all elements to meet the "3x" request
-      const currentSize = window.getComputedStyle(el).fontSize;
-      const sizeValue = parseFloat(currentSize);
-      if (!isNaN(sizeValue)) {
-        el.style.fontSize = (sizeValue * 1.5) + 'px'; // 1.5x on top of the base increase
-      }
-
-      if (el.style.backgroundColor && el.style.backgroundColor !== 'transparent') {
-        el.style.backgroundColor = 'white';
-      }
-    });
-
-    document.body.appendChild(clone);
+    container.appendChild(clone);
+    document.body.appendChild(container);
     
     try {
-      // Wait for images to load
-      const images = clone.querySelectorAll('img');
-      const imagePromises = Array.from(images).map(img => {
-        if (img.complete) return Promise.resolve();
-        return new Promise(resolve => {
-          img.onload = resolve;
-          img.onerror = resolve;
-        });
-      });
+      // Small delay to ensure any rendering/animations are finished
+      await new Promise(resolve => setTimeout(resolve, 500));
       
-      await Promise.all(imagePromises);
-      // Wait for fonts to be loaded to ensure Bangla and other fonts render correctly
-      if ((document as any).fonts) {
-        await (document as any).fonts.ready;
-      }
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      const capturedCanvas = await html2canvas(clone, {
-        width: paperWidth === '58mm' ? 300 : 400,
-        scale: 2, 
+      const canvas = await html2canvas(clone, {
+        width: pixelWidth,
+        scale: 1,
         useCORS: true,
         backgroundColor: '#ffffff',
         logging: false
       });
       
-      // Create the final canvas with the printer's width
-      const finalCanvas = document.createElement('canvas');
-      finalCanvas.width = pixelWidth;
-      // Scale height proportionally
-      finalCanvas.height = (capturedCanvas.height / capturedCanvas.width) * pixelWidth;
-      
-      const ctx = finalCanvas.getContext('2d');
-      if (ctx) {
-        ctx.fillStyle = 'white';
-        ctx.fillRect(0, 0, finalCanvas.width, finalCanvas.height);
-        // Draw the high-res capture onto the printer-width canvas
-        ctx.drawImage(capturedCanvas, 0, 0, capturedCanvas.width, capturedCanvas.height, 0, 0, finalCanvas.width, finalCanvas.height);
-      }
-      
       await this.printRaw(new Uint8Array(this.COMMANDS.INIT));
-      await this.printCanvas(finalCanvas);
-      // Feed some lines and cut
+      await this.printCanvas(canvas);
       await this.printRaw(new Uint8Array([...Array(4).fill(0x0A), ...this.COMMANDS.CUT]));
     } finally {
-      document.body.removeChild(clone);
+      document.body.removeChild(container);
     }
   }
 
   static async printInvoice(business: Business, order: Order, transaction?: any, elementId: string = 'invoice-content') {
-    // Attempt to print the HTML element first to preserve formatting
-    const element = document.getElementById(elementId);
-    if (element) {
-      try {
-        await this.printElement(element, business.printerSettings?.paperWidth || '80mm');
-        return;
-      } catch (error) {
-        console.error('Element printing failed, falling back to text:', error);
-      }
-    }
-
-    // Fallback to text-based printing if element not found or fails
+    // We prefer text-based printing because it's much more reliable on thermal printers
+    // and handles Bangla correctly by rendering only text lines to canvas when needed.
+    
     const width = business.printerSettings?.paperWidth === '58mm' ? 32 : 48;
     const pixelWidth = business.printerSettings?.paperWidth === '58mm' ? 384 : 576;
     
@@ -441,17 +374,6 @@ export class BluetoothPrinterService {
   }
 
   static async printKOT(business: Business, order: Order | any, elementId: string = 'kot-content') {
-    // Attempt to print the HTML element first to preserve formatting
-    const element = document.getElementById(elementId);
-    if (element) {
-      try {
-        await this.printElement(element, business.printerSettings?.paperWidth || '80mm');
-        return;
-      } catch (error) {
-        console.error('Element printing failed, falling back to text:', error);
-      }
-    }
-
     const width = business.printerSettings?.paperWidth === '58mm' ? 32 : 48;
     const pixelWidth = business.printerSettings?.paperWidth === '58mm' ? 384 : 576;
     
