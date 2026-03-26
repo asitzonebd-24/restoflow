@@ -105,6 +105,7 @@ export const Transactions = () => {
 
     const printInvoice = () => {
       setTimeout(() => {
+        window.focus();
         window.print();
       }, 1000);
     };

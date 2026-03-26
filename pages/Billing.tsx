@@ -180,6 +180,7 @@ export const Billing = () => {
   const printInvoice = () => {
     // Ensure the modal is fully rendered before printing
     setTimeout(() => {
+      window.focus();
       window.print();
     }, 500);
   };

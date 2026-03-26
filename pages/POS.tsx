@@ -22,6 +22,7 @@ import {
   Search,
   Clock,
   ChevronRight,
+  Printer,
   Utensils
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -59,7 +60,8 @@ const POSCartContent = ({
   cartTotal,
   createAndSubmitOrder,
   isTokenDuplicate,
-  isSubmitting
+  isSubmitting,
+  printKOT
 }: { 
   onClose?: () => void, 
   isEmbedded?: boolean,
@@ -86,7 +88,8 @@ const POSCartContent = ({
   cartTotal: number,
   createAndSubmitOrder: () => void,
   isTokenDuplicate: boolean,
-  isSubmitting: boolean
+  isSubmitting: boolean,
+  printKOT: () => void
 }) => (
   <div className={`flex flex-col ${isEmbedded ? 'h-auto' : 'h-full'} bg-white border-l-2 border-indigo-500 shadow-2xl shadow-indigo-100`}>
     <div className="p-6 md:p-8 border-b border-slate-100 bg-slate-50/30 shrink-0">
@@ -256,9 +259,17 @@ const POSCartContent = ({
         <button 
           onClick={createAndSubmitOrder}
           disabled={cart.length === 0 || isTokenDuplicate || (isCreatingNew && !newTableNum.trim() && !isDelivery) || (isDelivery && !selectedDeliveryStaffId) || isSubmitting}
-          className={`w-full py-4 rounded-2xl font-bold uppercase tracking-widest text-[10px] shadow-xl flex items-center justify-center gap-3 active:scale-95 transition-all disabled:opacity-30 border-2 ${isTokenDuplicate ? 'bg-rose-500 text-white border-rose-600 shadow-rose-100' : 'bg-slate-900 text-white hover:bg-slate-800 border-indigo-500 shadow-indigo-100'}`}
+          className={`flex-1 py-4 rounded-2xl font-bold uppercase tracking-widest text-[10px] shadow-xl flex items-center justify-center gap-3 active:scale-95 transition-all disabled:opacity-30 border-2 ${isTokenDuplicate ? 'bg-rose-500 text-white border-rose-600 shadow-rose-100' : 'bg-slate-900 text-white hover:bg-slate-800 border-indigo-500 shadow-indigo-100'}`}
         >
           {isSubmitting ? 'Processing...' : (isCreatingNew ? (isTokenDuplicate ? 'Duplicate Token' : (!newTableNum.trim() && !isDelivery ? 'Table Required' : (isDelivery && !selectedDeliveryStaffId ? 'Select Staff' : 'Send to Kitchen'))) : 'Update Order')} <ArrowRight size={18} />
+        </button>
+        <button 
+          onClick={printKOT}
+          disabled={cart.length === 0}
+          className="w-14 py-4 rounded-2xl bg-white border-2 border-slate-900 text-slate-900 flex items-center justify-center shadow-xl hover:bg-slate-50 transition-all active:scale-95 disabled:opacity-30"
+          title="Print KOT"
+        >
+          <Printer size={20} />
         </button>
       </div>
     </div>
@@ -282,6 +293,7 @@ export const POS = () => {
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [filter, setFilter] = useState<'pending' | 'done'>('pending');
+  const [showKOT, setShowKOT] = useState(false);
 
   const categories = useMemo(() => ['All', ...Array.from(new Set(menu.map(m => m.category)))], [menu]);
 
@@ -498,6 +510,15 @@ export const POS = () => {
 
   const cartTotal = cart.reduce((sum, i) => sum + (i.price * i.quantity), 0);
   const cartCount = cart.reduce((acc, i) => acc + i.quantity, 0);
+
+  const printKOT = () => {
+    setShowKOT(true);
+    setTimeout(() => {
+      window.focus();
+      window.print();
+      setShowKOT(false);
+    }, 500);
+  };
 
   if (!selectedOrderId && !isCreatingNew) {
     return (
@@ -796,6 +817,7 @@ export const POS = () => {
                 createAndSubmitOrder={createAndSubmitOrder}
                 isTokenDuplicate={isTokenDuplicate}
                 isSubmitting={isSubmitting}
+                printKOT={printKOT}
               />
             </div>
           )}
@@ -829,8 +851,40 @@ export const POS = () => {
             createAndSubmitOrder={createAndSubmitOrder}
             isTokenDuplicate={isTokenDuplicate}
             isSubmitting={isSubmitting}
+            printKOT={printKOT}
          />
       </div>
+
+      {/* KOT Print Content (Hidden normally, visible during print) */}
+      {showKOT && (
+        <div id="kot-content" className="hidden print:block p-4 font-mono">
+          <div className="text-center border-b-2 border-black pb-4 mb-4">
+            <h2 className="text-xl font-bold uppercase tracking-widest">KITCHEN TICKET</h2>
+            <p className="text-sm">Token: #{isCreatingNew ? newTokenNum : orders.find(o => o.id === selectedOrderId)?.tokenNumber}</p>
+            <p className="text-sm">Table: {isCreatingNew ? (isDelivery ? 'Delivery' : newTableNum) : orders.find(o => o.id === selectedOrderId)?.tableNumber}</p>
+            <p className="text-xs mt-1">{new Date().toLocaleString()}</p>
+          </div>
+          
+          <div className="space-y-2 mb-4">
+            {cart.map((item, i) => (
+              <div key={i} className="flex justify-between items-start text-sm">
+                <span className="font-bold">x{item.quantity} {item.name}</span>
+              </div>
+            ))}
+          </div>
+
+          {orderNote && (
+            <div className="border-t border-black pt-2 mb-4">
+              <p className="text-xs font-bold uppercase">Note:</p>
+              <p className="text-sm italic">{orderNote}</p>
+            </div>
+          )}
+
+          <div className="text-center border-t-2 border-black pt-4">
+            <p className="text-xs">End of Ticket</p>
+          </div>
+        </div>
+      )}
 
       {/* Mobile Sticky Summary Bar Removed as per request - User can scroll to embedded basket */}
 
@@ -876,6 +930,7 @@ export const POS = () => {
                 createAndSubmitOrder={createAndSubmitOrder}
                 isTokenDuplicate={isTokenDuplicate}
                 isSubmitting={isSubmitting}
+                printKOT={printKOT}
               />
             </motion.div>
           </motion.div>
