@@ -70,54 +70,6 @@ export class BluetoothPrinterService {
     return canvas;
   }
 
-  private static async renderLineToCanvas(leftText: string, rightText: string, width: number, options: any = {}): Promise<HTMLCanvasElement> {
-    const canvas = document.createElement('canvas');
-    canvas.width = width;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return canvas;
-
-    const leftFontSize = options.leftFontSize || 24;
-    const rightFontSize = options.rightFontSize || 24;
-    const fontName = '"Inter", "Arial", sans-serif';
-
-    // Set canvas height based on the larger font
-    canvas.height = Math.max(leftFontSize, rightFontSize) + 8;
-
-    // Fill background white
-    ctx.fillStyle = 'white';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    ctx.textBaseline = 'top';
-
-    // Draw right text first to know how much space is left
-    ctx.font = `${options.bold ? 'bold ' : ''}${rightFontSize}px ${fontName}`;
-    ctx.fillStyle = 'black';
-    const rightWidth = ctx.measureText(rightText).width;
-    ctx.fillText(rightText, width - rightWidth, 0);
-
-    // Draw left text, truncating if necessary to avoid overlap
-    ctx.font = `${options.bold ? 'bold ' : ''}${leftFontSize}px ${fontName}`;
-    const availableWidthForLeft = width - rightWidth - 10; // 10px margin
-    let finalLeftText = leftText;
-    
-    if (ctx.measureText(finalLeftText).width > availableWidthForLeft) {
-        let truncated = finalLeftText;
-        while (ctx.measureText(truncated + '...').width > availableWidthForLeft && truncated.length > 0) {
-            truncated = truncated.slice(0, -1);
-        }
-        finalLeftText = truncated + '...';
-    }
-    
-    ctx.fillText(finalLeftText, 0, 0);
-
-    return canvas;
-  }
-
-  private static async printBanglaItemLine(name: string, qty: string, price: string, width: number) {
-    const canvas = await this.renderLineToCanvas(`${name} ${qty}`, price, width, { leftFontSize: 32, rightFontSize: 24 });
-    await this.printCanvas(canvas);
-  }
-
   private static async printCanvas(canvas: HTMLCanvasElement) {
     const width = canvas.width;
     const height = canvas.height;
@@ -379,12 +331,17 @@ export class BluetoothPrinterService {
 
     // Items
     for (const item of order.items) {
-      const qty = `x${item.quantity}`;
-      const price = (item.price * item.quantity).toFixed(2);
-      const name = item.name;
-      
-      const canvas = await this.renderLineToCanvas(`${name} ${qty}`, price, pixelWidth, { leftFontSize: 32, rightFontSize: 24 });
-      await this.printCanvas(canvas);
+      if (this.containsBangla(item.name)) {
+        const qty = `x${item.quantity}`;
+        const price = (item.price * item.quantity).toFixed(2);
+        await this.printTextLine(`${item.name} ${qty} ${price}`, pixelWidth, { align: 'left' });
+      } else {
+        const name = item.name.substring(0, width - 15);
+        const qty = `x${item.quantity}`.padEnd(5);
+        const price = (item.price * item.quantity).toFixed(2);
+        const line = `${name.padEnd(width - 15)} ${qty} ${price.padStart(8)}\n`;
+        await this.printRaw(new Uint8Array(new TextEncoder().encode(line)));
+      }
     }
 
     await this.printRaw(new Uint8Array(new TextEncoder().encode('-'.repeat(width) + '\n')));
