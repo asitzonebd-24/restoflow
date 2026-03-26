@@ -142,6 +142,16 @@ export interface InventoryItem {
   menuCategory?: string; // Link to menu category for auto-sync
 }
 
+export interface Recipe {
+  id: string;
+  tenantId: string;
+  menuItemId: string;
+  ingredients: {
+    inventoryItemId: string;
+    quantity: number; // Amount of inventory item needed
+  }[];
+}
+
 export enum BillStatus {
   PENDING = 'PENDING',
   APPROVED = 'APPROVED',

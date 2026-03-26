@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
-import { Role, Business, User, Order, InventoryItem, MenuItem, OrderStatus, ItemStatus, Transaction, Expense, OrderItem, MonthlyBill, BillStatus } from '../types';
+import { Role, Business, User, Order, InventoryItem, MenuItem, OrderStatus, ItemStatus, Transaction, Expense, OrderItem, MonthlyBill, BillStatus, Recipe } from '../types';
 import { BUSINESS_DETAILS, MOCK_USERS, INITIAL_ORDERS, MOCK_INVENTORY, MOCK_MENU, MOCK_EXPENSES, DEFAULT_MENU_IMAGE, DEFAULT_AVATAR, DEFAULT_BUSINESS_LOGO } from '../constants';
 import { auth, db } from '../firebase';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -107,6 +107,10 @@ interface AppContextType {
   expenses: Expense[];
   addExpense: (expense: Omit<Expense, 'tenantId'>) => Promise<void>;
   deleteExpense: (id: string) => Promise<void>;
+  recipes: Recipe[];
+  addRecipe: (recipe: Omit<Recipe, 'tenantId'>) => Promise<void>;
+  updateRecipe: (id: string, updates: Partial<Recipe>) => Promise<void>;
+  deleteRecipe: (id: string) => Promise<void>;
   monthlyBills: MonthlyBill[];
   generateMonthlyBills: (month: string) => Promise<number>;
   approveBill: (billId: string) => Promise<void>;
@@ -151,6 +155,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [allUsers, setAllUsers] = useState<User[]>([]);
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [allExpenses, setAllExpenses] = useState<Expense[]>([]);
+  const [allRecipes, setAllRecipes] = useState<Recipe[]>([]);
   const [monthlyBills, setMonthlyBills] = useState<MonthlyBill[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState<string>('All');
@@ -177,6 +182,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       { name: 'orders', setter: setAllOrders },
       { name: 'transactions', setter: setAllTransactions },
       { name: 'expenses', setter: setAllExpenses },
+      { name: 'recipes', setter: setAllRecipes },
       { name: 'monthly_bills', setter: setMonthlyBills }
     ];
 
@@ -215,6 +221,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
           if (name === 'inventory_items') setter(MOCK_INVENTORY);
           if (name === 'orders') setter(INITIAL_ORDERS);
           if (name === 'expenses') setter(MOCK_EXPENSES);
+          if (name === 'recipes') setter([]);
           if (name === 'monthly_bills') setter([]);
         }
         
@@ -294,6 +301,11 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     return allExpenses.filter(e => String(e.tenantId) === String(targetId));
   }, [allExpenses, currentUser, currentTenantId]);
 
+  const recipes = useMemo(() => {
+    const targetId = currentUser?.tenantId || currentTenantId;
+    return allRecipes.filter(r => String(r.tenantId) === String(targetId));
+  }, [allRecipes, currentUser, currentTenantId]);
+
 
   const login = (emailOrMobile: string, password: string, tenantId?: string | null): boolean => {
     const user = allUsers.find(u => 
@@ -352,16 +364,30 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         batch.update(itemRef, { stock: newStock });
 
         // Sync with inventory if linked (Direct link or Category link)
-        const linkedInvItem = allInventory.find(inv => 
-          inv.menuItemId === item.itemId || 
-          (inv.menuCategory === menuItem.category && !inv.menuItemId)
-        );
-        if (linkedInvItem) {
-          const invRef = doc(db, 'inventory_items', linkedInvItem.id);
-          batch.update(invRef, { 
-            quantity: Math.max(0, linkedInvItem.quantity - item.quantity),
-            lastUpdated: serverTimestamp()
-          });
+        const recipe = recipes.find(r => r.menuItemId === item.itemId);
+        if (recipe) {
+          for (const ingredient of recipe.ingredients) {
+            const invItem = allInventory.find(i => i.id === ingredient.inventoryItemId);
+            if (invItem) {
+              const invRef = doc(db, 'inventory_items', invItem.id);
+              batch.update(invRef, { 
+                quantity: Math.max(0, invItem.quantity - (ingredient.quantity * item.quantity)),
+                lastUpdated: serverTimestamp()
+              });
+            }
+          }
+        } else {
+          const linkedInvItem = allInventory.find(inv => 
+            inv.menuItemId === item.itemId || 
+            (inv.menuCategory === menuItem.category && !inv.menuItemId)
+          );
+          if (linkedInvItem) {
+            const invRef = doc(db, 'inventory_items', linkedInvItem.id);
+            batch.update(invRef, { 
+              quantity: Math.max(0, linkedInvItem.quantity - item.quantity),
+              lastUpdated: serverTimestamp()
+            });
+          }
         }
       }
     }
@@ -430,16 +456,30 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
           batch.update(itemRef, { stock: newStock });
 
           // Sync with inventory if linked (Direct link or Category link)
-          const linkedInvItem = allInventory.find(inv => 
-            inv.menuItemId === itemId || 
-            (inv.menuCategory === menuItem.category && !inv.menuItemId)
-          );
-          if (linkedInvItem) {
-            const invRef = doc(db, 'inventory_items', linkedInvItem.id);
-            batch.update(invRef, { 
-              quantity: Math.max(0, linkedInvItem.quantity - change),
-              lastUpdated: serverTimestamp()
-            });
+          const recipe = recipes.find(r => r.menuItemId === itemId);
+          if (recipe) {
+            for (const ingredient of recipe.ingredients) {
+              const invItem = allInventory.find(i => i.id === ingredient.inventoryItemId);
+              if (invItem) {
+                const invRef = doc(db, 'inventory_items', invItem.id);
+                batch.update(invRef, { 
+                  quantity: Math.max(0, invItem.quantity - (ingredient.quantity * change)),
+                  lastUpdated: serverTimestamp()
+                });
+              }
+            }
+          } else {
+            const linkedInvItem = allInventory.find(inv => 
+              inv.menuItemId === itemId || 
+              (inv.menuCategory === menuItem.category && !inv.menuItemId)
+            );
+            if (linkedInvItem) {
+              const invRef = doc(db, 'inventory_items', linkedInvItem.id);
+              batch.update(invRef, { 
+                quantity: Math.max(0, linkedInvItem.quantity - change),
+                lastUpdated: serverTimestamp()
+              });
+            }
           }
         }
       }
@@ -478,16 +518,30 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             batch.update(itemRef, { stock: newStock });
 
             // Sync with inventory if linked (Direct link or Category link)
-            const linkedInvItem = allInventory.find(inv => 
-              inv.menuItemId === item.itemId || 
-              (inv.menuCategory === menuItem.category && !inv.menuItemId)
-            );
-            if (linkedInvItem) {
-              const invRef = doc(db, 'inventory_items', linkedInvItem.id);
-              batch.update(invRef, { 
-                quantity: linkedInvItem.quantity + item.quantity,
-                lastUpdated: serverTimestamp()
-              });
+            const recipe = recipes.find(r => r.menuItemId === item.itemId);
+            if (recipe) {
+              for (const ingredient of recipe.ingredients) {
+                const invItem = allInventory.find(i => i.id === ingredient.inventoryItemId);
+                if (invItem) {
+                  const invRef = doc(db, 'inventory_items', invItem.id);
+                  batch.update(invRef, { 
+                    quantity: invItem.quantity + (ingredient.quantity * item.quantity),
+                    lastUpdated: serverTimestamp()
+                  });
+                }
+              }
+            } else {
+              const linkedInvItem = allInventory.find(inv => 
+                inv.menuItemId === item.itemId || 
+                (inv.menuCategory === menuItem.category && !inv.menuItemId)
+              );
+              if (linkedInvItem) {
+                const invRef = doc(db, 'inventory_items', linkedInvItem.id);
+                batch.update(invRef, { 
+                  quantity: linkedInvItem.quantity + item.quantity,
+                  lastUpdated: serverTimestamp()
+                });
+              }
             }
           }
         }
@@ -533,16 +587,30 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
           batch.update(itemRef, { stock: newStock });
 
           // Sync with inventory if linked (Direct link or Category link)
-          const linkedInvItem = allInventory.find(inv => 
-            inv.menuItemId === itemToUpdate.itemId || 
-            (inv.menuCategory === menuItem.category && !inv.menuItemId)
-          );
-          if (linkedInvItem) {
-            const invRef = doc(db, 'inventory_items', linkedInvItem.id);
-            batch.update(invRef, { 
-              quantity: linkedInvItem.quantity + itemToUpdate.quantity,
-              lastUpdated: serverTimestamp()
-            });
+          const recipe = recipes.find(r => r.menuItemId === itemToUpdate.itemId);
+          if (recipe) {
+            for (const ingredient of recipe.ingredients) {
+              const invItem = allInventory.find(i => i.id === ingredient.inventoryItemId);
+              if (invItem) {
+                const invRef = doc(db, 'inventory_items', invItem.id);
+                batch.update(invRef, { 
+                  quantity: invItem.quantity + (ingredient.quantity * itemToUpdate.quantity),
+                  lastUpdated: serverTimestamp()
+                });
+              }
+            }
+          } else {
+            const linkedInvItem = allInventory.find(inv => 
+              inv.menuItemId === itemToUpdate.itemId || 
+              (inv.menuCategory === menuItem.category && !inv.menuItemId)
+            );
+            if (linkedInvItem) {
+              const invRef = doc(db, 'inventory_items', linkedInvItem.id);
+              batch.update(invRef, { 
+                quantity: linkedInvItem.quantity + itemToUpdate.quantity,
+                lastUpdated: serverTimestamp()
+              });
+            }
           }
         }
       }
@@ -816,6 +884,35 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     }
   };
 
+  const addRecipe = async (recipe: Omit<Recipe, 'tenantId'>) => {
+    const tenantId = currentUser?.tenantId || currentTenantId || '';
+    const newRecipe = { ...recipe, tenantId } as Recipe;
+    try {
+      const recipeRef = doc(db, 'recipes', newRecipe.id);
+      await setDoc(recipeRef, cleanObject(newRecipe));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'recipes');
+    }
+  };
+
+  const updateRecipe = async (id: string, updates: Partial<Recipe>) => {
+    try {
+      const recipeRef = doc(db, 'recipes', id);
+      await updateDoc(recipeRef, cleanObject(updates));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `recipes/${id}`);
+    }
+  };
+
+  const deleteRecipe = async (id: string) => {
+    try {
+      const recipeRef = doc(db, 'recipes', id);
+      await deleteDoc(recipeRef);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `recipes/${id}`);
+    }
+  };
+
   const addUser = async (user: User | Omit<User, 'tenantId'>) => {
     const tenantId = (user as User).tenantId || currentUser?.tenantId || currentTenantId || '';
     const newUser = { 
@@ -1070,6 +1167,10 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       addExpenseCategory,
       renameExpenseCategory,
       deleteExpenseCategory,
+      recipes,
+      addRecipe,
+      updateRecipe,
+      deleteRecipe,
       users,
       addUser,
       updateUser,

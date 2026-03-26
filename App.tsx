@@ -14,6 +14,7 @@ import { Billing } from './pages/Billing';
 import { Transactions } from './pages/Transactions';
 import { Expenses } from './pages/Expenses';
 import { Reports } from './pages/Reports';
+import { RecipeBuilder } from './pages/RecipeBuilder';
 import { Users as UsersPage } from './pages/Users';
 import { Settings as SettingsPage } from './pages/Settings';
 import { CustomerOrder } from './pages/CustomerOrder';
@@ -26,7 +27,7 @@ import { PendingBills } from './pages/PendingBills';
 import { ApprovedBills } from './pages/ApprovedBills';
 import { PlatformExpenses } from './pages/PlatformExpenses';
 import { Role } from './types';
-import { LayoutDashboard, UtensilsCrossed, ChefHat, Receipt, Package, LogOut, Settings, Users as UsersIcon, History, Wallet, PieChart, Menu as MenuIcon, User as UserCircle, ShieldCheck, PowerOff, FileText, CheckCircle, Menu, X } from 'lucide-react';
+import { LayoutDashboard, UtensilsCrossed, ChefHat, Receipt, Package, LogOut, Settings, Users as UsersIcon, History, Wallet, PieChart, Menu as MenuIcon, User as UserCircle, ShieldCheck, PowerOff, FileText, CheckCircle, Menu, X, Utensils } from 'lucide-react';
 
 const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) => {
   const { business, currentUser, logout } = useApp();
@@ -128,6 +129,12 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
                 {permissions.includes('Inventory') && (
                   <NavLink to={`/${tId}/inventory`} onClick={() => onClose()} className={navItemClass('/inventory')} title="Inventory">
                     <Package size={22} />
+                  </NavLink>
+                )}
+
+                {permissions.includes('Inventory') && (
+                  <NavLink to={`/${tId}/recipe-builder`} onClick={() => onClose()} className={navItemClass('/recipe-builder')} title="Recipe Builder">
+                    <Utensils size={22} />
                   </NavLink>
                 )}
 
@@ -442,6 +449,7 @@ const AppContent = () => {
       <Route path="/:tenantId/kitchen" element={<ProtectedLayout><Kitchen /></ProtectedLayout>} />
       <Route path="/:tenantId/menu" element={<ProtectedLayout><MenuManagement /></ProtectedLayout>} />
       <Route path="/:tenantId/inventory" element={<ProtectedLayout><Inventory /></ProtectedLayout>} />
+      <Route path="/:tenantId/recipe-builder" element={<ProtectedLayout><RecipeBuilder /></ProtectedLayout>} />
       <Route path="/:tenantId/billing" element={<ProtectedLayout><Billing /></ProtectedLayout>} />
       <Route path="/:tenantId/transactions" element={<ProtectedLayout><Transactions /></ProtectedLayout>} />
       <Route path="/:tenantId/expenses" element={<ProtectedLayout><Expenses /></ProtectedLayout>} />
