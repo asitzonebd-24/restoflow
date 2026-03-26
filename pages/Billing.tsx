@@ -534,43 +534,43 @@ export const Billing = () => {
               </button>
             </div>
             
-            <div className="p-4 md:p-10 overflow-y-auto no-scrollbar print:p-0 print:overflow-visible flex-1" id="invoice-content">
+            <div className="p-4 md:p-10 overflow-y-auto no-scrollbar print:p-0 print:overflow-visible flex-1 text-black" id="invoice-content">
               <div className="text-center mb-6 md:mb-10">
                 {currentTenant?.printerSettings?.showLogo !== false && (
-                  <div className="h-12 w-12 md:h-16 md:w-16 mx-auto mb-3 md:mb-4 rounded-xl md:rounded-2xl border border-slate-100 bg-slate-50 flex items-center justify-center overflow-hidden shadow-sm">
+                  <div className="h-12 w-12 md:h-16 md:w-16 mx-auto mb-3 md:mb-4 rounded-xl md:rounded-2xl border border-black bg-slate-50 flex items-center justify-center overflow-hidden shadow-sm">
                     {currentTenant?.logo ? (
                       <img src={currentTenant.logo} className="h-full w-full object-contain" alt="Logo"/>
                     ) : (
-                      <Store size={24} className="text-indigo-600 md:size-32" />
+                      <Store size={24} className="text-black md:size-32" />
                     )}
                   </div>
                 )}
-                <h2 className="text-xl md:text-2xl font-bold text-slate-900 tracking-tight mb-1">{currentTenant?.name}</h2>
+                <h2 className="text-xl md:text-2xl font-bold text-black tracking-tight mb-1">{currentTenant?.name}</h2>
                 {currentTenant?.printerSettings?.receiptHeader ? (
-                  <p className="text-[10px] text-slate-500 font-bold whitespace-pre-line mb-2">{currentTenant.printerSettings.receiptHeader}</p>
+                  <p className="text-sm text-black font-bold whitespace-pre-line mb-2">{currentTenant.printerSettings.receiptHeader}</p>
                 ) : (
                   <>
-                    <p className="text-[8px] md:text-[10px] text-slate-400 font-bold uppercase tracking-widest">{currentTenant?.address}</p>
-                    <p className="text-[8px] md:text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Tel: {currentTenant?.phone}</p>
+                    <p className="text-xs md:text-sm text-black font-bold uppercase tracking-widest">{currentTenant?.address}</p>
+                    <p className="text-xs md:text-sm text-black font-bold uppercase tracking-widest mt-1">Tel: {currentTenant?.phone}</p>
                   </>
                 )}
               </div>
               
-              <div className="border-y border-slate-100 py-6 md:py-8 mb-6 md:mb-8 text-center bg-slate-50/50 rounded-2xl md:rounded-3xl">
-                  <span className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1 md:mb-2">Service Token</span>
+              <div className="border-y border-black py-6 md:py-8 mb-6 md:mb-8 text-center bg-slate-50/50 rounded-2xl md:rounded-3xl">
+                  <span className="text-xs md:text-sm font-bold text-black uppercase tracking-widest block mb-1 md:mb-2">Service Token</span>
                   <div className="flex flex-col items-center gap-1 md:gap-2">
-                    <span className="text-4xl md:text-5xl text-slate-900 font-bold tracking-tight">#{invoiceOrder.tokenNumber}</span>
+                    <span className="text-4xl md:text-5xl text-black font-bold tracking-tight">#{invoiceOrder.tokenNumber}</span>
                     <div className="flex flex-col items-center gap-1 mt-2">
-                      <span className="text-[9px] md:text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                      <span className="text-xs md:text-sm font-bold text-black uppercase tracking-widest">
                         Order By: {getCreator(invoiceOrder.createdBy)?.name || 'Unknown'}
                       </span>
                       {invoiceOrder.deliveryStaffName && (
-                        <div className="flex flex-col items-center gap-1 mt-1 p-3 bg-indigo-50 rounded-2xl border-2 border-indigo-100 w-full">
-                          <span className="text-[10px] md:text-xs font-black text-indigo-600 uppercase tracking-widest flex items-center gap-2">
+                        <div className="flex flex-col items-center gap-1 mt-1 p-3 bg-slate-50 rounded-2xl border-2 border-black w-full">
+                          <span className="text-sm md:text-base font-black text-black uppercase tracking-widest flex items-center gap-2">
                             <Truck size={14} /> Delivery: {invoiceOrder.deliveryStaffName}
                           </span>
                           {invoiceOrder.deliveryStaffMobile && (
-                            <span className="text-[9px] md:text-[10px] font-bold text-indigo-400 uppercase tracking-widest">
+                            <span className="text-xs md:text-sm font-bold text-black uppercase tracking-widest">
                               Contact: {invoiceOrder.deliveryStaffMobile}
                             </span>
                           )}
@@ -581,72 +581,72 @@ export const Billing = () => {
               </div>
 
               <div className="space-y-4 mb-10">
-                <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-slate-400 border-b border-slate-100 pb-2">
+                <div className="flex justify-between text-sm font-bold uppercase tracking-widest text-black border-b border-black pb-2">
                   <span>Selection</span>
                   <span>Subtotal</span>
                 </div>
                 <div className="space-y-3">
                   {groupItems(invoiceOrder.items).map((item, i) => (
-                    <div key={i} className="flex justify-between items-center text-xs font-medium">
+                    <div key={i} className="flex justify-between items-center text-base font-medium">
                       <div className="flex items-center gap-3">
-                        <span className="text-indigo-500 font-bold">x{item.quantity}</span>
-                        <span className="text-slate-700">{item.name}</span>
+                        <span className="text-black font-bold">x{item.quantity}</span>
+                        <span className="text-black">{item.name}</span>
                       </div>
-                      <span className="text-slate-900 font-bold">{currentTenant?.currency}{(item.price * item.quantity).toFixed(2)}</span>
+                      <span className="text-black font-bold">{currentTenant?.currency}{(item.price * item.quantity).toFixed(2)}</span>
                     </div>
                   ))}
                 </div>
               </div>
 
-              <div className="space-y-3 pt-6 border-t border-slate-100">
+              <div className="space-y-3 pt-6 border-t border-black">
                 {(() => {
                   const discount = (invoiceOrder as any).discount || 0;
                   const { subtotal, vat, total } = calculateTotal(invoiceOrder, discount);
                   return (
                     <>
-                      <div className="flex justify-between text-[11px] font-bold uppercase tracking-widest text-slate-400">
+                      <div className="flex justify-between text-sm font-bold uppercase tracking-widest text-black">
                         <span>Subtotal</span>
                         <span>{currentTenant?.currency}{subtotal.toFixed(2)}</span>
                       </div>
                       {currentTenant?.includeVat && (
-                        <div className="flex justify-between text-[11px] font-bold uppercase tracking-widest text-slate-400">
+                        <div className="flex justify-between text-sm font-bold uppercase tracking-widest text-black">
                           <span>VAT ({currentTenant?.vatRate}%)</span>
                           <span>{currentTenant?.currency}{vat.toFixed(2)}</span>
                         </div>
                       )}
                       {discount > 0 && (
-                        <div className="flex justify-between text-[11px] font-bold uppercase tracking-widest text-rose-500">
+                        <div className="flex justify-between text-sm font-bold uppercase tracking-widest text-black">
                           <span>Discount</span>
                           <span>-{currentTenant?.currency}{discount.toFixed(2)}</span>
                         </div>
                       )}
-                      <div className="flex justify-between items-center pt-6 mt-4 border-t border-slate-900">
-                        <span className="text-xs font-bold uppercase tracking-widest text-slate-900">Total Amount</span>
-                        <span className="text-3xl font-bold text-slate-900 tracking-tight">{currentTenant?.currency}{total.toFixed(2)}</span>
+                      <div className="flex justify-between items-center pt-6 mt-4 border-t border-black">
+                        <span className="text-base font-bold uppercase tracking-widest text-black">Total Amount</span>
+                        <span className="text-4xl font-bold text-black tracking-tight">{currentTenant?.currency}{total.toFixed(2)}</span>
                       </div>
                     </>
                   );
                 })()}
               </div>
               
-              <div className="text-center mt-16 pt-8 border-t border-slate-50">
+              <div className="text-center mt-16 pt-8 border-t border-black">
                 {currentTenant?.printerSettings?.receiptFooter ? (
-                  <p className="text-[10px] text-slate-500 font-bold whitespace-pre-line mb-4">{currentTenant.printerSettings.receiptFooter}</p>
+                  <p className="text-sm text-black font-bold whitespace-pre-line mb-4">{currentTenant.printerSettings.receiptFooter}</p>
                 ) : (
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Thank You! Come Again</p>
+                  <p className="text-sm font-bold text-black uppercase tracking-widest mb-2">Thank You! Come Again</p>
                 )}
-                <div className="flex flex-col items-center justify-center gap-1 opacity-40">
-                  <p className="text-[8px] font-bold tracking-widest">Powered by: RestoKeep</p>
-                  <p className="text-[8px] font-bold tracking-widest">Web: www.restokeep.app</p>
-                  <p className="text-[8px] font-bold tracking-widest">Mobile: 01303565316</p>
+                <div className="flex flex-col items-center justify-center gap-1">
+                  <p className="text-xs font-bold tracking-widest text-black">Powered by: RestoKeep</p>
+                  <p className="text-xs font-bold tracking-widest text-black">Web: www.restokeep.app</p>
+                  <p className="text-[10px] font-bold tracking-widest text-black">Mobile: 01303565316</p>
                 </div>
                 
                 {/* Mobile Print Tip */}
-                <div className="md:hidden print:hidden mt-6 p-4 bg-indigo-50 rounded-2xl border-2 border-indigo-100">
-                  <p className="text-[9px] text-indigo-600 font-black uppercase leading-tight mb-2 flex items-center gap-2">
+                <div className="md:hidden print:hidden mt-6 p-4 bg-slate-50 rounded-2xl border-2 border-black">
+                  <p className="text-[9px] text-black font-black uppercase leading-tight mb-2 flex items-center gap-2">
                     <Printer size={12} /> Mobile Printing Guide
                   </p>
-                  <p className="text-[8px] text-slate-500 font-bold uppercase leading-relaxed">
+                  <p className="text-[8px] text-black font-bold uppercase leading-relaxed">
                     1. Open app in a new tab for best results.<br/>
                     2. Ensure printer is paired in phone settings.<br/>
                     3. If printer doesn't show, install a free "Print Service" app.<br/>

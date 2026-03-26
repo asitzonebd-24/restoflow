@@ -903,31 +903,31 @@ export const POS = () => {
       </div>
 
       {/* KOT Print Content (Hidden normally, visible during print) */}
-      <div id="kot-content" className="hidden print:block p-4 font-mono print-visible">
+      <div id="kot-content" className="hidden print:block p-4 font-mono print-visible text-black">
         <div className="text-center border-b-2 border-black pb-4 mb-4">
-          <h2 className="text-xl font-bold uppercase tracking-widest">KITCHEN TICKET</h2>
-          <p className="text-sm">Token: #{isCreatingNew ? newTokenNum : orders.find(o => o.id === selectedOrderId)?.tokenNumber}</p>
-          <p className="text-sm">Table: {isCreatingNew ? (isDelivery ? 'Delivery' : newTableNum) : orders.find(o => o.id === selectedOrderId)?.tableNumber}</p>
-          <p className="text-xs mt-1">{new Date().toLocaleString()}</p>
+          <h2 className="text-3xl font-bold uppercase tracking-widest">KITCHEN TICKET</h2>
+          <p className="text-lg font-bold">Token: #{isCreatingNew ? newTokenNum : orders.find(o => o.id === selectedOrderId)?.tokenNumber}</p>
+          <p className="text-lg font-bold">Table: {isCreatingNew ? (isDelivery ? 'Delivery' : newTableNum) : orders.find(o => o.id === selectedOrderId)?.tableNumber}</p>
+          <p className="text-base mt-1 font-bold">{new Date().toLocaleString()}</p>
         </div>
         
-        <div className="space-y-2 mb-4">
+        <div className="space-y-3 mb-4">
           {cart.map((item, i) => (
-            <div key={i} className="flex justify-between items-start text-sm">
-              <span className="font-bold">x{item.quantity} {item.name}</span>
+            <div key={i} className="flex justify-between items-start text-lg">
+              <span className="font-black text-black">x{item.quantity} {item.name}</span>
             </div>
           ))}
         </div>
 
         {orderNote && (
           <div className="border-t border-black pt-2 mb-4">
-            <p className="text-xs font-bold uppercase">Note:</p>
-            <p className="text-sm italic">{orderNote}</p>
+            <p className="text-base font-bold uppercase text-black">Note:</p>
+            <p className="text-lg font-black italic text-black">{orderNote}</p>
           </div>
         )}
 
         <div className="text-center border-t-2 border-black pt-4">
-          <p className="text-xs">End of Ticket</p>
+          <p className="text-base font-bold text-black">End of Ticket</p>
         </div>
       </div>
 
