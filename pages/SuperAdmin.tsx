@@ -183,7 +183,12 @@ export const SuperAdmin = () => {
             Record Expense
           </button>
           <button 
-            onClick={() => setShowModal(true)}
+            onClick={() => {
+              setEditingTenant(null);
+              setNewBusiness({ name: '', address: '', phone: '', currency: '', themeColor: '#0f172a', monthlyBill: 500 });
+              setNewOwner({ name: '', email: '', password: '', mobile: '' });
+              setShowModal(true);
+            }}
             className="flex items-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 transition shadow-lg shadow-indigo-200"
           >
             <Plus size={20} />
@@ -343,6 +348,31 @@ export const SuperAdmin = () => {
                             title="Edit Business"
                           >
                             <Edit3 size={18} />
+                          </button>
+                          <button 
+                            onClick={() => {
+                              setEditingTenant(null);
+                              setNewBusiness({
+                                name: `${tenant.name} (Copy)`,
+                                address: '',
+                                phone: '',
+                                currency: tenant.currency,
+                                themeColor: tenant.themeColor,
+                                monthlyBill: tenant.monthlyBill
+                              });
+                              
+                              setNewOwner({ 
+                                name: '', 
+                                email: '', 
+                                password: '', 
+                                mobile: '' 
+                              });
+                              setShowModal(true);
+                            }}
+                            className="p-2 text-slate-400 hover:text-indigo-600 transition"
+                            title="Duplicate Business"
+                          >
+                            <Copy size={18} />
                           </button>
                           <button 
                             onClick={() => toggleBusinessStatus(tenant.id)}
