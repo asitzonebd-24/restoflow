@@ -47,7 +47,7 @@ export const Settings = () => {
             setName(business.name);
             setAddress(business.address);
             setPhone(business.phone || '');
-            setCurrency(business.currency);
+            setCurrency(business.currency || '৳');
             setLogo(business.logo);
             setThemeColor(business.themeColor);
             setVatRate(business.vatRate);

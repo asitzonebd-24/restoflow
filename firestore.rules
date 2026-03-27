@@ -72,5 +72,10 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isAdmin();
     }
+
+    match /recipes/{recipeId} {
+      allow read: if true;
+      allow write: if isAuthenticated() || isAdmin();
+    }
   }
 }
