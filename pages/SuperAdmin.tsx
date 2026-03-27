@@ -11,6 +11,7 @@ export const SuperAdmin = () => {
   const [showModal, setShowModal] = useState(false);
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
   const [editingTenant, setEditingTenant] = useState<Business | null>(null);
+  const [duplicateSourceId, setDuplicateSourceId] = useState<string | null>(null);
   const [editingBill, setEditingBill] = useState<string | null>(null);
   const [billAmount, setBillAmount] = useState<number>(0);
   const [searchTerm, setSearchTerm] = useState('');
@@ -85,10 +86,26 @@ export const SuperAdmin = () => {
       return;
     }
 
-    createBusiness(newBusiness, newOwner);
+    createBusiness(newBusiness, newOwner, duplicateSourceId || undefined);
     setShowModal(false);
+    setDuplicateSourceId(null);
     setNewBusiness({ name: '', address: '', phone: '', currency: '', themeColor: '#0f172a', monthlyBill: 500 });
     setNewOwner({ name: '', email: '', password: '', mobile: '' });
+  };
+
+  const handleDuplicateTenant = (tenant: Business) => {
+    setDuplicateSourceId(tenant.id);
+    setEditingTenant(null);
+    setNewBusiness({
+      name: `${tenant.name} (Copy)`,
+      address: '',
+      phone: '',
+      currency: tenant.currency,
+      themeColor: tenant.themeColor,
+      monthlyBill: tenant.monthlyBill
+    });
+    setNewOwner({ name: '', email: '', password: '', mobile: '' });
+    setShowModal(true);
   };
 
   const handleEditTenant = (tenant: Business) => {
@@ -338,6 +355,13 @@ export const SuperAdmin = () => {
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <button 
+                            onClick={() => handleDuplicateTenant(tenant)}
+                            className="p-2 text-slate-400 hover:text-indigo-600 transition"
+                            title="Duplicate Business"
+                          >
+                            <Copy size={18} />
+                          </button>
+                          <button 
                             onClick={() => handleEditTenant(tenant)}
                             className="p-2 text-slate-400 hover:text-indigo-600 transition"
                             title="Edit Business"
@@ -420,12 +444,13 @@ export const SuperAdmin = () => {
             <div className="p-6 border-b border-indigo-100 flex items-center justify-between bg-slate-50/50">
               <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
                 <Building2 className="text-indigo-600" />
-                {editingTenant ? `Edit ${editingTenant.name}` : 'Register New Restaurant'}
+                {editingTenant ? `Edit ${editingTenant.name}` : duplicateSourceId ? 'Duplicate Restaurant' : 'Register New Restaurant'}
               </h2>
               <button 
                 onClick={() => {
                   setShowModal(false);
                   setEditingTenant(null);
+                  setDuplicateSourceId(null);
                   setNewBusiness({ name: '', address: '', phone: '', currency: '', themeColor: '#0f172a', monthlyBill: 500 });
                 }} 
                 className="text-slate-400 hover:text-slate-600"
@@ -551,6 +576,7 @@ export const SuperAdmin = () => {
                   onClick={() => {
                     setShowModal(false);
                     setEditingTenant(null);
+                    setDuplicateSourceId(null);
                     setNewBusiness({ name: '', address: '', phone: '', currency: '', themeColor: '#0f172a', monthlyBill: 500 });
                   }}
                   className="flex-1 px-6 py-3 rounded-xl font-bold text-slate-600 hover:bg-slate-100 transition"
@@ -561,7 +587,7 @@ export const SuperAdmin = () => {
                   type="submit"
                   className="flex-1 bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 transition shadow-lg shadow-indigo-200"
                 >
-                  {editingTenant ? 'Save Changes' : 'Create Business'}
+                  {editingTenant ? 'Save Changes' : duplicateSourceId ? 'Duplicate Business' : 'Create Business'}
                 </button>
               </div>
             </form>

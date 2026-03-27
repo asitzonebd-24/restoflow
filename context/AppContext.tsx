@@ -100,7 +100,7 @@ interface AppContextType {
   currentTenant: Business;
   currentTenantId: string | null;
   setCurrentTenantId: (id: string | null) => void;
-  createBusiness: (businessData: Partial<Business>, ownerData: Partial<User>) => Promise<void>;
+  createBusiness: (businessData: Partial<Business>, ownerData: Partial<User>, sourceTenantId?: string) => Promise<void>;
   toggleBusinessStatus: (tenantId: string) => Promise<void>;
   transactions: Transaction[];
   addTransaction: (transaction: Omit<Transaction, 'tenantId'>) => Promise<void>;
@@ -1006,7 +1006,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     }
   };
 
-  const createBusiness = async (businessData: Partial<Business>, ownerData: Partial<User>) => {
+  const createBusiness = async (businessData: Partial<Business>, ownerData: Partial<User>, sourceTenantId?: string) => {
     const numericIds = tenants
       .map(t => parseInt(t.id))
       .filter(id => !isNaN(id))
@@ -1014,6 +1014,14 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     
     const nextId = numericIds.length > 0 ? numericIds[0] + 1 : 1;
     const newTenantId = nextId < 10 ? `0${nextId}` : `${nextId}`;
+
+    let initialMenuCategories = ['Main', 'Starter', 'Beverage', 'Dessert'];
+    if (sourceTenantId) {
+      const sourceTenant = tenants.find(t => t.id === sourceTenantId);
+      if (sourceTenant && sourceTenant.menuCategories) {
+        initialMenuCategories = [...sourceTenant.menuCategories];
+      }
+    }
 
     const newBusiness: Business = {
       id: newTenantId,
@@ -1027,7 +1035,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       timezone: businessData.timezone || 'UTC',
       themeColor: businessData.themeColor || '#0f172a',
       expenseCategories: ['Inventory', 'Utilities', 'Salaries', 'Other'],
-      menuCategories: ['Main', 'Starter', 'Beverage', 'Dessert'],
+      menuCategories: initialMenuCategories,
       customerTokenPrefix: 'ORD',
       nextCustomerToken: 1,
       customerAppEnabled: true,
@@ -1052,6 +1060,20 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       const batch = writeBatch(db);
       batch.set(doc(db, 'tenants', newBusiness.id), newBusiness);
       batch.set(doc(db, 'users', newOwner.id), newOwner);
+
+      if (sourceTenantId) {
+        const sourceMenuItems = allMenu.filter(m => m.tenantId === sourceTenantId);
+        sourceMenuItems.forEach((item, index) => {
+          const newItemId = `m-${Date.now()}-${index}`;
+          const newItem = {
+            ...item,
+            id: newItemId,
+            tenantId: newTenantId
+          };
+          batch.set(doc(db, 'menu_items', newItemId), newItem);
+        });
+      }
+
       await batch.commit();
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'tenants/users');
