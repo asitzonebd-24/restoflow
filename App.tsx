@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate, NavLink, useLocation, useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AppProvider, useApp } from './context/AppContext';
@@ -26,14 +26,18 @@ import { TenantLanding } from './pages/TenantLanding';
 import { PendingBills } from './pages/PendingBills';
 import { ApprovedBills } from './pages/ApprovedBills';
 import { PlatformExpenses } from './pages/PlatformExpenses';
-import { Role } from './types';
+import { Role, OrderStatus } from './types';
 import { LayoutDashboard, UtensilsCrossed, ChefHat, Receipt, Package, LogOut, Settings, Users as UsersIcon, History, Wallet, PieChart, Menu as MenuIcon, User as UserCircle, ShieldCheck, PowerOff, FileText, CheckCircle, Menu, X, Utensils } from 'lucide-react';
 
 const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) => {
-  const { business, currentUser, logout } = useApp();
+  const { business, currentUser, logout, orders } = useApp();
   const location = useLocation();
   const { tenantId: urlTenantId } = useParams();
   const navigate = useNavigate();
+
+  const activeOrdersCount = useMemo(() => {
+    return orders.filter(o => o.status === OrderStatus.PENDING || o.status === OrderStatus.PREPARING).length;
+  }, [orders]);
 
   if (!currentUser || currentUser.role === Role.CUSTOMER) return null;
 
@@ -99,12 +103,22 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
                 {permissions.includes('POS') && (
                   <NavLink to={`/${tId}/pos`} onClick={() => onClose()} className={navItemClass('/pos')} title="Terminal">
                     <UtensilsCrossed size={22} />
+                    {activeOrdersCount > 0 && (
+                        <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[9px] font-black w-5 h-5 flex items-center justify-center rounded-full border-2 border-[#11112b]">
+                          {activeOrdersCount}
+                        </span>
+                    )}
                   </NavLink>
                 )}
 
                 {permissions.includes('Kitchen') && (
                   <NavLink to={`/${tId}/kitchen`} onClick={() => onClose()} className={navItemClass('/kitchen')} title="Kitchen">
                     <ChefHat size={22} />
+                    {activeOrdersCount > 0 && (
+                        <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[9px] font-black w-5 h-5 flex items-center justify-center rounded-full border-2 border-[#11112b]">
+                          {activeOrdersCount}
+                        </span>
+                    )}
                   </NavLink>
                 )}
 
