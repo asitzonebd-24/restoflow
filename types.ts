@@ -137,6 +137,7 @@ export interface InventoryItem {
   quantity: number;
   minThreshold: number;
   supplier: string;
+  materialDetails?: string;
   pricePerUnit: number;
   menuItemId?: string; // Link to menu item for auto-sync
   menuCategory?: string; // Link to menu category for auto-sync

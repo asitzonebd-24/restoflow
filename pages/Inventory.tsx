@@ -2,11 +2,11 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { InventoryItem } from '../types';
-import { Package, AlertTriangle, RefreshCw, Plus, Edit2, X, Save, Search, ChevronRight, CheckCircle, MoreHorizontal, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { Package, AlertTriangle, RefreshCw, Plus, Edit2, X, Save, Search, ChevronRight, CheckCircle, MoreHorizontal, ArrowUpRight, ArrowDownRight, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const Inventory = () => {
-  const { inventory, updateInventory, addInventoryItem, editInventoryItem, currentTenant, menu } = useApp();
+  const { inventory, updateInventory, addInventoryItem, editInventoryItem, deleteInventoryItem, currentTenant, menu } = useApp();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'inventory' | 'menu'>('inventory');
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
@@ -15,6 +15,7 @@ export const Inventory = () => {
   const [formData, setFormData] = useState({
     name: '',
     supplier: '',
+    materialDetails: '',
     unit: 'kg',
     quantity: 0,
     minThreshold: 5,
@@ -23,9 +24,12 @@ export const Inventory = () => {
     menuCategory: ''
   });
 
+  const [restockItem, setRestockItem] = useState<InventoryItem | null>(null);
+  const [restockQuantity, setRestockQuantity] = useState<number>(1);
+
   const openAddModal = () => {
     setEditingItem(null);
-    setFormData({ name: '', supplier: '', unit: 'kg', quantity: 0, minThreshold: 5, pricePerUnit: 0, menuItemId: '', menuCategory: '' });
+    setFormData({ name: '', supplier: '', materialDetails: '', unit: 'kg', quantity: 0, minThreshold: 5, pricePerUnit: 0, menuItemId: '', menuCategory: '' });
     setIsModalOpen(true);
   };
 
@@ -35,6 +39,7 @@ export const Inventory = () => {
     setFormData({ 
       name: item.name, 
       supplier: item.supplier, 
+      materialDetails: item.materialDetails || '',
       unit: item.unit, 
       quantity: item.quantity, 
       minThreshold: item.minThreshold, 
@@ -43,6 +48,12 @@ export const Inventory = () => {
       menuCategory: item.menuCategory || linkedMenu?.category || ''
     });
     setIsModalOpen(true);
+  };
+
+  const handleDelete = (id: string) => {
+    if (window.confirm('Are you sure you want to delete this inventory item?')) {
+      deleteInventoryItem(id);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -64,12 +75,24 @@ export const Inventory = () => {
     setIsModalOpen(false);
   };
 
+  const handleRestockSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (restockItem) {
+      updateInventory(restockItem.id, restockQuantity);
+      setRestockItem(null);
+      setRestockQuantity(1);
+    }
+  };
+
   const filteredInventory = inventory.filter(i => 
     i.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
     i.supplier.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const lowStockCount = inventory.filter(i => i.quantity <= i.minThreshold).length;
+
+  const uniqueMaterialNames = Array.from(new Set(inventory.map(i => i.name))).filter(Boolean);
+  const uniqueSuppliers = Array.from(new Set(inventory.map(i => i.supplier))).filter(Boolean);
 
   return (
     <div className="p-6 md:p-10 h-full overflow-y-auto bg-slate-50/50 no-scrollbar">
@@ -215,6 +238,11 @@ export const Inventory = () => {
                               <div>
                                 <p className="font-bold text-slate-900 text-sm">{item.name}</p>
                                 <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">ID: {item.id.slice(-6).toUpperCase()}</p>
+                                {item.materialDetails && (
+                                  <p className="text-[10px] text-slate-500 mt-1 max-w-[150px] truncate" title={item.materialDetails}>
+                                    {item.materialDetails}
+                                  </p>
+                                )}
                               </div>
                             </div>
                           </td>
@@ -266,19 +294,30 @@ export const Inventory = () => {
                             )}
                           </td>
                           <td className="px-8 py-6 text-right">
-                            <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                            <div className="flex justify-end gap-2 transition-all">
                               <button 
                                 onClick={() => openEditModal(item)}
                                 className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 hover:text-indigo-600 shadow-sm border border-slate-100 transition-all"
+                                title="Edit Item"
                               >
                                 <Edit2 size={16} />
                               </button>
                               <button 
-                                onClick={() => updateInventory(item.id, 1)}
+                                onClick={() => {
+                                  setRestockItem(item);
+                                  setRestockQuantity(1);
+                                }}
                                 className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 hover:text-emerald-500 shadow-sm border border-slate-100 transition-all"
-                                title="Quick Restock +1"
+                                title="Add Stock"
                               >
                                 <RefreshCw size={16} />
+                              </button>
+                              <button 
+                                onClick={() => handleDelete(item.id)}
+                                className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 hover:text-rose-500 shadow-sm border border-slate-100 transition-all"
+                                title="Delete Item"
+                              >
+                                <Trash2 size={16} />
                               </button>
                             </div>
                           </td>
@@ -433,21 +472,43 @@ export const Inventory = () => {
                       <input 
                         type="text" 
                         required
+                        list="material-names"
                         value={formData.name}
                         onChange={(e) => setFormData({...formData, name: e.target.value})}
                         className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                         placeholder="e.g. Basmati Rice"
                       />
+                      <datalist id="material-names">
+                        {uniqueMaterialNames.map((name, idx) => (
+                          <option key={idx} value={name} />
+                        ))}
+                      </datalist>
                     </div>
                     <div className="md:col-span-2">
                       <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Supplier</label>
                       <input 
                         type="text" 
                         required
+                        list="supplier-names"
                         value={formData.supplier}
                         onChange={(e) => setFormData({...formData, supplier: e.target.value})}
                         className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                         placeholder="e.g. Metro Wholesale"
+                      />
+                      <datalist id="supplier-names">
+                        {uniqueSuppliers.map((supplier, idx) => (
+                          <option key={idx} value={supplier} />
+                        ))}
+                      </datalist>
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Material Details</label>
+                      <textarea 
+                        value={formData.materialDetails}
+                        onChange={(e) => setFormData({...formData, materialDetails: e.target.value})}
+                        className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none"
+                        placeholder="e.g. Grade A, Organic, etc."
+                        rows={2}
                       />
                     </div>
                     <div>
@@ -511,6 +572,87 @@ export const Inventory = () => {
                     >
                       <Save size={16} />
                       {editingItem ? 'Update Stock' : 'Create Entry'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Restock Modal */}
+      <AnimatePresence>
+        {restockItem && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+          >
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden border border-slate-100"
+            >
+              <div className="p-8 md:p-10">
+                <div className="flex justify-between items-center mb-8">
+                  <div>
+                    <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Add Stock</h2>
+                    <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-2 opacity-80">Restock {restockItem.name}</p>
+                  </div>
+                  <button 
+                    onClick={() => setRestockItem(null)}
+                    className="w-12 h-12 bg-slate-50 text-slate-400 rounded-2xl flex items-center justify-center hover:bg-slate-100 hover:text-slate-600 transition-all active:scale-95"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+
+                <div className="mb-8 space-y-6">
+                  <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                    <div className="mb-4">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Supplier</p>
+                      <p className="text-sm font-medium text-slate-900">{restockItem.supplier || 'N/A'}</p>
+                    </div>
+                    {restockItem.materialDetails && (
+                      <div>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Material Details</p>
+                        <p className="text-sm text-slate-600 whitespace-pre-wrap">{restockItem.materialDetails}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <form onSubmit={handleRestockSubmit}>
+                  <div className="mb-8">
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Quantity to Add ({restockItem.unit})</label>
+                    <input 
+                      type="number" 
+                      required
+                      min="0.01"
+                      step="0.01"
+                      value={restockQuantity}
+                      onChange={(e) => setRestockQuantity(parseFloat(e.target.value))}
+                      className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                    />
+                  </div>
+
+                  <div className="flex gap-4">
+                    <button 
+                      type="button"
+                      onClick={() => setRestockItem(null)}
+                      className="flex-1 py-4 rounded-2xl font-bold text-slate-400 uppercase tracking-widest text-[10px] bg-slate-50 hover:bg-slate-100 transition-all"
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                      type="submit"
+                      className="flex-[2] py-4 rounded-2xl font-bold text-white uppercase tracking-widest text-[10px] bg-indigo-600 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/30 active:scale-95 flex items-center justify-center gap-3"
+                    >
+                      <RefreshCw size={16} />
+                      Add Stock
                     </button>
                   </div>
                 </form>

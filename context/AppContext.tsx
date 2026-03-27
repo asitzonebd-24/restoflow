@@ -81,6 +81,7 @@ interface AppContextType {
   updateInventory: (itemId: string, quantityChange: number) => Promise<void>;
   addInventoryItem: (item: Omit<InventoryItem, 'tenantId'>) => Promise<void>;
   editInventoryItem: (id: string, updates: Partial<InventoryItem>) => Promise<void>;
+  deleteInventoryItem: (id: string) => Promise<void>;
   addMenuItem: (item: Omit<MenuItem, 'tenantId'>) => Promise<void>;
   updateMenuItem: (itemId: string, updates: Partial<MenuItem>) => Promise<void>;
   deleteMenuItem: (itemId: string) => Promise<void>;
@@ -730,6 +731,15 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     }
   };
 
+  const deleteInventoryItem = async (id: string) => {
+    try {
+      const itemRef = doc(db, 'inventory_items', id);
+      await deleteDoc(itemRef);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `inventory_items/${id}`);
+    }
+  };
+
   const addMenuItem = async (item: Omit<MenuItem, 'tenantId'>) => {
     const tenantId = currentUser?.tenantId || currentTenantId || '';
     const newItem = { ...item, tenantId } as MenuItem;
@@ -1180,6 +1190,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       updateInventory,
       addInventoryItem,
       editInventoryItem,
+      deleteInventoryItem,
       addMenuItem,
       updateMenuItem,
       deleteMenuItem,
