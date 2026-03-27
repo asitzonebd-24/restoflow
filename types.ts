@@ -45,6 +45,8 @@ export interface Business {
   themeColor: string;
   expenseCategories: string[];
   menuCategories: string[];
+  materialNames?: string[];
+  suppliers?: string[];
   customerTokenPrefix: string;
   nextCustomerToken: number;
   customerAppEnabled: boolean;

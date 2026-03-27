@@ -2,12 +2,114 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { InventoryItem } from '../types';
-import { Package, AlertTriangle, RefreshCw, Plus, Edit2, X, Save, Search, ChevronRight, CheckCircle, MoreHorizontal, ArrowUpRight, ArrowDownRight, Trash2 } from 'lucide-react';
+import { Package, AlertTriangle, RefreshCw, Plus, Edit2, X, Save, Search, ChevronRight, CheckCircle, MoreHorizontal, ArrowUpRight, ArrowDownRight, Trash2, Truck, List } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+const ListManagerModal = ({ 
+  isOpen, 
+  onClose, 
+  title, 
+  items, 
+  onAdd, 
+  onDelete, 
+  placeholder 
+}: { 
+  isOpen: boolean; 
+  onClose: () => void; 
+  title: string; 
+  items: string[]; 
+  onAdd: (item: string) => void; 
+  onDelete: (item: string) => void; 
+  placeholder: string; 
+}) => {
+  const [newItem, setNewItem] = useState('');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newItem.trim()) {
+      onAdd(newItem.trim());
+      setNewItem('');
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <AnimatePresence>
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+      >
+        <motion.div 
+          initial={{ scale: 0.95, opacity: 0, y: 20 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          exit={{ scale: 0.95, opacity: 0, y: 20 }}
+          className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden border border-slate-100 flex flex-col max-h-[80vh]"
+        >
+          <div className="p-8 md:p-10 border-b border-slate-100">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-2xl font-bold text-slate-900 tracking-tight">{title}</h2>
+                <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-2 opacity-80">Manage your predefined list</p>
+              </div>
+              <button 
+                onClick={onClose}
+                className="w-12 h-12 bg-slate-50 text-slate-400 rounded-2xl flex items-center justify-center hover:bg-slate-100 hover:text-slate-600 transition-all active:scale-95"
+              >
+                <X size={20} />
+              </button>
+            </div>
+          </div>
+
+          <div className="p-8 md:p-10 overflow-y-auto flex-1">
+            <form onSubmit={handleSubmit} className="mb-8 flex gap-4">
+              <input 
+                type="text" 
+                value={newItem}
+                onChange={(e) => setNewItem(e.target.value)}
+                className="flex-1 px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                placeholder={placeholder}
+              />
+              <button 
+                type="submit"
+                disabled={!newItem.trim()}
+                className="px-6 py-4 rounded-2xl font-bold text-white uppercase tracking-widest text-[10px] bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 transition-all shadow-lg shadow-indigo-500/30 active:scale-95 flex items-center justify-center"
+              >
+                <Plus size={16} />
+              </button>
+            </form>
+
+            <div className="space-y-3">
+              {items.length === 0 ? (
+                <p className="text-center text-slate-400 text-sm py-4">No items added yet.</p>
+              ) : (
+                items.map((item, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <span className="text-sm font-bold text-slate-700">{item}</span>
+                    <button 
+                      onClick={() => onDelete(item)}
+                      className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+};
+
 export const Inventory = () => {
-  const { inventory, updateInventory, addInventoryItem, editInventoryItem, deleteInventoryItem, currentTenant, menu } = useApp();
+  const { inventory, updateInventory, addInventoryItem, editInventoryItem, deleteInventoryItem, currentTenant, menu, updateTenant } = useApp();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isMaterialManagerOpen, setIsMaterialManagerOpen] = useState(false);
+  const [isSupplierManagerOpen, setIsSupplierManagerOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'inventory' | 'menu'>('inventory');
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -26,15 +128,18 @@ export const Inventory = () => {
 
   const [restockItem, setRestockItem] = useState<InventoryItem | null>(null);
   const [restockQuantity, setRestockQuantity] = useState<number>(1);
+  const [newStock, setNewStock] = useState<number | ''>('');
 
   const openAddModal = () => {
     setEditingItem(null);
+    setNewStock('');
     setFormData({ name: '', supplier: '', materialDetails: '', unit: 'kg', quantity: 0, minThreshold: 5, pricePerUnit: 0, menuItemId: '', menuCategory: '' });
     setIsModalOpen(true);
   };
 
   const openEditModal = (item: InventoryItem) => {
     setEditingItem(item);
+    setNewStock('');
     const linkedMenu = menu.find(m => m.id === item.menuItemId);
     setFormData({ 
       name: item.name, 
@@ -56,12 +161,15 @@ export const Inventory = () => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentTenant) return;
 
+    const finalQuantity = formData.quantity + (Number(newStock) || 0);
+
     const data = {
       ...formData,
+      quantity: finalQuantity,
       menuItemId: formData.menuItemId || null,
       menuCategory: formData.menuCategory || null
     };
@@ -72,6 +180,23 @@ export const Inventory = () => {
       const newItem: InventoryItem = { id: `inv-${Date.now()}`, ...data, tenantId: currentTenant.id };
       addInventoryItem(newItem);
     }
+
+    // Auto-save new material names and suppliers
+    const updates: any = {};
+    const currentMaterials = currentTenant.materialNames || [];
+    const currentSuppliers = currentTenant.suppliers || [];
+    
+    if (formData.name.trim() && !currentMaterials.includes(formData.name.trim())) {
+      updates.materialNames = [...currentMaterials, formData.name.trim()];
+    }
+    if (formData.supplier.trim() && !currentSuppliers.includes(formData.supplier.trim())) {
+      updates.suppliers = [...currentSuppliers, formData.supplier.trim()];
+    }
+    
+    if (Object.keys(updates).length > 0) {
+      await updateTenant(currentTenant.id, updates);
+    }
+
     setIsModalOpen(false);
   };
 
@@ -84,6 +209,42 @@ export const Inventory = () => {
     }
   };
 
+  const handleAddMaterial = async (name: string) => {
+    if (!currentTenant || !name.trim()) return;
+    const currentList = currentTenant.materialNames || [];
+    if (!currentList.includes(name.trim())) {
+      await updateTenant(currentTenant.id, {
+        materialNames: [...currentList, name.trim()]
+      });
+    }
+  };
+
+  const handleDeleteMaterial = async (name: string) => {
+    if (!currentTenant) return;
+    const currentList = currentTenant.materialNames || [];
+    await updateTenant(currentTenant.id, {
+      materialNames: currentList.filter(n => n !== name)
+    });
+  };
+
+  const handleAddSupplier = async (name: string) => {
+    if (!currentTenant || !name.trim()) return;
+    const currentList = currentTenant.suppliers || [];
+    if (!currentList.includes(name.trim())) {
+      await updateTenant(currentTenant.id, {
+        suppliers: [...currentList, name.trim()]
+      });
+    }
+  };
+
+  const handleDeleteSupplier = async (name: string) => {
+    if (!currentTenant) return;
+    const currentList = currentTenant.suppliers || [];
+    await updateTenant(currentTenant.id, {
+      suppliers: currentList.filter(n => n !== name)
+    });
+  };
+
   const filteredInventory = inventory.filter(i => 
     i.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
     i.supplier.toLowerCase().includes(searchTerm.toLowerCase())
@@ -91,8 +252,15 @@ export const Inventory = () => {
 
   const lowStockCount = inventory.filter(i => i.quantity <= i.minThreshold).length;
 
-  const uniqueMaterialNames = Array.from(new Set(inventory.map(i => i.name))).filter(Boolean);
-  const uniqueSuppliers = Array.from(new Set(inventory.map(i => i.supplier))).filter(Boolean);
+  const uniqueMaterialNames = Array.from(new Set([
+    ...(currentTenant?.materialNames || []),
+    ...inventory.map(i => i.name)
+  ])).filter(Boolean);
+
+  const uniqueSuppliers = Array.from(new Set([
+    ...(currentTenant?.suppliers || []),
+    ...inventory.map(i => i.supplier)
+  ])).filter(Boolean);
 
   return (
     <div className="p-6 md:p-10 h-full overflow-y-auto bg-slate-50/50 no-scrollbar">
@@ -104,12 +272,26 @@ export const Inventory = () => {
           </h1>
           <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-2 opacity-80">Track stock levels, suppliers and replenishment</p>
         </div>
-        <button 
-          onClick={openAddModal}
-          className="w-full md:w-auto bg-slate-900 text-white px-8 py-4 rounded-2xl text-[10px] font-bold uppercase tracking-widest shadow-xl hover:bg-slate-800 transition-all flex items-center justify-center gap-3 active:scale-95"
-        >
-          <Plus size={18} /> Add Stock Item
-        </button>
+        <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto">
+          <button 
+            onClick={() => setIsMaterialManagerOpen(true)}
+            className="w-full md:w-auto bg-white text-slate-600 border border-slate-200 px-6 py-4 rounded-2xl text-[10px] font-bold uppercase tracking-widest shadow-sm hover:bg-slate-50 transition-all flex items-center justify-center gap-3 active:scale-95"
+          >
+            <List size={18} /> Materials
+          </button>
+          <button 
+            onClick={() => setIsSupplierManagerOpen(true)}
+            className="w-full md:w-auto bg-white text-slate-600 border border-slate-200 px-6 py-4 rounded-2xl text-[10px] font-bold uppercase tracking-widest shadow-sm hover:bg-slate-50 transition-all flex items-center justify-center gap-3 active:scale-95"
+          >
+            <Truck size={18} /> Suppliers
+          </button>
+          <button 
+            onClick={openAddModal}
+            className="w-full md:w-auto bg-slate-900 text-white px-8 py-4 rounded-2xl text-[10px] font-bold uppercase tracking-widest shadow-xl hover:bg-slate-800 transition-all flex items-center justify-center gap-3 active:scale-95"
+          >
+            <Plus size={18} /> Add Stock Item
+          </button>
+        </div>
       </div>
 
       {/* Stats Grid */}
@@ -438,7 +620,16 @@ export const Inventory = () => {
                         <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Menu Category (Sync All)</label>
                         <select 
                           value={formData.menuCategory}
-                          onChange={(e) => setFormData({...formData, menuCategory: e.target.value, menuItemId: ''})}
+                          onChange={(e) => {
+                            const selectedCategory = e.target.value;
+                            const firstItemInCategory = menu.find(m => m.category === selectedCategory);
+                            setFormData({
+                              ...formData, 
+                              menuCategory: selectedCategory, 
+                              menuItemId: '',
+                              quantity: firstItemInCategory ? (firstItemInCategory.stock || 0) : formData.quantity
+                            });
+                          }}
                           className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all appearance-none"
                         >
                           <option value="">No Category Link</option>
@@ -451,7 +642,15 @@ export const Inventory = () => {
                         <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Specific Menu Item (Optional)</label>
                         <select 
                           value={formData.menuItemId}
-                          onChange={(e) => setFormData({...formData, menuItemId: e.target.value})}
+                          onChange={(e) => {
+                            const selectedId = e.target.value;
+                            const selectedItem = menu.find(m => m.id === selectedId);
+                            setFormData({
+                              ...formData, 
+                              menuItemId: selectedId,
+                              quantity: selectedItem ? (selectedItem.stock || 0) : formData.quantity
+                            });
+                          }}
                           className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all appearance-none"
                         >
                           <option value="">No Specific Item Link</option>
@@ -541,9 +740,22 @@ export const Inventory = () => {
                       <input 
                         type="number" 
                         required
-                        value={formData.quantity}
-                        onChange={(e) => setFormData({...formData, quantity: parseFloat(e.target.value)})}
+                        value={formData.quantity + (Number(newStock) || 0)}
+                        onChange={(e) => {
+                          setFormData({...formData, quantity: parseFloat(e.target.value) || 0});
+                          setNewStock('');
+                        }}
                         className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Add New Stock</label>
+                      <input 
+                        type="number" 
+                        value={newStock}
+                        onChange={(e) => setNewStock(e.target.value ? parseFloat(e.target.value) : '')}
+                        className="w-full px-6 py-4 bg-emerald-50 border border-emerald-100 rounded-2xl text-sm font-medium text-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all placeholder:text-emerald-300"
+                        placeholder="+0"
                       />
                     </div>
                     <div>
@@ -661,6 +873,26 @@ export const Inventory = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <ListManagerModal
+        isOpen={isMaterialManagerOpen}
+        onClose={() => setIsMaterialManagerOpen(false)}
+        title="Material Names"
+        items={currentTenant?.materialNames || []}
+        onAdd={handleAddMaterial}
+        onDelete={handleDeleteMaterial}
+        placeholder="e.g. Basmati Rice"
+      />
+
+      <ListManagerModal
+        isOpen={isSupplierManagerOpen}
+        onClose={() => setIsSupplierManagerOpen(false)}
+        title="Suppliers"
+        items={currentTenant?.suppliers || []}
+        onAdd={handleAddSupplier}
+        onDelete={handleDeleteSupplier}
+        placeholder="e.g. Metro Wholesale"
+      />
     </div>
   );
 };
