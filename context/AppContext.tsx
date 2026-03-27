@@ -100,7 +100,7 @@ interface AppContextType {
   currentTenant: Business;
   currentTenantId: string | null;
   setCurrentTenantId: (id: string | null) => void;
-  createBusiness: (businessData: Partial<Business>, ownerData: Partial<User>, sourceTenantId?: string) => Promise<void>;
+  createBusiness: (businessData: Partial<Business>, ownerData: Partial<User>) => Promise<void>;
   toggleBusinessStatus: (tenantId: string) => Promise<void>;
   transactions: Transaction[];
   addTransaction: (transaction: Omit<Transaction, 'tenantId'>) => Promise<void>;
@@ -1006,7 +1006,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     }
   };
 
-  const createBusiness = async (businessData: Partial<Business>, ownerData: Partial<User>, sourceTenantId?: string) => {
+  const createBusiness = async (businessData: Partial<Business>, ownerData: Partial<User>) => {
     const numericIds = tenants
       .map(t => parseInt(t.id))
       .filter(id => !isNaN(id))
@@ -1014,8 +1014,6 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     
     const nextId = numericIds.length > 0 ? numericIds[0] + 1 : 1;
     const newTenantId = nextId < 10 ? `0${nextId}` : `${nextId}`;
-
-    const sourceTenant = sourceTenantId ? tenants.find(t => t.id === sourceTenantId) : null;
 
     const newBusiness: Business = {
       id: newTenantId,
@@ -1028,8 +1026,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       includeVat: businessData.includeVat || false,
       timezone: businessData.timezone || 'UTC',
       themeColor: businessData.themeColor || '#0f172a',
-      expenseCategories: sourceTenant?.expenseCategories || ['Inventory', 'Utilities', 'Salaries', 'Other'],
-      menuCategories: sourceTenant?.menuCategories || ['Main', 'Starter', 'Beverage', 'Dessert'],
+      expenseCategories: ['Inventory', 'Utilities', 'Salaries', 'Other'],
+      menuCategories: ['Main', 'Starter', 'Beverage', 'Dessert'],
       customerTokenPrefix: 'ORD',
       nextCustomerToken: 1,
       customerAppEnabled: true,
@@ -1054,56 +1052,9 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       const batch = writeBatch(db);
       batch.set(doc(db, 'tenants', newBusiness.id), newBusiness);
       batch.set(doc(db, 'users', newOwner.id), newOwner);
-
-      if (sourceTenantId) {
-        // Copy Menu Items
-        const sourceMenu = allMenu.filter(m => m.tenantId === sourceTenantId);
-        const menuIdMap = new Map<string, string>();
-        
-        sourceMenu.forEach(item => {
-          const newId = `m-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-          menuIdMap.set(item.id, newId);
-          const newItem = { ...item, id: newId, tenantId: newTenantId };
-          batch.set(doc(db, 'menu_items', newId), cleanObject(newItem));
-        });
-
-        // Copy Inventory Items
-        const sourceInventory = allInventory.filter(i => i.tenantId === sourceTenantId);
-        const invIdMap = new Map<string, string>();
-        
-        sourceInventory.forEach(item => {
-          const newId = `inv-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-          invIdMap.set(item.id, newId);
-          const newItem = { 
-            ...item, 
-            id: newId, 
-            tenantId: newTenantId,
-            menuItemId: item.menuItemId ? (menuIdMap.get(item.menuItemId) || item.menuItemId) : undefined
-          };
-          batch.set(doc(db, 'inventory_items', newId), cleanObject(newItem));
-        });
-
-        // Copy Recipes
-        const sourceRecipes = allRecipes.filter(r => r.tenantId === sourceTenantId);
-        sourceRecipes.forEach(recipe => {
-          const newId = `rec-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-          const newRecipe = {
-            ...recipe,
-            id: newId,
-            tenantId: newTenantId,
-            menuItemId: menuIdMap.get(recipe.menuItemId) || recipe.menuItemId,
-            ingredients: recipe.ingredients.map(ing => ({
-              ...ing,
-              inventoryItemId: invIdMap.get(ing.inventoryItemId) || ing.inventoryItemId
-            }))
-          };
-          batch.set(doc(db, 'recipes', newId), cleanObject(newRecipe));
-        });
-      }
-
       await batch.commit();
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, 'tenants/users/copy');
+      handleFirestoreError(error, OperationType.WRITE, 'tenants/users');
     }
   };
 
