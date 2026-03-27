@@ -12,6 +12,7 @@ export const SuperAdmin = () => {
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
   const [editingTenant, setEditingTenant] = useState<Business | null>(null);
   const [editingBill, setEditingBill] = useState<string | null>(null);
+  const [duplicateSourceId, setDuplicateSourceId] = useState<string | null>(null);
   const [billAmount, setBillAmount] = useState<number>(0);
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -85,7 +86,8 @@ export const SuperAdmin = () => {
       return;
     }
 
-    createBusiness(newBusiness, newOwner);
+    createBusiness(newBusiness, newOwner, duplicateSourceId || undefined);
+    setDuplicateSourceId(null);
     setShowModal(false);
     setNewBusiness({ name: '', address: '', phone: '', currency: '', themeColor: '#0f172a', monthlyBill: 500 });
     setNewOwner({ name: '', email: '', password: '', mobile: '' });
@@ -185,6 +187,7 @@ export const SuperAdmin = () => {
           <button 
             onClick={() => {
               setEditingTenant(null);
+              setDuplicateSourceId(null);
               setNewBusiness({ name: '', address: '', phone: '', currency: '', themeColor: '#0f172a', monthlyBill: 500 });
               setNewOwner({ name: '', email: '', password: '', mobile: '' });
               setShowModal(true);
@@ -352,6 +355,7 @@ export const SuperAdmin = () => {
                           <button 
                             onClick={() => {
                               setEditingTenant(null);
+                              setDuplicateSourceId(tenant.id);
                               setNewBusiness({
                                 name: `${tenant.name} (Copy)`,
                                 address: '',
@@ -581,6 +585,7 @@ export const SuperAdmin = () => {
                   onClick={() => {
                     setShowModal(false);
                     setEditingTenant(null);
+                    setDuplicateSourceId(null);
                     setNewBusiness({ name: '', address: '', phone: '', currency: '', themeColor: '#0f172a', monthlyBill: 500 });
                   }}
                   className="flex-1 px-6 py-3 rounded-xl font-bold text-slate-600 hover:bg-slate-100 transition"
@@ -591,7 +596,7 @@ export const SuperAdmin = () => {
                   type="submit"
                   className="flex-1 bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 transition shadow-lg shadow-indigo-200"
                 >
-                  {editingTenant ? 'Save Changes' : 'Create Business'}
+                  {editingTenant ? 'Save Changes' : duplicateSourceId ? 'Create Duplicate' : 'Create Business'}
                 </button>
               </div>
             </form>
