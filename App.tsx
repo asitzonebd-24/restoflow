@@ -322,7 +322,7 @@ const ProtectedLayout = ({ children, allowedRoles }: { children?: React.ReactNod
 };
 
 const AppContent = () => {
-  const { currentUser, isLoading, business } = useApp();
+  const { currentUser, isLoading, business, currentTenantId } = useApp();
   const location = useLocation();
 
   React.useEffect(() => {
@@ -416,7 +416,15 @@ const AppContent = () => {
 
   const getDefaultRedirect = () => {
     if (!currentUser) return "/";
-    if (currentUser.role === Role.SUPER_ADMIN) return "/portal";
+    
+    // If Super Admin is in a tenant context, go to that tenant's dashboard
+    if (currentUser.role === Role.SUPER_ADMIN) {
+      if (currentTenantId && currentTenantId !== '00') {
+        return `/${currentTenantId}/dashboard`;
+      }
+      return "/portal";
+    }
+    
     if (currentUser.role === Role.CUSTOMER) return `/${currentUser.tenantId}/order`;
     
     const permissions = currentUser.permissions || [];
@@ -429,9 +437,9 @@ const AppContent = () => {
 
   return (
     <Routes>
-      <Route path="/" element={currentUser ? <Navigate to={getDefaultRedirect()} /> : <Navigate to="/login" replace />} />
+      <Route path="/" element={currentUser ? <Navigate to={getDefaultRedirect()} /> : <Landing />} />
       <Route path="/login" element={currentUser ? <Navigate to={getDefaultRedirect()} /> : <Login />} />
-      <Route path="/order/auth" element={currentUser ? <Navigate to="/order" /> : <CustomerAuth />} />
+      <Route path="/order/auth" element={currentUser ? <Navigate to={currentUser.role === Role.CUSTOMER ? `/${currentUser.tenantId}/order` : "/"} /> : <CustomerAuth />} />
       
       {/* Tenant-specific customer routes */}
       <Route path="/:tenantId/order/auth" element={currentUser ? <Navigate to={`/${currentUser.tenantId}/order`} /> : <CustomerAuth />} />

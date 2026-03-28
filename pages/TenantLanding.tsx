@@ -13,13 +13,29 @@ export const TenantLanding = () => {
     if (tenantId) {
       setCurrentTenantId(tenantId);
     }
-    return () => setCurrentTenantId(null);
   }, [tenantId, setCurrentTenantId]);
 
   const tenant = tenants.find(t => t.id === tenantId);
 
   if (!tenant) {
-    return <Navigate to="/" replace />;
+    return (
+      <div className="min-h-screen bg-[#f8fafc] flex flex-col items-center justify-center p-6 text-center">
+        <div className="w-20 h-20 bg-rose-50 rounded-2xl flex items-center justify-center mb-6">
+          <Utensils size={32} className="text-rose-500" />
+        </div>
+        <h1 className="text-2xl font-bold text-slate-900 mb-2">Business Not Found</h1>
+        <p className="text-slate-500 max-w-md mb-8">
+          The business with ID <span className="font-bold text-slate-900">"{tenantId}"</span> could not be found. 
+          It may have been deleted or the link might be incorrect.
+        </p>
+        <button 
+          onClick={() => navigate('/')}
+          className="bg-slate-900 text-white px-8 py-3 rounded-xl font-bold hover:bg-slate-800 transition shadow-lg"
+        >
+          Return Home
+        </button>
+      </div>
+    );
   }
 
   return (
