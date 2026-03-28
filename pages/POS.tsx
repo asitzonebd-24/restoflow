@@ -514,7 +514,7 @@ export const POS = () => {
 
   const filteredMenu = useMemo(() => {
     return menu.filter(m => {
-      const matchesCategory = activeCategory === 'All' || m.category === activeCategory;
+      const matchesCategory = activeCategory !== 'All' && m.category === activeCategory;
       const matchesSearch = m.name.toLowerCase().includes(searchTerm.toLowerCase());
       return matchesCategory && matchesSearch;
     });

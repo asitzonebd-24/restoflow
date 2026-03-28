@@ -66,7 +66,7 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
       className="sticky top-0 left-0 h-screen flex flex-col items-center py-4 text-white transition-all duration-500 shrink-0 z-[70] shadow-2xl w-20 print:hidden"
       style={{ background: '#11112b' }}
     >
-      <div className="mb-4 shrink-0">
+      <div className="mb-4 shrink-0 cursor-pointer" onClick={() => { logout(); navigate('/login'); }}>
           <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center border border-white/10">
             {business.logo ? (
               <img src={business.logo} alt="Logo" className="w-8 h-8 object-contain" />
