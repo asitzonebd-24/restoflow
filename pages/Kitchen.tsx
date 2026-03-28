@@ -101,22 +101,22 @@ export const Kitchen = () => {
         </div>
 
         <div className="flex flex-col items-start gap-4 w-full md:w-auto">
-          <div className="flex items-center gap-3 bg-white p-1.5 rounded-2xl border-2 border-slate-100 shadow-sm w-fit">
+          <div className="flex items-center gap-3 bg-white p-1.5 rounded-2xl border-2 border-slate-100 shadow-sm w-full md:w-64">
             <button 
               onClick={() => setFilter('pending')}
-              className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'pending' ? 'bg-[#1a1a37] text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
+              className={`flex-1 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'pending' ? 'bg-[#1a1a37] text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
             >
               Pending
             </button>
             <button 
               onClick={() => setFilter('done')}
-              className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'done' ? 'bg-emerald-500 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
+              className={`flex-1 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'done' ? 'bg-emerald-500 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
             >
               Done
             </button>
           </div>
 
-          <button className="bg-rose-100 px-6 py-3 rounded-2xl border-2 border-rose-200 shadow-sm text-[10px] font-black uppercase tracking-widest text-rose-800 w-fit">
+          <button className="bg-rose-100 px-6 py-3 rounded-2xl border-2 border-rose-200 shadow-sm text-[10px] font-black uppercase tracking-widest text-rose-800 w-full md:w-64">
             {filter === 'pending' ? 'Active Orders' : 'Completed Orders'}: <span className="text-rose-900 text-sm">{activeOrders.length}</span>
           </button>
         </div>
@@ -132,7 +132,8 @@ export const Kitchen = () => {
         ) : activeOrders.map(order => {
           const targetStatus = nextStatus(order.status);
           const isAdmin = currentUser?.role === Role.OWNER || currentUser?.role === Role.MANAGER || currentUser?.role === Role.SUPER_ADMIN;
-          const isAllowedToUpdate = isAdmin; // Only admin can edit value of kitchen item menu
+          const isKitchen = currentUser?.role === Role.KITCHEN;
+          const isAllowedToUpdate = isAdmin || isKitchen;
           const creatorName = getCreatorName(order.createdBy);
           const statusColors = getStatusColors(order.status);
           
@@ -202,7 +203,7 @@ export const Kitchen = () => {
                     <div className="relative">
                         <select 
                             value={item.status || OrderStatus.PENDING}
-                            disabled={!isAdmin}
+                            disabled={!isAllowedToUpdate}
                             onChange={(e) => updateOrderItemStatus(order.id, item.rowId, e.target.value as ItemStatus)}
                             className={`text-[9px] font-black uppercase py-1.5 pl-4 pr-8 rounded-full border-2 outline-none transition-all appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${itemStatusColors.lightBg} ${itemStatusColors.border} ${itemStatusColors.text}`}
                         >
