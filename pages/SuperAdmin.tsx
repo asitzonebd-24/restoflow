@@ -2,19 +2,12 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { Business, Role, BillStatus } from '../types';
-import { Plus, Building2, User, Mail, Phone, Globe, MapPin, Search, ExternalLink, Calendar, Power, PowerOff, Edit3, Save, X as CloseIcon, AlertTriangle, Copy, Check, Wallet, Trash2, ChevronDown, ShieldAlert } from 'lucide-react';
+import { Plus, Building2, User, Mail, Phone, Globe, MapPin, Search, ExternalLink, Calendar, Power, PowerOff, Edit3, Save, X as CloseIcon, AlertTriangle, Copy, Check, Wallet, Trash2, ChevronDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { auth } from '../firebase';
 
 export const SuperAdmin = () => {
-  const { tenants, createBusiness, currentUser, toggleBusinessStatus, updateTenant, deleteTenant, allUsers, updateUser, currentTenant, monthlyBills, expenses, addExpense, deleteExpense, setCurrentTenantId, logout } = useApp();
+  const { tenants, createBusiness, currentUser, toggleBusinessStatus, updateTenant, deleteTenant, allUsers, updateUser, currentTenant, monthlyBills, expenses, addExpense, deleteExpense } = useApp();
   const navigate = useNavigate();
-  
-  const isFirebaseAuth = !!auth.currentUser;
-  
-  React.useEffect(() => {
-    setCurrentTenantId(null);
-  }, [setCurrentTenantId]);
   const [showModal, setShowModal] = useState(false);
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
   const [editingTenant, setEditingTenant] = useState<Business | null>(null);
@@ -68,26 +61,6 @@ export const SuperAdmin = () => {
       </div>
     );
   }
-
-  const handleCleanup = async () => {
-    const toDelete = tenants.filter(t => t.id !== '01');
-    if (toDelete.length === 0) {
-      alert('No additional businesses to clean up.');
-      return;
-    }
-
-    if (window.confirm(`Are you sure you want to delete ALL ${toDelete.length} businesses (except the default one)? This action is irreversible.`)) {
-      try {
-        for (const tenant of toDelete) {
-          await deleteTenant(tenant.id);
-        }
-        alert('Cleanup completed successfully.');
-      } catch (err) {
-        console.error('Cleanup failed:', err);
-        alert('Some businesses could not be deleted. Check console for details.');
-      }
-    }
-  };
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
@@ -212,43 +185,13 @@ export const SuperAdmin = () => {
   );
 
   return (
-    <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8">
-      
-      {/* Auth Warning for Super Admin */}
-      {!isFirebaseAuth && (
-        <div className="bg-amber-50 border border-amber-200 rounded-3xl p-6 flex flex-col md:flex-row items-center gap-6 animate-in fade-in slide-in-from-top-4 duration-700">
-          <div className="w-16 h-16 bg-amber-100 rounded-2xl flex items-center justify-center shrink-0">
-            <ShieldAlert className="text-amber-600 w-8 h-8" />
-          </div>
-          <div className="flex-1 text-center md:text-left">
-            <h3 className="text-lg font-bold text-amber-900 mb-1">Secure Authentication Required</h3>
-            <p className="text-amber-700 text-sm leading-relaxed">
-              You are currently using a legacy login. To create or manage businesses in the cloud, you must sign in with your authorized Google account (<span className="font-bold">asitzonebd@gmail.com</span>).
-            </p>
-          </div>
-          <button 
-            onClick={() => { logout(); navigate('/login'); }}
-            className="bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 px-8 rounded-2xl transition-all shadow-lg shadow-amber-200 uppercase text-xs tracking-widest shrink-0"
-          >
-            Sign in with Google
-          </button>
-        </div>
-      )}
-
+    <div className="p-4 md:p-8 max-w-7xl mx-auto">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Portal Administration</h1>
           <p className="text-slate-500">Manage all restaurant businesses and billing</p>
         </div>
         <div className="flex items-center gap-3">
-          <button 
-            onClick={handleCleanup}
-            className="flex items-center gap-2 bg-rose-50 text-rose-600 border-2 border-rose-200 px-6 py-3 rounded-xl font-bold hover:bg-rose-100 transition shadow-sm"
-            title="Delete all businesses except the default one"
-          >
-            <Trash2 size={20} />
-            Clean Up
-          </button>
           <button 
             onClick={() => setIsExpenseModalOpen(true)}
             className="flex items-center gap-2 bg-white text-slate-900 border-2 border-slate-900 px-6 py-3 rounded-xl font-bold hover:bg-slate-50 transition shadow-sm"

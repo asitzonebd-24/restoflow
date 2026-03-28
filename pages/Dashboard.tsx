@@ -2,11 +2,11 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Cell } from 'recharts';
-import { TrendingUp, AlertTriangle, Wallet, ArrowUpRight, ArrowDownRight, PlusCircle, LayoutPanelTop, History, Globe, Calendar, ChevronRight, RefreshCw } from 'lucide-react';
+import { TrendingUp, AlertTriangle, Wallet, ArrowUpRight, ArrowDownRight, PlusCircle, LayoutPanelTop, History, Globe, Calendar, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export const Dashboard = () => {
-  const { orders, inventory, currentTenant, expenses: allExpenses, transactions: allTransactions, refreshData, isRefreshing } = useApp();
+  const { orders, inventory, currentTenant, expenses: allExpenses, transactions: allTransactions } = useApp();
   const navigate = useNavigate();
 
   // Date range state
@@ -153,15 +153,6 @@ export const Dashboard = () => {
             </select>
             <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 rotate-90 text-slate-400 pointer-events-none" size={16} />
           </div>
-
-          <button 
-            onClick={refreshData}
-            disabled={isRefreshing}
-            className="px-5 py-2.5 bg-white border-2 border-slate-100 text-slate-900 rounded-2xl font-bold text-[10px] shadow-sm hover:border-slate-300 transition-all flex items-center gap-2 uppercase tracking-widest disabled:opacity-50"
-          >
-            <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
-            <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
-          </button>
 
           <button 
             onClick={() => navigate(`/${currentTenant?.id}/expenses`)}

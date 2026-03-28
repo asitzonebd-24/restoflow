@@ -185,7 +185,7 @@ export class BluetoothPrinterService {
     }
   }
 
-  static async connect(deviceId?: string): Promise<{ success: boolean; device?: any; error?: 'cancelled' | 'failed' }> {
+  static async connect(deviceId?: string): Promise<{ success: boolean; device?: any }> {
     try {
       // 1. Check if already connected in memory
       if (this.characteristic && this.device?.gatt?.connected) {
@@ -251,13 +251,9 @@ export class BluetoothPrinterService {
       }
       
       throw new Error('No writable characteristic found.');
-    } catch (error: any) {
-      if (error.name === 'NotFoundError' || error.name === 'NotAllowedError' || error.message.includes('cancelled')) {
-        console.warn('Bluetooth connection cancelled by user.');
-        return { success: false, error: 'cancelled' };
-      }
+    } catch (error) {
       console.error('Bluetooth connection failed:', error);
-      return { success: false, error: 'failed' };
+      return { success: false };
     }
   }
 
