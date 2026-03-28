@@ -203,7 +203,7 @@ export const Kitchen = () => {
                     <div className="relative">
                         <select 
                             value={item.status || OrderStatus.PENDING}
-                            disabled={!isAllowedToUpdate}
+                            disabled={!isAllowedToUpdate || item.status === OrderStatus.READY}
                             onChange={(e) => updateOrderItemStatus(order.id, item.rowId, e.target.value as ItemStatus)}
                             className={`text-[9px] font-black uppercase py-1.5 pl-4 pr-8 rounded-full border-2 outline-none transition-all appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${itemStatusColors.lightBg} ${itemStatusColors.border} ${itemStatusColors.text}`}
                         >
