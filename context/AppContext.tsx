@@ -354,15 +354,17 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       }));
 
     // Update menu item stock and validate
+    const inventoryUpdates: { [id: string]: number } = {};
+    const menuUpdates: { [id: string]: number } = {};
+
     for (const item of newOrder.items) {
       const menuItem = allMenu.find(m => m.id === item.itemId);
       if (menuItem && menuItem.stock !== undefined && menuItem.stock !== null) {
-        if (menuItem.stock < item.quantity) {
+        const currentMenuStock = menuUpdates[item.itemId] !== undefined ? menuUpdates[item.itemId] : menuItem.stock;
+        if (currentMenuStock < item.quantity) {
           throw new Error(`Insufficient stock for ${menuItem.name}`);
         }
-        const newStock = Math.max(0, menuItem.stock - item.quantity);
-        const itemRef = doc(db, 'menu_items', item.itemId);
-        batch.update(itemRef, { stock: newStock });
+        menuUpdates[item.itemId] = Math.max(0, currentMenuStock - item.quantity);
 
         // Sync with inventory if linked (Direct link or Category link)
         const recipe = recipes.find(r => r.menuItemId === item.itemId);
@@ -370,11 +372,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
           for (const ingredient of recipe.ingredients) {
             const invItem = allInventory.find(i => i.id === ingredient.inventoryItemId);
             if (invItem) {
-              const invRef = doc(db, 'inventory_items', invItem.id);
-              batch.update(invRef, { 
-                quantity: Math.max(0, invItem.quantity - (ingredient.quantity * item.quantity)),
-                lastUpdated: serverTimestamp()
-              });
+              const currentInvQty = inventoryUpdates[invItem.id] !== undefined ? inventoryUpdates[invItem.id] : invItem.quantity;
+              inventoryUpdates[invItem.id] = Math.max(0, currentInvQty - (ingredient.quantity * item.quantity));
             }
           }
         } else {
@@ -383,14 +382,27 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             (inv.menuCategory === menuItem.category && !inv.menuItemId)
           );
           if (linkedInvItem) {
-            const invRef = doc(db, 'inventory_items', linkedInvItem.id);
-            batch.update(invRef, { 
-              quantity: Math.max(0, linkedInvItem.quantity - item.quantity),
-              lastUpdated: serverTimestamp()
-            });
+            const currentInvQty = inventoryUpdates[linkedInvItem.id] !== undefined ? inventoryUpdates[linkedInvItem.id] : linkedInvItem.quantity;
+            const newInvQty = Math.max(0, currentInvQty - item.quantity);
+            inventoryUpdates[linkedInvItem.id] = newInvQty;
+
+            if (linkedInvItem.menuCategory && !linkedInvItem.menuItemId) {
+              const categoryItems = allMenu.filter(m => m.category === linkedInvItem.menuCategory);
+              categoryItems.forEach(m => {
+                menuUpdates[m.id] = newInvQty;
+              });
+            }
           }
         }
       }
+    }
+
+    // Apply updates to batch
+    for (const [id, stock] of Object.entries(menuUpdates)) {
+      batch.update(doc(db, 'menu_items', id), { stock });
+    }
+    for (const [id, quantity] of Object.entries(inventoryUpdates)) {
+      batch.update(doc(db, 'inventory_items', id), { quantity, lastUpdated: serverTimestamp() });
     }
 
       await batch.commit();
@@ -445,16 +457,18 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       }));
 
       // Update stock in Firestore and validate
+      const inventoryUpdates: { [id: string]: number } = {};
+      const menuUpdates: { [id: string]: number } = {};
+
       for (const itemId in stockChanges) {
         const change = stockChanges[itemId];
         const menuItem = allMenu.find(m => m.id === itemId);
         if (menuItem && menuItem.stock !== undefined && menuItem.stock !== null) {
-          if (change > 0 && menuItem.stock < change) {
+          const currentMenuStock = menuUpdates[itemId] !== undefined ? menuUpdates[itemId] : menuItem.stock;
+          if (change > 0 && currentMenuStock < change) {
             throw new Error(`Insufficient stock for ${menuItem.name}`);
           }
-          const newStock = Math.max(0, menuItem.stock - change);
-          const itemRef = doc(db, 'menu_items', itemId);
-          batch.update(itemRef, { stock: newStock });
+          menuUpdates[itemId] = Math.max(0, currentMenuStock - change);
 
           // Sync with inventory if linked (Direct link or Category link)
           const recipe = recipes.find(r => r.menuItemId === itemId);
@@ -462,11 +476,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             for (const ingredient of recipe.ingredients) {
               const invItem = allInventory.find(i => i.id === ingredient.inventoryItemId);
               if (invItem) {
-                const invRef = doc(db, 'inventory_items', invItem.id);
-                batch.update(invRef, { 
-                  quantity: Math.max(0, invItem.quantity - (ingredient.quantity * change)),
-                  lastUpdated: serverTimestamp()
-                });
+                const currentInvQty = inventoryUpdates[invItem.id] !== undefined ? inventoryUpdates[invItem.id] : invItem.quantity;
+                inventoryUpdates[invItem.id] = Math.max(0, currentInvQty - (ingredient.quantity * change));
               }
             }
           } else {
@@ -475,14 +486,26 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
               (inv.menuCategory === menuItem.category && !inv.menuItemId)
             );
             if (linkedInvItem) {
-              const invRef = doc(db, 'inventory_items', linkedInvItem.id);
-              batch.update(invRef, { 
-                quantity: Math.max(0, linkedInvItem.quantity - change),
-                lastUpdated: serverTimestamp()
-              });
+              const currentInvQty = inventoryUpdates[linkedInvItem.id] !== undefined ? inventoryUpdates[linkedInvItem.id] : linkedInvItem.quantity;
+              const newInvQty = Math.max(0, currentInvQty - change);
+              inventoryUpdates[linkedInvItem.id] = newInvQty;
+
+              if (linkedInvItem.menuCategory && !linkedInvItem.menuItemId) {
+                const categoryItems = allMenu.filter(m => m.category === linkedInvItem.menuCategory);
+                categoryItems.forEach(m => {
+                  menuUpdates[m.id] = newInvQty;
+                });
+              }
             }
           }
         }
+      }
+
+      for (const [id, stock] of Object.entries(menuUpdates)) {
+        batch.update(doc(db, 'menu_items', id), { stock });
+      }
+      for (const [id, quantity] of Object.entries(inventoryUpdates)) {
+        batch.update(doc(db, 'inventory_items', id), { quantity, lastUpdated: serverTimestamp() });
       }
 
       await batch.commit();
@@ -511,12 +534,14 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
       // If order is cancelled, return items to stock
       if (status === OrderStatus.CANCELLED) {
+        const inventoryUpdates: { [id: string]: number } = {};
+        const menuUpdates: { [id: string]: number } = {};
+
         for (const item of order.items) {
           const menuItem = allMenu.find(m => m.id === item.itemId);
           if (menuItem && menuItem.stock !== undefined) {
-            const newStock = menuItem.stock + item.quantity;
-            const itemRef = doc(db, 'menu_items', item.itemId);
-            batch.update(itemRef, { stock: newStock });
+            const currentMenuStock = menuUpdates[item.itemId] !== undefined ? menuUpdates[item.itemId] : menuItem.stock;
+            menuUpdates[item.itemId] = currentMenuStock + item.quantity;
 
             // Sync with inventory if linked (Direct link or Category link)
             const recipe = recipes.find(r => r.menuItemId === item.itemId);
@@ -524,11 +549,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
               for (const ingredient of recipe.ingredients) {
                 const invItem = allInventory.find(i => i.id === ingredient.inventoryItemId);
                 if (invItem) {
-                  const invRef = doc(db, 'inventory_items', invItem.id);
-                  batch.update(invRef, { 
-                    quantity: invItem.quantity + (ingredient.quantity * item.quantity),
-                    lastUpdated: serverTimestamp()
-                  });
+                  const currentInvQty = inventoryUpdates[invItem.id] !== undefined ? inventoryUpdates[invItem.id] : invItem.quantity;
+                  inventoryUpdates[invItem.id] = currentInvQty + (ingredient.quantity * item.quantity);
                 }
               }
             } else {
@@ -537,14 +559,26 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
                 (inv.menuCategory === menuItem.category && !inv.menuItemId)
               );
               if (linkedInvItem) {
-                const invRef = doc(db, 'inventory_items', linkedInvItem.id);
-                batch.update(invRef, { 
-                  quantity: linkedInvItem.quantity + item.quantity,
-                  lastUpdated: serverTimestamp()
-                });
+                const currentInvQty = inventoryUpdates[linkedInvItem.id] !== undefined ? inventoryUpdates[linkedInvItem.id] : linkedInvItem.quantity;
+                const newInvQty = currentInvQty + item.quantity;
+                inventoryUpdates[linkedInvItem.id] = newInvQty;
+
+                if (linkedInvItem.menuCategory && !linkedInvItem.menuItemId) {
+                  const categoryItems = allMenu.filter(m => m.category === linkedInvItem.menuCategory);
+                  categoryItems.forEach(m => {
+                    menuUpdates[m.id] = newInvQty;
+                  });
+                }
               }
             }
           }
+        }
+
+        for (const [id, stock] of Object.entries(menuUpdates)) {
+          batch.update(doc(db, 'menu_items', id), { stock });
+        }
+        for (const [id, quantity] of Object.entries(inventoryUpdates)) {
+          batch.update(doc(db, 'inventory_items', id), { quantity, lastUpdated: serverTimestamp() });
         }
       }
 
@@ -606,11 +640,20 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
               (inv.menuCategory === menuItem.category && !inv.menuItemId)
             );
             if (linkedInvItem) {
+              const newInvQty = linkedInvItem.quantity + itemToUpdate.quantity;
               const invRef = doc(db, 'inventory_items', linkedInvItem.id);
               batch.update(invRef, { 
-                quantity: linkedInvItem.quantity + itemToUpdate.quantity,
+                quantity: newInvQty,
                 lastUpdated: serverTimestamp()
               });
+
+              if (linkedInvItem.menuCategory && !linkedInvItem.menuItemId) {
+                const categoryItems = allMenu.filter(m => m.category === linkedInvItem.menuCategory);
+                categoryItems.forEach(m => {
+                  const mRef = doc(db, 'menu_items', m.id);
+                  batch.update(mRef, { stock: newInvQty });
+                });
+              }
             }
           }
         }
@@ -695,8 +738,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       // If quantity is updated and linked to a menu item or category, sync it
       if (updates.quantity !== undefined) {
         const item = allInventory.find(i => i.id === id);
-        const menuItemId = updates.menuItemId || item?.menuItemId;
-        const menuCategory = updates.menuCategory || item?.menuCategory;
+        const menuItemId = updates.menuItemId !== undefined ? updates.menuItemId : item?.menuItemId;
+        const menuCategory = updates.menuCategory !== undefined ? updates.menuCategory : item?.menuCategory;
         
         if (menuItemId) {
           const menuRef = doc(db, 'menu_items', menuItemId);
@@ -708,15 +751,18 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             batch.update(menuRef, { stock: updates.quantity });
           });
         }
-      } else if (updates.menuItemId || updates.menuCategory) {
+      } else if (updates.menuItemId !== undefined || updates.menuCategory !== undefined) {
         // If only link is updated, sync current quantity to menu item(s)
         const item = allInventory.find(i => i.id === id);
         if (item) {
-          if (updates.menuItemId) {
-            const menuRef = doc(db, 'menu_items', updates.menuItemId);
+          const menuItemId = updates.menuItemId !== undefined ? updates.menuItemId : item.menuItemId;
+          const menuCategory = updates.menuCategory !== undefined ? updates.menuCategory : item.menuCategory;
+          
+          if (menuItemId) {
+            const menuRef = doc(db, 'menu_items', menuItemId);
             batch.update(menuRef, { stock: item.quantity });
-          } else if (updates.menuCategory) {
-            const categoryItems = allMenu.filter(m => m.category === updates.menuCategory);
+          } else if (menuCategory) {
+            const categoryItems = allMenu.filter(m => m.category === menuCategory);
             categoryItems.forEach(m => {
               const menuRef = doc(db, 'menu_items', m.id);
               batch.update(menuRef, { stock: item.quantity });
@@ -745,8 +791,17 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     const newItem = { ...item, tenantId } as MenuItem;
     
     try {
+      const batch = writeBatch(db);
       const itemRef = doc(db, 'menu_items', newItem.id);
-      await setDoc(itemRef, cleanObject(newItem));
+
+      // Check if there's a category-linked inventory item
+      const linkedInvItem = allInventory.find(inv => inv.menuCategory === newItem.category && !inv.menuItemId);
+      if (linkedInvItem && newItem.stock === undefined) {
+        newItem.stock = linkedInvItem.quantity;
+      }
+
+      batch.set(itemRef, cleanObject(newItem));
+      await batch.commit();
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'menu_items');
     }
@@ -754,8 +809,18 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
   const updateMenuItem = async (itemId: string, updates: Partial<MenuItem>) => {
     try {
+      const batch = writeBatch(db);
       const itemRef = doc(db, 'menu_items', itemId);
-      await updateDoc(itemRef, cleanObject(updates));
+
+      if (updates.category) {
+        const linkedInvItem = allInventory.find(inv => inv.menuCategory === updates.category && !inv.menuItemId);
+        if (linkedInvItem && updates.stock === undefined) {
+          updates.stock = linkedInvItem.quantity;
+        }
+      }
+
+      batch.update(itemRef, cleanObject(updates));
+      await batch.commit();
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `menu_items/${itemId}`);
     }

@@ -629,6 +629,7 @@ export const Inventory = () => {
                               menuItemId: '',
                               quantity: firstItemInCategory ? (firstItemInCategory.stock || 0) : formData.quantity
                             });
+                            setNewStock('');
                           }}
                           className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all appearance-none"
                         >
@@ -650,6 +651,7 @@ export const Inventory = () => {
                               menuItemId: selectedId,
                               quantity: selectedItem ? (selectedItem.stock || 0) : formData.quantity
                             });
+                            setNewStock('');
                           }}
                           className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all appearance-none"
                         >
@@ -657,7 +659,7 @@ export const Inventory = () => {
                           {menu
                             .filter(m => !formData.menuCategory || m.category === formData.menuCategory)
                             .map(m => (
-                              <option key={m.id} value={m.id}>{m.name}</option>
+                              <option key={m.id} value={m.id}>{m.name} (Stock: {m.stock || 0})</option>
                             ))}
                         </select>
                       </div>
