@@ -36,6 +36,24 @@ const StatusBadge = ({ label, count, styles, active }: { label: string, count: n
   </div>
 );
 
+const ItemSummary = ({ cart, cartTotal, currency }: { cart: OrderItem[], cartTotal: number, currency: string }) => (
+  <div className="bg-white p-4 rounded-2xl border-2 border-indigo-100 shadow-sm mb-4">
+    <h3 className="text-[10px] font-bold uppercase text-slate-400 tracking-widest mb-2">Item Summary</h3>
+    <div className="space-y-2">
+      {cart.map(item => (
+        <div key={item.rowId} className="flex justify-between text-xs gap-2">
+          <span className="font-medium text-slate-700 break-words flex-1">{item.quantity} x {item.name}</span>
+          <span className="font-bold text-slate-900 shrink-0">{currency}{(item.price * item.quantity).toFixed(2)}</span>
+        </div>
+      ))}
+    </div>
+    <div className="border-t border-slate-100 mt-2 pt-2 flex justify-between items-center">
+      <span className="text-xs font-bold text-slate-900">Total</span>
+      <span className="text-sm font-bold text-slate-900">{currency}{cartTotal.toFixed(2)}</span>
+    </div>
+  </div>
+);
+
 const POSCartContent = ({ 
   onClose, 
   isEmbedded = false,
@@ -782,6 +800,9 @@ export const POS = () => {
                 <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 rotate-90 pointer-events-none" size={14} />
               </div>
             </div>
+            {activeCategory === 'All' && (
+              <ItemSummary cart={cart} cartTotal={cartTotal} currency={currentTenant.currency} />
+            )}
           </div>
 
           <div className="hidden md:flex flex-row gap-4 overflow-x-auto pb-2 no-scrollbar items-center">
