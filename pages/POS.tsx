@@ -326,6 +326,10 @@ export const POS = () => {
     return isCreatingNew && allActive.some(o => o.tokenNumber === newTokenNum);
   }, [isCreatingNew, orders, newTokenNum]);
 
+  const activeOrdersTotal = useMemo(() => {
+    return activeOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+  }, [activeOrders]);
+
   const getWaiterName = (userId: string) => {
     const user = users.find(u => u.id === userId);
     return user ? user.name : 'Unknown';
@@ -581,26 +585,29 @@ export const POS = () => {
           </div>
 
           <div className="flex flex-col items-start gap-4 w-full md:w-auto">
-            <div className="flex items-center gap-3 bg-white p-1.5 rounded-2xl border-2 border-slate-100 shadow-sm w-fit">
+            <div className="flex items-center gap-3 bg-white p-1.5 rounded-2xl border-2 border-slate-100 shadow-sm w-full md:w-64">
               <button 
                 onClick={() => setFilter('pending')}
-                className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'pending' ? 'bg-[#1a1a37] text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
+                className={`flex-1 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'pending' ? 'bg-[#1a1a37] text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
               >
                 Pending
               </button>
               <button 
                 onClick={() => setFilter('done')}
-                className={`px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'done' ? 'bg-emerald-500 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
+                className={`flex-1 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'done' ? 'bg-emerald-500 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
               >
                 Done
               </button>
             </div>
-            <button className="bg-rose-100 px-6 py-3 rounded-2xl border-2 border-rose-200 shadow-sm text-[10px] font-black uppercase tracking-widest text-rose-800 w-fit">
+            <button className="bg-rose-100 px-6 py-3 rounded-2xl border-2 border-rose-200 shadow-sm text-[10px] font-black uppercase tracking-widest text-rose-800 w-full md:w-64">
               Active Orders: <span className="text-rose-900 text-sm">{activeOrders.length}</span>
+            </button>
+            <button className="bg-indigo-100 px-6 py-3 rounded-2xl border-2 border-indigo-200 shadow-sm text-[10px] font-black uppercase tracking-widest text-indigo-800 w-full md:w-64">
+              Total Amount: <span className="text-indigo-900 text-sm">{currentTenant?.currency}{activeOrdersTotal.toFixed(2)}</span>
             </button>
             <button 
               onClick={startNewOrder}
-              className="bg-slate-900 text-white px-6 py-3.5 rounded-2xl font-bold uppercase tracking-widest text-[10px] shadow-xl shadow-indigo-200 hover:bg-slate-800 transition-all transform hover:-translate-y-1 active:scale-95 flex items-center justify-center gap-3 border-2 border-indigo-500"
+              className="bg-slate-900 text-white px-6 py-3.5 rounded-2xl font-bold uppercase tracking-widest text-[10px] shadow-xl shadow-indigo-200 hover:bg-slate-800 transition-all transform hover:-translate-y-1 active:scale-95 flex items-center justify-center gap-3 border-2 border-indigo-500 w-full md:w-64"
             >
               <Plus size={18} /> New Order
             </button>
