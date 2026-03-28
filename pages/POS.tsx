@@ -36,7 +36,7 @@ const StatusBadge = ({ label, count, styles, active }: { label: string, count: n
   </div>
 );
 
-const ItemSummary = ({ cart, cartTotal, currency }: { cart: OrderItem[], cartTotal: number, currency: string }) => (
+const ItemSummary = ({ cart, cartTotal, currency, onSendToKitchen }: { cart: OrderItem[], cartTotal: number, currency: string, onSendToKitchen: () => void }) => (
   <div className="bg-white p-4 rounded-2xl border-2 border-indigo-100 shadow-sm mb-4">
     <h3 className="text-[10px] font-bold uppercase text-slate-400 tracking-widest mb-2">Item Summary</h3>
     <div className="space-y-2">
@@ -51,6 +51,12 @@ const ItemSummary = ({ cart, cartTotal, currency }: { cart: OrderItem[], cartTot
       <span className="text-xs font-bold text-slate-900">Total</span>
       <span className="text-sm font-bold text-slate-900">{currency}{cartTotal.toFixed(2)}</span>
     </div>
+    <button 
+      onClick={onSendToKitchen}
+      className="w-full mt-4 py-2.5 bg-indigo-600 text-white text-xs font-bold uppercase tracking-widest rounded-xl hover:bg-indigo-700 transition-colors"
+    >
+      Send To Kitchen
+    </button>
   </div>
 );
 
@@ -556,6 +562,8 @@ export const POS = () => {
           };
           await BluetoothPrinterService.printKOT(currentTenant, orderData as any);
           return; // Skip system print if bluetooth worked
+        } else if (result.error === 'failed') {
+          alert('Bluetooth printer connection failed. Please check if the printer is on and paired.');
         }
       } catch (error) {
         console.error('Bluetooth KOT print failed, falling back to system print:', error);
@@ -801,7 +809,7 @@ export const POS = () => {
               </div>
             </div>
             {activeCategory === 'All' && (
-              <ItemSummary cart={cart} cartTotal={cartTotal} currency={currentTenant.currency} />
+              <ItemSummary cart={cart} cartTotal={cartTotal} currency={currentTenant.currency} onSendToKitchen={printKOT} />
             )}
           </div>
 

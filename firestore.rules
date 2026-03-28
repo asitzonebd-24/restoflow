@@ -2,6 +2,33 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: tenants
+    // Fields: id, name, logo, address, phone, currency, vatRate, includeVat, timezone, themeColor, expenseCategories, menuCategories, customerTokenPrefix, nextCustomerToken, customerAppEnabled, isActive, monthlyBill, createdAt
+    //
+    // Collection: users
+    // Fields: id, tenantId, name, email, password, mobile, role, avatar, permissions, createdAt
+    //
+    // Collection: menu_items
+    // Fields: id, tenantId, name, description, price, category, image, isAvailable, stock, createdAt
+    //
+    // Collection: inventory_items
+    // Fields: id, tenantId, name, quantity, unit, minThreshold, lastUpdated
+    //
+    // Collection: orders
+    // Fields: id, tenantId, tokenNumber, tableNumber, items, status, totalAmount, note, createdBy, createdAt
+    //
+    // Collection: expenses
+    // Fields: id, tenantId, title, amount, category, date, recordedBy, createdAt
+    //
+    // Collection: monthly_bills
+    // Fields: id, tenantId, tenantName, month, amount, status, approvedAt, createdAt
+    //
+    // ===============================================================
+
+    // ===============================================================
     // Helper Functions
     // ===============================================================
     function isAuthenticated() {
@@ -13,18 +40,57 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      // For now, since we're using a custom login system, we'll allow writes.
-      // In production, you should use Firebase Auth and check request.auth.
-      return true;
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'super_admin' ||
+          (request.auth.token.email == "asitzonebd@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isTenantAdmin(tenantId) {
+      return isAuthenticated() && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tenantId == tenantId &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
     function isTenantUser(tenantId) {
-      // Since we use custom auth, we can't easily check tenantId in rules without request.auth
-      return true;
+      return isAuthenticated() && 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tenantId == tenantId;
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
     }
 
     function hasOnlyAllowedFields(fields) {
       return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+    function isValidTenant(data) {
+      return hasRequiredFields(['id', 'name']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100;
+    }
+
+    function isValidUser(data) {
+      return hasRequiredFields(['id', 'name', 'email', 'role']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             isValidEmail(data.email);
+    }
+
+    function isValidMenuItem(data) {
+      return hasRequiredFields(['id', 'tenantId', 'name', 'price', 'category']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.price is number && data.price >= 0;
+    }
+
+    function isValidOrder(data) {
+      return hasRequiredFields(['id', 'tenantId', 'items', 'status', 'totalAmount']) &&
+             data.items is list && data.totalAmount is number && data.totalAmount >= 0;
     }
 
     // ===============================================================
@@ -32,50 +98,47 @@ service cloud.firestore {
     // ===============================================================
 
     match /tenants/{tenantId} {
-      allow read: if true;
-      allow write: if isAdmin();
+      allow read: if isAuthenticated();
+      allow create, update: if isAdmin() && isValidTenant(request.resource.data);
+      allow delete: if isAdmin();
     }
 
     match /users/{userId} {
-      allow read: if true;
-      allow create: if true; // Allow registration
-      allow update: if true; // Allow updates for custom auth system
+      allow read: if isAuthenticated();
+      allow create: if (isAdmin() || !exists(/databases/$(database)/documents/users/$(userId))) && isValidUser(request.resource.data);
+      allow update: if (isOwner(userId) || isAdmin()) && isValidUser(request.resource.data);
       allow delete: if isAdmin();
     }
 
     match /menu_items/{itemId} {
-      allow read: if true;
-      allow write: if isAuthenticated() || isAdmin();
+      allow read: if isAuthenticated();
+      allow write: if (isTenantAdmin(request.resource.data.tenantId) || isAdmin()) && isValidMenuItem(request.resource.data);
     }
 
     match /inventory_items/{itemId} {
-      allow read: if true;
-      allow write: if isAuthenticated() || isAdmin();
+      allow read: if isAuthenticated();
+      allow write: if isTenantUser(request.resource.data.tenantId) || isAdmin();
     }
 
     match /orders/{orderId} {
-      allow read: if true;
-      allow write: if true; // Allow customers to place orders
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidOrder(request.resource.data);
+      allow update: if (isTenantUser(resource.data.tenantId) || isAdmin()) && isValidOrder(request.resource.data);
     }
 
     match /transactions/{transactionId} {
-      allow read: if true;
-      allow write: if isAuthenticated() || isAdmin();
+      allow read: if isAuthenticated() && (isTenantUser(resource.data.tenantId) || isAdmin());
+      allow write: if (isTenantUser(request.resource.data.tenantId) || isAdmin());
     }
 
     match /expenses/{expenseId} {
-      allow read: if true;
-      allow write: if isAuthenticated() || isAdmin();
+      allow read: if isAuthenticated() && (isTenantUser(resource.data.tenantId) || isAdmin());
+      allow write: if (isTenantUser(request.resource.data.tenantId) || isAdmin());
     }
 
     match /monthly_bills/{billId} {
-      allow read: if true;
+      allow read: if isAuthenticated() && (isTenantUser(resource.data.tenantId) || isAdmin());
       allow write: if isAdmin();
-    }
-
-    match /recipes/{recipeId} {
-      allow read: if true;
-      allow write: if isAuthenticated() || isAdmin();
     }
   }
 }

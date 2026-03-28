@@ -125,6 +125,8 @@ interface AppContextType {
     hasTables: boolean;
     missingTables: string[];
   };
+  refreshData: () => Promise<void>;
+  isRefreshing: boolean;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -159,6 +161,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [allRecipes, setAllRecipes] = useState<Recipe[]>([]);
   const [monthlyBills, setMonthlyBills] = useState<MonthlyBill[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string>('All');
   const [dbStatus, setDbStatus] = useState<{
     isConfigured: boolean;
@@ -171,39 +174,41 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   });
 
   useEffect(() => {
-    // Real-time listeners for all collections
+    // Real-time listeners for critical collections
     const unsubscribers: (() => void)[] = [];
     const loadedCollections = new Set<string>();
 
-    const collectionsList = [
-      { name: 'tenants', setter: setTenants },
-      { name: 'users', setter: setAllUsers },
+    const realtimeCollections = [
       { name: 'menu_items', setter: setAllMenu },
       { name: 'inventory_items', setter: setAllInventory },
       { name: 'orders', setter: setAllOrders },
+    ];
+
+    const staticCollections = [
+      { name: 'tenants', setter: setTenants },
+      { name: 'users', setter: setAllUsers },
       { name: 'transactions', setter: setAllTransactions },
       { name: 'expenses', setter: setAllExpenses },
       { name: 'recipes', setter: setAllRecipes },
       { name: 'monthly_bills', setter: setMonthlyBills }
     ];
 
-    collectionsList.forEach(({ name, setter }) => {
-      const unsub = onSnapshot(collection(db, name), (snapshot) => {
+    const allCollectionNames = [...realtimeCollections, ...staticCollections].map(c => c.name);
+
+    // Fetch static data once
+    staticCollections.forEach(({ name, setter }) => {
+      getDocs(collection(db, name)).then((snapshot) => {
         const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         
         if (name === 'users') {
-          // Always ensure super admins from mock data are available
           const firestoreUsers = data as User[];
           const mockSuperAdmins = ENHANCED_MOCK_USERS.filter(u => u.role === Role.SUPER_ADMIN);
-          
           const mergedUsers = [...firestoreUsers];
           mockSuperAdmins.forEach(mockSA => {
             const existingIndex = mergedUsers.findIndex(u => u.email.toLowerCase() === mockSA.email.toLowerCase());
             if (existingIndex === -1) {
               mergedUsers.push(mockSA);
             } else {
-              // If it's a super admin, ensure it has the mock credentials as a fallback
-              // but keep other Firestore data like avatar, etc.
               mergedUsers[existingIndex] = { 
                 ...mergedUsers[existingIndex], 
                 role: Role.SUPER_ADMIN,
@@ -211,29 +216,62 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
               };
             }
           });
-          
           setter(mergedUsers as any);
         } else if (data.length > 0) {
           setter(data as any);
         } else {
-          // Fallback to mock data if collection is empty
           if (name === 'tenants') setter([BUSINESS_DETAILS]);
-          if (name === 'menu_items') setter(MOCK_MENU);
-          if (name === 'inventory_items') setter(MOCK_INVENTORY);
-          if (name === 'orders') setter(INITIAL_ORDERS);
           if (name === 'expenses') setter(MOCK_EXPENSES);
           if (name === 'recipes') setter([]);
           if (name === 'monthly_bills') setter([]);
         }
         
         loadedCollections.add(name);
-        if (loadedCollections.size >= collectionsList.length) {
+        if (loadedCollections.size >= allCollectionNames.length) {
+          setIsLoading(false);
+        }
+      }).catch((error) => {
+        handleFirestoreError(error, OperationType.LIST, name);
+        if (name === 'users') setter(ENHANCED_MOCK_USERS as any);
+        if (name === 'tenants') setter([BUSINESS_DETAILS] as any);
+        if (name === 'expenses') setter(MOCK_EXPENSES as any);
+        if (name === 'transactions') setter([] as any);
+        if (name === 'recipes') setter([] as any);
+        if (name === 'monthly_bills') setter([] as any);
+
+        loadedCollections.add(name);
+        if (loadedCollections.size >= allCollectionNames.length) {
+          setIsLoading(false);
+        }
+      });
+    });
+
+    // Setup real-time listeners for critical data
+    realtimeCollections.forEach(({ name, setter }) => {
+      const unsub = onSnapshot(collection(db, name), (snapshot) => {
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        if (data.length > 0) {
+          setter(data as any);
+        } else {
+          if (name === 'menu_items') setter(MOCK_MENU);
+          if (name === 'inventory_items') setter(MOCK_INVENTORY);
+          if (name === 'orders') setter(INITIAL_ORDERS);
+        }
+        
+        loadedCollections.add(name);
+        if (loadedCollections.size >= allCollectionNames.length) {
           setIsLoading(false);
         }
       }, (error) => {
         handleFirestoreError(error, OperationType.LIST, name);
+        
+        if (name === 'menu_items') setter(MOCK_MENU as any);
+        if (name === 'inventory_items') setter(MOCK_INVENTORY as any);
+        if (name === 'orders') setter(INITIAL_ORDERS as any);
+
         loadedCollections.add(name);
-        if (loadedCollections.size >= collectionsList.length) {
+        if (loadedCollections.size >= allCollectionNames.length) {
           setIsLoading(false);
         }
       });
@@ -1237,6 +1275,42 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     }
   };
 
+  const refreshData = async () => {
+    setIsRefreshing(true);
+    const staticCollections = [
+      { name: 'tenants', setter: setTenants },
+      { name: 'users', setter: setAllUsers },
+      { name: 'transactions', setter: setAllTransactions },
+      { name: 'expenses', setter: setAllExpenses },
+      { name: 'recipes', setter: setAllRecipes },
+      { name: 'monthly_bills', setter: setMonthlyBills }
+    ];
+
+    try {
+      await Promise.all(staticCollections.map(async ({ name, setter }) => {
+        const snapshot = await getDocs(collection(db, name));
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        if (name === 'users') {
+          const firestoreUsers = data as User[];
+          const mockSuperAdmins = ENHANCED_MOCK_USERS.filter(u => u.role === Role.SUPER_ADMIN);
+          const mergedUsers = [...firestoreUsers];
+          mockSuperAdmins.forEach(mockSA => {
+            const existingIndex = mergedUsers.findIndex(u => u.email.toLowerCase() === mockSA.email.toLowerCase());
+            if (existingIndex === -1) mergedUsers.push(mockSA);
+          });
+          setter(mergedUsers as any);
+        } else if (data.length > 0) {
+          setter(data as any);
+        }
+      }));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, 'refresh');
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   return (
     <AppContext.Provider value={{
       currentUser,
@@ -1294,7 +1368,9 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       activeCategory,
       setActiveCategory,
       categories,
-      dbStatus
+      dbStatus,
+      refreshData,
+      isRefreshing
     }}>
       {children}
     </AppContext.Provider>
