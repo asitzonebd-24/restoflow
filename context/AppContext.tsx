@@ -5,8 +5,6 @@ import { BUSINESS_DETAILS, MOCK_USERS, INITIAL_ORDERS, MOCK_INVENTORY, MOCK_MENU
 import { auth, db } from '../firebase';
 import { 
   onAuthStateChanged, 
-  signInWithPopup, 
-  GoogleAuthProvider, 
   signOut 
 } from 'firebase/auth';
 import { 
@@ -77,7 +75,6 @@ interface AppContextType {
   inventory: InventoryItem[];
   menu: MenuItem[];
   login: (emailOrMobile: string, password: string, tenantId?: string | null) => boolean;
-  loginWithGoogle: () => Promise<boolean>;
   logout: () => Promise<void>;
   addOrder: (order: Omit<Order, 'tenantId'>) => Promise<void>;
   updateOrderItems: (
@@ -177,6 +174,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [monthlyBills, setMonthlyBills] = useState<MonthlyBill[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isAuthReady, setIsAuthReady] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string>('All');
   const [dbStatus, setDbStatus] = useState<{
     isConfigured: boolean;
@@ -191,6 +189,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   useEffect(() => {
     // Listen for auth state changes to sync with Firebase Auth
     const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser) => {
+      setIsAuthReady(true);
       if (firebaseUser) {
         // If the user is the Super Admin email, ensure they have the role
         if (firebaseUser.email === 'asitzonebd@gmail.com') {
@@ -216,7 +215,25 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   }, []);
 // Real-time listeners for critical collections
  useEffect(() => {
+  if (!isAuthReady || !currentUser) {
+    if (isAuthReady && !currentUser) {
+      setIsLoading(false);
+    }
+    return;
+  }
+  
   const fetchStaticData = async () => {
+    if (!auth.currentUser) {
+      setTenants([BUSINESS_DETAILS]);
+      setAllUsers(ENHANCED_MOCK_USERS as any);
+      setAllTransactions([]);
+      setAllExpenses(MOCK_EXPENSES as any);
+      setAllRecipes([]);
+      setMonthlyBills([]);
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const collections = [
         { name: 'tenants', setter: setTenants },
@@ -228,35 +245,96 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       ];
 
       await Promise.all(collections.map(async ({ name, setter }) => {
-        let q = query(collection(db, name));
+        try {
+          let q = query(collection(db, name));
+          let needsSorting = false;
+          let sortField = '';
 
-        if (['transactions', 'expenses'].includes(name)) {
-          q = query(collection(db, name), orderBy('date', 'desc'), limit(50));
+          if (['transactions', 'expenses'].includes(name)) {
+            q = query(collection(db, name), limit(50));
+            needsSorting = true;
+            sortField = 'date';
+          }
+
+          if (currentUser.role !== Role.SUPER_ADMIN && currentUser.tenantId) {
+            if (name === 'tenants') {
+              q = query(collection(db, name), where('id', '==', currentUser.tenantId), limit(1));
+            } else {
+              if (['transactions', 'expenses'].includes(name)) {
+                // Removed orderBy to avoid composite index requirement
+                q = query(collection(db, name), where('tenantId', '==', currentUser.tenantId), limit(50));
+                needsSorting = true;
+                sortField = 'date';
+              } else {
+                q = query(collection(db, name), where('tenantId', '==', currentUser.tenantId));
+              }
+            }
+          }
+
+          const snapshot = await getDocs(q);
+          let data = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+
+          if (needsSorting && sortField) {
+            data.sort((a: any, b: any) => (b[sortField] || '').localeCompare(a[sortField] || ''));
+          }
+
+          if (name === 'tenants') {
+            const tenantsData = data as any as Business[];
+            if (!tenantsData.some(t => String(t.id) === '01')) {
+              tenantsData.unshift(BUSINESS_DETAILS);
+            }
+            setter(tenantsData as any);
+          } else {
+            setter(data as any);
+          }
+        } catch (err) {
+          console.error(`Error fetching ${name}:`, err);
+          // Don't throw, just let this one collection fail/fallback
+          if (name === 'tenants') setter([BUSINESS_DETAILS] as any);
+          if (name === 'users') setter(ENHANCED_MOCK_USERS as any);
+          if (name === 'transactions') setter([]);
+          if (name === 'expenses') setter(MOCK_EXPENSES as any);
+          if (name === 'recipes') setter([]);
+          if (name === 'monthly_bills') setter([]);
         }
-
-        const snapshot = await getDocs(q);
-        const data = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-
-        setter(data as any);
       }));
 
       setIsLoading(false);
 
     } catch (error) {
-      handleFirestoreError(error, OperationType.LIST, 'static-fetch');
+      try {
+        handleFirestoreError(error, OperationType.LIST, 'static-fetch');
+      } catch (e) {
+        console.warn('Falling back to mock data for static collections due to permission/quota error.');
+      }
+      setTenants([BUSINESS_DETAILS]);
+      setAllUsers(ENHANCED_MOCK_USERS as any);
+      setAllTransactions([]);
+      setAllExpenses(MOCK_EXPENSES as any);
+      setAllRecipes([]);
+      setMonthlyBills([]);
       setIsLoading(false);
     }
   };
 
   fetchStaticData();
-}, []);
+}, [isAuthReady, currentUser]);
 
 // ✅ STATIC DATA (LOW READ)
 useEffect(() => {
+  if (!isAuthReady || !currentUser) return;
+  
   const fetchDynamicData = async () => {
+    if (!auth.currentUser) {
+      setAllOrders(INITIAL_ORDERS as any);
+      setAllMenu(MOCK_MENU as any);
+      setAllInventory(MOCK_INVENTORY as any);
+      return;
+    }
+
     try {
       const collections = [
         { name: 'orders', setter: setAllOrders },
@@ -265,52 +343,119 @@ useEffect(() => {
       ];
 
       await Promise.all(collections.map(async ({ name, setter }) => {
-        let q = query(collection(db, name));
+        try {
+          let q = query(collection(db, name));
+          let needsSorting = false;
+          let sortField = '';
 
-        if (name === 'orders') {
-          q = query(collection(db, name), orderBy('createdAt', 'desc'), limit(20));
+          if (name === 'orders') {
+            q = query(collection(db, name), limit(20));
+            needsSorting = true;
+            sortField = 'createdAt';
+          }
+
+          if (currentUser.role !== Role.SUPER_ADMIN && currentUser.tenantId) {
+            if (name === 'orders') {
+              // Removed orderBy to avoid composite index requirement
+              q = query(collection(db, name), where('tenantId', '==', currentUser.tenantId), limit(20));
+              needsSorting = true;
+              sortField = 'createdAt';
+            } else {
+              q = query(collection(db, name), where('tenantId', '==', currentUser.tenantId));
+            }
+          }
+
+          const snapshot = await getDocs(q);
+          let data = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+
+          if (needsSorting && sortField) {
+            data.sort((a: any, b: any) => {
+              const dateA = a[sortField] ? new Date(a[sortField]).getTime() : 0;
+              const dateB = b[sortField] ? new Date(b[sortField]).getTime() : 0;
+              return dateB - dateA;
+            });
+          }
+
+          setter(data as any);
+        } catch (err) {
+          console.error(`Error fetching dynamic collection ${name}:`, err);
+          if (name === 'orders') setter(INITIAL_ORDERS as any);
+          if (name === 'menu_items') setter(MOCK_MENU as any);
+          if (name === 'inventory_items') setter(MOCK_INVENTORY as any);
         }
-
-        const snapshot = await getDocs(q);
-        const data = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-
-        setter(data as any);
       }));
 
     } catch (error) {
-      handleFirestoreError(error, OperationType.LIST, 'dynamic-fetch');
+      try {
+        handleFirestoreError(error, OperationType.LIST, 'dynamic-fetch');
+      } catch (e) {
+        console.warn('Falling back to mock data for dynamic collections due to permission/quota error.');
+      }
+      setAllOrders(INITIAL_ORDERS as any);
+      setAllMenu(MOCK_MENU as any);
+      setAllInventory(MOCK_INVENTORY as any);
     }
   };
 
   fetchDynamicData();
-}, []);
+}, [isAuthReady, currentUser]);
 
 // ✅ 🔥 REALTIME REMOVE → NORMAL FETCH
 useEffect(() => {
+  if (!isAuthReady || !currentUser || !auth.currentUser) return;
+  
   const unsubscribers: (() => void)[] = [];
 
   // 🔴 Orders (real-time)
-  const ordersQuery = query(
+  let ordersQuery = query(
     collection(db, 'orders'),
-    orderBy('createdAt', 'desc'),
     limit(20)
   );
 
+  if (currentUser.role !== Role.SUPER_ADMIN && currentUser.tenantId) {
+    // Remove orderBy to avoid composite index requirement
+    ordersQuery = query(
+      collection(db, 'orders'),
+      where('tenantId', '==', currentUser.tenantId),
+      limit(20)
+    );
+  }
+
   const unsubOrders = onSnapshot(ordersQuery, (snapshot) => {
-    const data = snapshot.docs.map(doc => ({
+    let data = snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
     }));
+    
+    // Sort client-side if we removed orderBy
+    if (currentUser.role !== Role.SUPER_ADMIN && currentUser.tenantId) {
+      data.sort((a: any, b: any) => {
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return dateB - dateA;
+      });
+    }
+    
     setAllOrders(data as any);
+  }, (error) => {
+    try {
+      handleFirestoreError(error, OperationType.LIST, 'orders');
+    } catch (e) {
+      console.warn('Falling back to mock orders');
+      setAllOrders(INITIAL_ORDERS as any);
+    }
   });
 
   unsubscribers.push(unsubOrders);
 
   // 🟠 Inventory (real-time)
-  const inventoryQuery = query(collection(db, 'inventory_items'));
+  let inventoryQuery = query(collection(db, 'inventory_items'));
+  if (currentUser.role !== Role.SUPER_ADMIN && currentUser.tenantId) {
+    inventoryQuery = query(collection(db, 'inventory_items'), where('tenantId', '==', currentUser.tenantId));
+  }
 
   const unsubInventory = onSnapshot(inventoryQuery, (snapshot) => {
     const data = snapshot.docs.map(doc => ({
@@ -318,12 +463,22 @@ useEffect(() => {
       ...doc.data()
     }));
     setAllInventory(data as any);
+  }, (error) => {
+    try {
+      handleFirestoreError(error, OperationType.LIST, 'inventory_items');
+    } catch (e) {
+      console.warn('Falling back to mock inventory');
+      setAllInventory(MOCK_INVENTORY as any);
+    }
   });
 
   unsubscribers.push(unsubInventory);
 
   // 🟡 Menu (optional realtime)
-  const menuQuery = query(collection(db, 'menu_items'));
+  let menuQuery = query(collection(db, 'menu_items'));
+  if (currentUser.role !== Role.SUPER_ADMIN && currentUser.tenantId) {
+    menuQuery = query(collection(db, 'menu_items'), where('tenantId', '==', currentUser.tenantId));
+  }
 
   const unsubMenu = onSnapshot(menuQuery, (snapshot) => {
     const data = snapshot.docs.map(doc => ({
@@ -331,6 +486,13 @@ useEffect(() => {
       ...doc.data()
     }));
     setAllMenu(data as any);
+  }, (error) => {
+    try {
+      handleFirestoreError(error, OperationType.LIST, 'menu_items');
+    } catch (e) {
+      console.warn('Falling back to mock menu');
+      setAllMenu(MOCK_MENU as any);
+    }
   });
 
   unsubscribers.push(unsubMenu);
@@ -338,7 +500,7 @@ useEffect(() => {
   return () => {
     unsubscribers.forEach(unsub => unsub());
   };
-}, []);
+}, [isAuthReady, currentUser]);
    // Sync currentUser with allUsers in real-time to reflect role/permission changes
   useEffect(() => {
     if (currentUser) {
@@ -375,42 +537,42 @@ useEffect(() => {
   }, [currentUser, tenants, currentTenantId]);
 
   const orders = useMemo(() => {
-    const targetId = currentUser?.tenantId || currentTenantId;
-    return allOrders.filter(o => String(o.tenantId) === String(targetId));
-  }, [allOrders, currentUser, currentTenantId]);
+    const targetId = business.id;
+    return allOrders.filter(o => String(o.tenantId || '01') === String(targetId));
+  }, [allOrders, business.id]);
 
   const inventory = useMemo(() => {
-    const targetId = currentUser?.tenantId || currentTenantId;
-    return allInventory.filter(i => String(i.tenantId) === String(targetId));
-  }, [allInventory, currentUser, currentTenantId]);
+    const targetId = business.id;
+    return allInventory.filter(i => String(i.tenantId || '01') === String(targetId));
+  }, [allInventory, business.id]);
 
   const menu = useMemo(() => {
-    const targetId = currentUser?.tenantId || currentTenantId;
-    return allMenu.filter(m => String(m.tenantId) === String(targetId));
-  }, [allMenu, currentUser, currentTenantId]);
+    const targetId = business.id;
+    return allMenu.filter(m => String(m.tenantId || '01') === String(targetId));
+  }, [allMenu, business.id]);
 
   const categories = useMemo(() => ['All', ...Array.from(new Set(menu.map(m => m.category)))], [menu]);
 
   const users = useMemo(() => {
     if (currentUser?.role === Role.SUPER_ADMIN) return allUsers;
-    const targetId = currentUser?.tenantId || currentTenantId;
-    return allUsers.filter(u => String(u.tenantId) === String(targetId) || u.role === Role.SUPER_ADMIN);
-  }, [allUsers, currentUser, currentTenantId]);
+    const targetId = business.id;
+    return allUsers.filter(u => String(u.tenantId || '01') === String(targetId) || u.role === Role.SUPER_ADMIN);
+  }, [allUsers, currentUser, business.id]);
 
   const transactions = useMemo(() => {
-    const targetId = currentUser?.tenantId || currentTenantId;
-    return allTransactions.filter(t => String(t.tenantId) === String(targetId));
-  }, [allTransactions, currentUser, currentTenantId]);
+    const targetId = business.id;
+    return allTransactions.filter(t => String(t.tenantId || '01') === String(targetId));
+  }, [allTransactions, business.id]);
 
   const expenses = useMemo(() => {
-    const targetId = currentUser?.tenantId || currentTenantId;
-    return allExpenses.filter(e => String(e.tenantId) === String(targetId));
-  }, [allExpenses, currentUser, currentTenantId]);
+    const targetId = business.id;
+    return allExpenses.filter(e => String(e.tenantId || '01') === String(targetId));
+  }, [allExpenses, business.id]);
 
   const recipes = useMemo(() => {
-    const targetId = currentUser?.tenantId || currentTenantId;
-    return allRecipes.filter(r => String(r.tenantId) === String(targetId));
-  }, [allRecipes, currentUser, currentTenantId]);
+    const targetId = business.id;
+    return allRecipes.filter(r => String(r.tenantId || '01') === String(targetId));
+  }, [allRecipes, business.id]);
 
 
   const login = (emailOrMobile: string, password: string, tenantId?: string | null): boolean => {
@@ -437,45 +599,6 @@ useEffect(() => {
       return true;
     }
     return false;
-  };
-
-  const loginWithGoogle = async () => {
-    try {
-      const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
-      const firebaseUser = result.user;
-      
-      if (firebaseUser.email === 'asitzonebd@gmail.com') {
-        const superAdminUser: User = {
-          id: firebaseUser.uid,
-          name: firebaseUser.displayName || 'Super Admin',
-          email: firebaseUser.email!,
-          role: Role.SUPER_ADMIN,
-          mobile: firebaseUser.phoneNumber || '0000000000',
-          avatar: firebaseUser.photoURL || DEFAULT_AVATAR,
-          permissions: ['Dashboard', 'POS', 'Kitchen', 'Menu', 'Billing', 'Transactions', 'Expenses', 'Reports', 'Inventory', 'Users', 'Settings']
-        };
-        setCurrentUser(superAdminUser);
-        localStorage.setItem('resto_keep_user', JSON.stringify(superAdminUser));
-        return true;
-      } else {
-        // Check if this user exists in our Firestore users collection
-        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-        if (userDoc.exists()) {
-          const userData = userDoc.data() as User;
-          setCurrentUser(userData);
-          localStorage.setItem('resto_keep_user', JSON.stringify(userData));
-          return true;
-        } else {
-          // Sign out if not authorized
-          await signOut(auth);
-          throw new Error('Unauthorized access. Please contact your administrator.');
-        }
-      }
-    } catch (error) {
-      console.error('Google login error:', error);
-      throw error;
-    }
   };
 
   const logout = async () => {
@@ -1366,33 +1489,6 @@ useEffect(() => {
   };
 
   const generateMonthlyBills = async (month: string): Promise<number> => {
-    const approveBill = async (billId: string) => {
-  const approvedAt = new Date().toISOString();
-
-  try {
-    const billRef = doc(db, 'monthly_bills', billId);
-
-    await updateDoc(billRef, {
-      status: BillStatus.APPROVED,
-      approvedAt
-    });
-
-    // Local state update
-    setMonthlyBills(prev =>
-      prev.map(b =>
-        b.id === billId
-          ? { ...b, status: BillStatus.APPROVED, approvedAt }
-          : b
-      )
-    );
-  } catch (error) {
-    handleFirestoreError(
-      error,
-      OperationType.UPDATE,
-      `monthly_bills/${billId}`
-    );
-  }
-};
     const activeTenants = tenants.filter(t => t.isActive);
     
     // Filter out tenants who already have a bill for this month (regardless of status)
@@ -1429,6 +1525,34 @@ useEffect(() => {
     }
   };
 
+  const approveBill = async (billId: string) => {
+    const approvedAt = new Date().toISOString();
+
+    try {
+      const billRef = doc(db, 'monthly_bills', billId);
+
+      await updateDoc(billRef, {
+        status: BillStatus.APPROVED,
+        approvedAt
+      });
+
+      // Local state update
+      setMonthlyBills(prev =>
+        prev.map(b =>
+          b.id === billId
+            ? { ...b, status: BillStatus.APPROVED, approvedAt }
+            : b
+        )
+      );
+    } catch (error) {
+      handleFirestoreError(
+        error,
+        OperationType.UPDATE,
+        `monthly_bills/${billId}`
+      );
+    }
+  };
+
  const refreshData = async () => {
   setIsRefreshing(true);
 
@@ -1446,18 +1570,55 @@ useEffect(() => {
 
   try {
     await Promise.all(collections.map(async ({ name, setter }) => {
-      let q = query(collection(db, name));
+      try {
+        let q = query(collection(db, name));
+        let needsSorting = false;
+        let sortField = '';
 
-      if (name === 'orders') {
-        q = query(collection(db, name), orderBy('createdAt', 'desc'), limit(20));
-      } else if (['transactions', 'expenses'].includes(name)) {
-        q = query(collection(db, name), orderBy('date', 'desc'), limit(100));
-      } else if (['monthly_bills', 'tenants'].includes(name)) {
-        q = query(collection(db, name), orderBy('createdAt', 'desc'), limit(100));
-      }
+        if (name === 'orders') {
+          q = query(collection(db, name), limit(20));
+          needsSorting = true;
+          sortField = 'createdAt';
+        } else if (['transactions', 'expenses'].includes(name)) {
+          q = query(collection(db, name), limit(100));
+          needsSorting = true;
+          sortField = 'date';
+        } else if (['monthly_bills', 'tenants'].includes(name)) {
+          q = query(collection(db, name), limit(100));
+          needsSorting = true;
+          sortField = 'createdAt';
+        }
 
-      const snapshot = await getDocs(q);
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        if (currentUser?.role !== Role.SUPER_ADMIN && currentUser?.tenantId) {
+          if (name === 'tenants') {
+            q = query(collection(db, name), where('id', '==', currentUser.tenantId), limit(1));
+          } else if (name === 'orders') {
+            q = query(collection(db, name), where('tenantId', '==', currentUser.tenantId), limit(20));
+            needsSorting = true;
+            sortField = 'createdAt';
+          } else if (['transactions', 'expenses'].includes(name)) {
+            q = query(collection(db, name), where('tenantId', '==', currentUser.tenantId), limit(100));
+            needsSorting = true;
+            sortField = 'date';
+          } else if (['monthly_bills'].includes(name)) {
+            q = query(collection(db, name), where('tenantId', '==', currentUser.tenantId), limit(100));
+            needsSorting = true;
+            sortField = 'createdAt';
+          } else {
+            q = query(collection(db, name), where('tenantId', '==', currentUser.tenantId));
+          }
+        }
+
+        const snapshot = await getDocs(q);
+        let data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+        if (needsSorting && sortField) {
+          data.sort((a: any, b: any) => {
+            const dateA = a[sortField] ? new Date(a[sortField]).getTime() : 0;
+            const dateB = b[sortField] ? new Date(b[sortField]).getTime() : 0;
+            return dateB - dateA;
+          });
+        }
 
       // users merge logic keep
       if (name === 'users') {
@@ -1473,12 +1634,25 @@ useEffect(() => {
         });
 
         setter(mergedUsers as any);
+      } else if (name === 'tenants') {
+        const tenantsData = data as any as Business[];
+        if (!tenantsData.some(t => String(t.id) === '01')) {
+          tenantsData.unshift(BUSINESS_DETAILS);
+        }
+        setter(tenantsData as any);
       } else {
         setter(data as any);
       }
+      } catch (err) {
+        console.error(`Error refreshing ${name}:`, err);
+      }
     }));
   } catch (error) {
-    handleFirestoreError(error, OperationType.LIST, 'refresh');
+    try {
+      handleFirestoreError(error, OperationType.LIST, 'refresh');
+    } catch (e) {
+      console.warn('Falling back to mock data during refresh due to permission/quota error.');
+    }
   } finally {
     setIsRefreshing(false);
   }
