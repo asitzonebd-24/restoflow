@@ -29,8 +29,8 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { BluetoothPrinterService } from '../services/printerService';
 
-const StatusBadge = ({ label, count, styles, active }: { label: string, count: number, styles: any, active?: boolean }) => (
-  <div className={`flex flex-col items-center justify-center py-3 px-2 rounded-2xl border-2 transition-all ${active ? `bg-white ${styles.border} ${styles.text}` : 'bg-slate-50/50 border-slate-100 text-slate-200'}`}>
+const StatusBadge = ({ label, count, styles }: { label: string, count: number, styles: any, active?: boolean }) => (
+  <div className={`flex flex-col items-center justify-center py-3 px-2 rounded-2xl border-2 transition-all ${count > 0 ? `bg-white ${styles.text.replace('text-', 'border-')} ${styles.text}` : 'bg-slate-50/50 border-slate-100 text-slate-200'}`}>
     <span className="text-[8px] font-black uppercase tracking-widest mb-1 opacity-80">{label}</span>
     <span className="text-xl font-black">{count}</span>
   </div>
@@ -723,9 +723,9 @@ export const POS = () => {
 
                     {/* Status Grid */}
                     <div className="grid grid-cols-3 gap-3 mb-6">
-                      <StatusBadge label="Pending" count={pendingCount} styles={getStatusStyles(OrderStatus.PENDING)} active={order.status === OrderStatus.PENDING} />
-                      <StatusBadge label="Preparing" count={preparingCount} styles={getStatusStyles(OrderStatus.PREPARING)} active={order.status === OrderStatus.PREPARING} />
-                      <StatusBadge label="Done" count={readyCount} styles={getStatusStyles(OrderStatus.READY)} active={order.status === OrderStatus.READY} />
+                      <StatusBadge label="Pending" count={pendingCount} styles={getStatusStyles(OrderStatus.PENDING)} />
+                      <StatusBadge label="Ready" count={preparingCount} styles={getStatusStyles(OrderStatus.PREPARING)} />
+                      <StatusBadge label="Done" count={readyCount} styles={getStatusStyles(OrderStatus.READY)} />
                     </div>
 
                     {/* Ready Items List */}
