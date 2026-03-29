@@ -679,26 +679,38 @@ export const Billing = () => {
       {showConfirmCollect && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-6">
           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowConfirmCollect(false)}></div>
-          <div className="relative bg-white w-full max-w-sm rounded-[2rem] shadow-2xl overflow-hidden border-2 border-black p-8 animate-in fade-in zoom-in duration-200">
+          <div className="relative bg-white w-full max-w-sm rounded-[2rem] shadow-2xl overflow-hidden border-2 border-purple-600 p-8 animate-in fade-in zoom-in duration-200">
             <div className="text-center space-y-4">
-              <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                <AlertTriangle size={32} />
+              <div className="w-16 h-16 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Receipt size={32} />
               </div>
-              <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Confirm Collection?</h3>
-              <div className="bg-slate-50 p-4 rounded-2xl border-2 border-slate-100 text-left space-y-2">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Selected Orders: <span className="text-slate-900">{selectedOrderIds.length}</span></p>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Amount: <span className="text-emerald-600">{currentTenant?.currency}{selectedTotalAmount.toFixed(2)}</span></p>
+              <h3 className="text-xl font-black text-purple-600 uppercase tracking-tight">Confirm Collection?</h3>
+              <div className="bg-purple-50 p-5 rounded-2xl border-2 border-purple-100 text-left space-y-3">
+                <div className="flex flex-col gap-1">
+                  <p className="text-[9px] font-black text-purple-400 uppercase tracking-widest">Staff Name</p>
+                  <p className="text-xs font-black text-slate-900 uppercase tracking-tight">
+                    {selectedStaffId === 'all' ? 'All Staff' : (users.find(u => u.id === selectedStaffId)?.name || 'Unknown')}
+                  </p>
+                </div>
+                <div className="flex justify-between items-center border-t border-purple-100 pt-3">
+                  <p className="text-[9px] font-black text-purple-400 uppercase tracking-widest">Selected Orders</p>
+                  <span className="text-xs font-black text-slate-900">{selectedOrderIds.length}</span>
+                </div>
+                <div className="flex justify-between items-center border-t border-purple-100 pt-3">
+                  <p className="text-[9px] font-black text-purple-400 uppercase tracking-widest">Total Amount</p>
+                  <span className="text-sm font-black text-purple-600">{currentTenant?.currency}{selectedTotalAmount.toFixed(2)}</span>
+                </div>
               </div>
               <div className="flex gap-3 pt-4">
                 <button 
                   onClick={() => setShowConfirmCollect(false)}
-                  className="flex-1 py-3 bg-slate-100 text-slate-500 rounded-xl font-bold uppercase tracking-widest text-[10px] border-2 border-transparent hover:border-slate-200 transition-all"
+                  className="flex-1 py-3 bg-red-500 text-white rounded-xl font-black uppercase tracking-widest text-[10px] border-2 border-black shadow-lg shadow-red-100 hover:scale-105 transition-all"
                 >
                   Cancel
                 </button>
                 <button 
                   onClick={confirmBulkPayment}
-                  className="flex-1 py-3 bg-emerald-500 text-white rounded-xl font-bold uppercase tracking-widest text-[10px] border-2 border-black shadow-lg shadow-emerald-100 hover:scale-105 transition-all"
+                  className="flex-1 py-3 bg-purple-600 text-white rounded-xl font-black uppercase tracking-widest text-[10px] border-2 border-black shadow-lg shadow-purple-100 hover:scale-105 transition-all"
                 >
                   Collect Amount
                 </button>
