@@ -383,11 +383,11 @@ export class BluetoothPrinterService {
 
     // Items
     for (const item of order.items) {
-      const qty = `x${item.quantity}`;
+      const qty = `${item.quantity} x`;
       const price = (item.price * item.quantity).toFixed(2);
       const name = item.name;
       
-      const canvas = await this.renderLineToCanvas(`${name} ${qty}`, price, pixelWidth, { leftFontSize: 32, rightFontSize: 24 });
+      const canvas = await this.renderLineToCanvas(`${qty} ${name}`, price, pixelWidth, { leftFontSize: 32, rightFontSize: 24 });
       await this.printCanvas(canvas);
     }
 
@@ -416,7 +416,9 @@ export class BluetoothPrinterService {
       await this.printTextLine('Thank You! Come Again', pixelWidth, { align: 'center' });
     }
     
-    await this.printTextLine('Powered by RestoKeep', pixelWidth, { align: 'center', fontSize: 18 });
+    await this.printTextLine('Powered by: RestoKeep', pixelWidth, { align: 'center', fontSize: 18 });
+    await this.printTextLine('www.restokeep.app', pixelWidth, { align: 'center', fontSize: 14 });
+    await this.printTextLine('Mob: 01303565316', pixelWidth, { align: 'center', fontSize: 14 });
     await this.printRaw(new Uint8Array([...Array(4).fill(0x0A), ...this.COMMANDS.CUT]));
   }
 
@@ -433,7 +435,7 @@ export class BluetoothPrinterService {
     await this.printRaw(new Uint8Array(new TextEncoder().encode('-'.repeat(width) + '\n')));
 
     for (const item of order.items) {
-      await this.printTextLine(`x${item.quantity} ${item.name}`, pixelWidth, { align: 'left', bold: true });
+      await this.printTextLine(`${item.quantity} x ${item.name}`, pixelWidth, { align: 'left', bold: true });
     }
 
     if (order.note) {
