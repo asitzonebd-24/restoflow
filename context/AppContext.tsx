@@ -1411,6 +1411,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
   const refreshData = async () => {
     setIsRefreshing(true);
+    console.log('Refreshing data...', { currentUser, currentTenantId });
 
     const collections = [
       { name: 'tenants', setter: setTenants },
@@ -1450,6 +1451,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
           const snapshot = await getDocs(q);
           let data = snapshot.docs.map(doc => ({ id: doc.id, ...convertFirestoreData(doc.data()) }));
+          console.log(`Refresh: ${name} returned ${data.length} documents`);
 
           // Client-side sorting for consistency
           if (['transactions', 'expenses', 'orders', 'monthly_bills'].includes(name)) {
