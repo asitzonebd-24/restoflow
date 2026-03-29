@@ -29,6 +29,7 @@ export const SuperAdmin = () => {
   const [expenseNote, setExpenseNote] = useState('');
 
   const superAdminCategories = ['Server', 'Marketing', 'Legal', 'Salaries', 'Other'];
+  const CURRENCIES = ['৳', '$', '€', '£', '₹', '₨', 'AED', 'SAR', 'QAR', 'OMR', 'BHD', 'KWD'];
 
   const platformExpenses = useMemo(() => {
     return expenses.filter(e => e.tenantId === 'SUPER_ADMIN');
@@ -41,14 +42,20 @@ export const SuperAdmin = () => {
     setTimeout(() => setCopiedId(null), 2000);
   };
   
-  const [newBusiness, setNewBusiness] = useState({
+  const [newBusiness, setNewBusiness] = useState<Partial<Business>>({
     id: '',
     name: '',
     address: '',
     phone: '',
-    currency: '',
+    currency: '৳',
     themeColor: '#0f172a',
-    monthlyBill: 500
+    monthlyBill: 500,
+    logo: '',
+    vatRate: 0,
+    includeVat: false,
+    timezone: 'UTC',
+    customerTokenPrefix: 'ORD',
+    customerAppEnabled: true,
   });
 
   const [newOwner, setNewOwner] = useState({
@@ -67,20 +74,17 @@ export const SuperAdmin = () => {
     );
   }
 
-  const handleCreate = (e: React.FormEvent) => {
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
     if (editingTenant) {
-      updateTenant(editingTenant.id, newBusiness);
+      await updateTenant(editingTenant.id, newBusiness);
       const owner = allUsers.find(u => String(u.tenantId || '01') === String(editingTenant.id) && u.role === Role.OWNER);
       if (owner) {
-        updateUser(owner.id, newOwner);
+        await updateUser(owner.id, newOwner);
       }
-      setEditingTenant(null);
-      setShowModal(false);
-      setNewBusiness({ id: '', name: '', address: '', phone: '', currency: '', themeColor: '#0f172a', monthlyBill: 500 });
-      setNewOwner({ name: '', email: '', password: '', mobile: '' });
+      resetForm();
       return;
     }
 
@@ -100,24 +104,18 @@ export const SuperAdmin = () => {
       }
     }
 
-    createBusiness(newBusiness, newOwner, duplicateSourceId || undefined);
-    setShowModal(false);
-    setDuplicateSourceId(null);
-    setNewBusiness({ id: '', name: '', address: '', phone: '', currency: '', themeColor: '#0f172a', monthlyBill: 500 });
-    setNewOwner({ name: '', email: '', password: '', mobile: '' });
+    await createBusiness(newBusiness, newOwner, duplicateSourceId || undefined);
+
+    resetForm();
   };
 
   const handleDuplicateTenant = (tenant: Business) => {
     setDuplicateSourceId(tenant.id);
     setEditingTenant(null);
     setNewBusiness({
-      id: tenant.id,
+      ...tenant,
+      id: '',
       name: `${tenant.name} (Copy)`,
-      address: '',
-      phone: '',
-      currency: tenant.currency,
-      themeColor: tenant.themeColor,
-      monthlyBill: tenant.monthlyBill
     });
     setNewOwner({ name: '', email: '', password: '', mobile: '' });
     setShowModal(true);
@@ -125,22 +123,14 @@ export const SuperAdmin = () => {
 
   const handleEditTenant = (tenant: Business) => {
     setEditingTenant(tenant);
-    setNewBusiness({
-      id: tenant.id,
-      name: tenant.name,
-      address: tenant.address,
-      phone: tenant.phone,
-      currency: tenant.currency,
-      themeColor: tenant.themeColor,
-      monthlyBill: tenant.monthlyBill
-    });
+    setNewBusiness({ ...tenant });
     
     const owner = allUsers.find(u => String(u.tenantId || '01') === String(tenant.id) && u.role === Role.OWNER);
     if (owner) {
       setNewOwner({
         name: owner.name,
         email: owner.email,
-        password: owner.password,
+        password: owner.password || '',
         mobile: owner.mobile || ''
       });
     } else {
@@ -193,6 +183,14 @@ export const SuperAdmin = () => {
   const saveBill = (tenantId: string) => {
     updateTenant(tenantId, { monthlyBill: billAmount });
     setEditingBill(null);
+  };
+
+  const resetForm = () => {
+    setShowModal(false);
+    setEditingTenant(null);
+    setDuplicateSourceId(null);
+    setNewBusiness({ id: '', name: '', address: '', phone: '', currency: '৳', themeColor: '#0f172a', monthlyBill: 500, logo: '', vatRate: 0, includeVat: false, timezone: 'UTC', customerTokenPrefix: 'ORD', customerAppEnabled: true });
+    setNewOwner({ name: '', email: '', password: '', mobile: '' });
   };
 
   const filteredTenants = tenants.filter(t => 
@@ -473,21 +471,16 @@ export const SuperAdmin = () => {
       </div>
 
       {showModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 border-2 border-indigo-500 shadow-indigo-100">
-            <div className="p-6 border-b border-indigo-100 flex items-center justify-between bg-slate-50/50">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-0 md:p-4 z-[100] overflow-y-auto">
+          <div className="bg-white rounded-none md:rounded-3xl w-full max-w-4xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 border-0 md:border-2 border-indigo-500 shadow-indigo-100 min-h-screen md:min-h-0 flex flex-col">
+            <div className="p-6 border-b border-indigo-100 flex items-center justify-between bg-slate-50/50 sticky top-0 z-10">
               <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
                 <Building2 className="text-indigo-600" />
                 {editingTenant ? `Edit ${editingTenant.name}` : duplicateSourceId ? 'Duplicate Restaurant' : 'Register New Restaurant'}
               </h2>
               <button 
-                onClick={() => {
-                  setShowModal(false);
-                  setEditingTenant(null);
-                  setDuplicateSourceId(null);
-                  setNewBusiness({ name: '', address: '', phone: '', currency: '', themeColor: '#0f172a', monthlyBill: 500 });
-                }} 
-                className="text-slate-400 hover:text-slate-600"
+                onClick={resetForm} 
+                className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-colors"
               >
                 ✕
               </button>
@@ -500,144 +493,245 @@ export const SuperAdmin = () => {
               </div>
             )}
             
-            <form onSubmit={handleCreate} className="p-6 space-y-6">
-              <div className={`grid grid-cols-1 ${editingTenant ? '' : 'md:grid-cols-2'} gap-6`}>
-                <div className="space-y-4">
-                  <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+            <form onSubmit={handleCreate} className="p-6 space-y-8 flex-1 overflow-y-auto no-scrollbar">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-6">
+                  <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2 border-b border-slate-100 pb-2">
                     <Building2 size={16} /> Business Details
                   </h3>
-                  {!editingTenant && (
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Tenant ID (Slug) - Optional</label>
-                      <div className="relative">
-                        <input 
-                          type="text" 
-                          placeholder="e.g. my-restaurant"
-                          className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none pl-12"
-                          value={newBusiness.id || ''}
-                          onChange={(e) => setNewBusiness({...newBusiness, id: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')})}
-                        />
-                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold"># /</div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {!editingTenant && (
+                      <div className="sm:col-span-2">
+                        <label className="block text-xs font-black uppercase text-slate-500 mb-1 tracking-wider">Slug (URL Name) - Manual Input</label>
+                        <div className="relative">
+                          <input 
+                            type="text" 
+                            placeholder="e.g. my-restaurant"
+                            className="w-full px-4 py-3 rounded-xl border-2 border-slate-100 focus:border-indigo-500 outline-none pl-12 transition-all font-bold text-sm"
+                            value={newBusiness.id || ''}
+                            onChange={(e) => setNewBusiness({...newBusiness, id: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')})}
+                          />
+                          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs"># /</div>
+                        </div>
+                        <p className="text-[9px] text-slate-400 mt-1 uppercase tracking-widest font-bold">Leave empty for auto-generated ID</p>
                       </div>
-                      <p className="text-[9px] text-slate-400 mt-1 uppercase tracking-widest">Leave empty for auto-generated ID</p>
+                    )}
+                    
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-black uppercase text-slate-500 mb-1 tracking-wider">Restaurant Name</label>
+                      <input 
+                        required
+                        type="text" 
+                        className="w-full px-4 py-3 rounded-xl border-2 border-slate-100 focus:border-indigo-500 outline-none transition-all font-bold text-sm"
+                        value={newBusiness.name || ''}
+                        onChange={(e) => setNewBusiness({...newBusiness, name: e.target.value})}
+                      />
                     </div>
-                  )}
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Restaurant Name</label>
-                    <input 
-                      required
-                      type="text" 
-                      className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
-                      value={newBusiness.name || ''}
-                      onChange={(e) => setNewBusiness({...newBusiness, name: e.target.value})}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Address</label>
-                    <input 
-                      type="text" 
-                      className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
-                      value={newBusiness.address || ''}
-                      onChange={(e) => setNewBusiness({...newBusiness, address: e.target.value})}
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Phone</label>
+
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-black uppercase text-slate-500 mb-1 tracking-wider">Logo URL</label>
                       <input 
                         type="text" 
-                        className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
+                        placeholder="https://example.com/logo.png"
+                        className="w-full px-4 py-3 rounded-xl border-2 border-slate-100 focus:border-indigo-500 outline-none transition-all font-bold text-sm"
+                        value={newBusiness.logo || ''}
+                        onChange={(e) => setNewBusiness({...newBusiness, logo: e.target.value})}
+                      />
+                    </div>
+
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-black uppercase text-slate-500 mb-1 tracking-wider">Address</label>
+                      <input 
+                        type="text" 
+                        className="w-full px-4 py-3 rounded-xl border-2 border-slate-100 focus:border-indigo-500 outline-none transition-all font-bold text-sm"
+                        value={newBusiness.address || ''}
+                        onChange={(e) => setNewBusiness({...newBusiness, address: e.target.value})}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-black uppercase text-slate-500 mb-1 tracking-wider">Phone</label>
+                      <input 
+                        type="text" 
+                        className="w-full px-4 py-3 rounded-xl border-2 border-slate-100 focus:border-indigo-500 outline-none transition-all font-bold text-sm"
                         value={newBusiness.phone || ''}
                         onChange={(e) => setNewBusiness({...newBusiness, phone: e.target.value})}
                       />
                     </div>
+
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Currency</label>
-                      <input 
-                        type="text" 
-                        className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
-                        value={newBusiness.currency || ''}
+                      <label className="block text-xs font-black uppercase text-slate-500 mb-1 tracking-wider">Currency</label>
+                      <select 
+                        className="w-full px-4 py-3 rounded-xl border-2 border-slate-100 focus:border-indigo-500 outline-none transition-all font-bold text-sm bg-white"
+                        value={newBusiness.currency || '৳'}
                         onChange={(e) => setNewBusiness({...newBusiness, currency: e.target.value})}
-                      />
+                      >
+                        {CURRENCIES.map(curr => (
+                          <option key={curr} value={curr}>{curr}</option>
+                        ))}
+                      </select>
                     </div>
-                  </div>
-                  <div className="grid grid-cols-1 gap-4">
+
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Monthly Bill ({currentTenant?.currency || '৳'})</label>
+                      <label className="block text-xs font-black uppercase text-slate-500 mb-1 tracking-wider">VAT Rate (%)</label>
                       <input 
                         type="number" 
-                        className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
-                        value={newBusiness.monthlyBill}
+                        step="0.01"
+                        className="w-full px-4 py-3 rounded-xl border-2 border-slate-100 focus:border-indigo-500 outline-none transition-all font-bold text-sm"
+                        value={newBusiness.vatRate || 0}
+                        onChange={(e) => setNewBusiness({...newBusiness, vatRate: Number(e.target.value)})}
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-3 pt-6">
+                      <input 
+                        type="checkbox" 
+                        id="includeVat"
+                        className="w-5 h-5 rounded border-2 border-slate-200 text-indigo-600 focus:ring-indigo-500"
+                        checked={newBusiness.includeVat || false}
+                        onChange={(e) => setNewBusiness({...newBusiness, includeVat: e.target.checked})}
+                      />
+                      <label htmlFor="includeVat" className="text-xs font-black uppercase text-slate-500 tracking-wider cursor-pointer">Include VAT in Price</label>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-black uppercase text-slate-500 mb-1 tracking-wider">Timezone</label>
+                      <select 
+                        className="w-full px-4 py-3 rounded-xl border-2 border-slate-100 focus:border-indigo-500 outline-none transition-all font-bold text-sm bg-white"
+                        value={newBusiness.timezone || 'UTC'}
+                        onChange={(e) => setNewBusiness({...newBusiness, timezone: e.target.value})}
+                      >
+                        <option value="UTC">UTC</option>
+                        <option value="Asia/Dhaka">Asia/Dhaka</option>
+                        <option value="Asia/Kolkata">Asia/Kolkata</option>
+                        <option value="America/New_York">America/New_York</option>
+                        <option value="Europe/London">Europe/London</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-black uppercase text-slate-500 mb-1 tracking-wider">Theme Color</label>
+                      <div className="flex gap-2">
+                        <input 
+                          type="color" 
+                          className="w-12 h-11 p-1 rounded-xl border-2 border-slate-100 cursor-pointer"
+                          value={newBusiness.themeColor || '#0f172a'}
+                          onChange={(e) => setNewBusiness({...newBusiness, themeColor: e.target.value})}
+                        />
+                        <input 
+                          type="text" 
+                          className="flex-1 px-4 py-3 rounded-xl border-2 border-slate-100 focus:border-indigo-500 outline-none transition-all font-bold text-sm uppercase"
+                          value={newBusiness.themeColor || '#0f172a'}
+                          onChange={(e) => setNewBusiness({...newBusiness, themeColor: e.target.value})}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-black uppercase text-slate-500 mb-1 tracking-wider">Token Prefix</label>
+                      <input 
+                        type="text" 
+                        className="w-full px-4 py-3 rounded-xl border-2 border-slate-100 focus:border-indigo-500 outline-none transition-all font-bold text-sm uppercase"
+                        value={newBusiness.customerTokenPrefix || 'ORD'}
+                        onChange={(e) => setNewBusiness({...newBusiness, customerTokenPrefix: e.target.value.toUpperCase()})}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-black uppercase text-slate-500 mb-1 tracking-wider">Monthly Bill</label>
+                      <input 
+                        type="number" 
+                        className="w-full px-4 py-3 rounded-xl border-2 border-slate-100 focus:border-indigo-500 outline-none transition-all font-bold text-sm"
+                        value={newBusiness.monthlyBill || 500}
                         onChange={(e) => setNewBusiness({...newBusiness, monthlyBill: Number(e.target.value)})}
                       />
+                    </div>
+
+                    <div className="flex items-center gap-3 pt-2">
+                      <input 
+                        type="checkbox" 
+                        id="customerAppEnabled"
+                        className="w-5 h-5 rounded border-2 border-slate-200 text-indigo-600 focus:ring-indigo-500"
+                        checked={newBusiness.customerAppEnabled ?? true}
+                        onChange={(e) => setNewBusiness({...newBusiness, customerAppEnabled: e.target.checked})}
+                      />
+                      <label htmlFor="customerAppEnabled" className="text-xs font-black uppercase text-slate-500 tracking-wider cursor-pointer">Customer App Enabled</label>
                     </div>
                   </div>
                 </div>
 
+                <div className="space-y-6">
+                  <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2 border-b border-slate-100 pb-2">
+                    <User size={16} /> {editingTenant ? 'Owner Account' : 'Initial Owner Account'}
+                  </h3>
+                  
                   <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                      <User size={16} /> {editingTenant ? 'Edit Owner Account' : 'Owner Account'}
-                    </h3>
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Owner Name</label>
+                      <label className="block text-xs font-black uppercase text-slate-500 mb-1 tracking-wider">Owner Name</label>
                       <input 
                         required
                         type="text" 
-                        className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
+                        className="w-full px-4 py-3 rounded-xl border-2 border-slate-100 focus:border-indigo-500 outline-none transition-all font-bold text-sm"
                         value={newOwner.name || ''}
                         onChange={(e) => setNewOwner({...newOwner, name: e.target.value})}
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Email Address</label>
+                      <label className="block text-xs font-black uppercase text-slate-500 mb-1 tracking-wider">Email Address</label>
                       <input 
                         required
                         type="email" 
-                        className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
+                        className="w-full px-4 py-3 rounded-xl border-2 border-slate-100 focus:border-indigo-500 outline-none transition-all font-bold text-sm"
                         value={newOwner.email || ''}
                         onChange={(e) => setNewOwner({...newOwner, email: e.target.value})}
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Mobile</label>
+                      <label className="block text-xs font-black uppercase text-slate-500 mb-1 tracking-wider">Mobile</label>
                       <input 
                         type="text" 
-                        className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
+                        className="w-full px-4 py-3 rounded-xl border-2 border-slate-100 focus:border-indigo-500 outline-none transition-all font-bold text-sm"
                         value={newOwner.mobile || ''}
                         onChange={(e) => setNewOwner({...newOwner, mobile: e.target.value})}
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
+                      <label className="block text-xs font-black uppercase text-slate-500 mb-1 tracking-wider">Password</label>
                       <input 
                         required
                         type="password" 
-                        className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none"
+                        className="w-full px-4 py-3 rounded-xl border-2 border-slate-100 focus:border-indigo-500 outline-none transition-all font-bold text-sm"
                         value={newOwner.password || ''}
                         onChange={(e) => setNewOwner({...newOwner, password: e.target.value})}
                       />
                     </div>
                   </div>
+
+                  <div className="p-6 bg-indigo-50 rounded-[2rem] border-2 border-indigo-100 mt-8">
+                    <h4 className="text-[10px] font-black uppercase text-indigo-400 tracking-widest mb-2">Note</h4>
+                    <p className="text-[10px] font-bold text-indigo-900 leading-relaxed">
+                      {editingTenant 
+                        ? "Editing owner details here will update the primary owner account for this restaurant. Be careful with email/password changes."
+                        : "This account will be created as the primary owner for the new restaurant with full administrative permissions."}
+                    </p>
+                  </div>
+                </div>
               </div>
 
-              <div className="pt-6 border-t border-slate-100 flex gap-3">
+              <div className="pt-8 border-t border-slate-100 flex flex-col sm:flex-row gap-3 sticky bottom-0 bg-white pb-2">
                 <button 
                   type="button"
-                  onClick={() => {
-                    setShowModal(false);
-                    setEditingTenant(null);
-                    setDuplicateSourceId(null);
-                    setNewBusiness({ name: '', address: '', phone: '', currency: '', themeColor: '#0f172a', monthlyBill: 500 });
-                  }}
-                  className="flex-1 px-6 py-3 rounded-xl font-bold text-slate-600 hover:bg-slate-100 transition"
+                  onClick={resetForm}
+                  className="flex-1 px-6 py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] text-slate-500 hover:bg-slate-100 transition-all border-2 border-transparent"
                 >
                   Cancel
                 </button>
                 <button 
                   type="submit"
-                  className="flex-1 bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 transition shadow-lg shadow-indigo-200"
+                  className="flex-1 bg-indigo-600 text-white px-6 py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-200 border-2 border-indigo-600"
                 >
-                  {editingTenant ? 'Save Changes' : duplicateSourceId ? 'Duplicate Business' : 'Create Business'}
+                  {editingTenant ? 'Save Business Changes' : duplicateSourceId ? 'Duplicate Business' : 'Create Business'}
                 </button>
               </div>
             </form>

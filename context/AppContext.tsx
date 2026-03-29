@@ -113,7 +113,7 @@ interface AppContextType {
   currentTenant: Business;
   currentTenantId: string | null;
   setCurrentTenantId: (id: string | null) => void;
-  createBusiness: (businessData: Partial<Business>, ownerData: Partial<User>, sourceTenantId?: string) => Promise<void>;
+  createBusiness: (businessData: Partial<Business>, ownerData: Partial<User>, sourceTenantId?: string) => Promise<string>;
   toggleBusinessStatus: (tenantId: string) => Promise<void>;
   transactions: Transaction[];
   addTransaction: (transaction: Omit<Transaction, 'tenantId'>) => Promise<void>;
@@ -137,8 +137,6 @@ interface AppContextType {
     hasTables: boolean;
     missingTables: string[];
   };
-  refreshData: () => Promise<void>;
-  isRefreshing: boolean;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -173,7 +171,6 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [allRecipes, setAllRecipes] = useState<Recipe[]>([]);
   const [monthlyBills, setMonthlyBills] = useState<MonthlyBill[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string>('');
   const [dbStatus, setDbStatus] = useState<{
@@ -1226,8 +1223,17 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     }
   };
 
-  const createBusiness = async (businessData: Partial<Business>, ownerData: Partial<User>, sourceTenantId?: string) => {
-    const numericIds = tenants
+  const createBusiness = async (businessData: Partial<Business>, ownerData: Partial<User>, sourceTenantId?: string): Promise<string> => {
+    // We need to get the latest tenants to avoid ID collisions if called sequentially
+    let currentTenants = tenants;
+    try {
+      const tenantsSnapshot = await getDocs(collection(db, 'tenants'));
+      currentTenants = tenantsSnapshot.docs.map(doc => ({ id: doc.id, ...convertFirestoreData(doc.data()) })) as Business[];
+    } catch (err) {
+      console.error('Error fetching latest tenants for ID generation:', err);
+    }
+
+    const numericIds = currentTenants
       .map(t => parseInt(t.id))
       .filter(id => !isNaN(id))
       .sort((a, b) => b - a);
@@ -1255,11 +1261,11 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       includeVat: businessData.includeVat || false,
       timezone: businessData.timezone || 'UTC',
       themeColor: businessData.themeColor || '#0f172a',
-      expenseCategories: ['Inventory', 'Utilities', 'Salaries', 'Other'],
+      expenseCategories: businessData.expenseCategories || ['Inventory', 'Utilities', 'Salaries', 'Other'],
       menuCategories: initialMenuCategories,
-      customerTokenPrefix: 'ORD',
-      nextCustomerToken: 1,
-      customerAppEnabled: true,
+      customerTokenPrefix: businessData.customerTokenPrefix || 'ORD',
+      nextCustomerToken: businessData.nextCustomerToken || 1,
+      customerAppEnabled: businessData.customerAppEnabled ?? true,
       isActive: true,
       monthlyBill: businessData.monthlyBill || 500,
       createdAt: new Date().toISOString()
@@ -1301,10 +1307,10 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       setTenants(prev => [...prev, newBusiness]);
       setAllUsers(prev => [...prev, newOwner]);
       
-      // If we duplicated menu items, we should ideally update allMenu too
-      // but that's more complex. For now, the tenant and owner are most important.
+      return newTenantId;
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'tenants/users');
+      return '';
     }
   };
 
@@ -1409,85 +1415,6 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     }
   };
 
-  const refreshData = async () => {
-    setIsRefreshing(true);
-    console.log('Refreshing data...', { currentUser, currentTenantId });
-
-    const collections = [
-      { name: 'tenants', setter: setTenants },
-      { name: 'users', setter: setAllUsers },
-      { name: 'transactions', setter: setAllTransactions },
-      { name: 'expenses', setter: setAllExpenses },
-      { name: 'recipes', setter: setAllRecipes },
-      { name: 'monthly_bills', setter: setMonthlyBills },
-      { name: 'orders', setter: setAllOrders },
-      { name: 'menu_items', setter: setAllMenu },
-      { name: 'inventory_items', setter: setAllInventory }
-    ];
-
-    try {
-      await Promise.all(collections.map(async ({ name, setter }) => {
-        try {
-          let q = query(collection(db, name));
-
-          if (currentUser?.role !== Role.SUPER_ADMIN && currentUser?.tenantId) {
-            q = query(collection(db, name), where('tenantId', '==', currentUser.tenantId));
-          }
-
-          if (name === 'orders') {
-            const activeStatuses = [OrderStatus.PENDING, OrderStatus.PREPARING, OrderStatus.READY];
-            if (currentUser?.role !== Role.SUPER_ADMIN && currentUser?.tenantId) {
-              q = query(collection(db, name), where('tenantId', '==', currentUser.tenantId), where('status', 'in', activeStatuses), limit(100));
-            } else {
-              q = query(collection(db, name), where('status', 'in', activeStatuses), limit(100));
-            }
-          } else if (['transactions', 'expenses'].includes(name)) {
-            if (currentUser?.role !== Role.SUPER_ADMIN && currentUser?.tenantId) {
-              q = query(collection(db, name), where('tenantId', '==', currentUser.tenantId), limit(100));
-            } else {
-              q = query(collection(db, name), limit(100));
-            }
-          }
-
-          const snapshot = await getDocs(q);
-          let data = snapshot.docs.map(doc => ({ id: doc.id, ...convertFirestoreData(doc.data()) }));
-          console.log(`Refresh: ${name} returned ${data.length} documents`);
-
-          // Client-side sorting for consistency
-          if (['transactions', 'expenses', 'orders', 'monthly_bills'].includes(name)) {
-            const sortField = name === 'orders' || name === 'monthly_bills' ? 'createdAt' : 'date';
-            data.sort((a: any, b: any) => (b[sortField] || '').localeCompare(a[sortField] || ''));
-          }
-
-          if (name === 'users') {
-            const dataUsers = data as any as User[];
-            const mergedUsers = [...ENHANCED_MOCK_USERS];
-            dataUsers.forEach(u => {
-              if (!mergedUsers.find(mu => mu.id === u.id)) {
-                mergedUsers.push(u);
-              }
-            });
-            setter(mergedUsers as any);
-          } else if (name === 'tenants') {
-            const tenantsData = data as any as Business[];
-            if (!tenantsData.some(t => String(t.id) === '01')) {
-              tenantsData.unshift(BUSINESS_DETAILS);
-            }
-            setter(tenantsData as any);
-          } else {
-            setter(data as any);
-          }
-        } catch (err) {
-          console.error(`Error refreshing ${name}:`, err);
-        }
-      }));
-    } catch (error) {
-      console.error('Error in refreshData:', error);
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
-
   return (
     <AppContext.Provider value={{
       currentUser,
@@ -1545,9 +1472,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       activeCategory,
       setActiveCategory,
       categories,
-      dbStatus,
-      refreshData,
-      isRefreshing
+      dbStatus
     }}>
       {children}
     </AppContext.Provider>

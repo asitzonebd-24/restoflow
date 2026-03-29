@@ -10,8 +10,11 @@ export const CustomerHistory = () => {
   const { tenantId: urlTenantId } = useParams<{ tenantId: string }>();
   const { orders, currentUser, business, logout, setCurrentTenantId, activeCategory, setActiveCategory, categories } = useApp();
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+
+  const isActive = (path: string) => location.pathname === path;
 
   const tenantId = urlTenantId || currentUser?.tenantId;
 
