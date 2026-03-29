@@ -2,8 +2,125 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: tenants
+    // Document ID: {tenantId}
+    // Fields:
+    //   - id: string (required)
+    //   - name: string (required)
+    //   - logo: string (optional)
+    //   - address: string (optional)
+    //   - phone: string (optional)
+    //   - currency: string (optional)
+    //   - vatRate: number (optional)
+    //   - includeVat: boolean (optional)
+    //   - timezone: string (optional)
+    //   - themeColor: string (optional)
+    //   - expenseCategories: list (optional)
+    //   - menuCategories: list (optional)
+    //   - customerTokenPrefix: string (optional)
+    //   - nextCustomerToken: number (optional)
+    //   - customerAppEnabled: boolean (optional)
+    //   - isActive: boolean (optional)
+    //   - monthlyBill: number (optional)
+    //   - createdAt: timestamp (optional)
+    //
+    // Collection: users
+    // Document ID: {userId}
+    // Fields:
+    //   - id: string (required)
+    //   - tenantId: string (optional)
+    //   - name: string (required)
+    //   - email: string (required, email format)
+    //   - password: string (required)
+    //   - mobile: string (optional)
+    //   - role: string (required, enum: SUPER_ADMIN, ADMIN, MANAGER, STAFF, CUSTOMER)
+    //   - avatar: string (optional)
+    //   - permissions: list (optional)
+    //   - createdAt: timestamp (optional)
+    //
+    // Collection: menu_items
+    // Document ID: {itemId}
+    // Fields:
+    //   - id: string (required)
+    //   - tenantId: string (required)
+    //   - name: string (required)
+    //   - description: string (optional)
+    //   - price: number (required)
+    //   - category: string (required)
+    //   - image: string (optional)
+    //   - isAvailable: boolean (optional)
+    //   - stock: number (optional)
+    //   - createdAt: timestamp (optional)
+    //
+    // Collection: inventory_items
+    // Document ID: {itemId}
+    // Fields:
+    //   - id: string (required)
+    //   - tenantId: string (required)
+    //   - name: string (required)
+    //   - quantity: number (required)
+    //   - unit: string (required)
+    //   - minThreshold: number (required)
+    //   - lastUpdated: timestamp (optional)
+    //
+    // Collection: orders
+    // Document ID: {orderId}
+    // Fields:
+    //   - id: string (required)
+    //   - tenantId: string (required)
+    //   - tokenNumber: string (optional)
+    //   - tableNumber: string (optional)
+    //   - items: list (required)
+    //   - status: string (required, enum: PENDING, PREPARING, READY, SERVED, CANCELLED)
+    //   - totalAmount: number (required)
+    //   - note: string (optional)
+    //   - createdBy: string (optional)
+    //   - createdAt: timestamp (optional)
+    //
+    // Collection: transactions
+    // Document ID: {transactionId}
+    // Fields:
+    //   - id: string (required)
+    //   - tenantId: string (required)
+    //   - orderId: string (optional)
+    //   - amount: number (required)
+    //   - method: string (required)
+    //   - type: string (required, enum: INCOME, EXPENSE)
+    //   - createdAt: timestamp (optional)
+    //
+    // Collection: expenses
+    // Document ID: {expenseId}
+    // Fields:
+    //   - id: string (required)
+    //   - tenantId: string (required)
+    //   - title: string (required)
+    //   - amount: number (required)
+    //   - category: string (required)
+    //   - date: string (required)
+    //   - recordedBy: string (optional)
+    //   - createdAt: timestamp (optional)
+    //
+    // Collection: monthly_bills
+    // Document ID: {billId}
+    // Fields:
+    //   - id: string (required)
+    //   - tenantId: string (required)
+    //   - tenantName: string (required)
+    //   - month: string (required)
+    //   - amount: number (required)
+    //   - status: string (required, enum: PENDING, PAID)
+    //   - approvedAt: timestamp (optional)
+    //   - createdAt: timestamp (optional)
+    //
+    // ===============================================================
+
+    // ===============================================================
     // Helper Functions
     // ===============================================================
+    
     function isAuthenticated() {
       return request.auth != null;
     }
@@ -13,18 +130,88 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      // For now, since we're using a custom login system, we'll allow writes.
-      // In production, you should use Firebase Auth and check request.auth.
-      return true;
+      return isAuthenticated() &&
+        (request.auth.token.email == "asitzonebd@gmail.com" ||
+         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'SUPER_ADMIN'));
+    }
+
+    function isTenantAdmin(tenantId) {
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tenantId == tenantId &&
+         (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN' ||
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'OWNER'));
     }
 
     function isTenantUser(tenantId) {
-      // Since we use custom auth, we can't easily check tenantId in rules without request.auth
-      return true;
+      return isAuthenticated() && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tenantId == tenantId);
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
     }
 
     function hasOnlyAllowedFields(fields) {
       return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidUrl(url) {
+      return url is string && (url.size() == 0 || url.matches("^https://.*") || url.matches("^http://.*"));
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidTenant(data) {
+      return hasRequiredFields(['id', 'name']) &&
+        data.id is string &&
+        data.name is string &&
+        (!('logo' in data) || data.logo is string) &&
+        (!('address' in data) || data.address is string) &&
+        (!('phone' in data) || data.phone is string) &&
+        (!('currency' in data) || data.currency is string) &&
+        (!('vatRate' in data) || data.vatRate is number) &&
+        (!('includeVat' in data) || data.includeVat is bool) &&
+        (!('timezone' in data) || data.timezone is string) &&
+        (!('themeColor' in data) || data.themeColor is string) &&
+        (!('expenseCategories' in data) || data.expenseCategories is list) &&
+        (!('menuCategories' in data) || data.menuCategories is list) &&
+        (!('customerTokenPrefix' in data) || data.customerTokenPrefix is string) &&
+        (!('nextCustomerToken' in data) || data.nextCustomerToken is number) &&
+        (!('customerAppEnabled' in data) || data.customerAppEnabled is bool) &&
+        (!('isActive' in data) || data.isActive is bool) &&
+        (!('monthlyBill' in data) || data.monthlyBill is number) &&
+        (!('createdAt' in data) || data.createdAt is string);
+    }
+
+    function isValidUser(data) {
+      return hasRequiredFields(['id', 'name', 'email', 'role']) &&
+        data.id is string &&
+        data.name is string &&
+        data.email is string &&
+        data.role is string &&
+        (!('tenantId' in data) || data.tenantId is string) &&
+        (!('password' in data) || data.password is string) &&
+        (!('mobile' in data) || data.mobile is string) &&
+        (!('avatar' in data) || data.avatar is string) &&
+        (!('permissions' in data) || data.permissions is list) &&
+        (!('createdAt' in data) || data.createdAt is string);
+    }
+
+    function isValidOrder(data) {
+      return hasRequiredFields(['id', 'tenantId', 'items', 'status', 'totalAmount']) &&
+        data.id is string && data.tenantId is string &&
+        data.items is list && data.items.size() > 0 && data.items.size() < 100 &&
+        data.status in ['PENDING', 'PREPARING', 'READY', 'COMPLETED', 'CANCELLED'] &&
+        data.totalAmount is number && data.totalAmount >= 0;
     }
 
     // ===============================================================
@@ -32,50 +219,59 @@ service cloud.firestore {
     // ===============================================================
 
     match /tenants/{tenantId} {
-      allow read: if true;
-      allow write: if isAdmin();
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() && isValidTenant(request.resource.data);
+      allow update: if (isAdmin() || isTenantAdmin(tenantId)) && isValidTenant(request.resource.data);
+      allow delete: if isAdmin();
     }
 
     match /users/{userId} {
-      allow read: if true;
-      allow create: if true; // Allow registration
-      allow update: if true; // Allow updates for custom auth system
+      allow read: if isAuthenticated() && (isOwner(userId) || isAdmin() || (isTenantAdmin(resource.data.tenantId) && resource.data.tenantId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tenantId));
+      allow create: if (isAdmin() || (isAuthenticated() && request.resource.data.role == 'CUSTOMER')) && isValidUser(request.resource.data);
+      allow update: if (isAdmin() || isOwner(userId) || (isTenantAdmin(resource.data.tenantId) && request.resource.data.role == resource.data.role)) && isValidUser(request.resource.data);
       allow delete: if isAdmin();
     }
 
     match /menu_items/{itemId} {
-      allow read: if true;
-      allow write: if isAuthenticated() || isAdmin();
+      allow read: if isAuthenticated();
+      allow create: if (isAdmin() || isTenantAdmin(request.resource.data.tenantId)) && hasRequiredFields(['id', 'tenantId', 'name', 'price', 'category']);
+      allow update: if (isAdmin() || isTenantAdmin(resource.data.tenantId)) && hasRequiredFields(['id', 'tenantId', 'name', 'price', 'category']);
+      allow delete: if isAdmin() || isTenantAdmin(resource.data.tenantId);
     }
 
     match /inventory_items/{itemId} {
-      allow read: if true;
-      allow write: if isAuthenticated() || isAdmin();
+      allow read: if isAuthenticated() && (isAdmin() || isTenantUser(resource.data.tenantId));
+      allow create: if (isAdmin() || isTenantAdmin(request.resource.data.tenantId)) && hasRequiredFields(['id', 'tenantId', 'name', 'quantity', 'unit', 'minThreshold']);
+      allow update: if (isAdmin() || isTenantUser(resource.data.tenantId)) && hasRequiredFields(['id', 'tenantId', 'name', 'quantity', 'unit', 'minThreshold']);
+      allow delete: if isAdmin() || isTenantAdmin(resource.data.tenantId);
     }
 
     match /orders/{orderId} {
-      allow read: if true;
-      allow write: if true; // Allow customers to place orders
+      allow read: if isAuthenticated() && (isAdmin() || isTenantUser(resource.data.tenantId));
+      allow create: if isAuthenticated() && isValidOrder(request.resource.data);
+      allow update: if isAuthenticated() && (isAdmin() || isTenantUser(resource.data.tenantId)) && isValidOrder(request.resource.data);
+      allow delete: if isAdmin() || isTenantAdmin(resource.data.tenantId);
     }
 
     match /transactions/{transactionId} {
-      allow read: if true;
-      allow write: if isAuthenticated() || isAdmin();
+      allow read: if isAuthenticated() && (isAdmin() || isTenantUser(resource.data.tenantId));
+      allow create: if isAuthenticated() && (isAdmin() || isTenantUser(request.resource.data.tenantId));
+      allow update: if isAdmin() || isTenantAdmin(resource.data.tenantId);
+      allow delete: if isAdmin();
     }
 
     match /expenses/{expenseId} {
-      allow read: if true;
-      allow write: if isAuthenticated() || isAdmin();
+      allow read: if isAuthenticated() && (isAdmin() || isTenantUser(resource.data.tenantId));
+      allow create: if isAuthenticated() && (isAdmin() || isTenantUser(request.resource.data.tenantId));
+      allow update: if isAdmin() || isTenantAdmin(resource.data.tenantId);
+      allow delete: if isAdmin();
     }
 
     match /monthly_bills/{billId} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
-    match /recipes/{recipeId} {
-      allow read: if true;
-      allow write: if isAuthenticated() || isAdmin();
+      allow read: if isAuthenticated() && (isAdmin() || isTenantAdmin(resource.data.tenantId));
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
     }
   }
 }

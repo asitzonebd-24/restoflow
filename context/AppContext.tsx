@@ -3,7 +3,12 @@ import React, { createContext, useContext, useState, ReactNode, useMemo, useEffe
 import { Role, Business, User, Order, InventoryItem, MenuItem, OrderStatus, ItemStatus, Transaction, Expense, OrderItem, MonthlyBill, BillStatus, Recipe } from '../types';
 import { BUSINESS_DETAILS, MOCK_USERS, INITIAL_ORDERS, MOCK_INVENTORY, MOCK_MENU, MOCK_EXPENSES, DEFAULT_MENU_IMAGE, DEFAULT_AVATAR, DEFAULT_BUSINESS_LOGO } from '../constants';
 import { auth, db } from '../firebase';
-import { onAuthStateChanged } from 'firebase/auth';
+import { 
+  onAuthStateChanged, 
+  signInWithPopup, 
+  GoogleAuthProvider, 
+  signOut 
+} from 'firebase/auth';
 import { 
   collection, 
   onSnapshot, 
@@ -13,6 +18,8 @@ import {
   deleteDoc, 
   query, 
   where, 
+  limit,
+  orderBy,
   getDocs,
   getDoc,
   writeBatch,
@@ -51,7 +58,14 @@ const handleFirestoreError = (error: unknown, operationType: OperationType, path
     operationType,
     path
   };
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  
+  const errorMsg = JSON.stringify(errInfo);
+  console.error('Firestore Error: ', errorMsg);
+  
+  // Throw error if it's a permission or quota error so ErrorBoundary can catch it
+  if (errInfo.error.includes('insufficient permissions') || errInfo.error.includes('Quota exceeded')) {
+    throw new Error(errorMsg);
+  }
 };
 
 interface AppContextType {
@@ -63,7 +77,8 @@ interface AppContextType {
   inventory: InventoryItem[];
   menu: MenuItem[];
   login: (emailOrMobile: string, password: string, tenantId?: string | null) => boolean;
-  logout: () => void;
+  loginWithGoogle: () => Promise<boolean>;
+  logout: () => Promise<void>;
   addOrder: (order: Omit<Order, 'tenantId'>) => Promise<void>;
   updateOrderItems: (
     orderId: string, 
@@ -125,6 +140,8 @@ interface AppContextType {
     hasTables: boolean;
     missingTables: string[];
   };
+  refreshData: () => Promise<void>;
+  isRefreshing: boolean;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -159,6 +176,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [allRecipes, setAllRecipes] = useState<Recipe[]>([]);
   const [monthlyBills, setMonthlyBills] = useState<MonthlyBill[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string>('All');
   const [dbStatus, setDbStatus] = useState<{
     isConfigured: boolean;
@@ -171,77 +189,158 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   });
 
   useEffect(() => {
-    // Real-time listeners for all collections
-    const unsubscribers: (() => void)[] = [];
-    const loadedCollections = new Set<string>();
-
-    const collectionsList = [
-      { name: 'tenants', setter: setTenants },
-      { name: 'users', setter: setAllUsers },
-      { name: 'menu_items', setter: setAllMenu },
-      { name: 'inventory_items', setter: setAllInventory },
-      { name: 'orders', setter: setAllOrders },
-      { name: 'transactions', setter: setAllTransactions },
-      { name: 'expenses', setter: setAllExpenses },
-      { name: 'recipes', setter: setAllRecipes },
-      { name: 'monthly_bills', setter: setMonthlyBills }
-    ];
-
-    collectionsList.forEach(({ name, setter }) => {
-      const unsub = onSnapshot(collection(db, name), (snapshot) => {
-        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        
-        if (name === 'users') {
-          // Always ensure super admins from mock data are available
-          const firestoreUsers = data as User[];
-          const mockSuperAdmins = ENHANCED_MOCK_USERS.filter(u => u.role === Role.SUPER_ADMIN);
-          
-          const mergedUsers = [...firestoreUsers];
-          mockSuperAdmins.forEach(mockSA => {
-            const existingIndex = mergedUsers.findIndex(u => u.email.toLowerCase() === mockSA.email.toLowerCase());
-            if (existingIndex === -1) {
-              mergedUsers.push(mockSA);
-            } else {
-              // If it's a super admin, ensure it has the mock credentials as a fallback
-              // but keep other Firestore data like avatar, etc.
-              mergedUsers[existingIndex] = { 
-                ...mergedUsers[existingIndex], 
-                role: Role.SUPER_ADMIN,
-                password: mergedUsers[existingIndex].password || mockSA.password
-              };
-            }
-          });
-          
-          setter(mergedUsers as any);
-        } else if (data.length > 0) {
-          setter(data as any);
+    // Listen for auth state changes to sync with Firebase Auth
+    const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser) => {
+      if (firebaseUser) {
+        // If the user is the Super Admin email, ensure they have the role
+        if (firebaseUser.email === 'asitzonebd@gmail.com') {
+          const superAdminUser: User = {
+            id: firebaseUser.uid,
+            name: firebaseUser.displayName || 'Super Admin',
+            email: firebaseUser.email,
+            role: Role.SUPER_ADMIN,
+            mobile: firebaseUser.phoneNumber || '0000000000',
+            avatar: firebaseUser.photoURL || DEFAULT_AVATAR,
+            permissions: ['Dashboard', 'POS', 'Kitchen', 'Menu', 'Billing', 'Transactions', 'Expenses', 'Reports', 'Inventory', 'Users', 'Settings']
+          };
+          setCurrentUser(superAdminUser);
+          localStorage.setItem('resto_keep_user', JSON.stringify(superAdminUser));
         } else {
-          // Fallback to mock data if collection is empty
-          if (name === 'tenants') setter([BUSINESS_DETAILS]);
-          if (name === 'menu_items') setter(MOCK_MENU);
-          if (name === 'inventory_items') setter(MOCK_INVENTORY);
-          if (name === 'orders') setter(INITIAL_ORDERS);
-          if (name === 'expenses') setter(MOCK_EXPENSES);
-          if (name === 'recipes') setter([]);
-          if (name === 'monthly_bills') setter([]);
+          // For other users, we rely on the Firestore 'users' collection
+          // which is fetched in the main data useEffect
         }
-        
-        loadedCollections.add(name);
-        if (loadedCollections.size >= collectionsList.length) {
-          setIsLoading(false);
-        }
-      }, (error) => {
-        handleFirestoreError(error, OperationType.LIST, name);
-        loadedCollections.add(name);
-        if (loadedCollections.size >= collectionsList.length) {
-          setIsLoading(false);
-        }
-      });
-      unsubscribers.push(unsub);
+      }
     });
 
-    return () => unsubscribers.forEach(unsub => unsub());
+    return () => unsubscribeAuth();
   }, []);
+
+  useEffect(() => {
+    // Real-time listeners for critical collections
+    const loadedCollections = new Set<string>();
+
+const realtimeCollections = [
+  { name: 'menu_items', setter: setAllMenu },
+  { name: 'inventory_items', setter: setAllInventory },
+  { name: 'orders', setter: setAllOrders },
+];
+
+const staticCollections = [
+  { name: 'tenants', setter: setTenants },
+  { name: 'users', setter: setAllUsers },
+  { name: 'transactions', setter: setAllTransactions },
+  { name: 'expenses', setter: setAllExpenses },
+  { name: 'recipes', setter: setAllRecipes },
+  { name: 'monthly_bills', setter: setMonthlyBills }
+];
+
+const allCollectionNames = [...realtimeCollections, ...staticCollections].map(c => c.name);
+
+// ✅ STATIC DATA (LOW READ)
+staticCollections.forEach(({ name, setter }) => {
+  let q = query(collection(db, name));
+
+  if (['transactions', 'expenses'].includes(name)) {
+    q = query(collection(db, name), orderBy('date', 'desc'), limit(50));
+  } else if (['monthly_bills', 'tenants'].includes(name)) {
+    q = query(collection(db, name), orderBy('createdAt', 'desc'), limit(50));
+  }
+
+  getDocs(q).then((snapshot) => {
+    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+    if (name === 'users') {
+      const firestoreUsers = data as User[];
+      const mockSuperAdmins = ENHANCED_MOCK_USERS.filter(u => u.role === Role.SUPER_ADMIN);
+      const mergedUsers = [...firestoreUsers];
+
+      mockSuperAdmins.forEach(mockSA => {
+        const existingIndex = mergedUsers.findIndex(u => u.email.toLowerCase() === mockSA.email.toLowerCase());
+        if (existingIndex === -1) {
+          mergedUsers.push(mockSA);
+        } else {
+          mergedUsers[existingIndex] = {
+            ...mergedUsers[existingIndex],
+            role: Role.SUPER_ADMIN,
+            password: mergedUsers[existingIndex].password || mockSA.password
+          };
+        }
+      });
+
+      setter(mergedUsers as any);
+    } else {
+      setter(data as any);
+    }
+
+    loadedCollections.add(name);
+    if (loadedCollections.size >= allCollectionNames.length) {
+      setIsLoading(false);
+    }
+  }).catch((error) => {
+    try {
+      handleFirestoreError(error, OperationType.LIST, name);
+    } catch (e) {
+      console.warn(`Falling back to mock data for ${name} due to quota/permission error.`);
+    }
+    
+    if (name === 'users') setter(ENHANCED_MOCK_USERS as any);
+    if (name === 'tenants') setter([BUSINESS_DETAILS] as any);
+    if (name === 'expenses') setter(MOCK_EXPENSES as any);
+    if (name === 'transactions') setter([] as any);
+    if (name === 'recipes') setter([] as any);
+    if (name === 'monthly_bills') setter([] as any);
+
+    loadedCollections.add(name);
+    if (loadedCollections.size >= allCollectionNames.length) {
+      setIsLoading(false);
+    }
+  });
+});
+
+// ✅ 🔥 REALTIME REMOVE → NORMAL FETCH
+realtimeCollections.forEach(({ name, setter }) => {
+  let q = query(collection(db, name));
+
+  if (name === 'orders') {
+    q = query(collection(db, name), orderBy('createdAt', 'desc'), limit(20));
+  }
+
+  getDocs(q).then((snapshot) => {
+    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    setter(data as any);
+
+    loadedCollections.add(name);
+    if (loadedCollections.size >= allCollectionNames.length) {
+      setIsLoading(false);
+    }
+  }).catch((error) => {
+    try {
+      handleFirestoreError(error, OperationType.LIST, name);
+    } catch (e) {
+      console.warn(`Falling back to mock data for ${name} due to quota/permission error.`);
+    }
+    
+    if (name === 'menu_items') setter(MOCK_MENU as any);
+    if (name === 'inventory_items') setter(MOCK_INVENTORY as any);
+    if (name === 'orders') setter(INITIAL_ORDERS as any);
+
+    loadedCollections.add(name);
+    if (loadedCollections.size >= allCollectionNames.length) {
+      setIsLoading(false);
+    }
+  });
+});
+
+
+
+  }, []);
+  useEffect(() => {
+  const interval = setInterval(() => {
+    refreshData();
+  }, 30000);
+
+  return () => clearInterval(interval);
+}, []);
 
   // Sync currentUser with allUsers in real-time to reflect role/permission changes
   useEffect(() => {
@@ -266,7 +365,16 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const business = useMemo(() => {
     const targetId = currentUser?.tenantId || currentTenantId;
     if (!targetId) return tenants[0] || BUSINESS_DETAILS;
-    return tenants.find(t => String(t.id) === String(targetId)) || tenants[0] || BUSINESS_DETAILS;
+    const found = tenants.find(t => String(t.id) === String(targetId));
+    if (found) return found;
+    
+    // If we're at a specific tenant ID but it's not in the list yet, 
+    // and we have a default business, only return it if the ID matches
+    if (String(BUSINESS_DETAILS.id) === String(targetId)) return BUSINESS_DETAILS;
+    
+    // Return the first tenant as a fallback only if no specific ID was requested
+    // and we are not in a "not found" state
+    return tenants[0] || BUSINESS_DETAILS;
   }, [currentUser, tenants, currentTenantId]);
 
   const orders = useMemo(() => {
@@ -334,7 +442,51 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     return false;
   };
 
-  const logout = () => {
+  const loginWithGoogle = async () => {
+    try {
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      const firebaseUser = result.user;
+      
+      if (firebaseUser.email === 'asitzonebd@gmail.com') {
+        const superAdminUser: User = {
+          id: firebaseUser.uid,
+          name: firebaseUser.displayName || 'Super Admin',
+          email: firebaseUser.email!,
+          role: Role.SUPER_ADMIN,
+          mobile: firebaseUser.phoneNumber || '0000000000',
+          avatar: firebaseUser.photoURL || DEFAULT_AVATAR,
+          permissions: ['Dashboard', 'POS', 'Kitchen', 'Menu', 'Billing', 'Transactions', 'Expenses', 'Reports', 'Inventory', 'Users', 'Settings']
+        };
+        setCurrentUser(superAdminUser);
+        localStorage.setItem('resto_keep_user', JSON.stringify(superAdminUser));
+        return true;
+      } else {
+        // Check if this user exists in our Firestore users collection
+        const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+        if (userDoc.exists()) {
+          const userData = userDoc.data() as User;
+          setCurrentUser(userData);
+          localStorage.setItem('resto_keep_user', JSON.stringify(userData));
+          return true;
+        } else {
+          // Sign out if not authorized
+          await signOut(auth);
+          throw new Error('Unauthorized access. Please contact your administrator.');
+        }
+      }
+    } catch (error) {
+      console.error('Google login error:', error);
+      throw error;
+    }
+  };
+
+  const logout = async () => {
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error('Sign out error:', error);
+    }
     setCurrentUser(null);
     localStorage.removeItem('resto_keep_user');
   };
@@ -965,6 +1117,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     try {
       const recipeRef = doc(db, 'recipes', newRecipe.id);
       await setDoc(recipeRef, cleanObject(newRecipe));
+      setAllRecipes(prev => [...prev, newRecipe]);
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'recipes');
     }
@@ -974,6 +1127,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     try {
       const recipeRef = doc(db, 'recipes', id);
       await updateDoc(recipeRef, cleanObject(updates));
+      setAllRecipes(prev => prev.map(r => r.id === id ? { ...r, ...updates } : r));
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `recipes/${id}`);
     }
@@ -983,6 +1137,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     try {
       const recipeRef = doc(db, 'recipes', id);
       await deleteDoc(recipeRef);
+      setAllRecipes(prev => prev.filter(r => r.id !== id));
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `recipes/${id}`);
     }
@@ -999,6 +1154,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     try {
       const userRef = doc(db, 'users', newUser.id);
       await setDoc(userRef, cleanObject(newUser));
+      setAllUsers(prev => [...prev, newUser]);
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'users');
     }
@@ -1008,6 +1164,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     try {
       const userRef = doc(db, 'users', userId);
       await setDoc(userRef, cleanObject(updates), { merge: true });
+      setAllUsers(prev => prev.map(u => u.id === userId ? { ...u, ...updates } : u));
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `users/${userId}`);
     }
@@ -1028,6 +1185,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     try {
       const userRef = doc(db, 'users', userId);
       await deleteDoc(userRef);
+      setAllUsers(prev => prev.filter(u => u.id !== userId));
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `users/${userId}`);
     }
@@ -1038,6 +1196,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     try {
       const tenantRef = doc(db, 'tenants', tenantId);
       await updateDoc(tenantRef, updates);
+      setTenants(prev => prev.map(t => t.id === tenantId ? { ...t, ...updates } : t));
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `tenants/${tenantId}`);
     }
@@ -1047,6 +1206,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     try {
       const tenantRef = doc(db, 'tenants', tenantId);
       await updateDoc(tenantRef, updates);
+      setTenants(prev => prev.map(t => t.id === tenantId ? { ...t, ...updates } : t));
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `tenants/${tenantId}`);
     }
@@ -1059,11 +1219,15 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       // Delete tenant
       batch.delete(doc(db, 'tenants', tenantId));
 
-      // In a real app, we'd delete all sub-data too. 
-      // Firestore doesn't support recursive deletes in a batch easily without knowing all IDs.
-      // For this app, we'll just delete the tenant and assume the UI filters the rest.
+      // Delete associated users
+      const tenantUsers = allUsers.filter(u => u.tenantId === tenantId);
+      tenantUsers.forEach(u => {
+        batch.delete(doc(db, 'users', u.id));
+      });
       
       await batch.commit();
+      setTenants(prev => prev.filter(t => t.id !== tenantId));
+      setAllUsers(prev => prev.filter(u => u.tenantId !== tenantId));
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `tenants/${tenantId}`);
     }
@@ -1082,6 +1246,12 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   const createBusiness = async (businessData: Partial<Business>, ownerData: Partial<User>, sourceTenantId?: string) => {
+    if (!auth.currentUser) {
+      const err = new Error('Authentication required. Please sign in with Google to create a business.');
+      handleFirestoreError(err, OperationType.WRITE, 'tenants/users');
+      return;
+    }
+
     const numericIds = tenants
       .map(t => parseInt(t.id))
       .filter(id => !isNaN(id))
@@ -1150,6 +1320,13 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       }
 
       await batch.commit();
+
+      // Optimistic update for local state
+      setTenants(prev => [...prev, newBusiness]);
+      setAllUsers(prev => [...prev, newOwner]);
+      
+      // If we duplicated menu items, we should ideally update allMenu too
+      // but that's more complex. For now, the tenant and owner are most important.
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'tenants/users');
     }
@@ -1162,6 +1339,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     try {
       const transRef = doc(db, 'transactions', newTransaction.id);
       await setDoc(transRef, newTransaction);
+      setAllTransactions(prev => [newTransaction, ...prev]);
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'transactions');
     }
@@ -1174,6 +1352,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     try {
       const expenseRef = doc(db, 'expenses', newExpense.id);
       await setDoc(expenseRef, newExpense);
+      setAllExpenses(prev => [newExpense, ...prev]);
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'expenses');
     }
@@ -1183,6 +1362,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     try {
       const expenseRef = doc(db, 'expenses', id);
       await deleteDoc(expenseRef);
+      setAllExpenses(prev => prev.filter(e => e.id !== id));
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `expenses/${id}`);
     }
@@ -1217,6 +1397,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         batch.set(doc(db, 'monthly_bills', bill.id), bill);
       });
       await batch.commit();
+      setMonthlyBills(prev => [...prev, ...billsToCreate]);
       return billsToCreate.length;
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'monthly_bills');
@@ -1232,8 +1413,54 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         status: BillStatus.APPROVED,
         approvedAt
       });
+      setMonthlyBills(prev => prev.map(b => b.id === billId ? { ...b, status: BillStatus.APPROVED, approvedAt } : b));
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `monthly_bills/${billId}`);
+    }
+  };
+
+  const refreshData = async () => {
+    setIsRefreshing(true);
+    const staticCollections = [
+      { name: 'tenants', setter: setTenants },
+      { name: 'users', setter: setAllUsers },
+      { name: 'transactions', setter: setAllTransactions },
+      { name: 'expenses', setter: setAllExpenses },
+      { name: 'recipes', setter: setAllRecipes },
+      { name: 'monthly_bills', setter: setMonthlyBills }
+    ];
+
+    try {
+      await Promise.all(staticCollections.map(async ({ name, setter }) => {
+        let q = query(collection(db, name));
+        
+        // Apply limits to collections that can grow large
+        if (['transactions', 'expenses'].includes(name)) {
+          q = query(collection(db, name), orderBy('date', 'desc'), limit(100));
+        } else if (['orders', 'monthly_bills', 'tenants'].includes(name)) {
+          q = query(collection(db, name), orderBy('createdAt', 'desc'), limit(100));
+        }
+
+        const snapshot = await getDocs(q);
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        
+        if (name === 'users') {
+          const firestoreUsers = data as User[];
+          const mockSuperAdmins = ENHANCED_MOCK_USERS.filter(u => u.role === Role.SUPER_ADMIN);
+          const mergedUsers = [...firestoreUsers];
+          mockSuperAdmins.forEach(mockSA => {
+            const existingIndex = mergedUsers.findIndex(u => u.email.toLowerCase() === mockSA.email.toLowerCase());
+            if (existingIndex === -1) mergedUsers.push(mockSA);
+          });
+          setter(mergedUsers as any);
+        } else if (data.length > 0) {
+          setter(data as any);
+        }
+      }));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, 'refresh');
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -1294,7 +1521,9 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       activeCategory,
       setActiveCategory,
       categories,
-      dbStatus
+      dbStatus,
+      refreshData,
+      isRefreshing
     }}>
       {children}
     </AppContext.Provider>

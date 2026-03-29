@@ -36,6 +36,30 @@ const StatusBadge = ({ label, count, styles, active }: { label: string, count: n
   </div>
 );
 
+const ItemSummary = ({ cart, cartTotal, currency, onSendToKitchen }: { cart: OrderItem[], cartTotal: number, currency: string, onSendToKitchen: () => void }) => (
+  <div className="bg-white p-4 rounded-2xl border-2 border-indigo-100 shadow-sm mb-4">
+    <h3 className="text-[10px] font-bold uppercase text-slate-400 tracking-widest mb-2">Item Summary</h3>
+    <div className="space-y-2">
+      {cart.map(item => (
+        <div key={item.rowId} className="flex justify-between text-xs gap-2">
+          <span className="font-medium text-slate-700 break-words flex-1">{item.quantity} x {item.name}</span>
+          <span className="font-bold text-slate-900 shrink-0">{currency}{(item.price * item.quantity).toFixed(2)}</span>
+        </div>
+      ))}
+    </div>
+    <div className="border-t border-slate-100 mt-2 pt-2 flex justify-between items-center">
+      <span className="text-xs font-bold text-slate-900">Total</span>
+      <span className="text-sm font-bold text-slate-900">{currency}{cartTotal.toFixed(2)}</span>
+    </div>
+    <button 
+      onClick={onSendToKitchen}
+      className="w-full mt-4 py-2.5 bg-indigo-600 text-white text-xs font-bold uppercase tracking-widest rounded-xl hover:bg-indigo-700 transition-colors"
+    >
+      Send To Kitchen
+    </button>
+  </div>
+);
+
 const POSCartContent = ({ 
   onClose, 
   isEmbedded = false,
@@ -514,7 +538,7 @@ export const POS = () => {
 
   const filteredMenu = useMemo(() => {
     return menu.filter(m => {
-      const matchesCategory = activeCategory === 'All' || m.category === activeCategory;
+      const matchesCategory = activeCategory !== 'All' && m.category === activeCategory;
       const matchesSearch = m.name.toLowerCase().includes(searchTerm.toLowerCase());
       return matchesCategory && matchesSearch;
     });
@@ -538,6 +562,8 @@ export const POS = () => {
           };
           await BluetoothPrinterService.printKOT(currentTenant, orderData as any);
           return; // Skip system print if bluetooth worked
+        } else if (result.error === 'failed') {
+          alert('Bluetooth printer connection failed. Please check if the printer is on and paired.');
         }
       } catch (error) {
         console.error('Bluetooth KOT print failed, falling back to system print:', error);
@@ -782,6 +808,9 @@ export const POS = () => {
                 <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 rotate-90 pointer-events-none" size={14} />
               </div>
             </div>
+            {activeCategory === 'All' && (
+              <ItemSummary cart={cart} cartTotal={cartTotal} currency={currentTenant.currency} onSendToKitchen={printKOT} />
+            )}
           </div>
 
           <div className="hidden md:flex flex-row gap-4 overflow-x-auto pb-2 no-scrollbar items-center">
