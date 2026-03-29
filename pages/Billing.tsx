@@ -6,7 +6,7 @@ import { Receipt, CheckCheck, Printer, X, FileText, Store, Search, Users, Eye, A
 import { BluetoothPrinterService } from '../services/printerService';
 
 export const Billing = () => {
-  const { orders, currentTenant, updateOrderStatus, updateOrderItems, addTransaction, users } = useApp();
+  const { orders, currentTenant, currentUser, updateOrderStatus, updateOrderItems, addTransaction, users } = useApp();
   const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
   const [discounts, setDiscounts] = useState<{ [key: string]: number }>({});
   const [searchTerm, setSearchTerm] = useState('');
@@ -26,15 +26,19 @@ export const Billing = () => {
   };
 
   const filteredOrders = useMemo(() => {
+    // Only Owner, Manager, Kitchen, and Super Admin can see all orders
+    const canSeeAll = currentUser && [Role.OWNER, Role.MANAGER, Role.KITCHEN, Role.SUPER_ADMIN].includes(currentUser.role);
+
     return orders
       .filter(o => {
         const isReady = o.status === OrderStatus.READY;
         const matchesSearch = o.tokenNumber.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesStaff = selectedStaffId === 'all' || o.createdBy === selectedStaffId;
-        return isReady && matchesSearch && matchesStaff;
+        const isOwnOrder = canSeeAll || (currentUser && o.createdBy === currentUser.id);
+        return isReady && matchesSearch && matchesStaff && isOwnOrder;
       })
       .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
-  }, [orders, searchTerm, selectedStaffId]);
+  }, [orders, searchTerm, selectedStaffId, currentUser]);
 
   const totalAwaitingAmount = useMemo(() => {
     return filteredOrders.reduce((acc, order) => {

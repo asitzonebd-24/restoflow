@@ -344,7 +344,11 @@ export const POS = () => {
 
   const activeOrders = useMemo(() => {
     let filtered = orders.filter(o => o.status !== OrderStatus.COMPLETED && o.status !== OrderStatus.CANCELLED);
-    if (currentUser?.role === Role.WAITER) {
+    
+    // Only Owner, Manager, Kitchen, and Super Admin can see all orders
+    const canSeeAll = currentUser && [Role.OWNER, Role.MANAGER, Role.KITCHEN, Role.SUPER_ADMIN].includes(currentUser.role);
+    
+    if (!canSeeAll && currentUser) {
       filtered = filtered.filter(o => o.createdBy === currentUser.id);
     }
     
@@ -373,11 +377,6 @@ export const POS = () => {
   const getWaiterName = (userId: string) => {
     const user = users.find(u => u.id === userId);
     return user ? user.name : 'Unknown';
-  };
-
-  const getWaiterAvatar = (userId: string) => {
-    const user = users.find(u => u.id === userId);
-    return user ? user.avatar : '';
   };
 
   const getStatusStyles = (status: OrderStatus) => {
@@ -735,19 +734,43 @@ export const POS = () => {
 
                     {/* Footer */}
                     <div className="mt-auto flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full border-2 border-black overflow-hidden bg-slate-100 flex items-center justify-center">
-                          {getWaiterAvatar(order.createdBy) ? (
-                            <img src={getWaiterAvatar(order.createdBy)} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                          ) : (
-                            <UserIcon size={20} className="text-slate-400" />
-                          )}
-                        </div>
+                      <div className="flex items-center gap-2">
+                        <UserIcon size={14} className="text-slate-400" />
                         <span className="text-[11px] font-black uppercase tracking-widest text-slate-900">{getWaiterName(order.createdBy).split(' ')[0]}</span>
                       </div>
-                      <div className="bg-black text-white px-4 py-2 rounded-full font-black text-sm flex items-center gap-1 shadow-lg">
-                        <span className="text-[10px] opacity-60">{currentTenant?.currency}</span>
-                        {order.totalAmount.toFixed(0)}
+                      <div className="flex items-center gap-2">
+                        {order.status === OrderStatus.READY && (
+                          <button
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              if (currentTenant?.printerSettings?.pairedPrinterId) {
+                                try {
+                                  const result = await BluetoothPrinterService.connect(currentTenant.printerSettings.pairedPrinterId);
+                                  if (result.success) {
+                                    await BluetoothPrinterService.printInvoice(currentTenant, order, { 
+                                      creatorName: getWaiterName(order.createdBy)
+                                    });
+                                  } else {
+                                    alert('Bluetooth printer connection failed. Please check if the printer is on and paired.');
+                                  }
+                                } catch (error) {
+                                  console.error('Bluetooth print failed:', error);
+                                  alert('Failed to print invoice. Please check printer connection.');
+                                }
+                              } else {
+                                alert('No printer paired. Please pair a printer in Settings.');
+                              }
+                            }}
+                            className="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-lg shadow-emerald-100 hover:bg-emerald-600 transition-all active:scale-90"
+                            title="Print Invoice"
+                          >
+                            <Printer size={18} />
+                          </button>
+                        )}
+                        <div className="bg-black text-white px-4 py-2 rounded-full font-black text-sm flex items-center gap-1 shadow-lg">
+                          <span className="text-[10px] opacity-60">{currentTenant?.currency}</span>
+                          {order.totalAmount.toFixed(0)}
+                        </div>
                       </div>
                     </div>
                   </div>

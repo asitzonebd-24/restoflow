@@ -12,6 +12,13 @@ export const Kitchen = () => {
   const activeOrders = useMemo(() => {
     let filtered = orders.filter(o => o.status !== OrderStatus.CANCELLED);
     
+    // Only Owner, Manager, Kitchen, and Super Admin can see all orders
+    const canSeeAll = currentUser && [Role.OWNER, Role.MANAGER, Role.KITCHEN, Role.SUPER_ADMIN].includes(currentUser.role);
+    
+    if (!canSeeAll && currentUser) {
+      filtered = filtered.filter(o => o.createdBy === currentUser.id);
+    }
+    
     if (filter === 'pending') {
       // Show orders that are not completed and not ready (or ready but still in kitchen)
       // Actually, let's follow the user's "Pending" vs "Done"
@@ -86,11 +93,6 @@ export const Kitchen = () => {
   const getCreatorName = (userId: string) => {
     const user = users.find(u => u.id === userId);
     return user ? user.name : 'Unknown';
-  };
-
-  const getCreatorAvatar = (userId: string) => {
-    const user = users.find(u => u.id === userId);
-    return user ? user.avatar : '';
   };
 
   return (
@@ -221,14 +223,8 @@ export const Kitchen = () => {
 
             <div className="mt-auto pt-6 border-t border-slate-100 flex flex-col gap-4">
                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full border-2 border-black overflow-hidden bg-slate-100 flex items-center justify-center">
-                      {getCreatorAvatar(order.createdBy) ? (
-                        <img src={getCreatorAvatar(order.createdBy)} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                      ) : (
-                        <UserIcon size={16} className="text-slate-400" />
-                      )}
-                    </div>
+                  <div className="flex items-center gap-2">
+                    <UserIcon size={12} className="text-slate-400" />
                     <span className="text-[10px] font-black uppercase tracking-widest text-slate-900">{getCreatorName(order.createdBy).split(' ')[0]}</span>
                   </div>
                   <div className="flex items-center gap-1 text-slate-400">

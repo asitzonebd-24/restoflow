@@ -8,7 +8,7 @@ import { BluetoothPrinterService } from '../services/printerService';
 type DateFilter = 'all' | 'today' | 'week' | 'month' | 'custom';
 
 export const Transactions = () => {
-    const { transactions, currentTenant, orders, users } = useApp();
+    const { transactions, currentTenant, currentUser, orders, users } = useApp();
     const [searchTerm, setSearchTerm] = useState('');
     const [dateFilter, setDateFilter] = useState<DateFilter>('all');
     const [selectedStaffId, setSelectedStaffId] = useState<string>('all');
@@ -30,6 +30,10 @@ export const Transactions = () => {
         const startOfMonth = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
         return transactions.filter(txn => {
+            // Role-based visibility
+            const canSeeAll = currentUser && [Role.OWNER, Role.MANAGER, Role.KITCHEN, Role.SUPER_ADMIN].includes(currentUser.role);
+            const isOwnTxn = canSeeAll || (currentUser && txn.creatorName === currentUser.name);
+
             // Staff Filter
             const selectedStaff = staffList.find(s => s.id === selectedStaffId);
             const matchesStaff = selectedStaffId === 'all' || txn.creatorName === selectedStaff?.name;
@@ -57,9 +61,9 @@ export const Transactions = () => {
                 matchesDate = txnDate >= start && txnDate <= end;
             }
 
-            return matchesSearch && matchesDate && matchesStaff;
+            return matchesSearch && matchesDate && matchesStaff && isOwnTxn;
         });
-    }, [transactions, searchTerm, dateFilter, customRange, selectedStaffId, staffList]);
+    }, [transactions, searchTerm, dateFilter, customRange, selectedStaffId, staffList, currentUser]);
 
     // Summary calculations including Top Performer
     const stats = useMemo(() => {

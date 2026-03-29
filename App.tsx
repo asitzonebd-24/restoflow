@@ -36,8 +36,17 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
   const navigate = useNavigate();
 
   const activeOrdersCount = useMemo(() => {
-    return orders.filter(o => o.status === OrderStatus.PENDING || o.status === OrderStatus.PREPARING).length;
-  }, [orders]);
+    let filtered = orders.filter(o => o.status === OrderStatus.PENDING || o.status === OrderStatus.PREPARING);
+    
+    // Only Owner, Manager, Kitchen, and Super Admin can see all orders
+    const canSeeAll = currentUser && [Role.OWNER, Role.MANAGER, Role.KITCHEN, Role.SUPER_ADMIN].includes(currentUser.role);
+    
+    if (!canSeeAll && currentUser) {
+      filtered = filtered.filter(o => o.createdBy === currentUser.id);
+    }
+    
+    return filtered.length;
+  }, [orders, currentUser]);
 
   if (!currentUser || currentUser.role === Role.CUSTOMER) return null;
 
