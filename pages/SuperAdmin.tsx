@@ -6,14 +6,13 @@ import { Plus, Building2, User, Mail, Phone, Globe, MapPin, Search, ExternalLink
 import { useNavigate } from 'react-router-dom';
 
 export const SuperAdmin = () => {
-  const { tenants, createBusiness, currentUser, toggleBusinessStatus, updateTenant, deleteTenant, allUsers, updateUser, currentTenant, monthlyBills, expenses, addExpense, deleteExpense, setCurrentTenantId, logout } = useApp();
+  const { tenants, createBusiness, currentUser, toggleBusinessStatus, updateTenant, deleteTenant, allUsers, updateUser, currentTenant, monthlyBills, setCurrentTenantId } = useApp();
   const navigate = useNavigate();
   
   React.useEffect(() => {
     setCurrentTenantId(null);
   }, [setCurrentTenantId]);
   const [showModal, setShowModal] = useState(false);
-  const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
   const [editingTenant, setEditingTenant] = useState<Business | null>(null);
   const [duplicateSourceId, setDuplicateSourceId] = useState<string | null>(null);
   const [editingBill, setEditingBill] = useState<string | null>(null);
@@ -22,18 +21,7 @@ export const SuperAdmin = () => {
   const [error, setError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  // Expense Form State
-  const [expenseTitle, setExpenseTitle] = useState('');
-  const [expenseAmount, setExpenseAmount] = useState('');
-  const [expenseCategory, setExpenseCategory] = useState('Other');
-  const [expenseNote, setExpenseNote] = useState('');
-
-  const superAdminCategories = ['Server', 'Marketing', 'Legal', 'Salaries', 'Other'];
   const CURRENCIES = ['৳', '$', '€', '£', '₹', '₨', 'AED', 'SAR', 'QAR', 'OMR', 'BHD', 'KWD'];
-
-  const platformExpenses = useMemo(() => {
-    return expenses.filter(e => e.tenantId === 'SUPER_ADMIN');
-  }, [expenses]);
 
   const copyLink = (id: string) => {
     const link = `https://restokeep.vercel.app/#/${id}`;
@@ -151,35 +139,6 @@ export const SuperAdmin = () => {
     setBillAmount(tenant.monthlyBill);
   };
 
-  const handleExpenseSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!currentUser) return;
-
-    const newExpense = {
-      id: `exp-sa-${Date.now()}`,
-      title: expenseTitle,
-      amount: parseFloat(expenseAmount),
-      category: expenseCategory,
-      date: new Date().toISOString(),
-      note: expenseNote,
-      recordedBy: currentUser.id,
-      tenantId: 'SUPER_ADMIN'
-    };
-
-    addExpense(newExpense);
-    setExpenseTitle('');
-    setExpenseAmount('');
-    setExpenseCategory('Other');
-    setExpenseNote('');
-    setIsExpenseModalOpen(false);
-  };
-
-  const handleDeleteExpense = (id: string) => {
-    if (window.confirm('Are you sure you want to delete this expense?')) {
-      deleteExpense(id);
-    }
-  };
-
   const saveBill = (tenantId: string) => {
     updateTenant(tenantId, { monthlyBill: billAmount });
     setEditingBill(null);
@@ -208,13 +167,6 @@ export const SuperAdmin = () => {
         </div>
         <div className="flex items-center gap-3">
           <button 
-            onClick={() => setIsExpenseModalOpen(true)}
-            className="flex items-center gap-2 bg-white text-slate-900 border-2 border-slate-900 px-6 py-3 rounded-xl font-bold hover:bg-slate-50 transition shadow-sm"
-          >
-            <Wallet size={20} />
-            Record Expense
-          </button>
-          <button 
             onClick={() => setShowModal(true)}
             className="flex items-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 transition shadow-lg shadow-indigo-200"
           >
@@ -224,7 +176,7 @@ export const SuperAdmin = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <div className="bg-white p-6 rounded-2xl border-2 border-indigo-500 shadow-lg shadow-indigo-100 transition-all hover:scale-105">
           <p className="text-slate-500 text-sm font-medium mb-1">Total Restaurants</p>
           <h3 className="text-3xl font-bold text-slate-900">{tenants.length}</h3>
@@ -232,15 +184,6 @@ export const SuperAdmin = () => {
         <div className="bg-white p-6 rounded-2xl border-2 border-emerald-500 shadow-lg shadow-emerald-100 transition-all hover:scale-105">
           <p className="text-slate-500 text-sm font-medium mb-1">Active</p>
           <h3 className="text-3xl font-bold text-emerald-600">{tenants.filter(t => t.isActive).length}</h3>
-        </div>
-        <div 
-          onClick={() => navigate('/platform-expenses')}
-          className="bg-white p-6 rounded-2xl border-2 border-rose-500 shadow-lg shadow-rose-100 transition-all hover:scale-105 cursor-pointer"
-        >
-          <p className="text-slate-500 text-sm font-medium mb-1">Platform Expenses</p>
-          <h3 className="text-3xl font-bold text-red-600">
-            {currentTenant?.currency || '৳'}{platformExpenses.reduce((sum, e) => sum + e.amount, 0).toLocaleString()}
-          </h3>
         </div>
         <div className="bg-white p-6 rounded-2xl border-2 border-indigo-500 shadow-lg shadow-indigo-100 transition-all hover:scale-105">
           <p className="text-slate-500 text-sm font-medium mb-1">Monthly Revenue (Approved)</p>
@@ -264,9 +207,8 @@ export const SuperAdmin = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2">
-          <div className="bg-white rounded-2xl border-2 border-indigo-500 shadow-xl overflow-hidden shadow-indigo-100">
+      <div className="w-full">
+        <div className="bg-white rounded-2xl border-2 border-indigo-500 shadow-xl overflow-hidden shadow-indigo-100">
             <div className="p-4 border-b border-indigo-100 bg-slate-50/50 flex items-center gap-3 group">
               <Search size={20} className="text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
               <input 
@@ -434,41 +376,6 @@ export const SuperAdmin = () => {
             </div>
           </div>
         </div>
-
-        <div className="space-y-6">
-          <div className="bg-white rounded-2xl border-2 border-rose-500 shadow-xl overflow-hidden shadow-rose-100">
-            <div className="p-6 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
-              <h3 className="font-bold text-slate-900 flex items-center gap-2">
-                <Wallet size={20} className="text-rose-500" /> Platform Expenses
-              </h3>
-            </div>
-            <div className="p-4 space-y-3 max-h-[500px] overflow-y-auto no-scrollbar">
-              {platformExpenses.length === 0 ? (
-                <p className="text-center py-8 text-slate-400 text-sm font-medium italic">No platform expenses recorded.</p>
-              ) : (
-                platformExpenses.map(exp => (
-                  <div key={exp.id} className="p-4 bg-slate-50 rounded-xl border border-slate-100 group hover:border-rose-200 transition-all">
-                    <div className="flex justify-between items-start mb-1">
-                      <p className="font-bold text-slate-900 text-sm">{exp.title}</p>
-                      <button 
-                        onClick={() => handleDeleteExpense(exp.id)}
-                        className="text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">{exp.category}</span>
-                      <span className="font-bold text-rose-600">-{currentTenant?.currency || '৳'}{exp.amount}</span>
-                    </div>
-                    <p className="text-[10px] text-slate-400 mt-2">{new Date(exp.date).toLocaleDateString()}</p>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
 
       {showModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-0 md:p-4 z-[100] overflow-y-auto">
@@ -732,94 +639,6 @@ export const SuperAdmin = () => {
                   className="flex-1 bg-indigo-600 text-white px-6 py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-200 border-2 border-indigo-600"
                 >
                   {editingTenant ? 'Save Business Changes' : duplicateSourceId ? 'Duplicate Business' : 'Create Business'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-      {/* Record Expense Modal */}
-      {isExpenseModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl overflow-hidden animate-in zoom-in duration-200 border-2 border-rose-500 shadow-rose-100">
-            <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-              <div>
-                <h2 className="text-2xl font-bold text-slate-900">Record Platform Expense</h2>
-                <p className="text-slate-400 text-sm mt-1">Log a new operational cost for the platform</p>
-              </div>
-              <button onClick={() => setIsExpenseModalOpen(false)} className="text-slate-400 hover:text-slate-600 transition-all">
-                <CloseIcon size={24} />
-              </button>
-            </div>
-            
-            <form onSubmit={handleExpenseSubmit} className="p-8 space-y-6">
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Expense Title</label>
-                  <input 
-                    type="text" 
-                    required
-                    value={expenseTitle}
-                    onChange={e => setExpenseTitle(e.target.value)}
-                    placeholder="e.g. Server Hosting"
-                    className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                  />
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Amount</label>
-                    <div className="relative">
-                      <span className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 font-bold">{currentTenant?.currency || '৳'}</span>
-                      <input 
-                        type="number" 
-                        required
-                        min="0"
-                        step="0.01"
-                        value={expenseAmount}
-                        onChange={e => setExpenseAmount(e.target.value)}
-                        className="w-full pl-12 pr-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Category</label>
-                    <div className="relative">
-                      <select 
-                        value={expenseCategory}
-                        onChange={e => setExpenseCategory(e.target.value)}
-                        className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all appearance-none"
-                      >
-                        {superAdminCategories.map(c => <option key={c} value={c}>{c}</option>)}
-                      </select>
-                      <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={16} />
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Note (Optional)</label>
-                  <textarea 
-                    value={expenseNote}
-                    onChange={e => setExpenseNote(e.target.value)}
-                    placeholder="Add any additional details..."
-                    rows={3}
-                    className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none"
-                  />
-                </div>
-              </div>
-
-              <div className="pt-4 flex gap-4">
-                <button 
-                  type="button"
-                  onClick={() => setIsExpenseModalOpen(false)}
-                  className="flex-1 py-4 rounded-2xl font-bold text-slate-400 uppercase tracking-widest text-[10px] bg-slate-50 hover:bg-slate-100 transition-all"
-                >
-                  Cancel
-                </button>
-                <button 
-                  type="submit"
-                  className="flex-[2] py-4 rounded-2xl font-bold text-white uppercase tracking-widest text-[10px] bg-slate-900 hover:bg-slate-800 transition-all shadow-lg active:scale-95 flex items-center justify-center gap-3"
-                >
-                  <Save size={16} /> Save Record
                 </button>
               </div>
             </form>
