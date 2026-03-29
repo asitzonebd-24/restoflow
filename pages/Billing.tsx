@@ -194,7 +194,11 @@ export const Billing = () => {
         const result = await BluetoothPrinterService.connect(currentTenant.printerSettings.pairedPrinterId);
         if (result.success) {
           const discount = discounts[invoiceOrder.id] || 0;
-          await BluetoothPrinterService.printInvoice(currentTenant, invoiceOrder, { discount });
+          const creator = getCreator(invoiceOrder.createdBy);
+          await BluetoothPrinterService.printInvoice(currentTenant, invoiceOrder, { 
+            discount,
+            creatorName: creator?.name || 'Unknown'
+          });
           return; // Skip system print if bluetooth worked
         }
       } catch (error) {
@@ -565,7 +569,7 @@ export const Billing = () => {
                         Date/Time: {new Date(invoiceOrder.createdAt).toLocaleString()}
                       </span>
                       <span className="text-xs md:text-sm font-bold text-black uppercase tracking-widest">
-                        Order By: {getCreator(invoiceOrder.createdBy)?.name || 'Unknown'}
+                        Ordered by: {getCreator(invoiceOrder.createdBy)?.name || 'Unknown'}
                       </span>
                       {invoiceOrder.deliveryStaffName && (
                         <div className="flex flex-col items-center gap-1 mt-1 p-3 bg-slate-50 rounded-2xl border-2 border-black w-full">

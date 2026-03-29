@@ -375,6 +375,9 @@ export class BluetoothPrinterService {
     // Order Info
     await this.printTextLine(`Token: #${order.tokenNumber}`, pixelWidth, { align: 'left', bold: true });
     await this.printTextLine(`Date: ${new Date(order.createdAt).toLocaleString()}`, pixelWidth, { align: 'left' });
+    if (transaction?.creatorName) {
+      await this.printTextLine(`Ordered by: ${transaction.creatorName}`, pixelWidth, { align: 'left' });
+    }
     if (order.tableNumber) {
       await this.printTextLine(`Table: ${order.tableNumber}`, pixelWidth, { align: 'left' });
     }
