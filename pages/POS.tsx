@@ -30,13 +30,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { BluetoothPrinterService } from '../services/printerService';
 
 const StatusBadge = ({ label, count, styles, active }: { label: string, count: number, styles: any, active?: boolean }) => (
-  <div className={`flex flex-col items-center justify-center p-3 rounded-2xl border-2 transition-all ${active ? `${styles.bg} ${styles.border} ${styles.text} border-current` : 'bg-slate-50/50 border-slate-100 text-slate-300'}`}>
-    <span className="text-[7px] font-black uppercase tracking-widest mb-1 opacity-60">{label}</span>
-    <span className="text-lg font-black">{count}</span>
+  <div className={`flex flex-col items-center justify-center py-3 px-2 rounded-2xl border-2 transition-all ${active ? `bg-white ${styles.border} ${styles.text}` : 'bg-slate-50/50 border-slate-100 text-slate-200'}`}>
+    <span className="text-[8px] font-black uppercase tracking-widest mb-1 opacity-80">{label}</span>
+    <span className="text-xl font-black">{count}</span>
   </div>
 );
 
-const ItemSummary = ({ cart, cartTotal, currency, onSendToKitchen }: { cart: OrderItem[], cartTotal: number, currency: string, onSendToKitchen: () => void }) => (
+const ItemSummary = ({ cart, cartTotal, currency }: { cart: OrderItem[], cartTotal: number, currency: string }) => (
   <div className="bg-white p-4 rounded-2xl border-2 border-indigo-100 shadow-sm mb-4">
     <h3 className="text-[10px] font-bold uppercase text-slate-400 tracking-widest mb-2">Item Summary</h3>
     <div className="space-y-2">
@@ -51,12 +51,6 @@ const ItemSummary = ({ cart, cartTotal, currency, onSendToKitchen }: { cart: Ord
       <span className="text-xs font-bold text-slate-900">Total</span>
       <span className="text-sm font-bold text-slate-900">{currency}{cartTotal.toFixed(2)}</span>
     </div>
-    <button 
-      onClick={onSendToKitchen}
-      className="w-full mt-4 py-2.5 bg-indigo-600 text-white text-xs font-bold uppercase tracking-widest rounded-xl hover:bg-indigo-700 transition-colors"
-    >
-      Send To Kitchen
-    </button>
   </div>
 );
 
@@ -482,12 +476,18 @@ export const POS = () => {
   };
 
   const createAndSubmitOrder = async () => {
-    if (cart.length === 0 || isSubmitting) return;
+    console.log('createAndSubmitOrder triggered', { cartLength: cart.length, isSubmitting, isCreatingNew, newTokenNum, isTokenDuplicate });
+    if (cart.length === 0 || isSubmitting) {
+      console.log('Early return from createAndSubmitOrder', { cartLength: cart.length, isSubmitting });
+      return;
+    }
     setIsSubmitting(true);
 
     try {
       if (isCreatingNew) {
         if (isTokenDuplicate) {
+          console.log('Token is duplicate, aborting');
+          alert('This token number is already in use for an active order. Please use a different token.');
           setIsSubmitting(false);
           return;
         }
@@ -553,6 +553,9 @@ export const POS = () => {
       setIsDelivery(false);
       setSelectedDeliveryStaffId('');
       setDeliveryAddress('');
+    } catch (error: any) {
+      console.error('Failed to submit order:', error);
+      alert(`Failed to submit order: ${error.message || 'Unknown error'}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -683,20 +686,15 @@ export const POS = () => {
                   {/* Top Border Bar */}
                   <div className={`absolute top-0 left-0 right-0 h-4 ${statusStyles.topBorder}`}></div>
                   
-                  <div className="relative z-10 flex flex-col h-full p-4 pt-8">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-900">{getWaiterName(order.createdBy).split(' ')[0].toUpperCase()}</span>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-900 mb-1">Status Overview</p>
-                        <div className={`w-8 h-1.5 ml-auto rounded-full ${statusStyles.topBorder}`}></div>
-                      </div>
+                  <div className="relative z-10 flex flex-col h-full p-6 pt-10">
+                    <div className="flex flex-col items-center mb-4">
+                      <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-900">Status Overview</h3>
+                      <div className={`w-10 h-1.5 rounded-full mt-1.5 ${statusStyles.topBorder}`}></div>
                     </div>
 
                     {/* Token Number Pill (Exactly like image) */}
-                    <div className="flex justify-center mb-4 relative">
-                      <div className={`min-w-[4rem] px-4 h-14 rounded-[1.75rem] border-4 border-black flex items-center justify-center font-black text-2xl text-white shadow-2xl ${statusStyles.topBorder}`}>
+                    <div className="flex justify-center mb-6 relative">
+                      <div className={`min-w-[4.5rem] px-5 h-16 rounded-[2rem] border-4 border-black flex items-center justify-center font-black text-3xl text-white shadow-2xl ${statusStyles.topBorder}`}>
                         {order.tokenNumber}
                       </div>
                       {(order.tableNumber || order.deliveryStaffName) && (
@@ -714,9 +712,9 @@ export const POS = () => {
                     )}
 
                     {/* Status Grid */}
-                    <div className="grid grid-cols-3 gap-2 mb-6">
+                    <div className="grid grid-cols-3 gap-3 mb-6">
                       <StatusBadge label="Pending" count={pendingCount} styles={getStatusStyles(OrderStatus.PENDING)} active={order.status === OrderStatus.PENDING} />
-                      <StatusBadge label="Ready" count={preparingCount} styles={getStatusStyles(OrderStatus.PREPARING)} active={order.status === OrderStatus.PREPARING} />
+                      <StatusBadge label="Preparing" count={preparingCount} styles={getStatusStyles(OrderStatus.PREPARING)} active={order.status === OrderStatus.PREPARING} />
                       <StatusBadge label="Done" count={readyCount} styles={getStatusStyles(OrderStatus.READY)} active={order.status === OrderStatus.READY} />
                     </div>
 
@@ -733,12 +731,22 @@ export const POS = () => {
                     )}
 
                     {/* Dashed Divider */}
-                    <div className="border-t-2 border-dashed border-black mb-6"></div>
+                    <div className="border-t-2 border-dashed border-slate-200 mb-6"></div>
 
                     {/* Footer */}
-                    <div className="mt-auto flex items-center justify-end">
-                      <div className="bg-black text-white px-5 py-2.5 rounded-full font-black text-sm flex items-center gap-1 shadow-lg">
-                        <span className="text-xs">{currentTenant?.currency}</span>
+                    <div className="mt-auto flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full border-2 border-black overflow-hidden bg-slate-100 flex items-center justify-center">
+                          {getWaiterAvatar(order.createdBy) ? (
+                            <img src={getWaiterAvatar(order.createdBy)} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                          ) : (
+                            <UserIcon size={20} className="text-slate-400" />
+                          )}
+                        </div>
+                        <span className="text-[11px] font-black uppercase tracking-widest text-slate-900">{getWaiterName(order.createdBy).split(' ')[0]}</span>
+                      </div>
+                      <div className="bg-black text-white px-4 py-2 rounded-full font-black text-sm flex items-center gap-1 shadow-lg">
+                        <span className="text-[10px] opacity-60">{currentTenant?.currency}</span>
                         {order.totalAmount.toFixed(0)}
                       </div>
                     </div>
@@ -831,7 +839,7 @@ export const POS = () => {
               </div>
             </div>
             {activeCategory === 'All' && (
-              <ItemSummary cart={cart} cartTotal={cartTotal} currency={currentTenant.currency} onSendToKitchen={printKOT} />
+              <ItemSummary cart={cart} cartTotal={cartTotal} currency={currentTenant.currency} />
             )}
           </div>
 

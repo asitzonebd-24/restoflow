@@ -87,6 +87,11 @@ export const Kitchen = () => {
     return user ? user.name : 'Unknown';
   };
 
+  const getCreatorAvatar = (userId: string) => {
+    const user = users.find(u => u.id === userId);
+    return user ? user.avatar : '';
+  };
+
   return (
     <div className="p-4 md:p-10 h-full overflow-y-auto bg-slate-50/50 no-scrollbar">
       <div className="mb-8 md:mb-12 flex flex-col items-start gap-6">
@@ -143,19 +148,14 @@ export const Kitchen = () => {
             <div className={`absolute top-0 left-0 right-0 h-4 ${statusColors.bg}`}></div>
             
             <div className="relative z-10 flex flex-col h-full p-6 pt-10">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-black text-slate-900 uppercase tracking-widest">{creatorName.split(' ')[0].toUpperCase()}</span>
-                </div>
-                <div className="text-right">
-                  <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-900 mb-1">Kitchen Token</p>
-                  <div className={`w-8 h-1.5 ml-auto rounded-full ${statusColors.bg}`}></div>
-                </div>
+              <div className="flex flex-col items-center mb-4">
+                <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-900">Kitchen Token</h3>
+                <div className={`w-10 h-1.5 rounded-full mt-1.5 ${statusColors.bg}`}></div>
               </div>
 
               {/* Centered Token Number Pill with Table Number Badge */}
                 <div className="flex justify-center mb-6 relative">
-                <div className={`min-w-[4rem] px-4 h-14 rounded-[1.75rem] border-4 border-black flex items-center justify-center font-black text-2xl text-white shadow-2xl ${statusColors.bg}`}>
+                <div className={`min-w-[4.5rem] px-5 h-16 rounded-[2rem] border-4 border-black flex items-center justify-center font-black text-3xl text-white shadow-2xl ${statusColors.bg}`}>
                   {order.tokenNumber}
                 </div>
                 {(order.tableNumber || order.deliveryStaffName) && (
@@ -219,6 +219,22 @@ export const Kitchen = () => {
             </div>
 
             <div className="mt-auto pt-6 border-t border-slate-100 flex flex-col gap-4">
+               <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full border-2 border-black overflow-hidden bg-slate-100 flex items-center justify-center">
+                      {getCreatorAvatar(order.createdBy) ? (
+                        <img src={getCreatorAvatar(order.createdBy)} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                      ) : (
+                        <UserIcon size={16} className="text-slate-400" />
+                      )}
+                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-900">{getCreatorName(order.createdBy).split(' ')[0]}</span>
+                  </div>
+                  <div className="flex items-center gap-1 text-slate-400">
+                    <Clock size={12} />
+                    <span className="text-[10px] font-bold">{formatTime(order.createdAt)}</span>
+                  </div>
+               </div>
                {order.status !== OrderStatus.READY ? (
                  isAllowedToUpdate ? (
                     <button 

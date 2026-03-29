@@ -213,6 +213,22 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
     return () => unsubscribeAuth();
   }, []);
+  const convertFirestoreData = (data: any) => {
+    const cleaned = { ...data };
+    Object.keys(cleaned).forEach(key => {
+      if (cleaned[key] instanceof Timestamp) {
+        cleaned[key] = cleaned[key].toDate().toISOString();
+      } else if (Array.isArray(cleaned[key])) {
+        cleaned[key] = cleaned[key].map((item: any) => 
+          (typeof item === 'object' && item !== null) ? convertFirestoreData(item) : item
+        );
+      } else if (typeof cleaned[key] === 'object' && cleaned[key] !== null) {
+        cleaned[key] = convertFirestoreData(cleaned[key]);
+      }
+    });
+    return cleaned;
+  };
+
   // Real-time listeners for critical collections
   useEffect(() => {
     if (!isAuthReady) return;
@@ -222,7 +238,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         // 1. Fetch Tenants (Publicly accessible)
         const tenantsQ = query(collection(db, 'tenants'));
         const tenantsSnapshot = await getDocs(tenantsQ);
-        const tenantsData = tenantsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Business[];
+        const tenantsData = tenantsSnapshot.docs.map(doc => ({ id: doc.id, ...convertFirestoreData(doc.data()) })) as Business[];
         
         if (!tenantsData.some(t => String(t.id) === '01')) {
           tenantsData.unshift(BUSINESS_DETAILS);
@@ -266,7 +282,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
               }
 
               const snapshot = await getDocs(q);
-              let data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+              let data = snapshot.docs.map(doc => ({ id: doc.id, ...convertFirestoreData(doc.data()) }));
 
               if (needsSorting && sortField) {
                 data.sort((a: any, b: any) => (b[sortField] || '').localeCompare(a[sortField] || ''));
@@ -338,15 +354,16 @@ useEffect(() => {
           let sortField = '';
 
           if (name === 'orders') {
-            q = query(collection(db, name), limit(20));
+            const activeStatuses = [OrderStatus.PENDING, OrderStatus.PREPARING, OrderStatus.READY];
+            q = query(collection(db, name), where('status', 'in', activeStatuses), limit(50));
             needsSorting = true;
             sortField = 'createdAt';
           }
 
           if (currentUser.role !== Role.SUPER_ADMIN && currentUser.tenantId) {
             if (name === 'orders') {
-              // Removed orderBy to avoid composite index requirement
-              q = query(collection(db, name), where('tenantId', '==', currentUser.tenantId), limit(20));
+              const activeStatuses = [OrderStatus.PENDING, OrderStatus.PREPARING, OrderStatus.READY];
+              q = query(collection(db, name), where('tenantId', '==', currentUser.tenantId), where('status', 'in', activeStatuses), limit(50));
               needsSorting = true;
               sortField = 'createdAt';
             } else {
@@ -357,7 +374,7 @@ useEffect(() => {
           const snapshot = await getDocs(q);
           let data = snapshot.docs.map(doc => ({
             id: doc.id,
-            ...doc.data()
+            ...convertFirestoreData(doc.data())
           }));
 
           if (needsSorting && sortField) {
@@ -398,25 +415,29 @@ useEffect(() => {
   
   const unsubscribers: (() => void)[] = [];
 
-  // 🔴 Orders (real-time)
-  let ordersQuery = query(
-    collection(db, 'orders'),
-    limit(20)
-  );
-
-  if (currentUser.role !== Role.SUPER_ADMIN && currentUser.tenantId) {
-    // Remove orderBy to avoid composite index requirement
-    ordersQuery = query(
+    // 🔴 Orders (real-time) - Only fetch active orders for POS/Kitchen
+    const activeStatuses = [OrderStatus.PENDING, OrderStatus.PREPARING, OrderStatus.READY];
+    let ordersQuery = query(
       collection(db, 'orders'),
-      where('tenantId', '==', currentUser.tenantId),
-      limit(20)
+      where('status', 'in', activeStatuses),
+      limit(50)
     );
-  }
+
+    if (currentUser.role !== Role.SUPER_ADMIN && currentUser.tenantId) {
+      // Note: This requires a composite index for (tenantId, status)
+      // If the index doesn't exist, it will fall back to mock data or throw an error
+      ordersQuery = query(
+        collection(db, 'orders'),
+        where('tenantId', '==', currentUser.tenantId),
+        where('status', 'in', activeStatuses),
+        limit(50)
+      );
+    }
 
   const unsubOrders = onSnapshot(ordersQuery, (snapshot) => {
     let data = snapshot.docs.map(doc => ({
       id: doc.id,
-      ...doc.data()
+      ...convertFirestoreData(doc.data())
     }));
     
     // Sort client-side if we removed orderBy
@@ -449,7 +470,7 @@ useEffect(() => {
   const unsubInventory = onSnapshot(inventoryQuery, (snapshot) => {
     const data = snapshot.docs.map(doc => ({
       id: doc.id,
-      ...doc.data()
+      ...convertFirestoreData(doc.data())
     }));
     setAllInventory(data as any);
   }, (error) => {
@@ -472,7 +493,7 @@ useEffect(() => {
   const unsubMenu = onSnapshot(menuQuery, (snapshot) => {
     const data = snapshot.docs.map(doc => ({
       id: doc.id,
-      ...doc.data()
+      ...convertFirestoreData(doc.data())
     }));
     setAllMenu(data as any);
   }, (error) => {
@@ -604,6 +625,8 @@ useEffect(() => {
     const tenantId = currentUser?.tenantId || currentTenantId || '';
     const newOrder = { ...order, tenantId } as Order;
     
+    console.log('Attempting to add order:', newOrder);
+
     try {
       const batch = writeBatch(db);
       
