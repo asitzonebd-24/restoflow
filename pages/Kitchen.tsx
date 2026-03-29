@@ -2,7 +2,8 @@
 import React, { useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { Order, OrderStatus, ItemStatus, Role } from '../types';
-import { Clock, CheckCircle, Flame, Timer, PlayCircle, CheckSquare, FileText, Lock, Hash, User as UserIcon, ChevronDown, ShoppingBag } from 'lucide-react';
+import { Clock, CheckCircle, Flame, Timer, PlayCircle, CheckSquare, FileText, Lock, Hash, User as UserIcon, ChevronDown, ShoppingBag, Printer } from 'lucide-react';
+import { BluetoothPrinterService } from '../services/printerService';
 
 export const Kitchen = () => {
   const { orders, updateOrderStatus, updateOrderItemStatus, currentTenant, currentUser, users } = useApp();
@@ -249,8 +250,32 @@ export const Kitchen = () => {
                     </div>
                  )
                ) : (
-                 <div className="text-center text-emerald-600 font-black py-5 bg-emerald-50 rounded-[1.5rem] uppercase tracking-widest text-xs border-2 border-emerald-100 shadow-sm flex items-center justify-center gap-3">
-                   <CheckCircle size={18} /> READY FOR SERVICE
+                 <div className="flex flex-col gap-3">
+                   <div className="text-center text-emerald-600 font-black py-5 bg-emerald-50 rounded-[1.5rem] uppercase tracking-widest text-xs border-2 border-emerald-100 shadow-sm flex items-center justify-center gap-3">
+                     <CheckCircle size={18} /> READY FOR SERVICE
+                   </div>
+                   <button 
+                     onClick={async () => {
+                       if (currentTenant?.printerSettings?.pairedPrinterId) {
+                         try {
+                           const result = await BluetoothPrinterService.connect(currentTenant.printerSettings.pairedPrinterId);
+                           if (result.success) {
+                             await BluetoothPrinterService.printInvoice(currentTenant, order, { 
+                               creatorName: getCreatorName(order.createdBy)
+                             });
+                           }
+                         } catch (error) {
+                           console.error('Bluetooth print failed:', error);
+                           alert('Failed to print invoice. Please check printer connection.');
+                         }
+                       } else {
+                         alert('No printer paired. Please pair a printer in Settings.');
+                       }
+                     }}
+                     className="w-full py-4 rounded-[1.5rem] font-black text-white transition-all transform active:scale-95 hover:brightness-110 shadow-xl text-xs uppercase tracking-[0.2em] flex items-center justify-center gap-3 bg-emerald-600"
+                   >
+                     <Printer size={18} /> PRINT INVOICE
+                   </button>
                  </div>
                )}
             </div>
