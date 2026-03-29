@@ -131,21 +131,13 @@ export const Login = () => {
               </button>
             </form>
 
-            {tenantId && business.customerAppEnabled && (
-              <div className="mt-8 pt-8 border-t border-slate-100 flex flex-col items-center gap-6 animate-in slide-in-from-bottom-4 duration-1000">
-                <div className="flex flex-col items-center text-center gap-2">
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 text-indigo-500 text-[8px] font-black uppercase tracking-widest">
-                    <ShoppingBag size={10} /> Customer Portal
-                  </div>
-                  <h3 className="text-lg font-bold text-slate-900 tracking-tight">Are you a Customer?</h3>
-                  <p className="text-slate-400 text-[9px] font-bold uppercase tracking-widest">Order online & track history</p>
-                </div>
-                
+            {tenantId && (
+              <div className="mt-6 pt-6 border-t border-slate-100">
                 <button 
-                  onClick={() => navigate(`/${tenantId}/order/auth`)}
-                  className="w-full bg-white border-2 border-slate-100 hover:border-indigo-600 hover:text-indigo-600 text-slate-600 font-bold py-3.5 rounded-xl transition-all duration-300 flex items-center justify-center gap-3 uppercase text-[10px] tracking-widest group"
+                  onClick={() => navigate(`/${tenantId}`)}
+                  className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3.5 rounded-xl transition-all duration-300 shadow-lg shadow-purple-200 border-2 border-purple-800 flex items-center justify-center gap-3 uppercase text-[10px] tracking-widest group"
                 >
-                  Customer Login <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+                  <ArrowRight size={16} className="rotate-180 group-hover:-translate-x-1 transition-transform" /> Back to Restaurant
                 </button>
               </div>
             )}
@@ -160,16 +152,6 @@ export const Login = () => {
           </div>
         </div>
       </div>
-      
-      {/* Back to Landing - Only show if tenantId is present */}
-      {tenantId && (
-        <button 
-          onClick={() => navigate(`/${tenantId}`)}
-          className="fixed bottom-8 left-1/2 -translate-x-1/2 text-[10px] font-bold text-slate-400 uppercase tracking-widest hover:text-slate-900 transition-colors flex items-center gap-2"
-        >
-          <ArrowRight size={14} className="rotate-180" /> Back to Restaurant
-        </button>
-      )}
     </div>
   );
 };
