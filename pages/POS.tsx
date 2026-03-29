@@ -87,7 +87,8 @@ const POSCartContent = ({
   createAndSubmitOrder,
   isTokenDuplicate,
   isSubmitting,
-  printKOT
+  printKOT,
+  newTokenNum
 }: { 
   onClose?: () => void, 
   isEmbedded?: boolean,
@@ -115,7 +116,8 @@ const POSCartContent = ({
   createAndSubmitOrder: () => void,
   isTokenDuplicate: boolean,
   isSubmitting: boolean,
-  printKOT: () => void
+  printKOT: () => void,
+  newTokenNum: string
 }) => (
   <div className={`flex flex-col ${isEmbedded ? 'h-auto' : 'h-full'} bg-white border-l-2 border-indigo-500 shadow-2xl shadow-indigo-100`}>
     <div className="p-6 md:p-8 border-b border-slate-100 bg-slate-50/30 shrink-0">
@@ -125,16 +127,36 @@ const POSCartContent = ({
              <ShoppingBasket size={20} className="text-indigo-500" /> {isEmbedded ? 'Current Selection' : 'Order Basket'}
           </h2>
           {isCreatingNew ? (
-            newTableNum && (
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1 ml-8">
-                Table: {newTableNum}
-              </span>
-            )
+            <div className="flex flex-col gap-1 mt-1 ml-8">
+              {newTableNum && (
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  Table: {newTableNum}
+                </span>
+              )}
+              {newTokenNum && (
+                <div className="flex items-center gap-2 mt-2 bg-indigo-50 px-3 py-1.5 rounded-xl border border-indigo-100 w-fit">
+                  <Hash size={12} className="text-indigo-500" />
+                  <span className="text-[11px] font-black text-indigo-600 uppercase tracking-widest">
+                    Token: #{newTokenNum}
+                  </span>
+                </div>
+              )}
+            </div>
           ) : (
             selectedOrderId && (
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1 ml-8">
-                Table: {orders.find(o => o.id === selectedOrderId)?.tableNumber || 'N/A'}
-              </span>
+              <div className="flex flex-col gap-1 mt-1 ml-8">
+                <div className="flex items-center gap-4">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                    Table: {orders.find(o => o.id === selectedOrderId)?.tableNumber || 'N/A'}
+                  </span>
+                  <div className="flex items-center gap-2 bg-indigo-50 px-3 py-1.5 rounded-xl border border-indigo-100">
+                    <Hash size={12} className="text-indigo-500" />
+                    <span className="text-[11px] font-black text-indigo-600 uppercase tracking-widest">
+                      Token: #{orders.find(o => o.id === selectedOrderId)?.tokenNumber || 'N/A'}
+                    </span>
+                  </div>
+                </div>
+              </div>
             )
           )}
         </div>
@@ -284,10 +306,10 @@ const POSCartContent = ({
 
         <button 
           onClick={createAndSubmitOrder}
-          disabled={cart.length === 0 || isTokenDuplicate || (isCreatingNew && !newTableNum.trim() && !isDelivery) || (isDelivery && !selectedDeliveryStaffId) || isSubmitting}
+          disabled={cart.length === 0 || isTokenDuplicate || (isCreatingNew && !newTokenNum.trim()) || (isCreatingNew && !newTableNum.trim() && !isDelivery) || (isDelivery && !selectedDeliveryStaffId) || isSubmitting}
           className={`flex-1 py-4 rounded-2xl font-bold uppercase tracking-widest text-[10px] shadow-xl flex items-center justify-center gap-3 active:scale-95 transition-all disabled:opacity-30 border-2 ${isTokenDuplicate ? 'bg-rose-500 text-white border-rose-600 shadow-rose-100' : 'bg-slate-900 text-white hover:bg-slate-800 border-indigo-500 shadow-indigo-100'}`}
         >
-          {isSubmitting ? 'Processing...' : (isCreatingNew ? (isTokenDuplicate ? 'Duplicate Token' : (!newTableNum.trim() && !isDelivery ? 'Table Required' : (isDelivery && !selectedDeliveryStaffId ? 'Select Staff' : 'Send to Kitchen'))) : 'Update Order')} <ArrowRight size={18} />
+          {isSubmitting ? 'Processing...' : (isCreatingNew ? (isTokenDuplicate ? 'Duplicate Token' : (!newTokenNum.trim() ? 'Token Required' : (!newTableNum.trim() && !isDelivery ? 'Table Required' : (isDelivery && !selectedDeliveryStaffId ? 'Select Staff' : 'Send to Kitchen')))) : 'Update Order')} <ArrowRight size={18} />
         </button>
         <button 
           onClick={printKOT}
@@ -674,11 +696,11 @@ export const POS = () => {
 
                     {/* Token Number Pill (Exactly like image) */}
                     <div className="flex justify-center mb-4 relative">
-                      <div className={`min-w-[3rem] px-3 h-12 rounded-[1.5rem] border-2 border-black flex items-center justify-center font-black text-xl text-white shadow-xl ${statusStyles.topBorder}`}>
+                      <div className={`min-w-[4rem] px-4 h-14 rounded-[1.75rem] border-4 border-black flex items-center justify-center font-black text-2xl text-white shadow-2xl ${statusStyles.topBorder}`}>
                         {order.tokenNumber}
                       </div>
                       {(order.tableNumber || order.deliveryStaffName) && (
-                        <div className="absolute -top-1 -right-1 bg-black text-white text-[9px] font-black px-2 py-0.5 rounded-full border-2 border-white shadow-lg">
+                        <div className="absolute -top-2 -right-2 bg-black text-white text-[10px] font-black px-3 py-1 rounded-full border-2 border-white shadow-lg">
                           {order.deliveryStaffName ? `D-${order.deliveryStaffName.split(' ')[0]}` : `T-${order.tableNumber}`}
                         </div>
                       )}
@@ -757,25 +779,25 @@ export const POS = () => {
                   </span>
                 </h2>
                 {isCreatingNew && (
-                  <div className="flex items-center gap-4 md:gap-6 mt-1 md:mt-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Token:</span>
+                  <div className="flex items-center gap-6 md:gap-8 mt-1 md:mt-2">
+                    <div className="flex items-center gap-3 bg-indigo-50 px-4 py-2 rounded-2xl border border-indigo-100">
+                      <span className="text-[10px] text-indigo-500 font-black uppercase tracking-widest">Token:</span>
                       <input 
                         type="text" 
                         value={newTokenNum}
                         onChange={(e) => setNewTokenNum(e.target.value)}
-                        className={`w-8 text-center border-b-2 bg-transparent font-bold text-base outline-none transition-all ${isTokenDuplicate ? 'border-rose-500 text-rose-600' : 'border-slate-900 text-slate-900'}`}
+                        className={`w-16 text-center border-b-2 bg-transparent font-black text-lg outline-none transition-all ${isTokenDuplicate ? 'border-rose-500 text-rose-600' : 'border-indigo-500 text-indigo-900'}`}
                       />
-                      {isTokenDuplicate && <AlertCircle className="text-rose-500" size={12} />}
+                      {isTokenDuplicate && <AlertCircle className="text-rose-500" size={14} />}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Table:</span>
+                    <div className="flex items-center gap-3 bg-slate-50 px-4 py-2 rounded-2xl border border-slate-100">
+                      <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Table:</span>
                       <input 
                         type="text" 
                         placeholder="No"
                         value={newTableNum}
                         onChange={(e) => setNewTableNum(e.target.value)}
-                        className="w-10 text-center border-b-2 bg-transparent font-bold text-base outline-none transition-all border-slate-900 text-slate-900"
+                        className="w-16 text-center border-b-2 bg-transparent font-black text-lg outline-none transition-all border-slate-900 text-slate-900"
                       />
                     </div>
                   </div>
@@ -906,6 +928,7 @@ export const POS = () => {
                 isTokenDuplicate={isTokenDuplicate}
                 isSubmitting={isSubmitting}
                 printKOT={printKOT}
+                newTokenNum={newTokenNum}
               />
             </div>
           )}
@@ -940,6 +963,7 @@ export const POS = () => {
             isTokenDuplicate={isTokenDuplicate}
             isSubmitting={isSubmitting}
             printKOT={printKOT}
+            newTokenNum={newTokenNum}
          />
       </div>
 
@@ -1017,6 +1041,7 @@ export const POS = () => {
                 isTokenDuplicate={isTokenDuplicate}
                 isSubmitting={isSubmitting}
                 printKOT={printKOT}
+                newTokenNum={newTokenNum}
               />
             </motion.div>
           </motion.div>

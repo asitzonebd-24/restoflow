@@ -155,11 +155,11 @@ export const Kitchen = () => {
 
               {/* Centered Token Number Pill with Table Number Badge */}
                 <div className="flex justify-center mb-6 relative">
-                <div className={`min-w-[3rem] px-3 h-12 rounded-[1.5rem] border-2 border-black flex items-center justify-center font-black text-xl text-white shadow-xl ${statusColors.bg}`}>
+                <div className={`min-w-[4rem] px-4 h-14 rounded-[1.75rem] border-4 border-black flex items-center justify-center font-black text-2xl text-white shadow-2xl ${statusColors.bg}`}>
                   {order.tokenNumber}
                 </div>
                 {(order.tableNumber || order.deliveryStaffName) && (
-                  <div className="absolute -top-1 -right-1 bg-black text-white text-[9px] font-black px-2 py-0.5 rounded-full border-2 border-white shadow-lg">
+                  <div className="absolute -top-2 -right-2 bg-black text-white text-[10px] font-black px-3 py-1 rounded-full border-2 border-white shadow-lg">
                     {order.deliveryStaffName ? `D-${order.deliveryStaffName.split(' ')[0]}` : `T-${order.tableNumber}`}
                   </div>
                 )}
