@@ -10,7 +10,7 @@ export const Dashboard = () => {
   const navigate = useNavigate();
 
   // Date range state
-  const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'week' | 'month' | 'custom'>('month');
+  const [dateFilter, setDateFilter] = useState<'all' | 'today' | 'week' | 'month' | 'custom'>('today');
   const [customRange, setCustomRange] = useState({
     start: (() => {
       const d = new Date();
@@ -137,13 +137,13 @@ export const Dashboard = () => {
           </div>
         </div>
         
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
           <div className="relative w-full md:w-48">
             <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
             <select 
               value={dateFilter}
               onChange={(e) => setDateFilter(e.target.value as any)}
-              className="w-full pl-11 pr-10 py-3.5 bg-white border-2 border-slate-100 rounded-2xl text-[10px] font-bold uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm appearance-none"
+              className="w-full pl-11 pr-10 py-3.5 bg-white border-2 border-emerald-500 rounded-2xl text-[10px] font-bold uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-600 transition-all shadow-sm appearance-none"
             >
               <option value="all">All Time</option>
               <option value="today">Today</option>
@@ -156,7 +156,7 @@ export const Dashboard = () => {
 
           <button 
             onClick={() => navigate(`/${currentTenant?.id}/expenses`)}
-            className="px-5 py-2.5 bg-white border-2 border-slate-100 text-slate-900 rounded-2xl font-bold text-[10px] shadow-sm hover:border-slate-300 transition-all flex items-center gap-2 uppercase tracking-widest"
+            className="w-full md:w-48 px-5 py-3.5 bg-white border-2 border-purple-500 text-slate-900 rounded-2xl font-bold text-[10px] shadow-sm hover:bg-purple-50 transition-all flex items-center justify-center gap-2 uppercase tracking-widest"
           >
             <PlusCircle size={16} />
             <span>Add Expense</span>
