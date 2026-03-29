@@ -49,9 +49,9 @@ const handleFirestoreError = (error: unknown, operationType: OperationType, path
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),
     authInfo: {
-      userId: auth.currentUser?.uid,
-      email: auth.currentUser?.email,
-      emailVerified: auth.currentUser?.emailVerified,
+      userId: 'anonymous',
+      email: 'anonymous',
+      emailVerified: true,
     },
     operationType,
     path
@@ -163,13 +163,13 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     return savedUser ? JSON.parse(savedUser) : null;
   });
   const [currentTenantId, setCurrentTenantId] = useState<string | null>(null);
-  const [tenants, setTenants] = useState<Business[]>([]);
-  const [allOrders, setAllOrders] = useState<Order[]>([]);
-  const [allInventory, setAllInventory] = useState<InventoryItem[]>([]);
-  const [allMenu, setAllMenu] = useState<MenuItem[]>([]);
-  const [allUsers, setAllUsers] = useState<User[]>([]);
+  const [tenants, setTenants] = useState<Business[]>([BUSINESS_DETAILS]);
+  const [allOrders, setAllOrders] = useState<Order[]>(INITIAL_ORDERS);
+  const [allInventory, setAllInventory] = useState<InventoryItem[]>(MOCK_INVENTORY);
+  const [allMenu, setAllMenu] = useState<MenuItem[]>(MOCK_MENU);
+  const [allUsers, setAllUsers] = useState<User[]>(ENHANCED_MOCK_USERS);
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
-  const [allExpenses, setAllExpenses] = useState<Expense[]>([]);
+  const [allExpenses, setAllExpenses] = useState<Expense[]>(MOCK_EXPENSES);
   const [allRecipes, setAllRecipes] = useState<Recipe[]>([]);
   const [monthlyBills, setMonthlyBills] = useState<MonthlyBill[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -223,7 +223,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   }
   
   const fetchStaticData = async () => {
-    if (!auth.currentUser) {
+    if (!currentUser) {
       setTenants([BUSINESS_DETAILS]);
       setAllUsers(ENHANCED_MOCK_USERS as any);
       setAllTransactions([]);
@@ -281,7 +281,16 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             data.sort((a: any, b: any) => (b[sortField] || '').localeCompare(a[sortField] || ''));
           }
 
-          if (name === 'tenants') {
+          if (name === 'users') {
+            const dataUsers = data as any as User[];
+            const mergedUsers = [...ENHANCED_MOCK_USERS];
+            dataUsers.forEach(u => {
+              if (!mergedUsers.find(mu => mu.id === u.id)) {
+                mergedUsers.push(u);
+              }
+            });
+            setter(mergedUsers as any);
+          } else if (name === 'tenants') {
             const tenantsData = data as any as Business[];
             if (!tenantsData.some(t => String(t.id) === '01')) {
               tenantsData.unshift(BUSINESS_DETAILS);
@@ -328,7 +337,7 @@ useEffect(() => {
   if (!isAuthReady || !currentUser) return;
   
   const fetchDynamicData = async () => {
-    if (!auth.currentUser) {
+    if (!currentUser) {
       setAllOrders(INITIAL_ORDERS as any);
       setAllMenu(MOCK_MENU as any);
       setAllInventory(MOCK_INVENTORY as any);
@@ -405,7 +414,7 @@ useEffect(() => {
 
 // ✅ 🔥 REALTIME REMOVE → NORMAL FETCH
 useEffect(() => {
-  if (!isAuthReady || !currentUser || !auth.currentUser) return;
+  if (!isAuthReady || !currentUser) return;
   
   const unsubscribers: (() => void)[] = [];
 
@@ -1366,12 +1375,6 @@ useEffect(() => {
   };
 
   const createBusiness = async (businessData: Partial<Business>, ownerData: Partial<User>, sourceTenantId?: string) => {
-    if (!auth.currentUser) {
-      const err = new Error('Authentication required. Please sign in with Google to create a business.');
-      handleFirestoreError(err, OperationType.WRITE, 'tenants/users');
-      return;
-    }
-
     const numericIds = tenants
       .map(t => parseInt(t.id))
       .filter(id => !isNaN(id))

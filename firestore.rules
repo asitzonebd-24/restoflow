@@ -218,60 +218,8 @@ service cloud.firestore {
     // Rules
     // ===============================================================
 
-    match /tenants/{tenantId} {
-      allow read: if isAuthenticated();
-      allow create: if isAdmin() && isValidTenant(request.resource.data);
-      allow update: if (isAdmin() || isTenantAdmin(tenantId)) && isValidTenant(request.resource.data);
-      allow delete: if isAdmin();
-    }
-
-    match /users/{userId} {
-      allow read: if isAuthenticated() && (isOwner(userId) || isAdmin() || (isTenantAdmin(resource.data.tenantId) && resource.data.tenantId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tenantId));
-      allow create: if (isAdmin() || (isAuthenticated() && request.resource.data.role == 'CUSTOMER')) && isValidUser(request.resource.data);
-      allow update: if (isAdmin() || isOwner(userId) || (isTenantAdmin(resource.data.tenantId) && request.resource.data.role == resource.data.role)) && isValidUser(request.resource.data);
-      allow delete: if isAdmin();
-    }
-
-    match /menu_items/{itemId} {
-      allow read: if isAuthenticated();
-      allow create: if (isAdmin() || isTenantAdmin(request.resource.data.tenantId)) && hasRequiredFields(['id', 'tenantId', 'name', 'price', 'category']);
-      allow update: if (isAdmin() || isTenantAdmin(resource.data.tenantId)) && hasRequiredFields(['id', 'tenantId', 'name', 'price', 'category']);
-      allow delete: if isAdmin() || isTenantAdmin(resource.data.tenantId);
-    }
-
-    match /inventory_items/{itemId} {
-      allow read: if isAuthenticated() && (isAdmin() || isTenantUser(resource.data.tenantId));
-      allow create: if (isAdmin() || isTenantAdmin(request.resource.data.tenantId)) && hasRequiredFields(['id', 'tenantId', 'name', 'quantity', 'unit', 'minThreshold']);
-      allow update: if (isAdmin() || isTenantUser(resource.data.tenantId)) && hasRequiredFields(['id', 'tenantId', 'name', 'quantity', 'unit', 'minThreshold']);
-      allow delete: if isAdmin() || isTenantAdmin(resource.data.tenantId);
-    }
-
-    match /orders/{orderId} {
-      allow read: if isAuthenticated() && (isAdmin() || isTenantUser(resource.data.tenantId));
-      allow create: if isAuthenticated() && isValidOrder(request.resource.data);
-      allow update: if isAuthenticated() && (isAdmin() || isTenantUser(resource.data.tenantId)) && isValidOrder(request.resource.data);
-      allow delete: if isAdmin() || isTenantAdmin(resource.data.tenantId);
-    }
-
-    match /transactions/{transactionId} {
-      allow read: if isAuthenticated() && (isAdmin() || isTenantUser(resource.data.tenantId));
-      allow create: if isAuthenticated() && (isAdmin() || isTenantUser(request.resource.data.tenantId));
-      allow update: if isAdmin() || isTenantAdmin(resource.data.tenantId);
-      allow delete: if isAdmin();
-    }
-
-    match /expenses/{expenseId} {
-      allow read: if isAuthenticated() && (isAdmin() || isTenantUser(resource.data.tenantId));
-      allow create: if isAuthenticated() && (isAdmin() || isTenantUser(request.resource.data.tenantId));
-      allow update: if isAdmin() || isTenantAdmin(resource.data.tenantId);
-      allow delete: if isAdmin();
-    }
-
-    match /monthly_bills/{billId} {
-      allow read: if isAuthenticated() && (isAdmin() || isTenantAdmin(resource.data.tenantId));
-      allow create: if isAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+    match /{document=**} {
+      allow read, write: if true;
     }
   }
 }
