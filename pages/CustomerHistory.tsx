@@ -10,7 +10,6 @@ export const CustomerHistory = () => {
   const { tenantId: urlTenantId } = useParams<{ tenantId: string }>();
   const { orders, currentUser, business, logout, setCurrentTenantId, activeCategory, setActiveCategory, categories } = useApp();
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -27,8 +26,6 @@ export const CustomerHistory = () => {
     return orders.filter(o => o.createdBy === currentUser.id && o.status === OrderStatus.COMPLETED)
                  .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }, [orders, currentUser]);
-
-  const isActive = (path: string) => location.pathname === path;
 
   if (!business.customerAppEnabled) {
     return <Navigate to={`/${tenantId}/order/auth`} replace />;

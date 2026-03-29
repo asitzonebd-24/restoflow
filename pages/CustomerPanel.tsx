@@ -2,17 +2,15 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { OrderStatus } from '../types';
-import { Timer, ShoppingBag, ArrowLeft, Clock, Menu as MenuIcon, User as UserCircle, ShoppingCart, LogOut, X, MapPin, History, LayoutGrid, ShoppingBasket, ChevronRight, Store, Utensils } from 'lucide-react';
-import { useNavigate, useLocation, useParams, Navigate } from 'react-router-dom';
+import { Timer, ShoppingBag, X, MapPin, ChevronRight, Menu as MenuIcon, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate, useParams, Navigate } from 'react-router-dom';
 
-export const CustomerPanel = () => {
+export const CustomerPanel = ({ setIsSidebarOpen }: { setIsSidebarOpen?: (open: boolean) => void }) => {
   const { tenantId: urlTenantId } = useParams<{ tenantId: string }>();
-  const { orders, currentUser, business, logout, setCurrentTenantId, activeCategory, setActiveCategory, categories } = useApp();
+  const { orders, currentUser, business, setCurrentTenantId } = useApp();
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const navigate = useNavigate();
-  const location = useLocation();
 
   const tenantId = urlTenantId || currentUser?.tenantId;
 
@@ -59,108 +57,22 @@ export const CustomerPanel = () => {
 
   return (
     <div className="flex h-screen bg-[#f1f5f9] overflow-hidden">
+
       {/* Mobile Sidebar Overlay */}
-      <AnimatePresence>
-        {isSidebarOpen && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setIsSidebarOpen(false)}
-            className="md:hidden fixed inset-0 z-[150] bg-slate-900/60 backdrop-blur-sm"
-          />
-        )}
-      </AnimatePresence>
 
-      <aside 
-        className={`fixed md:relative h-full w-64 text-white z-[160] border-r-4 border-indigo-500/20 flex-col items-stretch py-8 shrink-0 shadow-2xl shadow-indigo-500/10 transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}
-        style={{ background: 'linear-gradient(180deg, #1d1d3f 0%, #11112b 100%)' }}
-      >
-        <div className="flex items-center justify-between px-6 mb-12">
-           <div className="flex items-center gap-3">
-             <div className="w-10 h-10 rounded-full border-2 border-white bg-white/10 flex items-center justify-center overflow-hidden">
-               {business.logo ? (
-                 <img src={business.logo} alt="Logo" className="w-full h-full object-contain" />
-               ) : (
-                 <Utensils size={16} className="text-white/40" />
-               )}
-             </div>
-             <h2 className="font-black text-lg uppercase tracking-tighter">Resto Keep</h2>
-           </div>
-           <button onClick={() => setIsSidebarOpen(false)} className="md:hidden text-white/50 hover:text-white">
-             <X size={24} />
-           </button>
-        </div>
-        <nav className="flex-1 space-y-2 px-6 overflow-y-auto no-scrollbar">
-           <button onClick={() => { navigate(`/${tenantId}/order`); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl transition font-black uppercase tracking-widest text-[10px] ${isActive(`/${tenantId}/order`) ? 'bg-indigo-600 shadow-xl' : 'bg-white/5 hover:bg-white/10'}`}>
-             <ShoppingBag size={20} /> <span>Digital Menu</span>
-           </button>
-           <button onClick={() => { navigate(`/${tenantId}/order/panel`); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl transition font-black uppercase tracking-widest text-[10px] ${isActive(`/${tenantId}/order/panel`) ? 'bg-indigo-600 shadow-xl' : 'bg-white/5 hover:bg-white/10'}`}>
-             <Timer size={20} /> <span>My Tokens</span>
-           </button>
-           <button onClick={() => { navigate(`/${tenantId}/order/history`); setIsSidebarOpen(false); }} className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl transition font-black uppercase tracking-widest text-[10px] ${isActive(`/${tenantId}/order/history`) ? 'bg-indigo-600 shadow-xl' : 'bg-white/5 hover:bg-white/10'}`}>
-             <History size={20} /> <span>History</span>
-           </button>
 
-           <div className="pt-6 mt-6 border-t border-white/10">
-             <p className="text-[9px] font-black uppercase text-white/30 tracking-[0.2em] mb-4 px-2">Categories</p>
-             <div className="space-y-1">
-               {categories.map(cat => (
-                 <button
-                   key={cat}
-                   onClick={() => {
-                     setActiveCategory(cat);
-                     setIsSidebarOpen(false);
-                     if (!isActive(`/${tenantId}/order`)) navigate(`/${tenantId}/order`);
-                   }}
-                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition font-bold uppercase tracking-widest text-[9px] ${
-                     activeCategory === cat ? 'bg-indigo-500 text-white shadow-lg' : 'text-white/60 hover:bg-white/5 hover:text-white'
-                   }`}
-                 >
-                   <div className={`w-1.5 h-1.5 rounded-full ${activeCategory === cat ? 'bg-white' : 'bg-white/20'}`} />
-                   {cat}
-                 </button>
-               ))}
-             </div>
-           </div>
-        </nav>
-        <div className="pt-8 border-t border-white/10 mt-auto px-8 flex flex-col items-start">
-           <div className="flex items-center gap-3 mb-6">
-             <div className="w-10 h-10 rounded-full border-2 border-indigo-500 bg-white/10 flex items-center justify-center overflow-hidden">
-               {currentUser?.avatar ? (
-                 <img src={currentUser.avatar} className="w-full h-full object-cover" alt="avatar" />
-               ) : (
-                 <UserCircle size={20} className="text-white" />
-               )}
-             </div>
-             <div className="min-w-0">
-               <p className="text-[10px] font-black uppercase truncate">{currentUser?.name}</p>
-               <p className="text-[8px] font-bold text-white/40 uppercase tracking-widest">Customer</p>
-             </div>
-           </div>
-           <button 
-             onClick={() => {
-               const tId = tenantId;
-               logout();
-               if (tId) navigate(`/${tId}`);
-               else navigate('/login');
-             }} 
-             className="w-full flex items-center gap-4 px-6 py-4 rounded-2xl text-red-400 hover:bg-red-400/10 transition font-black uppercase tracking-widest text-[10px]"
-           >
-             <LogOut size={20} /> <span>Sign Out</span>
-           </button>
-        </div>
-      </aside>
 
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
         <header className="bg-white border-b-4 border-indigo-500 p-4 flex justify-between items-center shadow-xl shadow-indigo-100 shrink-0">
            <div className="flex items-center gap-4">
-             <button 
-               onClick={() => setIsSidebarOpen(true)}
-               className="md:hidden w-10 h-10 flex items-center justify-center bg-slate-100 rounded-xl text-slate-600"
-             >
-               <MenuIcon size={20} />
-             </button>
+             {setIsSidebarOpen && (
+               <button 
+                 onClick={() => setIsSidebarOpen(true)}
+                 className="md:hidden w-10 h-10 flex items-center justify-center bg-slate-100 rounded-xl text-slate-600"
+               >
+                 <MenuIcon size={20} />
+               </button>
+             )}
              <h1 className="text-xl font-black uppercase tracking-tighter">Active Tokens</h1>
            </div>
            <div className="flex items-center gap-3">

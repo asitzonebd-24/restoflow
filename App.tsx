@@ -27,10 +27,10 @@ import { PendingBills } from './pages/PendingBills';
 import { ApprovedBills } from './pages/ApprovedBills';
 import { PlatformExpenses } from './pages/PlatformExpenses';
 import { Role, OrderStatus } from './types';
-import { LayoutDashboard, UtensilsCrossed, ChefHat, Receipt, Package, LogOut, Settings, Users as UsersIcon, History, Wallet, PieChart, Menu as MenuIcon, User as UserCircle, ShieldCheck, PowerOff, FileText, CheckCircle, Menu, X, Utensils, ShoppingBag } from 'lucide-react';
+import { LayoutDashboard, UtensilsCrossed, ChefHat, Receipt, Package, LogOut, Settings, Users as UsersIcon, History, Wallet, PieChart, Menu as MenuIcon, User as UserCircle, ShieldCheck, PowerOff, FileText, CheckCircle, Menu, X, Utensils, ShoppingBag, Timer } from 'lucide-react';
 
 const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) => {
-  const { business, currentUser, logout, orders } = useApp();
+  const { business, currentUser, logout, orders, categories, setActiveCategory, activeCategory } = useApp();
   const location = useLocation();
   const { tenantId: urlTenantId } = useParams();
   const navigate = useNavigate();
@@ -48,7 +48,7 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
     return filtered.length;
   }, [orders, currentUser]);
 
-  if (!currentUser || currentUser.role === Role.CUSTOMER) return null;
+  if (!currentUser) return null;
 
   const tId = urlTenantId || currentUser.tenantId;
 
@@ -99,6 +99,18 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
                 </NavLink>
                 <NavLink to="/platform-expenses" onClick={() => onClose()} className={navItemClass('/platform-expenses')} title="Platform Expenses">
                   <Wallet size={22} />
+                </NavLink>
+              </>
+            ) : currentUser.role === Role.CUSTOMER ? (
+              <>
+                <NavLink to={`/${tId}/order`} onClick={() => onClose()} className={navItemClass('/order')} title="Digital Menu">
+                  <ShoppingBag size={22} />
+                </NavLink>
+                <NavLink to={`/${tId}/order/panel`} onClick={() => onClose()} className={navItemClass('/order/panel')} title="My Tokens">
+                  <Timer size={22} />
+                </NavLink>
+                <NavLink to={`/${tId}/order/history`} onClick={() => onClose()} className={navItemClass('/order/history')} title="History">
+                  <History size={22} />
                 </NavLink>
               </>
             ) : (
@@ -171,6 +183,33 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
                   <NavLink to={`/${tId}/users`} onClick={() => onClose()} className={navItemClass('/users')} title="Users">
                     <UsersIcon size={22} />
                   </NavLink>
+                )}
+
+                {currentUser.role === Role.CUSTOMER && (
+                  <>
+                    <NavLink to={`/${tId}/order`} onClick={() => onClose()} className={navItemClass('/order')} title="Digital Menu">
+                      <Utensils size={22} />
+                    </NavLink>
+                    <NavLink to={`/${tId}/order/panel`} onClick={() => onClose()} className={navItemClass('/order/panel')} title="My Tokens">
+                      <Timer size={22} />
+                    </NavLink>
+                    <NavLink to={`/${tId}/order/history`} onClick={() => onClose()} className={navItemClass('/order/history')} title="History">
+                      <History size={22} />
+                    </NavLink>
+                    <div className="w-full px-2 mt-4">
+                      <select 
+                        className="w-full bg-white/10 text-white text-[10px] p-2 rounded-lg border border-white/20"
+                        value={activeCategory}
+                        onChange={(e) => {
+                          setActiveCategory(e.target.value);
+                          if (!location.pathname.includes('/order')) navigate(`/${tId}/order`);
+                        }}
+                      >
+                        <option value="All">All</option>
+                        {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                      </select>
+                    </div>
+                  </>
                 )}
 
                 {currentUser.role === Role.SUPER_ADMIN && (
@@ -319,12 +358,14 @@ const ProtectedLayout = ({ children, allowedRoles }: { children?: React.ReactNod
   const isCustomer = currentUser.role === Role.CUSTOMER;
   
   return (
-    <div className={`flex h-screen bg-slate-50 overflow-hidden ${isCustomer ? 'flex-col' : 'flex-row'}`}>
-      {!isCustomer && (
+    <div className={`flex h-screen bg-slate-50 overflow-hidden flex-row`}>
         <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
-      )}
       <main className="flex-1 overflow-auto">
-        {children}
+        {React.Children.map(children, child => 
+          React.isValidElement(child) 
+            ? React.cloneElement(child, { setIsSidebarOpen } as any) 
+            : child
+        )}
       </main>
     </div>
   );
@@ -453,19 +494,19 @@ const AppContent = () => {
       {/* Tenant-specific customer routes */}
       <Route path="/:tenantId/order/auth" element={currentUser ? <Navigate to={`/${currentUser.tenantId}/order`} /> : <CustomerAuth />} />
       <Route path="/:tenantId/order" element={
-        currentUser && currentUser.role === Role.CUSTOMER 
-          ? <CustomerOrder /> 
-          : <Navigate to={`/${window.location.hash.split('/')[1]}/order/auth?tenantId=${window.location.hash.split('/')[1]}`} />
+        <ProtectedLayout allowedRoles={[Role.CUSTOMER]}>
+          <CustomerOrder />
+        </ProtectedLayout>
       } />
       <Route path="/:tenantId/order/panel" element={
-        currentUser && currentUser.role === Role.CUSTOMER 
-          ? <CustomerPanel /> 
-          : <Navigate to={`/${window.location.hash.split('/')[1]}/order/auth?tenantId=${window.location.hash.split('/')[1]}`} />
+        <ProtectedLayout allowedRoles={[Role.CUSTOMER]}>
+          <CustomerPanel />
+        </ProtectedLayout>
       } />
       <Route path="/:tenantId/order/history" element={
-        currentUser && currentUser.role === Role.CUSTOMER 
-          ? <CustomerHistory /> 
-          : <Navigate to={`/${window.location.hash.split('/')[1]}/order/auth?tenantId=${window.location.hash.split('/')[1]}`} />
+        <ProtectedLayout allowedRoles={[Role.CUSTOMER]}>
+          <CustomerHistory />
+        </ProtectedLayout>
       } />
 
       <Route path="/order" element={

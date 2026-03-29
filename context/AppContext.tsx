@@ -175,7 +175,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isAuthReady, setIsAuthReady] = useState(false);
-  const [activeCategory, setActiveCategory] = useState<string>('All');
+  const [activeCategory, setActiveCategory] = useState<string>('');
   const [dbStatus, setDbStatus] = useState<{
     isConfigured: boolean;
     hasTables: boolean;
