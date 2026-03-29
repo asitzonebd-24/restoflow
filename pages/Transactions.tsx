@@ -430,7 +430,7 @@ export const Transactions = () => {
                                     {viewInvoice.order.items.map((item, i) => (
                                         <div key={i} className="flex justify-between items-center text-base font-medium">
                                             <div className="flex items-center gap-3">
-                                                <span className="text-black font-bold">x{item.quantity}</span>
+                                                <span className="text-black font-bold">{item.quantity} x</span>
                                                 <span className="text-black">{item.name}</span>
                                             </div>
                                             <span className="text-black font-bold shrink-0">{currentTenant?.currency}{(item.price * item.quantity).toFixed(2)}</span>
@@ -477,21 +477,8 @@ export const Transactions = () => {
                                 )}
                                 <div className="flex flex-col items-center justify-center gap-1">
                                     <p className="text-xs font-bold tracking-widest text-black">Powered by: RestoKeep</p>
-                                    <p className="text-xs font-bold tracking-widest text-black">Web: www.restokeep.app</p>
-                                    <p className="text-[10px] font-bold tracking-widest text-black">Mobile: 01303565316</p>
-                                </div>
-                                
-                                {/* Mobile Print Tip */}
-                                <div className="md:hidden print:hidden mt-6 p-4 bg-slate-50 rounded-2xl border-2 border-black">
-                                  <p className="text-[9px] text-black font-black uppercase leading-tight mb-2 flex items-center gap-2">
-                                    <Printer size={12} /> Mobile Printing Guide
-                                  </p>
-                                  <p className="text-[8px] text-black font-bold uppercase leading-relaxed text-left">
-                                    1. Open app in a new tab for best results.<br/>
-                                    2. Ensure printer is paired in phone settings.<br/>
-                                    3. If printer doesn't show, install a free "Print Service" app.<br/>
-                                    4. Enable the service in Settings &gt; Printing.
-                                  </p>
+                                    <p className="text-xs font-bold tracking-widest text-black">www.restokeep.app</p>
+                                    <p className="text-[10px] font-bold tracking-widest text-black">Mob: 01303565316</p>
                                 </div>
                             </div>
                         </div>

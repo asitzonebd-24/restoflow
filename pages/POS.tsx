@@ -322,7 +322,7 @@ export const POS = () => {
   const { menu, currentTenant, currentUser, addOrder, updateOrderItems, orders, users } = useApp();
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [cart, setCart] = useState<OrderItem[]>([]);
-  const [activeCategory, setActiveCategory] = useState<string>('All');
+  const [activeCategory, setActiveCategory] = useState<string>('');
   const [orderNote, setOrderNote] = useState('');
   const [isNoteEditable, setIsNoteEditable] = useState(true);
   const [isCreatingNew, setIsCreatingNew] = useState(false);
@@ -336,7 +336,7 @@ export const POS = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [filter, setFilter] = useState<'pending' | 'done'>('pending');
 
-  const categories = useMemo(() => ['All', ...Array.from(new Set(menu.map(m => m.category)))], [menu]);
+  const categories = useMemo(() => Array.from(new Set(menu.map(m => m.category))), [menu]);
 
   const deliveryStaff = useMemo(() => {
     return users.filter(u => u.role === Role.DELIVERY);
@@ -831,6 +831,7 @@ export const POS = () => {
                   onChange={(e) => setActiveCategory(e.target.value)}
                   className="w-full pl-4 pr-10 py-2.5 bg-white border-2 border-slate-100 rounded-xl text-[10px] font-bold uppercase tracking-widest outline-none focus:border-indigo-500 appearance-none cursor-pointer shadow-sm"
                 >
+                  <option value="" disabled>Select Category</option>
                   {categories.map(cat => (
                     <option key={cat} value={cat}>{cat}</option>
                   ))}
@@ -838,9 +839,6 @@ export const POS = () => {
                 <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 rotate-90 pointer-events-none" size={14} />
               </div>
             </div>
-            {activeCategory === 'All' && (
-              <ItemSummary cart={cart} cartTotal={cartTotal} currency={currentTenant.currency} />
-            )}
           </div>
 
           <div className="hidden md:flex flex-row gap-4 overflow-x-auto pb-2 no-scrollbar items-center">
