@@ -6,7 +6,7 @@ import { Utensils, ShieldCheck, User, ArrowRight, Store, Globe, MapPin, Phone, S
 
 export const TenantLanding = () => {
   const { tenantId } = useParams<{ tenantId: string }>();
-  const { tenants, setCurrentTenantId } = useApp();
+  const { tenants, setCurrentTenantId, isLoading } = useApp();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -16,6 +16,15 @@ export const TenantLanding = () => {
   }, [tenantId, setCurrentTenantId]);
 
   const tenant = tenants.find(t => t.id === tenantId);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6">
+        <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-slate-500 font-bold uppercase tracking-widest text-[10px]">Loading Business Portal...</p>
+      </div>
+    );
+  }
 
   if (!tenant) {
     return (

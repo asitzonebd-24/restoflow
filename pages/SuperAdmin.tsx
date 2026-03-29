@@ -35,13 +35,14 @@ export const SuperAdmin = () => {
   }, [expenses]);
 
   const copyLink = (id: string) => {
-    const link = `${window.location.origin}/#/${id}`;
+    const link = `https://restokeep.vercel.app/#/${id}`;
     navigator.clipboard.writeText(link);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
   };
   
   const [newBusiness, setNewBusiness] = useState({
+    id: '',
     name: '',
     address: '',
     phone: '',
@@ -78,7 +79,7 @@ export const SuperAdmin = () => {
       }
       setEditingTenant(null);
       setShowModal(false);
-      setNewBusiness({ name: '', address: '', phone: '', currency: '', themeColor: '#0f172a', monthlyBill: 500 });
+      setNewBusiness({ id: '', name: '', address: '', phone: '', currency: '', themeColor: '#0f172a', monthlyBill: 500 });
       setNewOwner({ name: '', email: '', password: '', mobile: '' });
       return;
     }
@@ -90,10 +91,19 @@ export const SuperAdmin = () => {
       return;
     }
 
+    // Check for tenant ID uniqueness if provided
+    if (newBusiness.id) {
+      const isTenantIdDuplicate = tenants.some(t => t.id.toLowerCase() === newBusiness.id.toLowerCase());
+      if (isTenantIdDuplicate) {
+        setError('This Tenant ID (slug) is already in use.');
+        return;
+      }
+    }
+
     createBusiness(newBusiness, newOwner, duplicateSourceId || undefined);
     setShowModal(false);
     setDuplicateSourceId(null);
-    setNewBusiness({ name: '', address: '', phone: '', currency: '', themeColor: '#0f172a', monthlyBill: 500 });
+    setNewBusiness({ id: '', name: '', address: '', phone: '', currency: '', themeColor: '#0f172a', monthlyBill: 500 });
     setNewOwner({ name: '', email: '', password: '', mobile: '' });
   };
 
@@ -101,6 +111,7 @@ export const SuperAdmin = () => {
     setDuplicateSourceId(tenant.id);
     setEditingTenant(null);
     setNewBusiness({
+      id: tenant.id,
       name: `${tenant.name} (Copy)`,
       address: '',
       phone: '',
@@ -115,6 +126,7 @@ export const SuperAdmin = () => {
   const handleEditTenant = (tenant: Business) => {
     setEditingTenant(tenant);
     setNewBusiness({
+      id: tenant.id,
       name: tenant.name,
       address: tenant.address,
       phone: tenant.phone,
@@ -273,6 +285,7 @@ export const SuperAdmin = () => {
                 <thead>
                   <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
                     <th className="px-6 py-4 font-semibold">Restaurant</th>
+                    <th className="px-6 py-4 font-semibold">Tenant Link</th>
                     <th className="px-6 py-4 font-semibold">Contact</th>
                     <th className="px-6 py-4 font-semibold">Status</th>
                     <th className="px-6 py-4 font-semibold">Monthly Bill</th>
@@ -293,18 +306,34 @@ export const SuperAdmin = () => {
                           </div>
                           <div>
                             <p className="font-bold text-slate-900">{tenant.name}</p>
-                            <div className="flex items-center gap-2 mt-1">
-                              <p className="text-[9px] font-bold text-indigo-500 uppercase tracking-widest bg-indigo-50 px-2 py-0.5 rounded">
-                                ID: {tenant.id}
-                              </p>
-                              <button 
-                                onClick={() => copyLink(tenant.id)}
-                                className="flex items-center gap-1 text-[9px] font-bold text-slate-400 hover:text-indigo-600 transition uppercase tracking-widest"
-                              >
-                                {copiedId === tenant.id ? <Check size={10} /> : <Copy size={10} />}
-                                {copiedId === tenant.id ? 'Copied' : 'Copy Link'}
-                              </button>
-                            </div>
+                            <p className="text-[9px] font-bold text-indigo-500 uppercase tracking-widest bg-indigo-50 px-2 py-0.5 rounded inline-block mt-1">
+                              ID: {tenant.id}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-2">
+                            <code className="text-[10px] font-mono bg-slate-100 px-2 py-1 rounded text-slate-600 border border-slate-200">
+                              restokeep.vercel.app/#/{tenant.id}
+                            </code>
+                            <button 
+                              onClick={() => copyLink(tenant.id)}
+                              className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition"
+                              title="Copy Link"
+                            >
+                              {copiedId === tenant.id ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
+                            </button>
+                            <a 
+                              href={`https://restokeep.vercel.app/#/${tenant.id}`} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition"
+                              title="Open Link"
+                            >
+                              <ExternalLink size={14} />
+                            </a>
                           </div>
                         </div>
                       </td>
@@ -477,6 +506,22 @@ export const SuperAdmin = () => {
                   <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
                     <Building2 size={16} /> Business Details
                   </h3>
+                  {!editingTenant && (
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-1">Tenant ID (Slug) - Optional</label>
+                      <div className="relative">
+                        <input 
+                          type="text" 
+                          placeholder="e.g. my-restaurant"
+                          className="w-full px-4 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-indigo-500 outline-none pl-12"
+                          value={newBusiness.id || ''}
+                          onChange={(e) => setNewBusiness({...newBusiness, id: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')})}
+                        />
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold"># /</div>
+                      </div>
+                      <p className="text-[9px] text-slate-400 mt-1 uppercase tracking-widest">Leave empty for auto-generated ID</p>
+                    </div>
+                  )}
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">Restaurant Name</label>
                     <input 

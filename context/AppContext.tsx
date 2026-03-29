@@ -213,124 +213,104 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
     return () => unsubscribeAuth();
   }, []);
-// Real-time listeners for critical collections
- useEffect(() => {
-  if (!isAuthReady || !currentUser) {
-    if (isAuthReady && !currentUser) {
-      setIsLoading(false);
-    }
-    return;
-  }
-  
-  const fetchStaticData = async () => {
-    if (!currentUser) {
-      setTenants([BUSINESS_DETAILS]);
-      setAllUsers(ENHANCED_MOCK_USERS as any);
-      setAllTransactions([]);
-      setAllExpenses(MOCK_EXPENSES as any);
-      setAllRecipes([]);
-      setMonthlyBills([]);
-      setIsLoading(false);
-      return;
-    }
+  // Real-time listeners for critical collections
+  useEffect(() => {
+    if (!isAuthReady) return;
 
-    try {
-      const collections = [
-        { name: 'tenants', setter: setTenants },
-        { name: 'users', setter: setAllUsers },
-        { name: 'transactions', setter: setAllTransactions },
-        { name: 'expenses', setter: setAllExpenses },
-        { name: 'recipes', setter: setAllRecipes },
-        { name: 'monthly_bills', setter: setMonthlyBills }
-      ];
+    const fetchStaticData = async () => {
+      try {
+        // 1. Fetch Tenants (Publicly accessible)
+        const tenantsQ = query(collection(db, 'tenants'));
+        const tenantsSnapshot = await getDocs(tenantsQ);
+        const tenantsData = tenantsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Business[];
+        
+        if (!tenantsData.some(t => String(t.id) === '01')) {
+          tenantsData.unshift(BUSINESS_DETAILS);
+        }
+        setTenants(tenantsData);
 
-      await Promise.all(collections.map(async ({ name, setter }) => {
-        try {
-          let q = query(collection(db, name));
-          let needsSorting = false;
-          let sortField = '';
+        // 2. Fetch Authenticated Data
+        if (currentUser || currentTenantId) {
+          const collections = [
+            { name: 'users', setter: setAllUsers },
+            { name: 'transactions', setter: setAllTransactions },
+            { name: 'expenses', setter: setAllExpenses },
+            { name: 'recipes', setter: setAllRecipes },
+            { name: 'monthly_bills', setter: setMonthlyBills }
+          ];
 
-          if (['transactions', 'expenses'].includes(name)) {
-            q = query(collection(db, name), limit(50));
-            needsSorting = true;
-            sortField = 'date';
-          }
+          await Promise.all(collections.map(async ({ name, setter }) => {
+            try {
+              let q = query(collection(db, name));
+              let needsSorting = false;
+              let sortField = '';
 
-          if (currentUser.role !== Role.SUPER_ADMIN && currentUser.tenantId) {
-            if (name === 'tenants') {
-              q = query(collection(db, name), where('id', '==', currentUser.tenantId), limit(1));
-            } else {
               if (['transactions', 'expenses'].includes(name)) {
-                // Removed orderBy to avoid composite index requirement
-                q = query(collection(db, name), where('tenantId', '==', currentUser.tenantId), limit(50));
+                q = query(collection(db, name), limit(50));
                 needsSorting = true;
                 sortField = 'date';
+              }
+
+              // Filter by tenantId if we have a current user (non-superadmin) or a current tenant context
+              const effectiveTenantId = currentUser?.tenantId || currentTenantId;
+              const isSuperAdmin = currentUser?.role === Role.SUPER_ADMIN;
+
+              if (!isSuperAdmin && effectiveTenantId) {
+                if (['transactions', 'expenses'].includes(name)) {
+                  q = query(collection(db, name), where('tenantId', '==', effectiveTenantId), limit(50));
+                  needsSorting = true;
+                  sortField = 'date';
+                } else {
+                  q = query(collection(db, name), where('tenantId', '==', effectiveTenantId));
+                }
+              }
+
+              const snapshot = await getDocs(q);
+              let data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+              if (needsSorting && sortField) {
+                data.sort((a: any, b: any) => (b[sortField] || '').localeCompare(a[sortField] || ''));
+              }
+
+              if (name === 'users') {
+                const dataUsers = data as any as User[];
+                const mergedUsers = [...ENHANCED_MOCK_USERS];
+                dataUsers.forEach(u => {
+                  if (!mergedUsers.find(mu => mu.id === u.id)) {
+                    mergedUsers.push(u);
+                  }
+                });
+                setter(mergedUsers as any);
               } else {
-                q = query(collection(db, name), where('tenantId', '==', currentUser.tenantId));
+                setter(data as any);
               }
+            } catch (err) {
+              console.error(`Error fetching ${name}:`, err);
+              if (name === 'users') setter(ENHANCED_MOCK_USERS as any);
+              if (name === 'transactions') setter([]);
+              if (name === 'expenses') setter(MOCK_EXPENSES as any);
+              if (name === 'recipes') setter([]);
+              if (name === 'monthly_bills') setter([]);
             }
-          }
-
-          const snapshot = await getDocs(q);
-          let data = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
           }));
-
-          if (needsSorting && sortField) {
-            data.sort((a: any, b: any) => (b[sortField] || '').localeCompare(a[sortField] || ''));
-          }
-
-          if (name === 'users') {
-            const dataUsers = data as any as User[];
-            const mergedUsers = [...ENHANCED_MOCK_USERS];
-            dataUsers.forEach(u => {
-              if (!mergedUsers.find(mu => mu.id === u.id)) {
-                mergedUsers.push(u);
-              }
-            });
-            setter(mergedUsers as any);
-          } else if (name === 'tenants') {
-            const tenantsData = data as any as Business[];
-            if (!tenantsData.some(t => String(t.id) === '01')) {
-              tenantsData.unshift(BUSINESS_DETAILS);
-            }
-            setter(tenantsData as any);
-          } else {
-            setter(data as any);
-          }
-        } catch (err) {
-          console.error(`Error fetching ${name}:`, err);
-          // Don't throw, just let this one collection fail/fallback
-          if (name === 'tenants') setter([BUSINESS_DETAILS] as any);
-          if (name === 'users') setter(ENHANCED_MOCK_USERS as any);
-          if (name === 'transactions') setter([]);
-          if (name === 'expenses') setter(MOCK_EXPENSES as any);
-          if (name === 'recipes') setter([]);
-          if (name === 'monthly_bills') setter([]);
+        } else {
+          // Fallback for non-logged in users
+          setAllUsers(ENHANCED_MOCK_USERS as any);
+          setAllTransactions([]);
+          setAllExpenses(MOCK_EXPENSES as any);
+          setAllRecipes([]);
+          setMonthlyBills([]);
         }
-      }));
 
-      setIsLoading(false);
-
-    } catch (error) {
-      try {
-        handleFirestoreError(error, OperationType.LIST, 'static-fetch');
-      } catch (e) {
-        console.warn('Falling back to mock data for static collections due to permission/quota error.');
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Error in fetchStaticData:', error);
+        setIsLoading(false);
       }
-      setTenants([BUSINESS_DETAILS]);
-      setAllUsers(ENHANCED_MOCK_USERS as any);
-      setAllTransactions([]);
-      setAllExpenses(MOCK_EXPENSES as any);
-      setAllRecipes([]);
-      setMonthlyBills([]);
-      setIsLoading(false);
-    }
-  };
+    };
 
-  fetchStaticData();
-}, [isAuthReady, currentUser]);
+    fetchStaticData();
+  }, [isAuthReady, currentUser, currentTenantId]);
 
 // ✅ STATIC DATA (LOW READ)
 useEffect(() => {
@@ -1381,7 +1361,8 @@ useEffect(() => {
       .sort((a, b) => b - a);
     
     const nextId = numericIds.length > 0 ? numericIds[0] + 1 : 1;
-    const newTenantId = nextId < 10 ? `0${nextId}` : `${nextId}`;
+    const generatedTenantId = nextId < 10 ? `0${nextId}` : `${nextId}`;
+    const newTenantId = businessData.id || generatedTenantId;
 
     let initialMenuCategories = ['Main', 'Starter', 'Beverage', 'Dessert'];
     if (sourceTenantId) {
