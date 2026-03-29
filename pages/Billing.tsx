@@ -640,9 +640,9 @@ export const Billing = () => {
                 })()}
               </div>
               
-              <div className="text-center mt-16 pt-8 border-t border-black">
+              <div className="text-center mt-8 pt-6 border-t border-black">
                 {currentTenant?.printerSettings?.receiptFooter ? (
-                  <p className="text-sm text-black font-bold whitespace-pre-line mb-4">{currentTenant.printerSettings.receiptFooter}</p>
+                  <p className="text-sm text-black font-bold whitespace-pre-line mb-2">{currentTenant.printerSettings.receiptFooter}</p>
                 ) : (
                   <p className="text-sm font-bold text-black uppercase tracking-widest mb-2">Thank You! Come Again</p>
                 )}

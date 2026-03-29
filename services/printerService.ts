@@ -412,7 +412,6 @@ export class BluetoothPrinterService {
     await this.printTextLine(`TOTAL: ${business.currency}${total.toFixed(2)}`, pixelWidth, { align: 'right', bold: true });
 
     // Footer
-    await this.printRaw(new Uint8Array([0x0A])); // LF
     if (business.printerSettings?.receiptFooter) {
       await this.printTextLine(business.printerSettings.receiptFooter, pixelWidth, { align: 'center' });
     } else {
@@ -422,7 +421,7 @@ export class BluetoothPrinterService {
     await this.printTextLine('Powered by: RestoKeep', pixelWidth, { align: 'center', fontSize: 18 });
     await this.printTextLine('www.restokeep.app', pixelWidth, { align: 'center', fontSize: 14 });
     await this.printTextLine('Mob: 01303565316', pixelWidth, { align: 'center', fontSize: 14 });
-    await this.printRaw(new Uint8Array([...Array(4).fill(0x0A), ...this.COMMANDS.CUT]));
+    await this.printRaw(new Uint8Array([...Array(2).fill(0x0A), ...this.COMMANDS.CUT]));
   }
 
   static async printKOT(business: Business, order: Order | any, elementId: string = 'kot-content') {
