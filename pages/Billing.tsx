@@ -286,7 +286,7 @@ export const Billing = () => {
                 : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed opacity-60'
             }`}
           >
-            <p className={`text-[9px] md:text-[10px] font-bold uppercase tracking-widest mb-0.5 md:mb-1 ${selectedOrderIds.length > 0 ? 'text-white/80' : 'text-slate-400'}`}>Collect Selected</p>
+            <p className={`text-[9px] md:text-[10px] font-bold uppercase tracking-widest mb-0.5 md:mb-1 ${selectedOrderIds.length > 0 ? 'text-white/80' : 'text-slate-400'}`}>Collect Amount</p>
             <p className="text-sm md:text-base font-bold leading-none">Total Order: {selectedOrderIds.length}</p>
           </button>
         </div>
@@ -662,7 +662,7 @@ export const Billing = () => {
                 }} 
                 className="flex-1 flex items-center justify-center gap-3 bg-emerald-500 text-white py-4 rounded-2xl hover:bg-emerald-600 transition-all font-bold uppercase tracking-widest text-[10px] shadow-lg active:scale-95 border-2 border-black"
               >
-                <CheckCheck size={18} /> Collect Payment
+                <CheckCheck size={18} /> Collect Amount
               </button>
               <button 
                 id="print-invoice-btn"
@@ -684,23 +684,23 @@ export const Billing = () => {
               <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
                 <AlertTriangle size={32} />
               </div>
-              <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Are you sure to approve bill?</h3>
+              <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Confirm Collection?</h3>
               <div className="bg-slate-50 p-4 rounded-2xl border-2 border-slate-100 text-left space-y-2">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Staff Name: <span className="text-slate-900">{selectedStaffId === 'all' ? 'All Staff' : users.find(u => u.id === selectedStaffId)?.name || 'Unknown'}</span></p>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Bill Amount: <span className="text-emerald-600">{currentTenant?.currency}{selectedTotalAmount.toFixed(2)}</span></p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Selected Orders: <span className="text-slate-900">{selectedOrderIds.length}</span></p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Amount: <span className="text-emerald-600">{currentTenant?.currency}{selectedTotalAmount.toFixed(2)}</span></p>
               </div>
               <div className="flex gap-3 pt-4">
                 <button 
                   onClick={() => setShowConfirmCollect(false)}
                   className="flex-1 py-3 bg-slate-100 text-slate-500 rounded-xl font-bold uppercase tracking-widest text-[10px] border-2 border-transparent hover:border-slate-200 transition-all"
                 >
-                  No
+                  Cancel
                 </button>
                 <button 
                   onClick={confirmBulkPayment}
                   className="flex-1 py-3 bg-emerald-500 text-white rounded-xl font-bold uppercase tracking-widest text-[10px] border-2 border-black shadow-lg shadow-emerald-100 hover:scale-105 transition-all"
                 >
-                  Yes
+                  Collect Amount
                 </button>
               </div>
             </div>

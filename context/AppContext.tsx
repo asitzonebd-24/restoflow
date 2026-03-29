@@ -1320,7 +1320,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     
     try {
       const transRef = doc(db, 'transactions', newTransaction.id);
-      await setDoc(transRef, newTransaction);
+      await setDoc(transRef, cleanObject(newTransaction));
       setAllTransactions(prev => [newTransaction, ...prev]);
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'transactions');
@@ -1333,7 +1333,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     
     try {
       const expenseRef = doc(db, 'expenses', newExpense.id);
-      await setDoc(expenseRef, newExpense);
+      await setDoc(expenseRef, cleanObject(newExpense));
       setAllExpenses(prev => [newExpense, ...prev]);
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'expenses');

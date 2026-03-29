@@ -203,7 +203,7 @@ export const Dashboard = () => {
               <ArrowUpRight size={14} className="mr-1" /> 12%
             </span>
           </div>
-          <p className="text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em] mb-2">Total Revenue</p>
+          <p className="text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em] mb-2">Total Income</p>
           <h3 className="text-4xl font-black text-slate-900 tracking-tighter">
             {currentTenant?.currency}{totalRevenue.toLocaleString()}
           </h3>
