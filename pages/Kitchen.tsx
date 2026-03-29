@@ -1,13 +1,18 @@
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Order, OrderStatus, ItemStatus, Role } from '../types';
-import { Clock, CheckCircle, Flame, Timer, PlayCircle, CheckSquare, FileText, Lock, Hash, User as UserIcon, ChevronDown, ShoppingBag, Printer } from 'lucide-react';
+import { Order, OrderStatus, ItemStatus, Role, OrderItem } from '../types';
+import { Clock, CheckCircle, Flame, Timer, PlayCircle, CheckSquare, FileText, Lock, Hash, User as UserIcon, ChevronDown, ShoppingBag, Printer, Plus, X, Search, AlertCircle } from 'lucide-react';
 import { BluetoothPrinterService } from '../services/printerService';
 
 export const Kitchen = () => {
-  const { orders, updateOrderStatus, updateOrderItemStatus, currentTenant, currentUser, users } = useApp();
+  const { orders, updateOrderStatus, updateOrderItemStatus, currentTenant, currentUser, users, menu, updateOrderItems } = useApp();
   const [filter, setFilter] = React.useState<'pending' | 'done'>('pending');
+  const [showAddItemModal, setShowAddItemModal] = useState(false);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [quantity, setQuantity] = useState(1);
+  const [error, setError] = useState<string | null>(null);
 
   const activeOrders = useMemo(() => {
     let filtered = orders.filter(o => o.status !== OrderStatus.CANCELLED);
@@ -94,6 +99,46 @@ export const Kitchen = () => {
     const user = users.find(u => u.id === userId);
     return user ? user.name : 'Unknown';
   };
+
+  const handleAddItem = async (menuItemId: string) => {
+    if (!selectedOrderId) return;
+    const order = orders.find(o => o.id === selectedOrderId);
+    if (!order) return;
+
+    const menuItem = menu.find(m => m.id === menuItemId);
+    if (!menuItem) return;
+
+    const newItem: OrderItem = {
+      rowId: Math.random().toString(36).substr(2, 9),
+      itemId: menuItem.id,
+      name: menuItem.name,
+      price: menuItem.price,
+      quantity: quantity,
+      status: OrderStatus.PENDING
+    };
+
+    const updatedItems = [...order.items, newItem];
+    const newTotal = updatedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+    try {
+      setError(null);
+      await updateOrderItems(order.id, updatedItems, newTotal);
+      setShowAddItemModal(false);
+      setSelectedOrderId(null);
+      setQuantity(1);
+      setSearchTerm('');
+    } catch (err) {
+      console.error('Failed to add item:', err);
+      setError('Failed to add item. Please try again.');
+    }
+  };
+
+  const filteredMenu = useMemo(() => {
+    return menu.filter(item => 
+      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.category.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [menu, searchTerm]);
 
   return (
     <div className="p-4 md:p-10 h-full overflow-y-auto bg-slate-50/50 no-scrollbar">
@@ -189,6 +234,20 @@ export const Kitchen = () => {
             )}
 
             <div className="flex-1 mb-6 overflow-y-auto no-scrollbar rounded-2xl border border-slate-100 overflow-hidden bg-white">
+              <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Order Items</h4>
+                {isAllowedToUpdate && order.status !== OrderStatus.READY && (
+                  <button 
+                    onClick={() => {
+                      setSelectedOrderId(order.id);
+                      setShowAddItemModal(true);
+                    }}
+                    className="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-all border border-indigo-100"
+                  >
+                    <Plus size={14} strokeWidth={3} />
+                  </button>
+                )}
+              </div>
               {order.items.map((item, index) => {
                  const itemStatusColors = getStatusColors(item.status || OrderStatus.PENDING);
                  return (
@@ -279,6 +338,81 @@ export const Kitchen = () => {
           </div>
         )})}
       </div>
+
+      {/* Add Item Modal */}
+      {showAddItemModal && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 md:p-6">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowAddItemModal(false)}></div>
+          <div className="relative bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden border-4 border-black flex flex-col max-h-[80vh] animate-in fade-in zoom-in duration-200">
+            <div className="p-6 border-b-2 border-slate-100 flex items-center justify-between bg-slate-50">
+              <div>
+                <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Add New Item</h3>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Select item to add to token</p>
+              </div>
+              <button onClick={() => setShowAddItemModal(false)} className="p-2 hover:bg-slate-200 rounded-xl transition-all">
+                <X size={20} className="text-slate-400" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6 overflow-y-auto no-scrollbar">
+              {error && (
+                <div className="p-4 bg-rose-50 border-2 border-rose-100 rounded-2xl text-xs font-bold text-rose-600 uppercase tracking-widest flex items-center gap-2">
+                  <AlertCircle size={16} />
+                  {error}
+                </div>
+              )}
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <input 
+                  type="text"
+                  placeholder="Search menu items..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-sm font-bold outline-none focus:border-indigo-500 transition-all"
+                />
+              </div>
+
+              <div className="flex items-center gap-4 bg-indigo-50 p-4 rounded-2xl border-2 border-indigo-100">
+                <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Quantity:</span>
+                <div className="flex items-center gap-4">
+                  <button 
+                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                    className="w-8 h-8 bg-white border-2 border-indigo-200 rounded-lg flex items-center justify-center font-black text-indigo-600 hover:bg-indigo-100 transition-all"
+                  >
+                    -
+                  </button>
+                  <span className="text-lg font-black text-indigo-600 w-8 text-center">{quantity}</span>
+                  <button 
+                    onClick={() => setQuantity(quantity + 1)}
+                    className="w-8 h-8 bg-white border-2 border-indigo-200 rounded-lg flex items-center justify-center font-black text-indigo-600 hover:bg-indigo-100 transition-all"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-3">
+                {filteredMenu.map(item => (
+                  <button
+                    key={item.id}
+                    onClick={() => handleAddItem(item.id)}
+                    className="flex items-center justify-between p-4 bg-white border-2 border-slate-100 rounded-2xl hover:border-indigo-500 hover:bg-indigo-50 transition-all group"
+                  >
+                    <div className="text-left">
+                      <p className="text-sm font-black text-slate-900 uppercase tracking-tight group-hover:text-indigo-600">{item.name}</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{item.category}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-black text-indigo-600">{currentTenant?.currency}{item.price}</p>
+                      <Plus size={16} className="text-slate-300 group-hover:text-indigo-500 ml-auto mt-1" />
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

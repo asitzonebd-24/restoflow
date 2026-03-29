@@ -422,12 +422,6 @@ export const POS = () => {
   const addToCart = (item: MenuItem) => {
     if (item.stock !== undefined && item.stock !== null && item.stock <= 0) return;
     
-    // Restrict adding new items to existing orders for non-admins
-    if (selectedOrderId) {
-      const isAdmin = currentUser?.role === Role.OWNER || currentUser?.role === Role.MANAGER || currentUser?.role === Role.SUPER_ADMIN;
-      if (!isAdmin) return;
-    }
-    
     setCart(prev => {
       // Find if this item is already in the cart AND it's a "new" item (not from an existing order)
       const existingNewItemIndex = prev.findIndex(i => 
@@ -912,8 +906,7 @@ export const POS = () => {
                   exit={{ opacity: 0, scale: 0.9 }}
                   key={item.id} 
                   onClick={() => addToCart(item)}
-                  disabled={selectedOrderId !== null && !(currentUser?.role === Role.OWNER || currentUser?.role === Role.MANAGER || currentUser?.role === Role.SUPER_ADMIN)}
-                  className={`group bg-white rounded-[1.5rem] border-2 border-black p-3 flex flex-col hover:border-indigo-500 shadow-xl shadow-slate-200/20 hover:shadow-2xl transition-all active:scale-95 relative overflow-hidden hover:-translate-y-1 ${selectedOrderId !== null && !(currentUser?.role === Role.OWNER || currentUser?.role === Role.MANAGER || currentUser?.role === Role.SUPER_ADMIN) ? 'opacity-50 grayscale cursor-not-allowed' : ''}`}
+                  className={`group bg-white rounded-[1.5rem] border-2 border-black p-3 flex flex-col hover:border-indigo-500 shadow-xl shadow-slate-200/20 hover:shadow-2xl transition-all active:scale-95 relative overflow-hidden hover:-translate-y-1`}
                 >
                   <div className="text-center flex flex-col items-center justify-center h-full">
                     <div className="mb-2">
