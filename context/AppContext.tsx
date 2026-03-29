@@ -214,135 +214,132 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
     return () => unsubscribeAuth();
   }, []);
+// Real-time listeners for critical collections
+ useEffect(() => {
+  const fetchStaticData = async () => {
+    try {
+      const collections = [
+        { name: 'tenants', setter: setTenants },
+        { name: 'users', setter: setAllUsers },
+        { name: 'transactions', setter: setAllTransactions },
+        { name: 'expenses', setter: setAllExpenses },
+        { name: 'recipes', setter: setAllRecipes },
+        { name: 'monthly_bills', setter: setMonthlyBills }
+      ];
 
-  useEffect(() => {
-    // Real-time listeners for critical collections
-    const loadedCollections = new Set<string>();
+      await Promise.all(collections.map(async ({ name, setter }) => {
+        let q = query(collection(db, name));
 
-const realtimeCollections = [
-  { name: 'menu_items', setter: setAllMenu },
-  { name: 'inventory_items', setter: setAllInventory },
-  { name: 'orders', setter: setAllOrders },
-];
-
-const staticCollections = [
-  { name: 'tenants', setter: setTenants },
-  { name: 'users', setter: setAllUsers },
-  { name: 'transactions', setter: setAllTransactions },
-  { name: 'expenses', setter: setAllExpenses },
-  { name: 'recipes', setter: setAllRecipes },
-  { name: 'monthly_bills', setter: setMonthlyBills }
-];
-
-const allCollectionNames = [...realtimeCollections, ...staticCollections].map(c => c.name);
-
-// ✅ STATIC DATA (LOW READ)
-staticCollections.forEach(({ name, setter }) => {
-  let q = query(collection(db, name));
-
-  if (['transactions', 'expenses'].includes(name)) {
-    q = query(collection(db, name), orderBy('date', 'desc'), limit(50));
-  } else if (['monthly_bills', 'tenants'].includes(name)) {
-    q = query(collection(db, name), orderBy('createdAt', 'desc'), limit(50));
-  }
-
-  getDocs(q).then((snapshot) => {
-    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-
-    if (name === 'users') {
-      const firestoreUsers = data as User[];
-      const mockSuperAdmins = ENHANCED_MOCK_USERS.filter(u => u.role === Role.SUPER_ADMIN);
-      const mergedUsers = [...firestoreUsers];
-
-      mockSuperAdmins.forEach(mockSA => {
-        const existingIndex = mergedUsers.findIndex(u => u.email.toLowerCase() === mockSA.email.toLowerCase());
-        if (existingIndex === -1) {
-          mergedUsers.push(mockSA);
-        } else {
-          mergedUsers[existingIndex] = {
-            ...mergedUsers[existingIndex],
-            role: Role.SUPER_ADMIN,
-            password: mergedUsers[existingIndex].password || mockSA.password
-          };
+        if (['transactions', 'expenses'].includes(name)) {
+          q = query(collection(db, name), orderBy('date', 'desc'), limit(50));
         }
-      });
 
-      setter(mergedUsers as any);
-    } else {
-      setter(data as any);
-    }
+        const snapshot = await getDocs(q);
+        const data = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
 
-    loadedCollections.add(name);
-    if (loadedCollections.size >= allCollectionNames.length) {
+        setter(data as any);
+      }));
+
+      setIsLoading(false);
+
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, 'static-fetch');
       setIsLoading(false);
     }
-  }).catch((error) => {
-    try {
-      handleFirestoreError(error, OperationType.LIST, name);
-    } catch (e) {
-      console.warn(`Falling back to mock data for ${name} due to quota/permission error.`);
-    }
-    
-    if (name === 'users') setter(ENHANCED_MOCK_USERS as any);
-    if (name === 'tenants') setter([BUSINESS_DETAILS] as any);
-    if (name === 'expenses') setter(MOCK_EXPENSES as any);
-    if (name === 'transactions') setter([] as any);
-    if (name === 'recipes') setter([] as any);
-    if (name === 'monthly_bills') setter([] as any);
+  };
 
-    loadedCollections.add(name);
-    if (loadedCollections.size >= allCollectionNames.length) {
-      setIsLoading(false);
-    }
-  });
-});
-
-// ✅ 🔥 REALTIME REMOVE → NORMAL FETCH
-realtimeCollections.forEach(({ name, setter }) => {
-  let q = query(collection(db, name));
-
-  if (name === 'orders') {
-    q = query(collection(db, name), orderBy('createdAt', 'desc'), limit(20));
-  }
-
-  getDocs(q).then((snapshot) => {
-    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    setter(data as any);
-
-    loadedCollections.add(name);
-    if (loadedCollections.size >= allCollectionNames.length) {
-      setIsLoading(false);
-    }
-  }).catch((error) => {
-    try {
-      handleFirestoreError(error, OperationType.LIST, name);
-    } catch (e) {
-      console.warn(`Falling back to mock data for ${name} due to quota/permission error.`);
-    }
-    
-    if (name === 'menu_items') setter(MOCK_MENU as any);
-    if (name === 'inventory_items') setter(MOCK_INVENTORY as any);
-    if (name === 'orders') setter(INITIAL_ORDERS as any);
-
-    loadedCollections.add(name);
-    if (loadedCollections.size >= allCollectionNames.length) {
-      setIsLoading(false);
-    }
-  });
-});
-
-
-
-  }, []);
-  useEffect(() => {
-  const interval = setInterval(() => {
-    refreshData();
-  }, 30000);
-
-  return () => clearInterval(interval);
+  fetchStaticData();
 }, []);
 
-  // Sync currentUser with allUsers in real-time to reflect role/permission changes
+// ✅ STATIC DATA (LOW READ)
+useEffect(() => {
+  const fetchDynamicData = async () => {
+    try {
+      const collections = [
+        { name: 'orders', setter: setAllOrders },
+        { name: 'menu_items', setter: setAllMenu },
+        { name: 'inventory_items', setter: setAllInventory }
+      ];
+
+      await Promise.all(collections.map(async ({ name, setter }) => {
+        let q = query(collection(db, name));
+
+        if (name === 'orders') {
+          q = query(collection(db, name), orderBy('createdAt', 'desc'), limit(20));
+        }
+
+        const snapshot = await getDocs(q);
+        const data = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+
+        setter(data as any);
+      }));
+
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, 'dynamic-fetch');
+    }
+  };
+
+  fetchDynamicData();
+}, []);
+
+// ✅ 🔥 REALTIME REMOVE → NORMAL FETCH
+useEffect(() => {
+  const unsubscribers: (() => void)[] = [];
+
+  // 🔴 Orders (real-time)
+  const ordersQuery = query(
+    collection(db, 'orders'),
+    orderBy('createdAt', 'desc'),
+    limit(20)
+  );
+
+  const unsubOrders = onSnapshot(ordersQuery, (snapshot) => {
+    const data = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+    setAllOrders(data as any);
+  });
+
+  unsubscribers.push(unsubOrders);
+
+  // 🟠 Inventory (real-time)
+  const inventoryQuery = query(collection(db, 'inventory_items'));
+
+  const unsubInventory = onSnapshot(inventoryQuery, (snapshot) => {
+    const data = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+    setAllInventory(data as any);
+  });
+
+  unsubscribers.push(unsubInventory);
+
+  // 🟡 Menu (optional realtime)
+  const menuQuery = query(collection(db, 'menu_items'));
+
+  const unsubMenu = onSnapshot(menuQuery, (snapshot) => {
+    const data = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+    setAllMenu(data as any);
+  });
+
+  unsubscribers.push(unsubMenu);
+
+  return () => {
+    unsubscribers.forEach(unsub => unsub());
+  };
+}, []);
+   // Sync currentUser with allUsers in real-time to reflect role/permission changes
   useEffect(() => {
     if (currentUser) {
       const updatedUser = allUsers.find(u => u.id === currentUser.id);
@@ -1369,6 +1366,33 @@ realtimeCollections.forEach(({ name, setter }) => {
   };
 
   const generateMonthlyBills = async (month: string): Promise<number> => {
+    const approveBill = async (billId: string) => {
+  const approvedAt = new Date().toISOString();
+
+  try {
+    const billRef = doc(db, 'monthly_bills', billId);
+
+    await updateDoc(billRef, {
+      status: BillStatus.APPROVED,
+      approvedAt
+    });
+
+    // Local state update
+    setMonthlyBills(prev =>
+      prev.map(b =>
+        b.id === billId
+          ? { ...b, status: BillStatus.APPROVED, approvedAt }
+          : b
+      )
+    );
+  } catch (error) {
+    handleFirestoreError(
+      error,
+      OperationType.UPDATE,
+      `monthly_bills/${billId}`
+    );
+  }
+};
     const activeTenants = tenants.filter(t => t.isActive);
     
     // Filter out tenants who already have a bill for this month (regardless of status)
@@ -1405,64 +1429,60 @@ realtimeCollections.forEach(({ name, setter }) => {
     }
   };
 
-  const approveBill = async (billId: string) => {
-    const approvedAt = new Date().toISOString();
-    try {
-      const billRef = doc(db, 'monthly_bills', billId);
-      await updateDoc(billRef, {
-        status: BillStatus.APPROVED,
-        approvedAt
-      });
-      setMonthlyBills(prev => prev.map(b => b.id === billId ? { ...b, status: BillStatus.APPROVED, approvedAt } : b));
-    } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `monthly_bills/${billId}`);
-    }
-  };
+ const refreshData = async () => {
+  setIsRefreshing(true);
 
-  const refreshData = async () => {
-    setIsRefreshing(true);
-    const staticCollections = [
-      { name: 'tenants', setter: setTenants },
-      { name: 'users', setter: setAllUsers },
-      { name: 'transactions', setter: setAllTransactions },
-      { name: 'expenses', setter: setAllExpenses },
-      { name: 'recipes', setter: setAllRecipes },
-      { name: 'monthly_bills', setter: setMonthlyBills }
-    ];
+  const collections = [
+    { name: 'tenants', setter: setTenants },
+    { name: 'users', setter: setAllUsers },
+    { name: 'transactions', setter: setAllTransactions },
+    { name: 'expenses', setter: setAllExpenses },
+    { name: 'recipes', setter: setAllRecipes },
+    { name: 'monthly_bills', setter: setMonthlyBills },
+    { name: 'orders', setter: setAllOrders },
+    { name: 'menu_items', setter: setAllMenu },
+    { name: 'inventory_items', setter: setAllInventory }
+  ];
 
-    try {
-      await Promise.all(staticCollections.map(async ({ name, setter }) => {
-        let q = query(collection(db, name));
-        
-        // Apply limits to collections that can grow large
-        if (['transactions', 'expenses'].includes(name)) {
-          q = query(collection(db, name), orderBy('date', 'desc'), limit(100));
-        } else if (['orders', 'monthly_bills', 'tenants'].includes(name)) {
-          q = query(collection(db, name), orderBy('createdAt', 'desc'), limit(100));
-        }
+  try {
+    await Promise.all(collections.map(async ({ name, setter }) => {
+      let q = query(collection(db, name));
 
-        const snapshot = await getDocs(q);
-        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        
-        if (name === 'users') {
-          const firestoreUsers = data as User[];
-          const mockSuperAdmins = ENHANCED_MOCK_USERS.filter(u => u.role === Role.SUPER_ADMIN);
-          const mergedUsers = [...firestoreUsers];
-          mockSuperAdmins.forEach(mockSA => {
-            const existingIndex = mergedUsers.findIndex(u => u.email.toLowerCase() === mockSA.email.toLowerCase());
-            if (existingIndex === -1) mergedUsers.push(mockSA);
-          });
-          setter(mergedUsers as any);
-        } else if (data.length > 0) {
-          setter(data as any);
-        }
-      }));
-    } catch (error) {
-      handleFirestoreError(error, OperationType.LIST, 'refresh');
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
+      if (name === 'orders') {
+        q = query(collection(db, name), orderBy('createdAt', 'desc'), limit(20));
+      } else if (['transactions', 'expenses'].includes(name)) {
+        q = query(collection(db, name), orderBy('date', 'desc'), limit(100));
+      } else if (['monthly_bills', 'tenants'].includes(name)) {
+        q = query(collection(db, name), orderBy('createdAt', 'desc'), limit(100));
+      }
+
+      const snapshot = await getDocs(q);
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+      // users merge logic keep
+      if (name === 'users') {
+        const firestoreUsers = data as User[];
+        const mockSuperAdmins = ENHANCED_MOCK_USERS.filter(u => u.role === Role.SUPER_ADMIN);
+        const mergedUsers = [...firestoreUsers];
+
+        mockSuperAdmins.forEach(mockSA => {
+          const existingIndex = mergedUsers.findIndex(
+            u => u.email.toLowerCase() === mockSA.email.toLowerCase()
+          );
+          if (existingIndex === -1) mergedUsers.push(mockSA);
+        });
+
+        setter(mergedUsers as any);
+      } else {
+        setter(data as any);
+      }
+    }));
+  } catch (error) {
+    handleFirestoreError(error, OperationType.LIST, 'refresh');
+  } finally {
+    setIsRefreshing(false);
+  }
+};
 
   return (
     <AppContext.Provider value={{
