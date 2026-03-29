@@ -89,7 +89,7 @@ interface AppContextType {
     deliveryAddress?: string | null
   ) => Promise<void>;
   updateOrderStatus: (orderId: string, status: OrderStatus, discount?: number) => Promise<void>;
-  updateOrderItemStatus: (orderId: string, rowId: string, status: ItemStatus) => Promise<void>;
+  updateOrderItemStatus: (orderId: string, rowId: string | string[], status: ItemStatus) => Promise<void>;
   updateInventory: (itemId: string, quantityChange: number) => Promise<void>;
   addInventoryItem: (item: Omit<InventoryItem, 'tenantId'>) => Promise<void>;
   editInventoryItem: (id: string, updates: Partial<InventoryItem>) => Promise<void>;
@@ -718,11 +718,12 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     }
   };
 
-  const updateOrderItemStatus = async (orderId: string, rowId: string, status: ItemStatus) => {
+  const updateOrderItemStatus = async (orderId: string, rowId: string | string[], status: ItemStatus) => {
     const order = allOrders.find(o => o.id === orderId);
     if (!order) return;
 
-    const newItems = order.items.map(i => i.rowId === rowId ? { ...i, status } : i);
+    const rowIds = Array.isArray(rowId) ? rowId : [rowId];
+    const newItems = order.items.map(i => rowIds.includes(i.rowId) ? { ...i, status } : i);
     let newOrderStatus = order.status;
     const allReady = newItems.every(i => i.status === OrderStatus.READY);
     const anyPreparing = newItems.some(i => i.status === OrderStatus.PREPARING);
@@ -742,47 +743,49 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         status: newOrderStatus
       });
 
-      // If item is cancelled, return to stock
-      const itemToUpdate = order.items.find(i => i.rowId === rowId);
-      if (itemToUpdate && status === OrderStatus.CANCELLED && itemToUpdate.status !== OrderStatus.CANCELLED) {
-        const menuItem = allMenu.find(m => m.id === itemToUpdate.itemId);
-        if (menuItem && menuItem.stock !== undefined) {
-          const newStock = menuItem.stock + itemToUpdate.quantity;
-          const itemRef = doc(db, 'menu_items', itemToUpdate.itemId);
-          batch.update(itemRef, { stock: newStock });
+      // If items are cancelled, return to stock
+      const itemsToUpdate = order.items.filter(i => rowIds.includes(i.rowId));
+      for (const itemToUpdate of itemsToUpdate) {
+        if (itemToUpdate && status === OrderStatus.CANCELLED && itemToUpdate.status !== OrderStatus.CANCELLED) {
+          const menuItem = allMenu.find(m => m.id === itemToUpdate.itemId);
+          if (menuItem && menuItem.stock !== undefined) {
+            const newStock = menuItem.stock + itemToUpdate.quantity;
+            const itemRef = doc(db, 'menu_items', itemToUpdate.itemId);
+            batch.update(itemRef, { stock: newStock });
 
-          // Sync with inventory if linked (Direct link or Category link)
-          const recipe = recipes.find(r => r.menuItemId === itemToUpdate.itemId);
-          if (recipe) {
-            for (const ingredient of recipe.ingredients) {
-              const invItem = allInventory.find(i => i.id === ingredient.inventoryItemId);
-              if (invItem) {
-                const invRef = doc(db, 'inventory_items', invItem.id);
+            // Sync with inventory if linked (Direct link or Category link)
+            const recipe = recipes.find(r => r.menuItemId === itemToUpdate.itemId);
+            if (recipe) {
+              for (const ingredient of recipe.ingredients) {
+                const invItem = allInventory.find(i => i.id === ingredient.inventoryItemId);
+                if (invItem) {
+                  const invRef = doc(db, 'inventory_items', invItem.id);
+                  batch.update(invRef, { 
+                    quantity: invItem.quantity + (ingredient.quantity * itemToUpdate.quantity),
+                    lastUpdated: serverTimestamp()
+                  });
+                }
+              }
+            } else {
+              const linkedInvItem = allInventory.find(inv => 
+                inv.menuItemId === itemToUpdate.itemId || 
+                (inv.menuCategory === menuItem.category && !inv.menuItemId)
+              );
+              if (linkedInvItem) {
+                const newInvQty = linkedInvItem.quantity + itemToUpdate.quantity;
+                const invRef = doc(db, 'inventory_items', linkedInvItem.id);
                 batch.update(invRef, { 
-                  quantity: invItem.quantity + (ingredient.quantity * itemToUpdate.quantity),
+                  quantity: newInvQty,
                   lastUpdated: serverTimestamp()
                 });
-              }
-            }
-          } else {
-            const linkedInvItem = allInventory.find(inv => 
-              inv.menuItemId === itemToUpdate.itemId || 
-              (inv.menuCategory === menuItem.category && !inv.menuItemId)
-            );
-            if (linkedInvItem) {
-              const newInvQty = linkedInvItem.quantity + itemToUpdate.quantity;
-              const invRef = doc(db, 'inventory_items', linkedInvItem.id);
-              batch.update(invRef, { 
-                quantity: newInvQty,
-                lastUpdated: serverTimestamp()
-              });
 
-              if (linkedInvItem.menuCategory && !linkedInvItem.menuItemId) {
-                const categoryItems = allMenu.filter(m => m.category === linkedInvItem.menuCategory);
-                categoryItems.forEach(m => {
-                  const mRef = doc(db, 'menu_items', m.id);
-                  batch.update(mRef, { stock: newInvQty });
-                });
+                if (linkedInvItem.menuCategory && !linkedInvItem.menuItemId) {
+                  const categoryItems = allMenu.filter(m => m.category === linkedInvItem.menuCategory);
+                  categoryItems.forEach(m => {
+                    const mRef = doc(db, 'menu_items', m.id);
+                    batch.update(mRef, { stock: newInvQty });
+                  });
+                }
               }
             }
           }

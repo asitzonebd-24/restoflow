@@ -236,7 +236,7 @@ export const Kitchen = () => {
             <div className="flex-1 mb-6 overflow-y-auto no-scrollbar rounded-2xl border border-slate-100 overflow-hidden bg-white">
               <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
                 <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Order Items</h4>
-                {isAllowedToUpdate && order.status !== OrderStatus.READY && (
+                {isAdmin && order.status !== OrderStatus.READY && (
                   <button 
                     onClick={() => {
                       setSelectedOrderId(order.id);
@@ -248,36 +248,53 @@ export const Kitchen = () => {
                   </button>
                 )}
               </div>
-              {order.items.map((item, index) => {
-                 const itemStatusColors = getStatusColors(item.status || OrderStatus.PENDING);
-                 return (
-                  <div 
-                    key={item.rowId} 
-                    className={`flex items-center justify-between p-4 bg-white transition-colors hover:bg-slate-50 ${index !== order.items.length - 1 ? 'border-b border-slate-100' : ''}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className={`text-sm font-black ${itemStatusColors.text}`}>{item.quantity}x</span>
-                      <h4 className={`text-xs font-black uppercase tracking-tight ${item.status === OrderStatus.READY ? 'text-slate-300 line-through' : 'text-[#1a1a37]'}`}>
-                        {item.name}
-                      </h4>
+              {(() => {
+                const groupedItems: { [key: string]: { name: string, quantity: number, status: ItemStatus, rowIds: string[] } } = {};
+                order.items.forEach(item => {
+                  const key = `${item.itemId}-${item.status || OrderStatus.PENDING}`;
+                  if (!groupedItems[key]) {
+                    groupedItems[key] = {
+                      name: item.name,
+                      quantity: 0,
+                      status: (item.status || OrderStatus.PENDING) as ItemStatus,
+                      rowIds: []
+                    };
+                  }
+                  groupedItems[key].quantity += item.quantity;
+                  groupedItems[key].rowIds.push(item.rowId);
+                });
+
+                return Object.entries(groupedItems).map(([key, group], index) => {
+                  const itemStatusColors = getStatusColors(group.status);
+                  return (
+                    <div 
+                      key={key} 
+                      className={`flex items-center justify-between p-4 bg-white transition-colors hover:bg-slate-50 ${index !== Object.keys(groupedItems).length - 1 ? 'border-b border-slate-100' : ''}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className={`text-sm font-black ${itemStatusColors.text}`}>{group.quantity}x</span>
+                        <h4 className={`text-xs font-black uppercase tracking-tight ${group.status === OrderStatus.READY ? 'text-slate-300 line-through' : 'text-[#1a1a37]'}`}>
+                          {group.name}
+                        </h4>
+                      </div>
+                      
+                      <div className="relative">
+                          <select 
+                              value={group.status}
+                              disabled={!isAllowedToUpdate || (group.status === OrderStatus.READY && !isAdmin)}
+                              onChange={(e) => updateOrderItemStatus(order.id, group.rowIds, e.target.value as ItemStatus)}
+                              className={`text-[9px] font-black uppercase py-1.5 pl-4 pr-8 rounded-full border-2 outline-none transition-all appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${itemStatusColors.lightBg} ${itemStatusColors.border} ${itemStatusColors.text}`}
+                          >
+                              <option value={OrderStatus.PENDING}>New</option>
+                              <option value={OrderStatus.PREPARING}>Ready</option>
+                              <option value={OrderStatus.READY}>Done</option>
+                          </select>
+                          <ChevronDown className={`absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none ${itemStatusColors.text}`} size={12} />
+                      </div>
                     </div>
-                    
-                    <div className="relative">
-                        <select 
-                            value={item.status || OrderStatus.PENDING}
-                            disabled={!isAllowedToUpdate || (item.status === OrderStatus.READY && !isAdmin)}
-                            onChange={(e) => updateOrderItemStatus(order.id, item.rowId, e.target.value as ItemStatus)}
-                            className={`text-[9px] font-black uppercase py-1.5 pl-4 pr-8 rounded-full border-2 outline-none transition-all appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${itemStatusColors.lightBg} ${itemStatusColors.border} ${itemStatusColors.text}`}
-                        >
-                            <option value={OrderStatus.PENDING}>New</option>
-                            <option value={OrderStatus.PREPARING}>Ready</option>
-                            <option value={OrderStatus.READY}>Done</option>
-                        </select>
-                        <ChevronDown className={`absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none ${itemStatusColors.text}`} size={12} />
-                    </div>
-                  </div>
-                );
-              })}
+                  );
+                });
+              })()}
             </div>
 
             <div className="mt-auto pt-6 border-t border-slate-100 flex flex-col gap-4">
