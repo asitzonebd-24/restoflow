@@ -731,12 +731,22 @@ export const POS = () => {
                     {/* Ready Items List */}
                     {preparingCount > 0 && (
                       <div className="mb-4 space-y-1 max-h-24 overflow-y-auto no-scrollbar">
-                        {order.items.filter(i => i.status === OrderStatus.PREPARING).map((item, idx) => (
-                          <div key={idx} className="flex justify-between items-center text-[10px] font-black text-amber-600 uppercase tracking-tight bg-amber-50 px-3 py-1.5 rounded-xl border border-amber-100">
-                            <span className="truncate pr-2">{item.name}</span>
-                            <span className="shrink-0">x{item.quantity}</span>
-                          </div>
-                        ))}
+                        {(() => {
+                          const groupedReadyItems: { [key: string]: { name: string, quantity: number } } = {};
+                          order.items.filter(i => i.status === OrderStatus.PREPARING).forEach(item => {
+                            if (!groupedReadyItems[item.itemId]) {
+                              groupedReadyItems[item.itemId] = { name: item.name, quantity: 0 };
+                            }
+                            groupedReadyItems[item.itemId].quantity += item.quantity;
+                          });
+                          
+                          return Object.entries(groupedReadyItems).map(([itemId, group]) => (
+                            <div key={itemId} className="flex justify-between items-center text-[10px] font-black text-amber-600 uppercase tracking-tight bg-amber-50 px-3 py-1.5 rounded-xl border border-amber-100">
+                              <span className="truncate pr-2">{group.name}</span>
+                              <span className="shrink-0">x{group.quantity}</span>
+                            </div>
+                          ));
+                        })()}
                       </div>
                     )}
 

@@ -251,12 +251,18 @@ export const Kitchen = () => {
               {(() => {
                 const groupedItems: { [key: string]: { name: string, quantity: number, status: ItemStatus, rowIds: string[] } } = {};
                 order.items.forEach(item => {
-                  const key = `${item.itemId}-${item.status || OrderStatus.PENDING}`;
+                  const status = item.status || OrderStatus.PENDING;
+                  // Only group if status is PREPARING ("Ready") or READY ("Done")
+                  // If status is PENDING ("New"), use rowId as part of the key to keep them separate
+                  const key = (status === OrderStatus.PREPARING || status === OrderStatus.READY)
+                    ? `${item.itemId}-${status}`
+                    : `${item.itemId}-${status}-${item.rowId}`;
+
                   if (!groupedItems[key]) {
                     groupedItems[key] = {
                       name: item.name,
                       quantity: 0,
-                      status: (item.status || OrderStatus.PENDING) as ItemStatus,
+                      status: status as ItemStatus,
                       rowIds: []
                     };
                   }
