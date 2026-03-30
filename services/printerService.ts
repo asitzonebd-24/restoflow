@@ -351,6 +351,19 @@ export class BluetoothPrinterService {
     }
   }
 
+  private static groupItems(items: OrderItem[]): OrderItem[] {
+    const grouped = items.reduce((acc, item) => {
+      const existing = acc.find(i => i.itemId === item.itemId);
+      if (existing) {
+        existing.quantity += item.quantity;
+      } else {
+        acc.push({ ...item });
+      }
+      return acc;
+    }, [] as OrderItem[]);
+    return grouped;
+  }
+
   static async printInvoice(business: Business, order: Order, transaction?: any, elementId: string = 'invoice-content') {
     // We prefer text-based printing because it's much more reliable on thermal printers
     // and handles Bangla correctly by rendering only text lines to canvas when needed.
@@ -385,7 +398,8 @@ export class BluetoothPrinterService {
     await this.printRaw(new Uint8Array(new TextEncoder().encode('-'.repeat(width) + '\n')));
 
     // Items
-    for (const item of order.items) {
+    const groupedItems = this.groupItems(order.items);
+    for (const item of groupedItems) {
       const qty = `${item.quantity} x`;
       const price = (item.price * item.quantity).toFixed(2);
       const name = item.name;
@@ -436,7 +450,8 @@ export class BluetoothPrinterService {
     await this.printTextLine(new Date().toLocaleString(), pixelWidth, { align: 'center' });
     await this.printRaw(new Uint8Array(new TextEncoder().encode('-'.repeat(width) + '\n')));
 
-    for (const item of order.items) {
+    const groupedItems = this.groupItems(order.items);
+    for (const item of groupedItems) {
       await this.printTextLine(`${item.quantity} x ${item.name}`, pixelWidth, { align: 'left', bold: true });
     }
 

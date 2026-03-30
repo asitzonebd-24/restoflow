@@ -36,23 +36,38 @@ const StatusBadge = ({ label, count, styles }: { label: string, count: number, s
   </div>
 );
 
-const ItemSummary = ({ cart, cartTotal, currency }: { cart: OrderItem[], cartTotal: number, currency: string }) => (
-  <div className="bg-white p-4 rounded-2xl border-2 border-indigo-100 shadow-sm mb-4">
-    <h3 className="text-[10px] font-bold uppercase text-slate-400 tracking-widest mb-2">Item Summary</h3>
-    <div className="space-y-2">
-      {cart.map(item => (
-        <div key={item.rowId} className="flex justify-between text-xs gap-2">
-          <span className="font-medium text-slate-700 break-words flex-1">{item.quantity} x {item.name}</span>
-          <span className="font-bold text-slate-900 shrink-0">{currency}{(item.price * item.quantity).toFixed(2)}</span>
-        </div>
-      ))}
+const ItemSummary = ({ cart, cartTotal, currency }: { cart: OrderItem[], cartTotal: number, currency: string }) => {
+  const groupItems = (items: OrderItem[]) => {
+    const grouped = items.reduce((acc, item) => {
+      const existing = acc.find(i => i.itemId === item.itemId);
+      if (existing) {
+        existing.quantity += item.quantity;
+      } else {
+        acc.push({ ...item });
+      }
+      return acc;
+    }, [] as OrderItem[]);
+    return grouped;
+  };
+
+  return (
+    <div className="bg-white p-4 rounded-2xl border-2 border-indigo-100 shadow-sm mb-4">
+      <h3 className="text-[10px] font-bold uppercase text-slate-400 tracking-widest mb-2">Item Summary</h3>
+      <div className="space-y-2">
+        {groupItems(cart).map((item, i) => (
+          <div key={i} className="flex justify-between text-xs gap-2">
+            <span className="font-medium text-slate-700 break-words flex-1">{item.quantity} x {item.name}</span>
+            <span className="font-bold text-slate-900 shrink-0">{currency}{(item.price * item.quantity).toFixed(2)}</span>
+          </div>
+        ))}
+      </div>
+      <div className="border-t border-slate-100 mt-2 pt-2 flex justify-between items-center">
+        <span className="text-xs font-bold text-slate-900">Total</span>
+        <span className="text-sm font-bold text-slate-900">{currency}{cartTotal.toFixed(2)}</span>
+      </div>
     </div>
-    <div className="border-t border-slate-100 mt-2 pt-2 flex justify-between items-center">
-      <span className="text-xs font-bold text-slate-900">Total</span>
-      <span className="text-sm font-bold text-slate-900">{currency}{cartTotal.toFixed(2)}</span>
-    </div>
-  </div>
-);
+  );
+};
 
 const POSCartContent = ({ 
   onClose, 
@@ -335,6 +350,19 @@ export const POS = () => {
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [filter, setFilter] = useState<'pending' | 'done'>('pending');
+
+  const groupItems = (items: OrderItem[]) => {
+    const grouped = items.reduce((acc, item) => {
+      const existing = acc.find(i => i.itemId === item.itemId);
+      if (existing) {
+        existing.quantity += item.quantity;
+      } else {
+        acc.push({ ...item });
+      }
+      return acc;
+    }, [] as OrderItem[]);
+    return grouped;
+  };
 
   const categories = useMemo(() => Array.from(new Set(menu.map(m => m.category))), [menu]);
 
@@ -1025,7 +1053,7 @@ export const POS = () => {
         </div>
         
         <div className="space-y-3 mb-4">
-          {cart.map((item, i) => (
+          {groupItems(cart).map((item, i) => (
             <div key={i} className="flex justify-between items-start text-xl font-black">
               <span className="text-black">x{item.quantity} {item.name}</span>
             </div>

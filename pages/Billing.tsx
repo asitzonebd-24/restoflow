@@ -686,19 +686,19 @@ export const Billing = () => {
               </div>
               <h3 className="text-xl font-black text-purple-600 uppercase tracking-tight">Confirm Collection?</h3>
               <div className="bg-purple-50 p-5 rounded-2xl border-2 border-purple-100 text-left space-y-3">
-                <div className="flex flex-col gap-1">
+                <div className="flex justify-between items-center">
                   <p className="text-[9px] font-black text-purple-400 uppercase tracking-widest">Staff Name</p>
-                  <p className="text-xs font-black text-slate-900 uppercase tracking-tight">
+                  <p className="text-xs font-black text-emerald-600 uppercase tracking-tight">
                     {selectedStaffId === 'all' ? 'All Staff' : (users.find(u => u.id === selectedStaffId)?.name || 'Unknown')}
                   </p>
                 </div>
                 <div className="flex justify-between items-center border-t border-purple-100 pt-3">
                   <p className="text-[9px] font-black text-purple-400 uppercase tracking-widest">Selected Orders</p>
-                  <span className="text-xs font-black text-slate-900">{selectedOrderIds.length}</span>
+                  <span className="text-xs font-black text-emerald-600">{selectedOrderIds.length}</span>
                 </div>
                 <div className="flex justify-between items-center border-t border-purple-100 pt-3">
                   <p className="text-[9px] font-black text-purple-400 uppercase tracking-widest">Total Amount</p>
-                  <span className="text-sm font-black text-purple-600">{currentTenant?.currency}{selectedTotalAmount.toFixed(2)}</span>
+                  <span className="text-sm font-black text-emerald-600">{currentTenant?.currency}{selectedTotalAmount.toFixed(2)}</span>
                 </div>
               </div>
               <div className="flex gap-3 pt-4">
@@ -710,7 +710,7 @@ export const Billing = () => {
                 </button>
                 <button 
                   onClick={confirmBulkPayment}
-                  className="flex-1 py-3 bg-purple-600 text-white rounded-xl font-black uppercase tracking-widest text-[10px] border-2 border-black shadow-lg shadow-purple-100 hover:scale-105 transition-all"
+                  className="flex-1 py-3 bg-emerald-500 text-white rounded-xl font-black uppercase tracking-widest text-[10px] border-2 border-black shadow-lg shadow-emerald-100 hover:scale-105 transition-all"
                 >
                   Collect Amount
                 </button>
