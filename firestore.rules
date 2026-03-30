@@ -115,6 +115,23 @@ service cloud.firestore {
     //   - approvedAt: timestamp (optional)
     //   - createdAt: timestamp (optional)
     //
+    // Collection: recipes
+    // Document ID: {recipeId}
+    // Fields:
+    //   - id: string (required)
+    //   - tenantId: string (required)
+    //   - menuItemId: string (required)
+    //   - ingredients: list (required)
+    //
+    // Collection: tables
+    // Document ID: {tableId}
+    // Fields:
+    //   - id: string (required)
+    //   - tenantId: string (required)
+    //   - name: string (required)
+    //   - isActive: boolean (required)
+    //   - createdAt: timestamp (optional)
+    //
     // ===============================================================
 
     // ===============================================================
@@ -132,7 +149,8 @@ service cloud.firestore {
     function isAdmin() {
       return isAuthenticated() &&
         (request.auth.token.email == "asitzonebd@gmail.com" ||
-         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         (request.auth.token.email_verified == true && 
+          exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'SUPER_ADMIN'));
     }
 
@@ -141,7 +159,8 @@ service cloud.firestore {
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
         (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tenantId == tenantId &&
          (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN' ||
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'OWNER'));
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'OWNER' ||
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'MANAGER'));
     }
 
     function isTenantUser(tenantId) {
@@ -214,12 +233,81 @@ service cloud.firestore {
         data.totalAmount is number && data.totalAmount >= 0;
     }
 
+    function isValidRecipe(data) {
+      return hasRequiredFields(['id', 'tenantId', 'menuItemId', 'ingredients']) &&
+        data.id is string && data.tenantId is string &&
+        data.menuItemId is string && data.ingredients is list;
+    }
+
+    function isValidTable(data) {
+      return hasRequiredFields(['id', 'tenantId', 'name', 'isActive']) &&
+        data.id is string && data.tenantId is string &&
+        data.name is string && data.name.size() > 0 && data.name.size() < 50 &&
+        data.isActive is bool;
+    }
+
     // ===============================================================
     // Rules
     // ===============================================================
 
+    match /tenants/{tenantId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (isOwner(userId) || isTenantUser(resource.data.tenantId) || isAdmin());
+      allow create: if isAuthenticated() && isValidUser(request.resource.data) && (isTenantAdmin(request.resource.data.tenantId) || isAdmin());
+      allow update: if isAuthenticated() && isValidUser(request.resource.data) && (isOwner(userId) || isTenantAdmin(resource.data.tenantId) || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    match /menu_items/{itemId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isTenantAdmin(request.resource.data.tenantId);
+    }
+
+    match /inventory_items/{itemId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isTenantAdmin(request.resource.data.tenantId);
+    }
+
+    match /orders/{orderId} {
+      allow read: if isAuthenticated() && isTenantUser(resource.data.tenantId);
+      allow create: if isAuthenticated() && isValidOrder(request.resource.data) && isTenantUser(request.resource.data.tenantId);
+      allow update: if isAuthenticated() && isValidOrder(request.resource.data) && isTenantUser(resource.data.tenantId);
+      allow delete: if isAuthenticated() && isTenantAdmin(resource.data.tenantId);
+    }
+
+    match /tables/{tableId} {
+      allow read: if isAuthenticated() && isTenantUser(resource.data.tenantId);
+      allow create: if isAuthenticated() && isValidTable(request.resource.data) && isTenantAdmin(request.resource.data.tenantId);
+      allow update: if isAuthenticated() && isValidTable(request.resource.data) && isTenantAdmin(resource.data.tenantId);
+      allow delete: if isAuthenticated() && isTenantAdmin(resource.data.tenantId);
+    }
+
+    match /recipes/{recipeId} {
+      allow read: if isAuthenticated() && isTenantUser(resource.data.tenantId);
+      allow write: if isAuthenticated() && isTenantAdmin(request.resource.data.tenantId);
+    }
+
+    match /transactions/{transactionId} {
+      allow read: if isAuthenticated() && isTenantUser(resource.data.tenantId);
+      allow create: if isAuthenticated() && isTenantUser(request.resource.data.tenantId);
+    }
+
+    match /expenses/{expenseId} {
+      allow read: if isAuthenticated() && isTenantUser(resource.data.tenantId);
+      allow write: if isAuthenticated() && isTenantAdmin(request.resource.data.tenantId);
+    }
+
+    match /monthly_bills/{billId} {
+      allow read: if isAuthenticated() && (isTenantUser(resource.data.tenantId) || isAdmin());
+      allow write: if isAdmin();
+    }
+
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if isAdmin();
     }
   }
 }
