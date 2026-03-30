@@ -129,25 +129,28 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    function isAdmin() {
-      return isAuthenticated() &&
-        (request.auth.token.email == "asitzonebd@gmail.com" ||
+    function isSuperAdmin() {
+      return isAuthenticated() && 
+        (request.auth.token.email == "asitzonebd@gmail.com" || 
          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'SUPER_ADMIN'));
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
     function isTenantAdmin(tenantId) {
       return isAuthenticated() && 
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tenantId == tenantId &&
-         (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ADMIN' ||
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'OWNER'));
+        (getUserData().tenantId == tenantId &&
+         (getUserData().role == 'ADMIN' || getUserData().role == 'OWNER' || getUserData().role == 'SUPER_ADMIN'));
     }
 
     function isTenantUser(tenantId) {
       return isAuthenticated() && 
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tenantId == tenantId);
+        (getUserData().tenantId == tenantId || getUserData().role == 'SUPER_ADMIN');
     }
 
     function hasRequiredFields(fields) {
@@ -210,13 +213,99 @@ service cloud.firestore {
       return hasRequiredFields(['id', 'tenantId', 'items', 'status', 'totalAmount']) &&
         data.id is string && data.tenantId is string &&
         data.items is list && data.items.size() > 0 && data.items.size() < 100 &&
-        data.status in ['PENDING', 'PREPARING', 'READY', 'COMPLETED', 'CANCELLED'] &&
+        data.status in ['PENDING', 'PREPARING', 'READY', 'SERVED', 'CANCELLED', 'COMPLETED'] &&
         data.totalAmount is number && data.totalAmount >= 0;
+    }
+
+    function isValidMenuItem(data) {
+      return hasRequiredFields(['id', 'tenantId', 'name', 'price', 'category']) &&
+        data.id is string && data.tenantId is string &&
+        data.name is string && data.price is number && data.category is string;
+    }
+
+    function isValidInventoryItem(data) {
+      return hasRequiredFields(['id', 'tenantId', 'name', 'quantity', 'unit', 'minThreshold']) &&
+        data.id is string && data.tenantId is string &&
+        data.name is string && data.quantity is number && data.unit is string && data.minThreshold is number;
+    }
+
+    function isValidTransaction(data) {
+      return hasRequiredFields(['id', 'tenantId', 'amount', 'method', 'type']) &&
+        data.id is string && data.tenantId is string &&
+        data.amount is number && data.method is string && data.type in ['INCOME', 'EXPENSE'];
+    }
+
+    function isValidExpense(data) {
+      return hasRequiredFields(['id', 'tenantId', 'title', 'amount', 'category', 'date']) &&
+        data.id is string && data.tenantId is string &&
+        data.title is string && data.amount is number && data.category is string && data.date is string;
+    }
+
+    function isValidRecipe(data) {
+      return hasRequiredFields(['id', 'tenantId', 'name', 'ingredients']) &&
+        data.id is string && data.tenantId is string &&
+        data.name is string && data.ingredients is list;
+    }
+
+    function isValidMonthlyBill(data) {
+      return hasRequiredFields(['id', 'tenantId', 'tenantName', 'month', 'amount', 'status']) &&
+        data.id is string && data.tenantId is string && data.tenantName is string &&
+        data.month is string && data.amount is number && data.status in ['PENDING', 'PAID'];
     }
 
     // ===============================================================
     // Rules
     // ===============================================================
+
+    // CRITICAL: The application is currently using a client-side login system (checking passwords in Firestore)
+    // and is NOT using Firebase Authentication. This means 'request.auth' is always null.
+    // For the application to function, we must temporarily allow unauthenticated access.
+    // WARNING: This is INSECURE and should be replaced with Firebase Authentication for production.
+
+    match /tenants/{tenantId} {
+      allow read: if true;
+      allow write: if true; // Allow for now to fix permission errors
+    }
+
+    match /users/{userId} {
+      allow read: if true; // Needed for client-side login to search all users
+      allow write: if true;
+    }
+
+    match /menu_items/{itemId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    match /inventory_items/{itemId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    match /orders/{orderId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    match /transactions/{transactionId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    match /expenses/{expenseId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    match /recipes/{recipeId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    match /monthly_bills/{billId} {
+      allow read: if true;
+      allow write: if true;
+    }
 
     match /{document=**} {
       allow read, write: if true;

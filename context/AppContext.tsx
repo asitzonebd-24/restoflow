@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
-import { Role, Business, User, Order, InventoryItem, MenuItem, OrderStatus, ItemStatus, Transaction, Expense, OrderItem, MonthlyBill, BillStatus, Recipe } from '../types';
+import { Role, Business, User, Order, InventoryItem, MenuItem, OrderStatus, ItemStatus, Transaction, Expense, OrderItem, MonthlyBill, BillStatus, Recipe, Table } from '../types';
 import { BUSINESS_DETAILS, MOCK_USERS, INITIAL_ORDERS, MOCK_INVENTORY, MOCK_MENU, MOCK_EXPENSES, DEFAULT_MENU_IMAGE, DEFAULT_AVATAR, DEFAULT_BUSINESS_LOGO } from '../constants';
 import { auth, db } from '../firebase';
 import { 
@@ -124,6 +124,10 @@ interface AppContextType {
   addRecipe: (recipe: Omit<Recipe, 'tenantId'>) => Promise<void>;
   updateRecipe: (id: string, updates: Partial<Recipe>) => Promise<void>;
   deleteRecipe: (id: string) => Promise<void>;
+  tables: Table[];
+  addTable: (table: Omit<Table, 'tenantId'>) => Promise<void>;
+  updateTable: (id: string, updates: Partial<Table>) => Promise<void>;
+  deleteTable: (id: string) => Promise<void>;
   monthlyBills: MonthlyBill[];
   generateMonthlyBills: (month: string) => Promise<number>;
   approveBill: (billId: string) => Promise<void>;
@@ -169,6 +173,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [allExpenses, setAllExpenses] = useState<Expense[]>([]);
   const [allRecipes, setAllRecipes] = useState<Recipe[]>([]);
+  const [allTables, setAllTables] = useState<Table[]>([]);
   const [monthlyBills, setMonthlyBills] = useState<MonthlyBill[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthReady, setIsAuthReady] = useState(false);
@@ -233,7 +238,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     const unsubscribers: (() => void)[] = [];
     const criticalCollections = ['tenants'];
     if (currentUser || currentTenantId) {
-      criticalCollections.push('users', 'transactions', 'expenses', 'orders', 'menu_items', 'inventory_items');
+      criticalCollections.push('users', 'transactions', 'expenses', 'orders', 'menu_items', 'inventory_items', 'tables');
     }
     const loadedCollections = new Set<string>();
 
@@ -260,7 +265,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     unsubscribers.push(unsubTenants);
 
     // B. Authenticated Data Listeners
-    if (currentUser || currentTenantId) {
+    if (auth.currentUser && (currentUser || currentTenantId)) {
       const effectiveTenantId = currentUser?.tenantId || currentTenantId;
       const isSuperAdmin = currentUser?.role === Role.SUPER_ADMIN;
 
@@ -272,7 +277,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         { name: 'monthly_bills', setter: setMonthlyBills },
         { name: 'orders', setter: setAllOrders },
         { name: 'menu_items', setter: setAllMenu },
-        { name: 'inventory_items', setter: setAllInventory }
+        { name: 'inventory_items', setter: setAllInventory },
+        { name: 'tables', setter: setAllTables }
       ];
 
       collections.forEach(({ name, setter }) => {
@@ -429,6 +435,11 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     const targetId = business.id;
     return allRecipes.filter(r => String(r.tenantId || '01') === String(targetId));
   }, [allRecipes, business.id]);
+
+  const tables = useMemo(() => {
+    const targetId = business.id;
+    return allTables.filter(t => String(t.tenantId || '01') === String(targetId));
+  }, [allTables, business.id]);
 
 
   const login = (emailOrMobile: string, password: string, tenantId?: string | null): boolean => {
@@ -1124,6 +1135,38 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     }
   };
 
+  const addTable = async (table: Omit<Table, 'tenantId'>) => {
+    const tenantId = currentUser?.tenantId || currentTenantId || '';
+    const newTable = { ...table, tenantId } as Table;
+    try {
+      const tableRef = doc(db, 'tables', newTable.id);
+      await setDoc(tableRef, cleanObject(newTable));
+      setAllTables(prev => [...prev, newTable]);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'tables');
+    }
+  };
+
+  const updateTable = async (id: string, updates: Partial<Table>) => {
+    try {
+      const tableRef = doc(db, 'tables', id);
+      await updateDoc(tableRef, cleanObject(updates));
+      setAllTables(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `tables/${id}`);
+    }
+  };
+
+  const deleteTable = async (id: string) => {
+    try {
+      const tableRef = doc(db, 'tables', id);
+      await deleteDoc(tableRef);
+      setAllTables(prev => prev.filter(t => t.id !== id));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `tables/${id}`);
+    }
+  };
+
   const addUser = async (user: User | Omit<User, 'tenantId'>) => {
     const tenantId = (user as User).tenantId || currentUser?.tenantId || currentTenantId || '';
     const newUser = { 
@@ -1450,6 +1493,10 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       addRecipe,
       updateRecipe,
       deleteRecipe,
+      tables,
+      addTable,
+      updateTable,
+      deleteTable,
       users,
       addUser,
       updateUser,

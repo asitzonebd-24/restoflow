@@ -141,6 +141,28 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "tenantId", "tenantName", "month", "amount", "status"]
+    },
+    "Recipe": {
+      "title": "Recipe",
+      "description": "A recipe for a menu item.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "tenantId": { "type": "string" },
+        "menuItemId": { "type": "string" },
+        "ingredients": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "inventoryItemId": { "type": "string" },
+              "quantity": { "type": "number" }
+            },
+            "required": ["inventoryItemId", "quantity"]
+          }
+        }
+      },
+      "required": ["id", "tenantId", "menuItemId", "ingredients"]
     }
   },
   "firestore": {
@@ -151,6 +173,7 @@
     "/orders/{orderId}": { "schema": "Order", "description": "Order documents." },
     "/transactions/{transactionId}": { "schema": "Transaction", "description": "Transaction documents." },
     "/expenses/{expenseId}": { "schema": "Expense", "description": "Expense documents." },
-    "/monthly_bills/{billId}": { "schema": "MonthlyBill", "description": "Monthly bill documents." }
+    "/monthly_bills/{billId}": { "schema": "MonthlyBill", "description": "Monthly bill documents." },
+    "/recipes/{recipeId}": { "schema": "Recipe", "description": "Recipe documents." }
   }
 }

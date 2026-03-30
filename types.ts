@@ -155,6 +155,14 @@ export interface Recipe {
   }[];
 }
 
+export interface Table {
+  id: string;
+  tenantId: string;
+  name: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
 export enum BillStatus {
   PENDING = 'PENDING',
   APPROVED = 'APPROVED',
