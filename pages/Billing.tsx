@@ -689,7 +689,13 @@ export const Billing = () => {
                 <div className="flex justify-between items-center">
                   <p className="text-[9px] font-black text-purple-400 uppercase tracking-widest">Staff Name</p>
                   <p className="text-xs font-black text-emerald-600 uppercase tracking-tight">
-                    {selectedStaffId === 'all' ? 'All Staff' : (users.find(u => u.id === selectedStaffId)?.name || 'Unknown')}
+                    {(() => {
+                      if (selectedStaffId !== 'all') return users.find(u => u.id === selectedStaffId)?.name || 'Unknown';
+                      if (selectedOrderIds.length === 0) return 'All Staff';
+                      const firstOrderCreator = orders.find(o => o.id === selectedOrderIds[0])?.createdBy;
+                      const allSame = selectedOrderIds.every(id => orders.find(o => o.id === id)?.createdBy === firstOrderCreator);
+                      return allSame ? (users.find(u => u.id === firstOrderCreator)?.name || 'All Staff') : 'All Staff';
+                    })()}
                   </p>
                 </div>
                 <div className="flex justify-between items-center border-t border-purple-100 pt-3">
