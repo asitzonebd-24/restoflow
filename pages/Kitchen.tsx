@@ -292,7 +292,7 @@ export const Kitchen = () => {
                               className={`text-[9px] font-black uppercase py-1.5 pl-4 pr-8 rounded-full border-2 outline-none transition-all appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${itemStatusColors.lightBg} ${itemStatusColors.border} ${itemStatusColors.text}`}
                           >
                               <option value={OrderStatus.PENDING}>New</option>
-                              <option value={OrderStatus.PREPARING}>Ready</option>
+                              <option value={OrderStatus.PREPARING}>READY</option>
                               <option value={OrderStatus.READY}>Done</option>
                           </select>
                           <ChevronDown className={`absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none ${itemStatusColors.text}`} size={12} />

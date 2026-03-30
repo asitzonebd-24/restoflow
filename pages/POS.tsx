@@ -30,7 +30,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { BluetoothPrinterService } from '../services/printerService';
 
 const StatusBadge = ({ label, count, styles }: { label: string, count: number, styles: any, active?: boolean }) => (
-  <div className={`flex flex-col items-center justify-center py-3 px-2 rounded-2xl border-2 transition-all ${count > 0 ? `bg-white ${styles.text.replace('text-', 'border-')} ${styles.text}` : 'bg-slate-50/50 border-slate-100 text-slate-200'}`}>
+  <div className={`flex flex-col items-center justify-center py-3 px-2 rounded-2xl border-2 transition-all ${count > 0 ? `${styles.bg} ${styles.text.replace('text-', 'border-')} ${styles.text}` : 'bg-slate-50/50 border-slate-100 text-slate-200'}`}>
     <span className="text-[8px] font-black uppercase tracking-widest mb-1 opacity-80">{label}</span>
     <span className="text-xl font-black">{count}</span>
   </div>
@@ -751,9 +751,9 @@ export const POS = () => {
 
                     {/* Status Grid */}
                     <div className="grid grid-cols-3 gap-3 mb-6">
-                      <StatusBadge label="Pending" count={pendingCount} styles={getStatusStyles(OrderStatus.PENDING)} />
-                      <StatusBadge label="Ready" count={preparingCount} styles={getStatusStyles(OrderStatus.PREPARING)} />
-                      <StatusBadge label="Done" count={readyCount} styles={getStatusStyles(OrderStatus.READY)} />
+                      <StatusBadge label="PENDING" count={pendingCount} styles={getStatusStyles(OrderStatus.PENDING)} />
+                      <StatusBadge label="READY" count={preparingCount} styles={getStatusStyles(OrderStatus.PREPARING)} />
+                      <StatusBadge label="DONE" count={readyCount} styles={getStatusStyles(OrderStatus.READY)} />
                     </div>
 
                     {/* Ready Items List */}
@@ -901,7 +901,7 @@ export const POS = () => {
                 <select 
                   value={activeCategory}
                   onChange={(e) => setActiveCategory(e.target.value)}
-                  className="w-full pl-4 pr-10 py-2.5 bg-white border-2 border-slate-100 rounded-xl text-[10px] font-bold uppercase tracking-widest outline-none focus:border-indigo-500 appearance-none cursor-pointer shadow-sm"
+                  className="w-full pl-4 pr-10 py-2.5 bg-white border-2 border-black rounded-xl text-[10px] font-bold uppercase tracking-widest outline-none focus:border-indigo-500 appearance-none cursor-pointer shadow-sm"
                 >
                   <option value="" disabled>Select Category</option>
                   {categories.map(cat => (
@@ -921,8 +921,8 @@ export const POS = () => {
                   onClick={() => setActiveCategory(cat)}
                   className={`px-4 md:px-6 py-2 md:py-2.5 rounded-xl text-[9px] md:text-[10px] font-bold uppercase tracking-widest transition-all border-2 shrink-0 ${
                     activeCategory === cat 
-                    ? 'bg-slate-900 text-white border-slate-900 shadow-xl shadow-slate-200' 
-                    : 'bg-white text-slate-400 border-slate-100 hover:border-indigo-500 hover:text-indigo-500'
+                    ? 'bg-slate-900 text-white border-black shadow-xl shadow-slate-200' 
+                    : 'bg-white text-slate-900 border-black hover:bg-slate-50'
                   }`}
                 >
                   {cat}
