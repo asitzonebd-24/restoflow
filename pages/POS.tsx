@@ -334,17 +334,15 @@ const POSCartContent = ({
 );
 
 export const POS = () => {
-  const { menu, currentTenant, currentUser, addOrder, updateOrderItems, orders, users, tables, addTable } = useApp();
+  const { menu, currentTenant, currentUser, addOrder, updateOrderItems, orders, users, isLoading, categories } = useApp();
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [cart, setCart] = useState<OrderItem[]>([]);
-  const [activeCategory, setActiveCategory] = useState<string>('');
+  const [activeCategory, setActiveCategory] = useState<string>('All');
   const [orderNote, setOrderNote] = useState('');
   const [isNoteEditable, setIsNoteEditable] = useState(true);
   const [isCreatingNew, setIsCreatingNew] = useState(false);
   const [newTokenNum, setNewTokenNum] = useState('');
   const [newTableNum, setNewTableNum] = useState('');
-  const [isAddingTable, setIsAddingTable] = useState(false);
-  const [newTableName, setNewTableName] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isDelivery, setIsDelivery] = useState(false);
@@ -352,24 +350,18 @@ export const POS = () => {
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [filter, setFilter] = useState<'pending' | 'done'>('pending');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const canManageTables = useMemo(() => {
-    return currentUser && [Role.OWNER, Role.MANAGER, Role.SUPER_ADMIN].includes(currentUser.role);
-  }, [currentUser]);
-
-  const handleAddTable = async () => {
-    if (!newTableName.trim()) return;
-    const tableId = `tbl-${Date.now()}`;
-    await addTable({
-      id: tableId,
-      name: newTableName.trim(),
-      isActive: true,
-      createdAt: new Date().toISOString()
-    });
-    setNewTableNum(newTableName.trim());
-    setNewTableName('');
-    setIsAddingTable(false);
-  };
+  if (isLoading || !currentTenant || !currentUser) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-slate-400 font-medium animate-pulse uppercase tracking-widest text-[10px]">Loading Terminal...</p>
+        </div>
+      </div>
+    );
+  }
 
   const groupItems = (items: OrderItem[]) => {
     const grouped = items.reduce((acc, item) => {
@@ -383,8 +375,6 @@ export const POS = () => {
     }, [] as OrderItem[]);
     return grouped;
   };
-
-  const categories = useMemo(() => Array.from(new Set(menu.map(m => m.category))), [menu]);
 
   const deliveryStaff = useMemo(() => {
     return users.filter(u => u.role === Role.DELIVERY);
@@ -536,6 +526,7 @@ export const POS = () => {
     setIsSubmitting(true);
 
     try {
+      setErrorMessage(null);
       if (isCreatingNew) {
         if (isTokenDuplicate) {
           console.log('Token is duplicate, aborting');
@@ -607,7 +598,14 @@ export const POS = () => {
       setDeliveryAddress('');
     } catch (error: any) {
       console.error('Failed to submit order:', error);
-      alert(`Failed to submit order: ${error.message || 'Unknown error'}`);
+      let msg = 'Unknown error';
+      try {
+        const parsed = JSON.parse(error.message);
+        msg = parsed.error || error.message;
+      } catch {
+        msg = error.message || 'Unknown error';
+      }
+      setErrorMessage(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -615,7 +613,7 @@ export const POS = () => {
 
   const filteredMenu = useMemo(() => {
     return menu.filter(m => {
-      const matchesCategory = activeCategory !== 'All' && m.category === activeCategory;
+      const matchesCategory = activeCategory === 'All' || m.category === activeCategory;
       const matchesSearch = m.name.toLowerCase().includes(searchTerm.toLowerCase());
       return matchesCategory && matchesSearch;
     });
@@ -863,6 +861,39 @@ export const POS = () => {
   return (
     <div className="flex flex-col lg:flex-row bg-slate-50/50 h-[calc(100vh-64px)] md:h-full overflow-y-auto lg:overflow-hidden no-scrollbar">
       <div className="flex-none lg:flex-1 flex flex-col min-w-0 lg:overflow-hidden border-r border-slate-100">
+        {/* Error Message Modal */}
+        <AnimatePresence>
+          {errorMessage && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
+            >
+              <motion.div 
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                className="bg-white rounded-[2rem] p-8 max-w-md w-full shadow-2xl border-2 border-rose-100"
+              >
+                <div className="w-16 h-16 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mb-6 mx-auto">
+                  <AlertCircle size={32} />
+                </div>
+                <h3 className="text-xl font-black text-slate-900 text-center uppercase tracking-tighter mb-2">Submission Failed</h3>
+                <p className="text-slate-500 text-center text-sm mb-8 leading-relaxed">
+                  {errorMessage}
+                </p>
+                <button 
+                  onClick={() => setErrorMessage(null)}
+                  className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold uppercase tracking-widest text-[10px] hover:bg-slate-800 transition-all shadow-xl shadow-slate-200"
+                >
+                  Dismiss
+                </button>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* POS Header */}
         <div className="p-4 md:p-8 bg-white border-b border-slate-100 shrink-0">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-6 mb-6 md:mb-8">
@@ -882,70 +913,25 @@ export const POS = () => {
                 </h2>
                 {isCreatingNew && (
                   <div className="flex flex-wrap items-center gap-2 md:gap-8 mt-2 md:mt-2">
-                    <div className="flex items-center justify-between gap-2 md:gap-3 bg-indigo-50 px-3 md:px-4 py-1.5 md:py-2 rounded-xl md:rounded-2xl border-2 border-indigo-200 w-32 md:w-44">
-                      <span className="text-[9px] md:text-[10px] text-indigo-600 font-bold uppercase tracking-widest">Token:</span>
-                      <div className="flex items-center gap-1">
-                        <input 
-                          type="text" 
-                          value={newTokenNum}
-                          onChange={(e) => setNewTokenNum(e.target.value)}
-                          className={`w-10 md:w-14 text-center border-b-2 bg-transparent font-bold text-sm md:text-lg outline-none transition-all ${isTokenDuplicate ? 'border-rose-500 text-rose-600' : 'border-indigo-500 text-indigo-900'}`}
-                        />
-                        {isTokenDuplicate && <AlertCircle className="text-rose-500" size={14} />}
-                      </div>
+                    <div className="flex items-center gap-2 md:gap-3 bg-indigo-50 px-3 md:px-4 py-1.5 md:py-2 rounded-xl md:rounded-2xl border border-indigo-100">
+                      <span className="text-[9px] md:text-[10px] text-indigo-500 font-black uppercase tracking-widest">Token:</span>
+                      <input 
+                        type="text" 
+                        value={newTokenNum}
+                        onChange={(e) => setNewTokenNum(e.target.value)}
+                        className={`w-12 md:w-16 text-center border-b-2 bg-transparent font-black text-sm md:text-lg outline-none transition-all ${isTokenDuplicate ? 'border-rose-500 text-rose-600' : 'border-indigo-500 text-indigo-900'}`}
+                      />
+                      {isTokenDuplicate && <AlertCircle className="text-rose-500" size={14} />}
                     </div>
-                    <div className="flex items-center justify-between gap-2 md:gap-3 bg-slate-50 px-3 md:px-4 py-1.5 md:py-2 rounded-xl md:rounded-2xl border-2 border-slate-200 relative w-32 md:w-44">
-                      <span className="text-[9px] md:text-[10px] text-slate-500 font-bold uppercase tracking-widest">Table:</span>
-                      {isAddingTable ? (
-                        <div className="flex items-center gap-1">
-                          <input 
-                            type="text" 
-                            placeholder="Name"
-                            autoFocus
-                            value={newTableName}
-                            onChange={(e) => setNewTableName(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleAddTable()}
-                            className="w-14 md:w-20 text-center border-b-2 bg-transparent font-bold text-xs md:text-sm outline-none transition-all border-indigo-500 text-indigo-900"
-                          />
-                          <div className="flex gap-1">
-                            <button 
-                              onClick={handleAddTable}
-                              className="p-0.5 rounded bg-indigo-500 text-white hover:bg-indigo-600"
-                            >
-                              <Plus size={10} />
-                            </button>
-                            <button 
-                              onClick={() => setIsAddingTable(false)}
-                              className="p-0.5 rounded bg-slate-200 text-slate-500 hover:bg-slate-300"
-                            >
-                              <X size={10} />
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1">
-                          <select 
-                            value={newTableNum}
-                            onChange={(e) => {
-                              if (e.target.value === 'ADD_NEW') {
-                                setIsAddingTable(true);
-                              } else {
-                                setNewTableNum(e.target.value);
-                              }
-                            }}
-                            className="bg-transparent font-bold text-sm md:text-lg outline-none cursor-pointer appearance-none text-slate-900 min-w-[2rem] text-center"
-                          >
-                            <option value="">No</option>
-                            {tables.map(t => (
-                              <option key={t.id} value={t.name}>{t.name}</option>
-                            ))}
-                            {canManageTables && (
-                              <option value="ADD_NEW" className="text-indigo-600 font-bold">+ New</option>
-                            )}
-                          </select>
-                          <ChevronRight className="text-slate-400 rotate-90 pointer-events-none" size={12} />
-                        </div>
-                      )}
+                    <div className="flex items-center gap-2 md:gap-3 bg-slate-50 px-3 md:px-4 py-1.5 md:py-2 rounded-xl md:rounded-2xl border border-slate-100">
+                      <span className="text-[9px] md:text-[10px] text-slate-400 font-black uppercase tracking-widest">Table:</span>
+                      <input 
+                        type="text" 
+                        placeholder="No"
+                        value={newTableNum}
+                        onChange={(e) => setNewTableNum(e.target.value)}
+                        className="w-12 md:w-16 text-center border-b-2 bg-transparent font-black text-sm md:text-lg outline-none transition-all border-slate-900 text-slate-900"
+                      />
                     </div>
                   </div>
                 )}
