@@ -141,40 +141,6 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "tenantId", "tenantName", "month", "amount", "status"]
-    },
-    "Table": {
-      "title": "Table",
-      "description": "A dining table in the restaurant.",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "tenantId": { "type": "string" },
-        "name": { "type": "string" },
-        "isActive": { "type": "boolean" },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["id", "tenantId", "name", "isActive"]
-    },
-    "Recipe": {
-      "title": "Recipe",
-      "description": "A recipe for a menu item.",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "tenantId": { "type": "string" },
-        "menuItemId": { "type": "string" },
-        "ingredients": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "inventoryItemId": { "type": "string" },
-              "quantity": { "type": "number" }
-            }
-          }
-        }
-      },
-      "required": ["id", "tenantId", "menuItemId", "ingredients"]
     }
   },
   "firestore": {
@@ -185,8 +151,6 @@
     "/orders/{orderId}": { "schema": "Order", "description": "Order documents." },
     "/transactions/{transactionId}": { "schema": "Transaction", "description": "Transaction documents." },
     "/expenses/{expenseId}": { "schema": "Expense", "description": "Expense documents." },
-    "/monthly_bills/{billId}": { "schema": "MonthlyBill", "description": "Monthly bill documents." },
-    "/tables/{tableId}": { "schema": "Table", "description": "Table documents." },
-    "/recipes/{recipeId}": { "schema": "Recipe", "description": "Recipe documents." }
+    "/monthly_bills/{billId}": { "schema": "MonthlyBill", "description": "Monthly bill documents." }
   }
 }

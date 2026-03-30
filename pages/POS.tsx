@@ -334,7 +334,7 @@ const POSCartContent = ({
 );
 
 export const POS = () => {
-  const { menu, currentTenant, currentUser, addOrder, updateOrderItems, orders, users, tables, addTable } = useApp();
+  const { menu, currentTenant, currentUser, addOrder, updateOrderItems, orders, users } = useApp();
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [cart, setCart] = useState<OrderItem[]>([]);
   const [activeCategory, setActiveCategory] = useState<string>('');
@@ -343,8 +343,6 @@ export const POS = () => {
   const [isCreatingNew, setIsCreatingNew] = useState(false);
   const [newTokenNum, setNewTokenNum] = useState('');
   const [newTableNum, setNewTableNum] = useState('');
-  const [isAddingTable, setIsAddingTable] = useState(false);
-  const [newTableName, setNewTableName] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isDelivery, setIsDelivery] = useState(false);
@@ -352,24 +350,6 @@ export const POS = () => {
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [filter, setFilter] = useState<'pending' | 'done'>('pending');
-
-  const canManageTables = useMemo(() => {
-    return currentUser && [Role.OWNER, Role.MANAGER, Role.SUPER_ADMIN].includes(currentUser.role);
-  }, [currentUser]);
-
-  const handleAddTable = async () => {
-    if (!newTableName.trim()) return;
-    const tableId = `tbl-${Date.now()}`;
-    await addTable({
-      id: tableId,
-      name: newTableName.trim(),
-      isActive: true,
-      createdAt: new Date().toISOString()
-    });
-    setNewTableNum(newTableName.trim());
-    setNewTableName('');
-    setIsAddingTable(false);
-  };
 
   const groupItems = (items: OrderItem[]) => {
     const grouped = items.reduce((acc, item) => {
@@ -882,70 +862,25 @@ export const POS = () => {
                 </h2>
                 {isCreatingNew && (
                   <div className="flex flex-wrap items-center gap-2 md:gap-8 mt-2 md:mt-2">
-                    <div className="flex items-center justify-between gap-2 md:gap-3 bg-indigo-50 px-3 md:px-4 py-1.5 md:py-2 rounded-xl md:rounded-2xl border-2 border-indigo-200 w-32 md:w-44">
-                      <span className="text-[9px] md:text-[10px] text-indigo-600 font-bold uppercase tracking-widest">Token:</span>
-                      <div className="flex items-center gap-1">
-                        <input 
-                          type="text" 
-                          value={newTokenNum}
-                          onChange={(e) => setNewTokenNum(e.target.value)}
-                          className={`w-10 md:w-14 text-center border-b-2 bg-transparent font-bold text-sm md:text-lg outline-none transition-all ${isTokenDuplicate ? 'border-rose-500 text-rose-600' : 'border-indigo-500 text-indigo-900'}`}
-                        />
-                        {isTokenDuplicate && <AlertCircle className="text-rose-500" size={14} />}
-                      </div>
+                    <div className="flex items-center gap-2 md:gap-3 bg-indigo-50 px-3 md:px-4 py-1.5 md:py-2 rounded-xl md:rounded-2xl border border-indigo-100">
+                      <span className="text-[9px] md:text-[10px] text-indigo-500 font-black uppercase tracking-widest">Token:</span>
+                      <input 
+                        type="text" 
+                        value={newTokenNum}
+                        onChange={(e) => setNewTokenNum(e.target.value)}
+                        className={`w-12 md:w-16 text-center border-b-2 bg-transparent font-black text-sm md:text-lg outline-none transition-all ${isTokenDuplicate ? 'border-rose-500 text-rose-600' : 'border-indigo-500 text-indigo-900'}`}
+                      />
+                      {isTokenDuplicate && <AlertCircle className="text-rose-500" size={14} />}
                     </div>
-                    <div className="flex items-center justify-between gap-2 md:gap-3 bg-slate-50 px-3 md:px-4 py-1.5 md:py-2 rounded-xl md:rounded-2xl border-2 border-slate-200 relative w-32 md:w-44">
-                      <span className="text-[9px] md:text-[10px] text-slate-500 font-bold uppercase tracking-widest">Table:</span>
-                      {isAddingTable ? (
-                        <div className="flex items-center gap-1">
-                          <input 
-                            type="text" 
-                            placeholder="Name"
-                            autoFocus
-                            value={newTableName}
-                            onChange={(e) => setNewTableName(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleAddTable()}
-                            className="w-14 md:w-20 text-center border-b-2 bg-transparent font-bold text-xs md:text-sm outline-none transition-all border-indigo-500 text-indigo-900"
-                          />
-                          <div className="flex gap-1">
-                            <button 
-                              onClick={handleAddTable}
-                              className="p-0.5 rounded bg-indigo-500 text-white hover:bg-indigo-600"
-                            >
-                              <Plus size={10} />
-                            </button>
-                            <button 
-                              onClick={() => setIsAddingTable(false)}
-                              className="p-0.5 rounded bg-slate-200 text-slate-500 hover:bg-slate-300"
-                            >
-                              <X size={10} />
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1">
-                          <select 
-                            value={newTableNum}
-                            onChange={(e) => {
-                              if (e.target.value === 'ADD_NEW') {
-                                setIsAddingTable(true);
-                              } else {
-                                setNewTableNum(e.target.value);
-                              }
-                            }}
-                            className="bg-transparent font-bold text-sm md:text-lg outline-none cursor-pointer appearance-none text-slate-900 min-w-[2rem] text-center"
-                          >
-                            <option value="">No</option>
-                            {tables.map(t => (
-                              <option key={t.id} value={t.name}>{t.name}</option>
-                            ))}
-                            {canManageTables && (
-                              <option value="ADD_NEW" className="text-indigo-600 font-bold">+ New</option>
-                            )}
-                          </select>
-                          <ChevronRight className="text-slate-400 rotate-90 pointer-events-none" size={12} />
-                        </div>
-                      )}
+                    <div className="flex items-center gap-2 md:gap-3 bg-slate-50 px-3 md:px-4 py-1.5 md:py-2 rounded-xl md:rounded-2xl border border-slate-100">
+                      <span className="text-[9px] md:text-[10px] text-slate-400 font-black uppercase tracking-widest">Table:</span>
+                      <input 
+                        type="text" 
+                        placeholder="No"
+                        value={newTableNum}
+                        onChange={(e) => setNewTableNum(e.target.value)}
+                        className="w-12 md:w-16 text-center border-b-2 bg-transparent font-black text-sm md:text-lg outline-none transition-all border-slate-900 text-slate-900"
+                      />
                     </div>
                   </div>
                 )}
