@@ -53,10 +53,10 @@ const ItemSummary = ({ cart, cartTotal, currency }: { cart: OrderItem[], cartTot
   return (
     <div className="bg-white p-4 rounded-2xl border-2 border-indigo-100 shadow-sm mb-4">
       <h3 className="text-[10px] font-bold uppercase text-slate-400 tracking-widest mb-2">Item Summary</h3>
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         {groupItems(cart).map((item, i) => (
-          <div key={i} className="flex justify-between text-xs gap-2">
-            <span className="font-medium text-slate-700 break-words flex-1">{item.quantity} x {item.name}</span>
+          <div key={i} className="flex justify-between text-[10px] gap-2 leading-tight">
+            <span className="font-medium text-slate-700 break-words flex-1 line-clamp-2 uppercase tracking-tight">{item.quantity} x {item.name}</span>
             <span className="font-bold text-slate-900 shrink-0">{currency}{(item.price * item.quantity).toFixed(2)}</span>
           </div>
         ))}
@@ -261,30 +261,30 @@ const POSCartContent = ({
                     key={item.rowId} 
                     className="bg-white p-4 rounded-2xl border border-slate-100 flex justify-between items-center hover:border-slate-200 transition-all group shadow-sm"
                   >
-                    <div className="min-w-0 pr-4">
-                        <h4 className="font-bold text-slate-900 text-sm truncate">{item.name}</h4>
+                    <div className="min-w-0 pr-2 flex-1">
+                        <h4 className="font-bold text-slate-900 text-[11px] leading-tight break-words line-clamp-2 uppercase tracking-tight">{item.name}</h4>
                         <div className="flex items-center gap-2">
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{currentTenant.currency}{item.price.toFixed(2)}</p>
+                          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{currentTenant.currency}{item.price.toFixed(2)}</p>
                           {isExisting && (
-                            <span className="text-[8px] font-black bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded uppercase tracking-tighter">Existing</span>
+                            <span className="text-[7px] font-black bg-indigo-100 text-indigo-600 px-1 py-0.5 rounded uppercase tracking-tighter">Existing</span>
                           )}
                         </div>
                     </div>
-                    <div className="flex items-center gap-2 bg-slate-50 p-1 rounded-xl border border-slate-100 group-hover:bg-white transition-colors shrink-0">
+                    <div className="flex items-center gap-1 bg-slate-50 p-0.5 rounded-lg border border-slate-100 group-hover:bg-white transition-colors shrink-0">
                         <button 
                           onClick={() => updateQuantity(item.rowId, -1)} 
                           disabled={!canUpdate}
-                          className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all ${canUpdate ? 'hover:bg-rose-50 text-slate-400 hover:text-rose-500' : 'opacity-20 cursor-not-allowed text-slate-300'}`}
+                          className={`w-7 h-7 flex items-center justify-center rounded-md transition-all ${canUpdate ? 'hover:bg-rose-50 text-slate-400 hover:text-rose-500' : 'opacity-20 cursor-not-allowed text-slate-300'}`}
                         >
-                          <Minus size={14} />
+                          <Minus size={12} />
                         </button>
-                        <span className="font-bold text-sm w-8 text-center text-slate-900">{item.quantity}</span>
+                        <span className="font-bold text-xs w-6 text-center text-slate-900">{item.quantity}</span>
                         <button 
                           onClick={() => updateQuantity(item.rowId, 1)} 
                           disabled={!canUpdate}
-                          className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all ${canUpdate ? 'hover:bg-emerald-50 text-slate-400 hover:text-emerald-500' : 'opacity-20 cursor-not-allowed text-slate-300'}`}
+                          className={`w-7 h-7 flex items-center justify-center rounded-md transition-all ${canUpdate ? 'hover:bg-emerald-50 text-slate-400 hover:text-emerald-500' : 'opacity-20 cursor-not-allowed text-slate-300'}`}
                         >
-                          <Plus size={14} />
+                          <Plus size={12} />
                         </button>
                     </div>
                   </motion.div>
@@ -756,27 +756,29 @@ export const POS = () => {
                       <StatusBadge label="DONE" count={readyCount} styles={getStatusStyles(OrderStatus.READY)} />
                     </div>
 
-                    {/* Ready Items List */}
-                    {preparingCount > 0 && (
-                      <div className="mb-4 space-y-1 max-h-24 overflow-y-auto no-scrollbar">
-                        {(() => {
-                          const groupedReadyItems: { [key: string]: { name: string, quantity: number } } = {};
-                          order.items.filter(i => i.status === OrderStatus.PREPARING).forEach(item => {
-                            if (!groupedReadyItems[item.itemId]) {
-                              groupedReadyItems[item.itemId] = { name: item.name, quantity: 0 };
-                            }
-                            groupedReadyItems[item.itemId].quantity += item.quantity;
-                          });
-                          
-                          return Object.entries(groupedReadyItems).map(([itemId, group]) => (
-                            <div key={itemId} className="flex justify-between items-center text-[10px] font-black text-amber-600 uppercase tracking-tight bg-amber-50 px-3 py-1.5 rounded-xl border border-amber-100">
-                              <span className="truncate pr-2">{group.name}</span>
+                    {/* Items Summary List */}
+                    <div className="mb-4 space-y-1">
+                      {(() => {
+                        const groupedItems: { [key: string]: { name: string, quantity: number, status: OrderStatus } } = {};
+                        order.items.forEach(item => {
+                          const key = `${item.itemId}-${item.status}`;
+                          if (!groupedItems[key]) {
+                            groupedItems[key] = { name: item.name, quantity: 0, status: item.status };
+                          }
+                          groupedItems[key].quantity += item.quantity;
+                        });
+                        
+                        return Object.entries(groupedItems).map(([key, group]) => {
+                          const styles = getStatusStyles(group.status);
+                          return (
+                            <div key={key} className={`flex justify-between items-center text-[10px] font-black uppercase tracking-tight px-3 py-1.5 rounded-xl border ${styles.bg} ${styles.text} ${styles.border}`}>
+                              <span className="break-words pr-2">{group.name}</span>
                               <span className="shrink-0">x{group.quantity}</span>
                             </div>
-                          ));
-                        })()}
-                      </div>
-                    )}
+                          );
+                        });
+                      })()}
+                    </div>
 
                     {/* Dashed Divider */}
                     <div className="border-t-2 border-dashed border-slate-200 mb-6"></div>
