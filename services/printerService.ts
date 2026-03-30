@@ -425,15 +425,18 @@ export class BluetoothPrinterService {
     }
     await this.printTextLine(`TOTAL: ${business.currency}${total.toFixed(2)}`, pixelWidth, { align: 'right', bold: true });
 
+    // 2 lines white space
+    await this.printRaw(new Uint8Array([this.LF, this.LF]));
+
     // Footer
     if (business.printerSettings?.receiptFooter) {
       await this.printTextLine(business.printerSettings.receiptFooter, pixelWidth, { align: 'center' });
     } else {
-      await this.printTextLine('Thank You! Come Again', pixelWidth, { align: 'center' });
+      await this.printTextLine('ধন্যবাদ! আবার আসবেন', pixelWidth, { align: 'center' });
     }
     
-    await this.printTextLine('Powered by: RestoKeep', pixelWidth, { align: 'center', fontSize: 18 });
-    await this.printTextLine('www.restokeep.app', pixelWidth, { align: 'center', fontSize: 14 });
+    await this.printTextLine('Powered By: RestoKeep', pixelWidth, { align: 'center', fontSize: 18 });
+    await this.printTextLine('Web: www.restokeep.app', pixelWidth, { align: 'center', fontSize: 14 });
     await this.printTextLine('Mob: 01303565316', pixelWidth, { align: 'center', fontSize: 14 });
     await this.printRaw(new Uint8Array([...Array(2).fill(0x0A), ...this.COMMANDS.CUT]));
   }

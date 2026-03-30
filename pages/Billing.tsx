@@ -640,15 +640,15 @@ export const Billing = () => {
                 })()}
               </div>
               
-              <div className="text-center mt-8 pt-6 border-t border-black">
+              <div className="text-center mt-12 pt-10 border-t border-black">
                 {currentTenant?.printerSettings?.receiptFooter ? (
                   <p className="text-sm text-black font-bold whitespace-pre-line mb-2">{currentTenant.printerSettings.receiptFooter}</p>
                 ) : (
-                  <p className="text-sm font-bold text-black uppercase tracking-widest mb-2">Thank You! Come Again</p>
+                  <p className="text-sm font-bold text-black uppercase tracking-widest mb-2">ধন্যবাদ! আবার আসবেন</p>
                 )}
                 <div className="flex flex-col items-center justify-center gap-1">
-                  <p className="text-xs font-bold tracking-widest text-black">Powered by: RestoKeep</p>
-                  <p className="text-xs font-bold tracking-widest text-black">www.restokeep.app</p>
+                  <p className="text-xs font-bold tracking-widest text-black">Powered By: RestoKeep</p>
+                  <p className="text-xs font-bold tracking-widest text-black">Web: www.restokeep.app</p>
                   <p className="text-[10px] font-bold tracking-widest text-black">Mob: 01303565316</p>
                 </div>
               </div>
