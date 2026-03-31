@@ -2,11 +2,9 @@
 import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
 import { Role, Business, User, Order, InventoryItem, MenuItem, OrderStatus, ItemStatus, Transaction, Expense, OrderItem, MonthlyBill, BillStatus, Recipe } from '../types';
 import { BUSINESS_DETAILS, MOCK_USERS, INITIAL_ORDERS, MOCK_INVENTORY, MOCK_MENU, MOCK_EXPENSES, DEFAULT_MENU_IMAGE, DEFAULT_AVATAR, DEFAULT_BUSINESS_LOGO } from '../constants';
-import { auth, db, signInWithGoogle } from '../src/firebase';
+import { auth, db } from '../src/firebase';
 import { 
-  onAuthStateChanged, 
-  signOut,
-  signInWithEmailAndPassword
+  signOut
 } from 'firebase/auth';
 import { toast } from 'sonner';
 import { 
@@ -196,43 +194,32 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   });
 
   useEffect(() => {
-    // Listen for auth state changes to sync with Firebase Auth
-    const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
-      setIsAuthReady(true);
-      if (firebaseUser) {
-        // If the user is the Super Admin email, ensure they have the role
-        if (firebaseUser.email === 'asitzonebd@gmail.com') {
-          const superAdminUser: User = {
-            id: firebaseUser.uid,
-            name: firebaseUser.displayName || 'Super Admin',
-            email: firebaseUser.email,
-            role: Role.SUPER_ADMIN,
-            mobile: firebaseUser.phoneNumber || '0000000000',
-            avatar: firebaseUser.photoURL || DEFAULT_AVATAR,
-            permissions: ['Dashboard', 'POS', 'Kitchen', 'Menu', 'Billing', 'Transactions', 'Expenses', 'Reports', 'Inventory', 'Users', 'Settings']
-          };
-          setCurrentUser(superAdminUser);
-          localStorage.setItem('resto_keep_user', JSON.stringify(superAdminUser));
-        } else {
-          // For other users, we try to get their document from Firestore
-          try {
-            const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-            if (userDoc.exists()) {
-              const userData = { id: userDoc.id, ...convertFirestoreData(userDoc.data()) } as User;
-              setCurrentUser(userData);
-              localStorage.setItem('resto_keep_user', JSON.stringify(userData));
-            }
-          } catch (error) {
-            console.error('Error fetching user document:', error);
+    // Firebase Auth is disabled as per user request.
+    // We rely on local state and Firestore queries for authentication.
+    setIsAuthReady(true);
+
+    // Bootstrap Super Admin into Firestore if it doesn't exist
+    const bootstrapSuperAdmin = async () => {
+      try {
+        const saEmail = 'asitzonebd@gmail.com';
+        const usersRef = collection(db, 'users');
+        const q = query(usersRef, where('email', '==', saEmail), limit(1));
+        const snapshot = await getDocs(q);
+        
+        if (snapshot.empty) {
+          console.log('Bootstrapping Super Admin into Firestore...');
+          const saUser = MOCK_USERS.find(u => u.email === saEmail);
+          if (saUser) {
+            await setDoc(doc(db, 'users', saUser.id), saUser);
+            console.log('Super Admin bootstrapped successfully.');
           }
         }
-      } else {
-        setCurrentUser(null);
-        localStorage.removeItem('resto_keep_user');
+      } catch (error) {
+        console.error('Error bootstrapping Super Admin:', error);
       }
-    });
+    };
 
-    return () => unsubscribeAuth();
+    bootstrapSuperAdmin();
   }, []);
   const convertFirestoreData = (data: any) => {
     const cleaned = { ...data };
@@ -269,10 +256,16 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
     const checkLoadingState = (name: string) => {
       loadedCollections.add(name);
+      console.log(`Collection loaded: ${name}. Progress: ${loadedCollections.size}/${criticalCollections.length}`);
       if (criticalCollections.every(c => loadedCollections.has(c))) {
+        console.log('All critical collections loaded. Setting isLoading to false.');
         setIsLoading(false);
       }
     };
+
+    console.log('Starting listeners. Critical collections:', criticalCollections);
+    console.log('Current User:', currentUser?.email, 'Role:', currentUser?.role);
+    console.log('Auth Current User:', auth.currentUser?.email);
 
     // A. Fetch Tenants (Filtered for regular users to save quota)
     let tenantsQuery = query(collection(db, 'tenants'), limit(100));
@@ -299,21 +292,21 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       checkLoadingState('tenants');
     }, (error) => {
       console.error('Error fetching tenants:', error);
+      checkLoadingState('tenants');
       try {
         handleFirestoreError(error, OperationType.GET, 'tenants');
       } catch (e) {
         // Logged
       }
       setTenants([BUSINESS_DETAILS]);
-      checkLoadingState('tenants');
     });
     unsubscribers.push(unsubTenants);
 
     // B. Data Listeners
     const collections: { name: string, setter: (data: any) => void }[] = [];
 
-    // Only start these listeners if we have a real authenticated user in Firebase
-    if (auth.currentUser && currentUser) {
+    // Only start these listeners if we have a real authenticated user
+    if (currentUser) {
       collections.push({ name: 'users', setter: setAllUsers });
       collections.push({ name: 'monthly_bills', setter: setMonthlyBills });
 
@@ -383,6 +376,9 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             checkLoadingState(name);
           }
         }, (error) => {
+          if (criticalCollections.includes(name)) {
+            checkLoadingState(name);
+          }
           // Only log if it's not a quota error (already handled by ErrorBoundary)
           if (!error.message.includes('Quota exceeded')) {
             console.error(`Error in real-time listener for ${name}:`, error);
@@ -399,15 +395,22 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
           if (name === 'menu_items') setter(MOCK_MENU as any);
           if (name === 'inventory_items') setter(MOCK_INVENTORY as any);
           if (name === 'orders') setter(INITIAL_ORDERS as any);
-          
-          if (criticalCollections.includes(name)) {
-            checkLoadingState(name);
-          }
         });
         unsubscribers.push(unsub);
       });
 
-    return () => unsubscribers.forEach(unsub => unsub());
+    // Safety timeout to ensure loading screen disappears
+    const safetyTimeout = setTimeout(() => {
+      if (isLoading) {
+        console.warn('Safety timeout reached. Forcing isLoading to false.');
+        setIsLoading(false);
+      }
+    }, 10000); // 10 seconds
+
+    return () => {
+      unsubscribers.forEach(unsub => unsub());
+      clearTimeout(safetyTimeout);
+    };
   }, [isAuthReady, currentUser?.id, currentUser?.tenantId, currentTenantId]);
    // Sync currentUser with allUsers in real-time to reflect role/permission changes
   useEffect(() => {
@@ -484,42 +487,26 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
 
   const loginWithGoogle = async () => {
-    try {
-      setIsLoading(true);
-      await signInWithGoogle();
-      toast.success('Logged in with Google successfully');
-    } catch (error: any) {
-      console.error('Google Login Error:', error);
-      toast.error('Google Login failed: ' + error.message);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
+    toast.error('Google Login is currently disabled.');
   };
 
   const login = async (emailOrMobile: string, password: string, tenantId?: string | null): Promise<boolean> => {
     setIsLoading(true);
+    console.log('Login attempt for:', emailOrMobile);
     try {
-      // If it's an email, try to sign in with Firebase Auth first
-      if (emailOrMobile.includes('@')) {
-        try {
-          await signInWithEmailAndPassword(auth, emailOrMobile, password);
-          // If successful, onAuthStateChanged will handle setting the currentUser
-          // but we still need to return true
-          return true;
-        } catch (authError: any) {
-          console.log('Firebase Auth failed, falling back to custom login:', authError.message);
-        }
-      }
-
-      // 1. Try to find in current loaded users (might be empty if not logged in)
+      // 1. Try to find in current loaded users (includes mock users)
       let user = allUsers.find(u => 
         ((u.email?.toLowerCase() || '') === emailOrMobile.toLowerCase() || u.mobile === emailOrMobile) && 
         u.password === password
       );
       
-      // 2. If not found, try direct Firestore query (more efficient than fetching all users)
+      if (user) {
+        console.log('User found in allUsers:', user.name, user.role);
+      }
+
+      // 2. If not found, try direct Firestore query
       if (!user) {
+        console.log('User not found in allUsers, querying Firestore...');
         const usersRef = collection(db, 'users');
         
         // Try email query
@@ -528,25 +515,39 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         
         if (!snapshotEmail.empty) {
           user = { id: snapshotEmail.docs[0].id, ...convertFirestoreData(snapshotEmail.docs[0].data()) } as User;
+          console.log('User found in Firestore (email):', user.name);
         } else {
           // Try mobile query
           const qMobile = query(usersRef, where('mobile', '==', emailOrMobile), where('password', '==', password));
           const snapshotMobile = await getDocs(qMobile);
           if (!snapshotMobile.empty) {
             user = { id: snapshotMobile.docs[0].id, ...convertFirestoreData(snapshotMobile.docs[0].data()) } as User;
+            console.log('User found in Firestore (mobile):', user.name);
           }
         }
+      }
+      
+      // 3. Last resort: check ENHANCED_MOCK_USERS directly
+      if (!user) {
+        console.log('User not found in Firestore, checking ENHANCED_MOCK_USERS...');
+        user = ENHANCED_MOCK_USERS.find(u => 
+          ((u.email?.toLowerCase() || '') === emailOrMobile.toLowerCase() || u.mobile === emailOrMobile) && 
+          u.password === password
+        );
+        if (user) console.log('User found in ENHANCED_MOCK_USERS:', user.name);
       }
       
       if (user) {
         // If a specific tenantId is provided in the URL, verify the user belongs to it
         if (tenantId && user.tenantId && String(user.tenantId) !== String(tenantId) && user.role !== Role.SUPER_ADMIN) {
+          console.warn('Access denied: tenant mismatch', { userTenant: user.tenantId, targetTenant: tenantId });
           setIsLoading(false);
           toast.error('Access denied for this restaurant.');
           return false;
         }
         
         if (!tenantId && user.role !== Role.SUPER_ADMIN && !user.tenantId) {
+          console.warn('Access denied: no tenant for non-superadmin');
           setIsLoading(false);
           toast.error('Invalid account configuration.');
           return false;
@@ -555,10 +556,10 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         setCurrentUser(user);
         localStorage.setItem('resto_keep_user', JSON.stringify(user));
         toast.success(`Welcome back, ${user.name}!`);
-        // Note: setIsLoading(false) will be handled by the useEffect listeners once data is fetched
         return true;
       }
       
+      console.warn('Login failed: Invalid credentials for', emailOrMobile);
       setIsLoading(false);
       toast.error('Invalid credentials');
       return false;
@@ -571,13 +572,9 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   const logout = async () => {
-    try {
-      await signOut(auth);
-    } catch (error) {
-      console.error('Sign out error:', error);
-    }
     setCurrentUser(null);
     localStorage.removeItem('resto_keep_user');
+    toast.success('Logged out successfully');
   };
 
   const addOrder = async (order: Omit<Order, 'tenantId'>) => {

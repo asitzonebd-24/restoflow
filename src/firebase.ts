@@ -1,17 +1,12 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, collection, doc, setDoc, getDoc, addDoc, updateDoc, deleteDoc, query, where, orderBy, onSnapshot, serverTimestamp, getDocFromServer } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
+import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app, "restokeep-db");
-export const googleProvider = new GoogleAuthProvider();
-
-// Auth functions
-export const signInWithGoogle = () => signInWithPopup(auth, googleProvider);
-export const logout = () => signOut(auth);
 
 // Firestore helpers with error handling
 export enum OperationType {

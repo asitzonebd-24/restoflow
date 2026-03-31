@@ -3,73 +3,10 @@ service cloud.firestore {
   match /databases/{database}/documents {
     
     // ===============================================================
-    // Helper Functions
-    // ===============================================================
-    
-    function isAuthenticated() {
-      return request.auth != null;
-    }
-    
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
-    }
-    
-    function isAdmin() {
-      return isAuthenticated() && 
-        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'super_admin' ||
-         (request.auth.token.email == "asitzonebd@gmail.com" && request.auth.token.email_verified == true));
-    }
-
-    function hasRequiredFields(fields) {
-      return request.resource.data.keys().hasAll(fields);
-    }
-
-    function hasOnlyAllowedFields(fields) {
-      return request.resource.data.keys().hasOnly(fields);
-    }
-
-    // ===============================================================
-    // Collection Rules
+    // Public Access (Firebase Auth Disabled)
     // ===============================================================
 
-    // Tenants / Businesses
-    match /tenants/{tenantId} {
-      allow read: if true; // Publicly readable for landing pages
-      allow create, update: if isAdmin();
-      allow delete: if isAdmin();
-    }
-
-    // Users
-    match /users/{userId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && (isOwner(userId) || isAdmin());
-      allow update: if isAuthenticated() && (isOwner(userId) || isAdmin());
-      allow delete: if isAdmin();
-    }
-
-    // Orders
-    match /orders/{orderId} {
-      allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update: if isAuthenticated();
-      allow delete: if isAdmin();
-    }
-
-    // Menu Items
-    match /menu_items/{itemId} {
-      allow read: if true;
-      allow write: if isAuthenticated();
-    }
-
-    // Inventory Items
-    match /inventory_items/{itemId} {
-      allow read: if isAuthenticated();
-      allow write: if isAuthenticated();
-    }
-
-    // Test Connection
-    match /test_connection/{docId} {
+    match /{document=**} {
       allow read, write: if true;
     }
   }

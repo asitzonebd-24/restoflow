@@ -133,21 +133,6 @@ export const Login = () => {
                 {isLoading ? 'Connecting...' : 'Enter Terminal'} <LogIn size={16} className="group-hover:translate-x-1 transition-transform" />
               </button>
 
-              <button 
-                type="button"
-                onClick={async () => {
-                  try {
-                    await loginWithGoogle();
-                    navigate('/');
-                  } catch (error) {
-                    toast.error('Google Login failed');
-                  }
-                }}
-                className="w-full bg-white hover:bg-slate-50 text-slate-900 font-bold py-3.5 rounded-xl transition-all duration-300 border border-slate-200 flex items-center justify-center gap-3 uppercase text-[10px] tracking-widest group"
-              >
-                Login with Google <Chrome size={16} className="text-blue-500 group-hover:scale-110 transition-transform" />
-              </button>
-
               <div className="relative flex items-center justify-center py-4">
                 <div className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-slate-100"></div>
