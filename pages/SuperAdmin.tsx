@@ -267,17 +267,17 @@ export const SuperAdmin = () => {
                         <div className="flex flex-col gap-1">
                           <div className="flex items-center gap-2">
                             <code className="text-[10px] font-mono bg-slate-100 px-2 py-1 rounded text-slate-600 border border-slate-200">
-                              restokeep.vercel.app/#/{tenant.id}
+                              restokeep.vercel.app/#/${tenant.slug || tenant.id}
                             </code>
                             <button 
-                              onClick={() => copyLink(tenant.id)}
+                              onClick={() => copyLink(tenant.slug || tenant.id)}
                               className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition"
                               title="Copy Link"
                             >
-                              {copiedId === tenant.id ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
+                              {copiedId === (tenant.slug || tenant.id) ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
                             </button>
                             <a 
-                              href={`https://restokeep.vercel.app/#/${tenant.id}`} 
+                              href={`https://restokeep.vercel.app/#/${tenant.slug || tenant.id}`} 
                               target="_blank" 
                               rel="noopener noreferrer"
                               className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition"
