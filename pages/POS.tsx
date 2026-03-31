@@ -334,7 +334,7 @@ const POSCartContent = ({
 );
 
 export const POS = () => {
-  const { menu, currentTenant, currentUser, addOrder, updateOrderItems, orders, users, isLoading, categories } = useApp();
+  const { menu, currentTenant, currentUser, addOrder, updateOrderItems, orders, users, isLoading, categories, tables, addTable } = useApp();
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [cart, setCart] = useState<OrderItem[]>([]);
   const [activeCategory, setActiveCategory] = useState<string>('');
@@ -352,6 +352,8 @@ export const POS = () => {
   const [filter, setFilter] = useState<'pending' | 'done'>('pending');
   const [currentPage, setCurrentPage] = useState(1);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isAddingTableModalOpen, setIsAddingTableModalOpen] = useState(false);
+  const [newTableNameInput, setNewTableNameInput] = useState('');
 
   // Reset page when filter changes
   useEffect(() => {
@@ -769,7 +771,7 @@ export const POS = () => {
                       </div>
                       {(order.tableNumber || order.deliveryStaffName) && (
                         <div className="absolute -top-2 -right-2 bg-black text-white text-[10px] font-black px-3 py-1 rounded-full border-2 border-white shadow-lg">
-                          {order.deliveryStaffName ? `D-${order.deliveryStaffName.split(' ')[0]}` : `T-${order.tableNumber}`}
+                          {order.deliveryStaffName ? `D-${order.deliveryStaffName.split(' ')[0]}` : order.tableNumber}
                         </div>
                       )}
                     </div>
@@ -936,7 +938,7 @@ export const POS = () => {
 
         {/* POS Header */}
         <div className="p-4 md:p-8 bg-white border-b border-slate-100 shrink-0">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-6 mb-6 md:mb-8">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-6 mb-4 md:mb-6">
             <div className="flex items-start md:items-center gap-3 md:gap-6 w-full md:w-auto">
               <button 
                 onClick={() => { setSelectedOrderId(null); setIsCreatingNew(false); }}
@@ -951,76 +953,72 @@ export const POS = () => {
                     Active: {activeOrders.length}
                   </span>
                 </h2>
-                {isCreatingNew && (
-                  <div className="flex flex-wrap items-center gap-2 md:gap-8 mt-2 md:mt-2">
-                    <div className="flex items-center gap-2 md:gap-3 bg-indigo-50 px-3 md:px-4 py-1.5 md:py-2 rounded-xl md:rounded-2xl border border-indigo-100">
-                      <span className="text-[9px] md:text-[10px] text-indigo-500 font-black uppercase tracking-widest">Token:</span>
-                      <input 
-                        type="text" 
-                        value={newTokenNum}
-                        onChange={(e) => setNewTokenNum(e.target.value)}
-                        className={`w-12 md:w-16 text-center border-b-2 bg-transparent font-black text-sm md:text-lg outline-none transition-all ${isTokenDuplicate ? 'border-rose-500 text-rose-600' : 'border-indigo-500 text-indigo-900'}`}
-                      />
-                      {isTokenDuplicate && <AlertCircle className="text-rose-500" size={14} />}
-                    </div>
-                    <div className="flex items-center gap-2 md:gap-3 bg-slate-50 px-3 md:px-4 py-1.5 md:py-2 rounded-xl md:rounded-2xl border border-slate-100">
-                      <span className="text-[9px] md:text-[10px] text-slate-400 font-black uppercase tracking-widest">Table:</span>
-                      <input 
-                        type="text" 
-                        placeholder="No"
-                        value={newTableNum}
-                        onChange={(e) => setNewTableNum(e.target.value)}
-                        className="w-12 md:w-16 text-center border-b-2 bg-transparent font-black text-sm md:text-lg outline-none transition-all border-slate-900 text-slate-900"
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-            
-            <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-              <div className="relative group flex-1 md:w-64">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={14} />
-                  <input 
-                      type="text" 
-                      placeholder="Search menu..." 
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="w-full pl-11 pr-4 py-2.5 bg-white border-2 border-indigo-500 rounded-2xl text-xs font-medium focus:outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all shadow-xl shadow-indigo-100"
-                  />
-              </div>
-              
-              <div className="relative flex-1 md:hidden">
-                <select 
-                  value={activeCategory}
-                  onChange={(e) => setActiveCategory(e.target.value)}
-                  className="w-full pl-4 pr-10 py-2.5 bg-white border-2 border-black rounded-xl text-[10px] font-bold uppercase tracking-widest outline-none focus:border-indigo-500 appearance-none cursor-pointer shadow-sm"
-                >
-                  <option value="" disabled>Select Category</option>
-                  {categories.filter(c => c !== 'All').map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                </select>
-                <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 rotate-90 pointer-events-none" size={14} />
               </div>
             </div>
           </div>
 
-          <div className="hidden md:flex flex-row gap-4 overflow-x-auto pb-2 no-scrollbar items-center">
-            <div className="flex gap-2 md:gap-3 no-scrollbar">
-              {categories.filter(c => c !== 'All').map(cat => (
-                <button
-                  key={cat}
-                  onClick={() => setActiveCategory(cat)}
-                  className={`px-4 md:px-6 py-2 md:py-2.5 rounded-xl text-[9px] md:text-[10px] font-bold uppercase tracking-widest transition-all border-2 shrink-0 ${
-                    activeCategory === cat 
-                    ? 'bg-slate-900 text-white border-black shadow-xl shadow-slate-200' 
-                    : 'bg-white text-slate-900 border-black hover:bg-slate-50'
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
+          <div className={`grid grid-cols-2 ${isCreatingNew ? 'md:grid-cols-4' : 'md:grid-cols-2'} gap-3 w-full`}>
+            {isCreatingNew && (
+              <>
+                <div className="flex items-center gap-2 md:gap-3 bg-indigo-50 px-3 md:px-4 py-2 md:py-2.5 rounded-xl md:rounded-2xl border-2 border-indigo-500 w-full">
+                  <span className="text-[9px] md:text-[10px] text-indigo-500 font-black uppercase tracking-widest">Token:</span>
+                  <input 
+                    type="text" 
+                    value={newTokenNum}
+                    onChange={(e) => setNewTokenNum(e.target.value)}
+                    className={`flex-1 min-w-0 w-full text-center border-b-2 bg-transparent font-black text-sm md:text-lg outline-none transition-all ${isTokenDuplicate ? 'border-rose-500 text-rose-600' : 'border-indigo-500 text-indigo-900'}`}
+                  />
+                  {isTokenDuplicate && <AlertCircle className="text-rose-500 shrink-0" size={14} />}
+                </div>
+                <div className="flex items-center gap-2 md:gap-3 bg-slate-50 px-3 md:px-4 py-2 md:py-2.5 rounded-xl md:rounded-2xl border-2 border-slate-900 w-full">
+                  <span className="text-[9px] md:text-[10px] text-slate-400 font-black uppercase tracking-widest">Table:</span>
+                  <select 
+                    value={newTableNum}
+                    onChange={(e) => {
+                      if (e.target.value === '__ADD_NEW__') {
+                        setIsAddingTableModalOpen(true);
+                        setNewTableNum(''); // Reset temporarily while modal is open
+                      } else {
+                        setNewTableNum(e.target.value);
+                      }
+                    }}
+                    className="flex-1 min-w-0 w-full text-center bg-transparent font-black text-sm md:text-lg outline-none transition-all text-slate-900 border-b-2 border-slate-900"
+                  >
+                    <option value="" disabled>Select</option>
+                    {tables.map(t => (
+                      <option key={t.id} value={t.name}>{t.name}</option>
+                    ))}
+                    {(currentUser?.role === Role.OWNER || currentUser?.role === Role.MANAGER || currentUser?.role === Role.SUPER_ADMIN) && (
+                      <option value="__ADD_NEW__" className="font-bold text-indigo-600">+ Create New Table</option>
+                    )}
+                  </select>
+                </div>
+              </>
+            )}
+            
+            <div className="relative group w-full">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={14} />
+                <input 
+                    type="text" 
+                    placeholder="Search menu..." 
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-11 pr-4 py-2.5 md:py-3 bg-white border-2 border-indigo-500 rounded-xl md:rounded-2xl text-xs font-medium focus:outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all shadow-xl shadow-indigo-100"
+                />
+            </div>
+            
+            <div className="relative w-full">
+              <select 
+                value={activeCategory}
+                onChange={(e) => setActiveCategory(e.target.value)}
+                className="w-full pl-4 pr-10 py-2.5 md:py-3 bg-white border-2 border-black rounded-xl md:rounded-2xl text-[10px] md:text-xs font-bold uppercase tracking-widest outline-none focus:border-indigo-500 appearance-none cursor-pointer shadow-sm"
+              >
+                <option value="" disabled>Select Category</option>
+                {categories.filter(c => c !== 'All').map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+              <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 rotate-90 pointer-events-none" size={14} />
             </div>
           </div>
         </div>
@@ -1214,6 +1212,74 @@ export const POS = () => {
                 printKOT={printKOT}
                 newTokenNum={newTokenNum}
               />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Add Table Modal */}
+      <AnimatePresence>
+        {isAddingTableModalOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/60 backdrop-blur-sm"
+          >
+            <motion.div 
+              initial={{ y: 100, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 100, opacity: 0 }}
+              className="bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden"
+            >
+              <div className="p-6 sm:p-8">
+                <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-6 sm:hidden"></div>
+                <h3 className="text-xl font-black text-slate-900 mb-2">Create New Table</h3>
+                <p className="text-sm text-slate-500 mb-6">Enter a name or number for the new table.</p>
+                <input
+                  type="text"
+                  placeholder="e.g., T1, VIP-1"
+                  value={newTableNameInput}
+                  onChange={(e) => setNewTableNameInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && newTableNameInput.trim()) {
+                      const tableName = newTableNameInput.trim();
+                      addTable({ id: `tbl-${Date.now()}`, name: tableName, isActive: true });
+                      setNewTableNum(tableName);
+                      setIsAddingTableModalOpen(false);
+                      setNewTableNameInput('');
+                    }
+                  }}
+                  className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-200 rounded-xl text-base font-bold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all"
+                  autoFocus
+                />
+                <div className="flex flex-col-reverse sm:flex-row gap-3 mt-8">
+                  <button
+                    onClick={() => {
+                      setIsAddingTableModalOpen(false);
+                      setNewTableNameInput('');
+                    }}
+                    className="flex-1 px-4 py-4 sm:py-3 bg-slate-100 text-slate-700 rounded-xl text-sm font-bold hover:bg-slate-200 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (newTableNameInput.trim()) {
+                        const tableName = newTableNameInput.trim();
+                        addTable({ id: `tbl-${Date.now()}`, name: tableName, isActive: true });
+                        setNewTableNum(tableName);
+                        setIsAddingTableModalOpen(false);
+                        setNewTableNameInput('');
+                      }
+                    }}
+                    disabled={!newTableNameInput.trim()}
+                    className="flex-1 px-4 py-4 sm:py-3 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-indigo-200"
+                  >
+                    Create Table
+                  </button>
+                </div>
+              </div>
             </motion.div>
           </motion.div>
         )}

@@ -222,7 +222,7 @@ export const Kitchen = () => {
                 </div>
                 {(order.tableNumber || order.deliveryStaffName) && (
                   <div className="absolute -top-2 -right-2 bg-black text-white text-[10px] font-black px-3 py-1 rounded-full border-2 border-white shadow-lg">
-                    {order.deliveryStaffName ? `D-${order.deliveryStaffName.split(' ')[0]}` : `T-${order.tableNumber}`}
+                    {order.deliveryStaffName ? `D-${order.deliveryStaffName.split(' ')[0]}` : order.tableNumber}
                   </div>
                 )}
               </div>

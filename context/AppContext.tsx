@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
-import { Role, Business, User, Order, InventoryItem, MenuItem, OrderStatus, ItemStatus, Transaction, Expense, OrderItem, MonthlyBill, BillStatus, Recipe } from '../types';
+import { Role, Business, User, Order, InventoryItem, MenuItem, OrderStatus, ItemStatus, Transaction, Expense, OrderItem, MonthlyBill, BillStatus, Recipe, Table } from '../types';
 import { BUSINESS_DETAILS, MOCK_USERS, INITIAL_ORDERS, MOCK_INVENTORY, MOCK_MENU, MOCK_EXPENSES, DEFAULT_MENU_IMAGE, DEFAULT_AVATAR, DEFAULT_BUSINESS_LOGO } from '../constants';
 import { auth, db } from '../src/firebase';
 import { 
@@ -136,6 +136,9 @@ interface AppContextType {
   updateRecipe: (id: string, updates: Partial<Recipe>) => Promise<void>;
   deleteRecipe: (id: string) => Promise<void>;
   monthlyBills: MonthlyBill[];
+  tables: Table[];
+  addTable: (table: Omit<Table, 'tenantId'>) => Promise<void>;
+  deleteTable: (id: string) => Promise<void>;
   generateMonthlyBills: (month: string) => Promise<number>;
   approveBill: (billId: string) => Promise<void>;
   allUsers: User[];
@@ -180,6 +183,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [allExpenses, setAllExpenses] = useState<Expense[]>([]);
   const [allRecipes, setAllRecipes] = useState<Recipe[]>([]);
+  const [allTables, setAllTables] = useState<Table[]>([]);
   const [monthlyBills, setMonthlyBills] = useState<MonthlyBill[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthReady, setIsAuthReady] = useState(false);
@@ -258,7 +262,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     if (currentUser) {
       criticalCollections.push('users');
       if (!isSuperAdmin || currentTenantId) {
-        criticalCollections.push('transactions', 'expenses', 'orders', 'menu_items', 'inventory_items');
+        criticalCollections.push('transactions', 'expenses', 'orders', 'menu_items', 'inventory_items', 'tables');
       }
     }
     const loadedCollections = new Set<string>();
@@ -338,7 +342,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
           { name: 'recipes', setter: setAllRecipes },
           { name: 'orders', setter: setAllOrders },
           { name: 'menu_items', setter: setAllMenu },
-          { name: 'inventory_items', setter: setAllInventory }
+          { name: 'inventory_items', setter: setAllInventory },
+          { name: 'tables', setter: setAllTables }
         );
       }
     }
@@ -505,6 +510,34 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     const targetId = business.id;
     return allRecipes.filter(r => String(r.tenantId || '01') === String(targetId));
   }, [allRecipes, business.id]);
+
+  const tables = useMemo(() => {
+    const targetId = business.id;
+    return allTables.filter(t => String(t.tenantId || '01') === String(targetId));
+  }, [allTables, business.id]);
+
+  const addTable = async (table: Omit<Table, 'tenantId'>) => {
+    const tenantId = resolvedTenantId || '';
+    const newTable = { ...table, tenantId } as Table;
+    try {
+      await setDoc(doc(db, 'tables', newTable.id), cleanObject({
+        ...newTable,
+        createdAt: serverTimestamp()
+      }));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, 'tables');
+      throw error;
+    }
+  };
+
+  const deleteTable = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'tables', id));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `tables/${id}`);
+      throw error;
+    }
+  };
 
 
   const loginWithGoogle = async () => {
@@ -1615,7 +1648,10 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       activeCategory,
       setActiveCategory,
       categories,
-      dbStatus
+      dbStatus,
+      tables,
+      addTable,
+      deleteTable
     }}>
       {children}
     </AppContext.Provider>
