@@ -337,7 +337,7 @@ export const POS = () => {
   const { menu, currentTenant, currentUser, addOrder, updateOrderItems, orders, users, isLoading, categories } = useApp();
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [cart, setCart] = useState<OrderItem[]>([]);
-  const [activeCategory, setActiveCategory] = useState<string>('All');
+  const [activeCategory, setActiveCategory] = useState<string>('');
   const [orderNote, setOrderNote] = useState('');
   const [isNoteEditable, setIsNoteEditable] = useState(true);
   const [isCreatingNew, setIsCreatingNew] = useState(false);
@@ -350,7 +350,13 @@ export const POS = () => {
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [filter, setFilter] = useState<'pending' | 'done'>('pending');
+  const [currentPage, setCurrentPage] = useState(1);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Reset page when filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filter]);
 
   if (isLoading || !currentTenant || !currentUser) {
     return (
@@ -411,6 +417,10 @@ export const POS = () => {
   const activeOrdersTotal = useMemo(() => {
     return activeOrders.reduce((sum, order) => sum + order.totalAmount, 0);
   }, [activeOrders]);
+
+  const itemsPerPage = 5;
+  const totalPages = Math.ceil(activeOrders.length / itemsPerPage);
+  const paginatedOrders = activeOrders.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const getWaiterName = (userId: string) => {
     const user = users.find(u => u.id === userId);
@@ -615,8 +625,9 @@ export const POS = () => {
   };
 
   const filteredMenu = useMemo(() => {
+    if (!activeCategory) return [];
     return menu.filter(m => {
-      const matchesCategory = activeCategory === 'All' || m.category === activeCategory;
+      const matchesCategory = m.category === activeCategory;
       const matchesSearch = m.name.toLowerCase().includes(searchTerm.toLowerCase());
       return matchesCategory && matchesSearch;
     });
@@ -724,9 +735,9 @@ export const POS = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-6 pb-12">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-6 pb-6">
           <AnimatePresence mode="popLayout">
-            {activeOrders.map(order => {
+            {paginatedOrders.map(order => {
               const pendingCount = order.items.filter(i => i.status === OrderStatus.PENDING).reduce((acc, i) => acc + i.quantity, 0);
               const preparingCount = order.items.filter(i => i.status === OrderStatus.PREPARING).reduce((acc, i) => acc + i.quantity, 0);
               const readyCount = order.items.filter(i => i.status === OrderStatus.READY).reduce((acc, i) => acc + i.quantity, 0);
@@ -860,6 +871,29 @@ export const POS = () => {
             </div>
           )}
         </div>
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center gap-4 pb-12">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="px-4 py-2 bg-white border-2 border-slate-200 rounded-xl text-xs font-black uppercase tracking-widest text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition-all"
+            >
+              Previous
+            </button>
+            <span className="text-xs font-black text-slate-500 uppercase tracking-widest">
+              Page {currentPage} of {totalPages}
+            </span>
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="px-4 py-2 bg-white border-2 border-slate-200 rounded-xl text-xs font-black uppercase tracking-widest text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition-all"
+            >
+              Next
+            </button>
+          </div>
+        )}
       </div>
     );
   }
@@ -963,7 +997,7 @@ export const POS = () => {
                   className="w-full pl-4 pr-10 py-2.5 bg-white border-2 border-black rounded-xl text-[10px] font-bold uppercase tracking-widest outline-none focus:border-indigo-500 appearance-none cursor-pointer shadow-sm"
                 >
                   <option value="" disabled>Select Category</option>
-                  {categories.map(cat => (
+                  {categories.filter(c => c !== 'All').map(cat => (
                     <option key={cat} value={cat}>{cat}</option>
                   ))}
                 </select>
@@ -974,7 +1008,7 @@ export const POS = () => {
 
           <div className="hidden md:flex flex-row gap-4 overflow-x-auto pb-2 no-scrollbar items-center">
             <div className="flex gap-2 md:gap-3 no-scrollbar">
-              {categories.map(cat => (
+              {categories.filter(c => c !== 'All').map(cat => (
                 <button
                   key={cat}
                   onClick={() => setActiveCategory(cat)}
@@ -1031,7 +1065,9 @@ export const POS = () => {
           {filteredMenu.length === 0 && (
             <div className="h-full flex flex-col items-center justify-center text-slate-300 py-20">
                 <Search size={64} strokeWidth={1} className="mb-4 opacity-20" />
-                <p className="text-sm font-medium uppercase tracking-widest opacity-40">No items found</p>
+                <p className="text-sm font-medium uppercase tracking-widest opacity-40">
+                  {!activeCategory ? 'Select a category to view items' : 'No items found'}
+                </p>
             </div>
           )}
 

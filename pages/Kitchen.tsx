@@ -8,11 +8,17 @@ import { BluetoothPrinterService } from '../services/printerService';
 export const Kitchen = () => {
   const { orders, updateOrderStatus, updateOrderItemStatus, currentTenant, currentUser, users, menu, updateOrderItems } = useApp();
   const [filter, setFilter] = React.useState<'pending' | 'done'>('pending');
+  const [currentPage, setCurrentPage] = useState(1);
   const [showAddItemModal, setShowAddItemModal] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [error, setError] = useState<string | null>(null);
+
+  // Reset page when filter changes
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [filter]);
 
   const activeOrders = useMemo(() => {
     let filtered = orders.filter(o => o.status !== OrderStatus.CANCELLED);
@@ -140,6 +146,10 @@ export const Kitchen = () => {
     );
   }, [menu, searchTerm]);
 
+  const itemsPerPage = 5;
+  const totalPages = Math.ceil(activeOrders.length / itemsPerPage);
+  const paginatedOrders = activeOrders.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
   return (
     <div className="p-4 md:p-10 h-full overflow-y-auto bg-slate-50/50 no-scrollbar">
       <div className="mb-8 md:mb-12 flex flex-col items-start gap-6">
@@ -182,7 +192,7 @@ export const Kitchen = () => {
                 <h3 className="text-xl font-bold text-slate-400 uppercase tracking-widest">Kitchen Clear</h3>
                 <p className="text-sm text-slate-400 mt-2">No {filter} orders at the moment.</p>
             </div>
-        ) : activeOrders.map(order => {
+        ) : paginatedOrders.map(order => {
           const targetStatus = nextStatus(order.status);
           const isAdmin = currentUser?.role === Role.OWNER || currentUser?.role === Role.MANAGER || currentUser?.role === Role.SUPER_ADMIN;
           const isKitchen = currentUser?.role === Role.KITCHEN;
@@ -361,6 +371,29 @@ export const Kitchen = () => {
           </div>
         )})}
       </div>
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-4 mt-8 pb-4">
+          <button
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="px-4 py-2 bg-white border-2 border-slate-200 rounded-xl text-xs font-black uppercase tracking-widest text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition-all"
+          >
+            Previous
+          </button>
+          <span className="text-xs font-black text-slate-500 uppercase tracking-widest">
+            Page {currentPage} of {totalPages}
+          </span>
+          <button
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="px-4 py-2 bg-white border-2 border-slate-200 rounded-xl text-xs font-black uppercase tracking-widest text-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-slate-50 transition-all"
+          >
+            Next
+          </button>
+        </div>
+      )}
 
       {/* Add Item Modal */}
       {showAddItemModal && (
