@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { auth, db } from './src/firebase';
-import { HashRouter as Router, Routes, Route, Navigate, NavLink, useLocation, useParams, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, NavLink, useLocation, useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AppProvider, useApp } from './context/AppContext';
 import { Login } from './pages/Login';
@@ -351,7 +351,7 @@ const ProtectedLayout = ({ children, allowedRoles }: { children?: React.ReactNod
           <p className="text-sm text-indigo-600 font-medium">support@portal.com</p>
         </div>
         <button 
-          onClick={() => window.location.href = tenantId ? `/#/login?tenantId=${tenantId}` : '/#/login'}
+          onClick={() => window.location.href = tenantId ? `/login?tenantId=${tenantId}` : '/login'}
           className="bg-black text-white px-8 py-3 rounded-xl font-bold uppercase tracking-widest text-xs"
         >
           Sign Out

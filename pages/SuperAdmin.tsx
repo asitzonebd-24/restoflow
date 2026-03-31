@@ -25,7 +25,7 @@ export const SuperAdmin = () => {
   const CURRENCIES = ['৳', '$', '€', '£', '₹', '₨', 'AED', 'SAR', 'QAR', 'OMR', 'BHD', 'KWD'];
 
   const copyLink = (id: string) => {
-    const link = `${window.location.origin}/#/${id}`;
+    const link = `${window.location.origin}/${id}`;
     navigator.clipboard.writeText(link);
     setCopiedId(id);
     toast.success('Link copied to clipboard!');
@@ -267,7 +267,7 @@ export const SuperAdmin = () => {
                         <div className="flex flex-col gap-1">
                           <div className="flex items-center gap-2">
                             <code className="text-[10px] font-mono bg-slate-100 px-2 py-1 rounded text-slate-600 border border-slate-200">
-                              restokeep.vercel.app/#/${tenant.slug || tenant.id}
+                              restokeep.vercel.app/${tenant.slug || tenant.id}
                             </code>
                             <button 
                               onClick={() => copyLink(tenant.slug || tenant.id)}
@@ -277,7 +277,7 @@ export const SuperAdmin = () => {
                               {copiedId === (tenant.slug || tenant.id) ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
                             </button>
                             <a 
-                              href={`https://restokeep.vercel.app/#/${tenant.slug || tenant.id}`} 
+                              href={`https://restokeep.vercel.app/${tenant.slug || tenant.id}`} 
                               target="_blank" 
                               rel="noopener noreferrer"
                               className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition"
