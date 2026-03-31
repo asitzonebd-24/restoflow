@@ -1,107 +1,76 @@
-// ===============================================================
-// Assumed Data Model
-// ===============================================================
-//
-// Collection: tenants
-// Fields: id, name, logo, address, mobile, email, isActive, createdAt, etc.
-//
-// Collection: users
-// Fields: id, name, email, mobile, password, role, tenantId, permissions, etc.
-//
-// Collection: orders
-// Fields: id, tenantId, items, totalAmount, status, createdAt, etc.
-//
-// Collection: menu_items
-// Fields: id, tenantId, name, category, price, stock, etc.
-//
-// Collection: inventory_items
-// Fields: id, tenantId, name, quantity, unit, etc.
-//
-// Collection: transactions
-// Fields: id, tenantId, amount, type, date, etc.
-//
-// Collection: expenses
-// Fields: id, tenantId, amount, category, date, etc.
-//
-// Collection: recipes
-// Fields: id, tenantId, menuItemId, ingredients, etc.
-//
-// Collection: monthly_bills
-// Fields: id, tenantId, month, amount, status, createdAt, etc.
-//
-// ===============================================================
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
+    
     // ===============================================================
     // Helper Functions
     // ===============================================================
-
+    
     function isAuthenticated() {
       return request.auth != null;
     }
-
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
     function isAdmin() {
-      return isAuthenticated() &&
+      return isAuthenticated() && 
         (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'super_admin' ||
          (request.auth.token.email == "asitzonebd@gmail.com" && request.auth.token.email_verified == true));
     }
 
-    function isSuperAdmin() {
-      return isAuthenticated() &&
-        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'super_admin' ||
-         (request.auth.token.email == "asitzonebd@gmail.com" && request.auth.token.email_verified == true));
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
     }
 
-    function isTenantUser(tenantId) {
-      return isAuthenticated() && 
-        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tenantId == tenantId || isSuperAdmin());
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
     }
 
     // ===============================================================
-    // Match Rules
+    // Collection Rules
     // ===============================================================
 
-    // Tenants
+    // Tenants / Businesses
     match /tenants/{tenantId} {
       allow read: if true; // Publicly readable for landing pages
-      allow write: if isSuperAdmin();
+      allow create, update: if isAdmin();
+      allow delete: if isAdmin();
     }
 
     // Users
     match /users/{userId} {
       allow read: if isAuthenticated();
-      allow create: if isSuperAdmin() || (isAuthenticated() && request.resource.data.role == 'client');
-      allow update: if isAuthenticated() && (request.auth.uid == userId || isSuperAdmin());
-      allow delete: if isSuperAdmin();
+      allow create: if isAuthenticated() && (isOwner(userId) || isAdmin());
+      allow update: if isAuthenticated() && (isOwner(userId) || isAdmin());
+      allow delete: if isAdmin();
     }
 
-    // Orders, Menu, Inventory, Transactions, Expenses, Recipes, Monthly Bills
-    match /{collectionName}/{docId} {
-      allow read: if collectionName in ['orders', 'menu_items', 'inventory_items', 'transactions', 'expenses', 'recipes', 'monthly_bills'] && 
-                     (isSuperAdmin() || (isAuthenticated() && resource.data.tenantId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tenantId));
-      
-      allow create: if collectionName in ['orders', 'menu_items', 'inventory_items', 'transactions', 'expenses', 'recipes', 'monthly_bills'] && 
-                      (isSuperAdmin() || (isAuthenticated() && request.resource.data.tenantId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tenantId));
-      
-      allow update: if collectionName in ['orders', 'menu_items', 'inventory_items', 'transactions', 'expenses', 'recipes', 'monthly_bills'] && 
-                      (isSuperAdmin() || (isAuthenticated() && resource.data.tenantId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tenantId));
-      
-      allow delete: if collectionName in ['orders', 'menu_items', 'inventory_items', 'transactions', 'expenses', 'recipes', 'monthly_bills'] && 
-                      isSuperAdmin();
+    // Orders
+    match /orders/{orderId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAdmin();
     }
 
-    // Test collection
-    match /test/{docId} {
+    // Menu Items
+    match /menu_items/{itemId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+
+    // Inventory Items
+    match /inventory_items/{itemId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+
+    // Test Connection
+    match /test_connection/{docId} {
       allow read, write: if true;
-    }
-
-    // Default deny
-    match /{document=**} {
-      allow read, write: if false;
     }
   }
 }

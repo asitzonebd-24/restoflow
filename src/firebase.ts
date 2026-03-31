@@ -4,9 +4,9 @@ import { getFirestore, collection, doc, setDoc, getDoc, addDoc, updateDoc, delet
 import firebaseConfig from '../firebase-applet-config.json';
 
 // Initialize Firebase
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = getFirestore(app, (firebaseConfig as any).firestoreDatabaseId);
+export const db = getFirestore(app, "restokeep-db");
 export const googleProvider = new GoogleAuthProvider();
 
 // Auth functions
@@ -69,9 +69,12 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
 async function testConnection() {
   try {
     await getDocFromServer(doc(db, 'test', 'connection'));
+    console.log('Firestore connection test successful.');
   } catch (error) {
     if(error instanceof Error && error.message.includes('the client is offline')) {
-      console.error("Please check your Firebase configuration. ");
+      console.error("Please check your Firebase configuration. The client is offline.");
+    } else {
+      console.error("Firestore connection test failed with error:", error);
     }
   }
 }

@@ -2,6 +2,10 @@
 import React, { useState } from 'react';
 import { X, Mail, Lock, User, Phone, ArrowRight, Loader2, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { auth, db } from '../firebase';
+import { Role } from '../../types';
 
 interface RegistrationModalProps {
   isOpen: boolean;
@@ -33,18 +37,42 @@ export const RegistrationModal: React.FC<RegistrationModalProps> = ({ isOpen, on
       return;
     }
 
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+
     setIsLoading(true);
-    // Simulate API call
     try {
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // 1. Create user in Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
+      const user = userCredential.user;
+
+      // 2. Update profile with name
+      await updateProfile(user, {
+        displayName: formData.name
+      });
+
+      // 3. Create user document in Firestore
+      // By default, new registrations are 'CUSTOMER' role
+      await setDoc(doc(db, 'users', user.uid), {
+        name: formData.name,
+        email: formData.email,
+        mobile: formData.phone,
+        role: Role.CUSTOMER,
+        createdAt: serverTimestamp(),
+        permissions: ['Dashboard', 'POS', 'Orders'] // Default customer permissions
+      });
+
       setIsSuccess(true);
       setTimeout(() => {
         onClose();
         setIsSuccess(false);
         setFormData({ name: '', email: '', phone: '', password: '', confirmPassword: '' });
       }, 2000);
-    } catch (err) {
-      setError('Registration failed. Please try again.');
+    } catch (err: any) {
+      console.error('Registration error:', err);
+      setError(err.message || 'Registration failed. Please try again.');
     } finally {
       setIsLoading(false);
     }

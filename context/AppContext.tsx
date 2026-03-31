@@ -197,7 +197,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
   useEffect(() => {
     // Listen for auth state changes to sync with Firebase Auth
-    const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser) => {
+    const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       setIsAuthReady(true);
       if (firebaseUser) {
         // If the user is the Super Admin email, ensure they have the role
@@ -214,9 +214,21 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
           setCurrentUser(superAdminUser);
           localStorage.setItem('resto_keep_user', JSON.stringify(superAdminUser));
         } else {
-          // For other users, we rely on the Firestore 'users' collection
-          // which is fetched in the main data useEffect
+          // For other users, we try to get their document from Firestore
+          try {
+            const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+            if (userDoc.exists()) {
+              const userData = { id: userDoc.id, ...convertFirestoreData(userDoc.data()) } as User;
+              setCurrentUser(userData);
+              localStorage.setItem('resto_keep_user', JSON.stringify(userData));
+            }
+          } catch (error) {
+            console.error('Error fetching user document:', error);
+          }
         }
+      } else {
+        setCurrentUser(null);
+        localStorage.removeItem('resto_keep_user');
       }
     });
 
@@ -265,6 +277,9 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     // A. Fetch Tenants (Filtered for regular users to save quota)
     let tenantsQuery = query(collection(db, 'tenants'), limit(100));
     if (!isSuperAdmin && effectiveTenantId) {
+      // Use getDoc for a single tenant instead of a query if possible
+      // But we are using onSnapshot on a query here.
+      // Note: effectiveTenantId is the document ID, so we should filter by it correctly
       tenantsQuery = query(collection(db, 'tenants'), where('id', '==', effectiveTenantId), limit(1));
     } else if (!isSuperAdmin && !effectiveTenantId) {
       // If not logged in and no tenant context, we don't need all tenants
@@ -273,6 +288,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
     const unsubTenants = onSnapshot(tenantsQuery, (snapshot) => {
       const tenantsData = snapshot.docs.map(doc => ({ id: doc.id, ...convertFirestoreData(doc.data()) })) as Business[];
+      console.log('Fetched tenants count:', tenantsData.length);
       if (!tenantsData.some(t => String(t.id) === '01')) {
         // Only add default if it's not already there and we are looking at all or '01'
         if (isSuperAdmin || !effectiveTenantId || effectiveTenantId === '01') {
@@ -283,6 +299,11 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       checkLoadingState('tenants');
     }, (error) => {
       console.error('Error fetching tenants:', error);
+      try {
+        handleFirestoreError(error, OperationType.GET, 'tenants');
+      } catch (e) {
+        // Logged
+      }
       setTenants([BUSINESS_DETAILS]);
       checkLoadingState('tenants');
     });
@@ -291,7 +312,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     // B. Data Listeners
     const collections: { name: string, setter: (data: any) => void }[] = [];
 
-    if (currentUser) {
+    // Only start these listeners if we have a real authenticated user in Firebase
+    if (auth.currentUser && currentUser) {
       collections.push({ name: 'users', setter: setAllUsers });
       collections.push({ name: 'monthly_bills', setter: setMonthlyBills });
 
@@ -336,6 +358,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
         const unsub = onSnapshot(q, (snapshot) => {
           let data = snapshot.docs.map(doc => ({ id: doc.id, ...convertFirestoreData(doc.data()) }));
+          console.log(`Fetched ${name} count:`, data.length);
 
           // Client-side sorting for consistency
           if (['transactions', 'expenses', 'orders', 'monthly_bills'].includes(name)) {
@@ -363,6 +386,11 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
           // Only log if it's not a quota error (already handled by ErrorBoundary)
           if (!error.message.includes('Quota exceeded')) {
             console.error(`Error in real-time listener for ${name}:`, error);
+            try {
+              handleFirestoreError(error, OperationType.GET, name);
+            } catch (e) {
+              // Logged
+            }
           }
           
           // Fallback to mock data if necessary
