@@ -21,10 +21,10 @@ export const Login = () => {
     }
   }, [tenantId, setCurrentTenantId]);
 
-  const handleStaffSubmit = (e: React.FormEvent) => {
+  const handleStaffSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setStaffError('');
-    const success = login(email, password, tenantId);
+    const success = await login(email, password, tenantId);
     if (success) {
       navigate('/');
     } else {

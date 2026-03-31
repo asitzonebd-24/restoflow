@@ -1,10 +1,10 @@
 {
-  "projectId": "gen-lang-client-0227560547",
-  "appId": "1:993732460254:web:b5e325ea8958485d940c4f",
-  "apiKey": "AIzaSyDPKSYnJ2j01QVpI7hy7MXipaazsyFT2DA",
-  "authDomain": "gen-lang-client-0227560547.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-f863f592-fea4-49e5-a47c-0898c313ac35",
-  "storageBucket": "gen-lang-client-0227560547.firebasestorage.app",
-  "messagingSenderId": "993732460254",
-  "measurementId": ""
+  "apiKey": "AIzaSyDq_z1PGwFkbaWp8gzBMJusSvwerXAad8I",
+  "authDomain": "restokeepsaas.firebaseapp.com",
+  "projectId": "restokeepsaas",
+  "storageBucket": "restokeepsaas.firebasestorage.app",
+  "messagingSenderId": "757334125938",
+  "appId": "1:757334125938:web:27946498b6e7f2054e01eb",
+  "measurementId": "G-GMJB8WMSN9",
+  "firestoreDatabaseId": "(default)"
 }

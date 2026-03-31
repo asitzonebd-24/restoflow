@@ -56,7 +56,7 @@ export const CustomerAuth = () => {
         navigate(`/${tenantId}/order`);
       } else {
         // Try to login with email or mobile
-        const success = login(formData.email || formData.mobile, formData.password, tenantId);
+        const success = await login(formData.email || formData.mobile, formData.password, tenantId);
         if (success) {
           navigate(`/${tenantId}/order`);
         } else {

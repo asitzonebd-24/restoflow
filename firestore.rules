@@ -1,8 +1,130 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if true;
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "asitzonebd@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isStaff(tenantId) {
+      return isAuthenticated() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tenantId == tenantId;
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidUrl(url) {
+      return url is string && (url.matches("^https://.*") || url.matches("^http://.*"));
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+    function isValidTenant(data) {
+      return hasRequiredFields(['id', 'name']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100;
+    }
+
+    function isValidUser(data) {
+      return hasRequiredFields(['id', 'name', 'email', 'password', 'role']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             isValidEmail(data.email) &&
+             data.role in ['admin', 'manager', 'staff', 'customer'];
+    }
+
+    function isValidMenuItem(data) {
+      return hasRequiredFields(['id', 'tenantId', 'name', 'price', 'category']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.price is number && data.price >= 0;
+    }
+
+    function isValidOrder(data) {
+      return hasRequiredFields(['id', 'tenantId', 'items', 'status', 'totalAmount']) &&
+             data.items is list && data.items.size() > 0 &&
+             data.status in ['PENDING', 'PREPARING', 'READY', 'COMPLETED', 'CANCELLED'] &&
+             data.totalAmount is number && data.totalAmount >= 0;
+    }
+
+    function isValidTransaction(data) {
+      return hasRequiredFields(['id', 'tenantId', 'amount', 'method', 'type']) &&
+             data.amount is number && data.amount >= 0 &&
+             data.type in ['SALE', 'REFUND', 'EXPENSE'];
+    }
+
+    // ===============================================================
+    // Collection Rules
+    // ===============================================================
+
+    match /tenants/{tenantId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (isOwner(userId) || isAdmin());
+      allow create: if isAuthenticated() && isValidUser(request.resource.data) && (isOwner(userId) || isAdmin());
+      allow update: if isAuthenticated() && isValidUser(request.resource.data) && (isOwner(userId) || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    match /menu_items/{itemId} {
+      allow read: if true; // Publicly readable for customer app
+      allow write: if isAuthenticated() && (isStaff(request.resource.data.tenantId) || isAdmin());
+    }
+
+    match /inventory_items/{itemId} {
+      allow read: if isAuthenticated() && (isStaff(resource.data.tenantId) || isAdmin());
+      allow write: if isAuthenticated() && (isStaff(request.resource.data.tenantId) || isAdmin());
+    }
+
+    match /orders/{orderId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidOrder(request.resource.data);
+      allow update: if isAuthenticated() && isValidOrder(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /transactions/{transactionId} {
+      allow read: if isAuthenticated() && (isStaff(resource.data.tenantId) || isAdmin());
+      allow create: if isAuthenticated() && isValidTransaction(request.resource.data);
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /expenses/{expenseId} {
+      allow read: if isAuthenticated() && (isStaff(resource.data.tenantId) || isAdmin());
+      allow write: if isAuthenticated() && (isStaff(request.resource.data.tenantId) || isAdmin());
+    }
+
+    match /monthly_bills/{billId} {
+      allow read: if isAuthenticated() && (isStaff(resource.data.tenantId) || isAdmin());
+      allow write: if isAdmin();
+    }
+
+    match /recipes/{recipeId} {
+      allow read: if isAuthenticated() && (isStaff(resource.data.tenantId) || isAdmin());
+      allow write: if isAuthenticated() && (isStaff(request.resource.data.tenantId) || isAdmin());
     }
   }
 }

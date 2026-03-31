@@ -74,7 +74,7 @@ interface AppContextType {
   orders: Order[];
   inventory: InventoryItem[];
   menu: MenuItem[];
-  login: (emailOrMobile: string, password: string, tenantId?: string | null) => boolean;
+  login: (emailOrMobile: string, password: string, tenantId?: string | null) => Promise<boolean>;
   logout: () => Promise<void>;
   addOrder: (order: Omit<Order, 'tenantId'>) => Promise<void>;
   updateOrderItems: (
@@ -231,9 +231,15 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     if (!isAuthReady) return;
 
     const unsubscribers: (() => void)[] = [];
-    const criticalCollections = ['tenants', 'users'];
-    if (currentUser || currentTenantId) {
-      criticalCollections.push('transactions', 'expenses', 'orders', 'menu_items', 'inventory_items');
+    const isSuperAdmin = currentUser?.role === Role.SUPER_ADMIN;
+    const effectiveTenantId = currentUser?.tenantId || currentTenantId;
+
+    const criticalCollections = ['tenants'];
+    if (currentUser) {
+      criticalCollections.push('users');
+      if (!isSuperAdmin || currentTenantId) {
+        criticalCollections.push('transactions', 'expenses', 'orders', 'menu_items', 'inventory_items');
+      }
     }
     const loadedCollections = new Set<string>();
 
@@ -244,11 +250,22 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       }
     };
 
-    // A. Fetch Tenants (Publicly accessible)
-    const unsubTenants = onSnapshot(collection(db, 'tenants'), (snapshot) => {
+    // A. Fetch Tenants (Filtered for regular users to save quota)
+    let tenantsQuery = query(collection(db, 'tenants'), limit(100));
+    if (!isSuperAdmin && effectiveTenantId) {
+      tenantsQuery = query(collection(db, 'tenants'), where('id', '==', effectiveTenantId), limit(1));
+    } else if (!isSuperAdmin && !effectiveTenantId) {
+      // If not logged in and no tenant context, we don't need all tenants
+      tenantsQuery = query(collection(db, 'tenants'), limit(10));
+    }
+
+    const unsubTenants = onSnapshot(tenantsQuery, (snapshot) => {
       const tenantsData = snapshot.docs.map(doc => ({ id: doc.id, ...convertFirestoreData(doc.data()) })) as Business[];
       if (!tenantsData.some(t => String(t.id) === '01')) {
-        tenantsData.unshift(BUSINESS_DETAILS);
+        // Only add default if it's not already there and we are looking at all or '01'
+        if (isSuperAdmin || !effectiveTenantId || effectiveTenantId === '01') {
+          tenantsData.unshift(BUSINESS_DETAILS);
+        }
       }
       setTenants(tenantsData);
       checkLoadingState('tenants');
@@ -260,49 +277,48 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     unsubscribers.push(unsubTenants);
 
     // B. Data Listeners
-    const effectiveTenantId = currentUser?.tenantId || currentTenantId;
-    const isSuperAdmin = currentUser?.role === Role.SUPER_ADMIN;
+    const collections: { name: string, setter: (data: any) => void }[] = [];
 
-    const collections = [
-      { name: 'users', setter: setAllUsers }
-    ];
+    if (currentUser) {
+      collections.push({ name: 'users', setter: setAllUsers });
+      collections.push({ name: 'monthly_bills', setter: setMonthlyBills });
 
-    if (currentUser || currentTenantId) {
-      collections.push(
-        { name: 'transactions', setter: setAllTransactions },
-        { name: 'expenses', setter: setAllExpenses },
-        { name: 'recipes', setter: setAllRecipes },
-        { name: 'monthly_bills', setter: setMonthlyBills },
-        { name: 'orders', setter: setAllOrders },
-        { name: 'menu_items', setter: setAllMenu },
-        { name: 'inventory_items', setter: setAllInventory }
-      );
+      if (!isSuperAdmin || currentTenantId) {
+        collections.push(
+          { name: 'transactions', setter: setAllTransactions },
+          { name: 'expenses', setter: setAllExpenses },
+          { name: 'recipes', setter: setAllRecipes },
+          { name: 'orders', setter: setAllOrders },
+          { name: 'menu_items', setter: setAllMenu },
+          { name: 'inventory_items', setter: setAllInventory }
+        );
+      }
     }
 
     collections.forEach(({ name, setter }) => {
-        let q = query(collection(db, name));
+        let q = query(collection(db, name), limit(100));
 
         // Apply tenant filtering if not super admin
         if (!isSuperAdmin && effectiveTenantId) {
-          q = query(collection(db, name), where('tenantId', '==', effectiveTenantId));
+          q = query(collection(db, name), where('tenantId', '==', effectiveTenantId), limit(100));
         }
 
         // Special handling for orders (limit to active ones for performance)
         if (name === 'orders') {
           const activeStatuses = [OrderStatus.PENDING, OrderStatus.PREPARING, OrderStatus.READY];
           if (!isSuperAdmin && effectiveTenantId) {
-            q = query(collection(db, name), where('tenantId', '==', effectiveTenantId), where('status', 'in', activeStatuses), limit(100));
+            q = query(collection(db, name), where('tenantId', '==', effectiveTenantId), where('status', 'in', activeStatuses), limit(50));
           } else {
-            q = query(collection(db, name), where('status', 'in', activeStatuses), limit(100));
+            q = query(collection(db, name), where('status', 'in', activeStatuses), limit(50));
           }
         }
 
         // Apply limit for large collections
-        if (['transactions', 'expenses'].includes(name)) {
+        if (['transactions', 'expenses', 'monthly_bills', 'recipes', 'menu_items', 'inventory_items'].includes(name)) {
           if (!isSuperAdmin && effectiveTenantId) {
-            q = query(collection(db, name), where('tenantId', '==', effectiveTenantId), limit(100));
+            q = query(collection(db, name), where('tenantId', '==', effectiveTenantId), limit(50));
           } else {
-            q = query(collection(db, name), limit(100));
+            q = query(collection(db, name), limit(50));
           }
         }
 
@@ -332,7 +348,11 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             checkLoadingState(name);
           }
         }, (error) => {
-          console.error(`Error in real-time listener for ${name}:`, error);
+          // Only log if it's not a quota error (already handled by ErrorBoundary)
+          if (!error.message.includes('Quota exceeded')) {
+            console.error(`Error in real-time listener for ${name}:`, error);
+          }
+          
           // Fallback to mock data if necessary
           if (name === 'users') setter(ENHANCED_MOCK_USERS as any);
           if (name === 'expenses') setter(MOCK_EXPENSES as any);
@@ -423,30 +443,60 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   }, [allRecipes, business.id]);
 
 
-  const login = (emailOrMobile: string, password: string, tenantId?: string | null): boolean => {
-    const user = allUsers.find(u => 
-      ((u.email?.toLowerCase() || '') === emailOrMobile.toLowerCase() || u.mobile === emailOrMobile) && 
-      u.password === password
-    );
-    
-    if (user) {
-      // If a specific tenantId is provided in the URL, verify the user belongs to it
-      // (Unless they are a SUPER_ADMIN who can access any tenant)
-      if (tenantId && user.tenantId && String(user.tenantId) !== String(tenantId) && user.role !== Role.SUPER_ADMIN) {
-        return false;
+  const login = async (emailOrMobile: string, password: string, tenantId?: string | null): Promise<boolean> => {
+    setIsLoading(true);
+    try {
+      // 1. Try to find in current loaded users (might be empty if not logged in)
+      let user = allUsers.find(u => 
+        ((u.email?.toLowerCase() || '') === emailOrMobile.toLowerCase() || u.mobile === emailOrMobile) && 
+        u.password === password
+      );
+      
+      // 2. If not found, try direct Firestore query (more efficient than fetching all users)
+      if (!user) {
+        const usersRef = collection(db, 'users');
+        
+        // Try email query
+        const qEmail = query(usersRef, where('email', '==', emailOrMobile.toLowerCase()), where('password', '==', password));
+        const snapshotEmail = await getDocs(qEmail);
+        
+        if (!snapshotEmail.empty) {
+          user = { id: snapshotEmail.docs[0].id, ...convertFirestoreData(snapshotEmail.docs[0].data()) } as User;
+        } else {
+          // Try mobile query
+          const qMobile = query(usersRef, where('mobile', '==', emailOrMobile), where('password', '==', password));
+          const snapshotMobile = await getDocs(qMobile);
+          if (!snapshotMobile.empty) {
+            user = { id: snapshotMobile.docs[0].id, ...convertFirestoreData(snapshotMobile.docs[0].data()) } as User;
+          }
+        }
       }
       
-      // If they are logging in from the main portal (no tenantId), 
-      // they must either be a SUPER_ADMIN OR have a tenantId (business user)
-      if (!tenantId && user.role !== Role.SUPER_ADMIN && !user.tenantId) {
-        return false;
-      }
+      if (user) {
+        // If a specific tenantId is provided in the URL, verify the user belongs to it
+        if (tenantId && user.tenantId && String(user.tenantId) !== String(tenantId) && user.role !== Role.SUPER_ADMIN) {
+          setIsLoading(false);
+          return false;
+        }
+        
+        if (!tenantId && user.role !== Role.SUPER_ADMIN && !user.tenantId) {
+          setIsLoading(false);
+          return false;
+        }
 
-      setCurrentUser(user);
-      localStorage.setItem('resto_keep_user', JSON.stringify(user));
-      return true;
+        setCurrentUser(user);
+        localStorage.setItem('resto_keep_user', JSON.stringify(user));
+        // Note: setIsLoading(false) will be handled by the useEffect listeners once data is fetched
+        return true;
+      }
+      
+      setIsLoading(false);
+      return false;
+    } catch (error) {
+      console.error('Login error:', error);
+      setIsLoading(false);
+      return false;
     }
-    return false;
   };
 
   const logout = async () => {

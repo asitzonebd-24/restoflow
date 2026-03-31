@@ -530,7 +530,7 @@ export const POS = () => {
       if (isCreatingNew) {
         if (isTokenDuplicate) {
           console.log('Token is duplicate, aborting');
-          alert('This token number is already in use for an active order. Please use a different token.');
+          setErrorMessage('This token number is already in use for an active order. Please use a different token.');
           setIsSubmitting(false);
           return;
         }
@@ -561,7 +561,10 @@ export const POS = () => {
         // Auto-print KOT if enabled
         if (currentTenant?.printerSettings?.autoPrintKOT) {
           setTimeout(() => {
-            printKOT();
+            printKOT().catch(err => {
+              console.error('Auto-print KOT failed:', err);
+              setErrorMessage('Auto-print KOT failed. Please check printer connection.');
+            });
           }, 500);
         }
       } else if (selectedOrderId) {
@@ -638,7 +641,7 @@ export const POS = () => {
           await BluetoothPrinterService.printKOT(currentTenant, orderData as any);
           return; // Skip system print if bluetooth worked
         } else if (result.error === 'failed') {
-          alert('Bluetooth printer connection failed. Please check if the printer is on and paired.');
+          setErrorMessage('Bluetooth printer connection failed. Please check if the printer is on and paired.');
         }
       } catch (error) {
         console.error('Bluetooth KOT print failed, falling back to system print:', error);
@@ -820,14 +823,14 @@ export const POS = () => {
                                       creatorName: getWaiterName(order.createdBy)
                                     });
                                   } else {
-                                    alert('Bluetooth printer connection failed. Please check if the printer is on and paired.');
+                                    setErrorMessage('Bluetooth printer connection failed. Please check if the printer is on and paired.');
                                   }
                                 } catch (error) {
                                   console.error('Bluetooth print failed:', error);
-                                  alert('Failed to print invoice. Please check printer connection.');
+                                  setErrorMessage('Failed to print invoice. Please check printer connection.');
                                 }
                               } else {
-                                alert('No printer paired. Please pair a printer in Settings.');
+                                setErrorMessage('No printer paired. Please pair a printer in Settings.');
                               }
                             }}
                             className="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-lg shadow-emerald-100 hover:bg-emerald-600 transition-all active:scale-90"
