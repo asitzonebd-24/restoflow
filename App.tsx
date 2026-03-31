@@ -81,9 +81,9 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
       style={{ background: '#11112b' }}
     >
       <div className="mb-4 shrink-0 cursor-pointer" onClick={() => { logout(); navigate('/login'); }}>
-          <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center border border-white/10">
+          <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center border-2 border-white/20">
             {business.logo ? (
-              <img src={business.logo} alt="Logo" className="w-8 h-8 object-contain" />
+              <img src={business.logo} alt="Logo" className="w-8 h-8 object-contain rounded-full" />
             ) : (
               <UtensilsCrossed size={24} className="text-white/20" />
             )}
