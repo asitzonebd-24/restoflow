@@ -4,7 +4,6 @@ import { useApp } from '../context/AppContext';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Role } from '../types';
 import { LogIn, ChefHat, Mail, Lock, AlertCircle, Utensils, ArrowRight, User as UserIcon, ShoppingBag, UserPlus, Chrome } from 'lucide-react';
-import { RegistrationModal } from '../src/components/RegistrationModal';
 import { toast } from 'sonner';
 
 export const Login = () => {
@@ -12,7 +11,6 @@ export const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [staffError, setStaffError] = useState('');
-  const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
   
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -126,33 +124,29 @@ export const Login = () => {
               </div>
 
               <button 
-                type="submit"
+                type="submit" 
                 disabled={isLoading}
                 className="w-full bg-slate-900 hover:bg-slate-800 disabled:bg-slate-400 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl transition-all duration-300 shadow-lg shadow-slate-200 flex items-center justify-center gap-3 uppercase text-[10px] tracking-widest group"
               >
                 {isLoading ? 'Connecting...' : 'Enter Terminal'} <LogIn size={16} className="group-hover:translate-x-1 transition-transform" />
               </button>
-
-              <div className="relative flex items-center justify-center py-4">
-                <div className="absolute inset-0 flex items-center">
-                  <div className="w-full border-t border-slate-100"></div>
-                </div>
-                <span className="relative px-4 bg-white text-[9px] font-bold text-slate-400 uppercase tracking-widest">Or</span>
-              </div>
-
-              <button 
-                type="button"
-                onClick={() => setIsRegisterModalOpen(true)}
-                className="w-full bg-white hover:bg-slate-50 text-slate-900 font-bold py-3.5 rounded-xl transition-all duration-300 border border-slate-200 flex items-center justify-center gap-3 uppercase text-[10px] tracking-widest group"
-              >
-                Create New Account <UserPlus size={16} className="group-hover:scale-110 transition-transform" />
-              </button>
             </form>
 
-            <RegistrationModal 
-              isOpen={isRegisterModalOpen} 
-              onClose={() => setIsRegisterModalOpen(false)} 
-            />
+            <div className="relative flex items-center justify-center py-4">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-slate-100"></div>
+              </div>
+              <span className="relative px-4 bg-white text-[9px] font-bold text-slate-400 uppercase tracking-widest">Or</span>
+            </div>
+
+            <button 
+              type="button"
+              onClick={loginWithGoogle}
+              disabled={isLoading}
+              className="w-full bg-white hover:bg-slate-50 text-slate-900 font-bold py-3.5 rounded-xl transition-all duration-300 border border-slate-200 flex items-center justify-center gap-3 uppercase text-[10px] tracking-widest group"
+            >
+              <Chrome size={16} className="text-indigo-600" /> Sign in with Google
+            </button>
 
             {tenantId && (
               <div className="mt-6 pt-6 border-t border-slate-100">
