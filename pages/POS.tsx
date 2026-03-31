@@ -782,11 +782,14 @@ export const POS = () => {
                       {(() => {
                         const groupedItems: { [key: string]: { name: string, quantity: number, status: OrderStatus } } = {};
                         order.items.forEach(item => {
-                          const key = `${item.itemId}-${item.status}`;
-                          if (!groupedItems[key]) {
-                            groupedItems[key] = { name: item.name, quantity: 0, status: item.status };
+                          // Only show items when their status is READY (OrderStatus.PREPARING)
+                          if (item.status === OrderStatus.PREPARING) {
+                            const key = `${item.itemId}-${item.status}`;
+                            if (!groupedItems[key]) {
+                              groupedItems[key] = { name: item.name, quantity: 0, status: item.status };
+                            }
+                            groupedItems[key].quantity += item.quantity;
                           }
-                          groupedItems[key].quantity += item.quantity;
                         });
                         
                         return Object.entries(groupedItems).map(([key, group]) => {
