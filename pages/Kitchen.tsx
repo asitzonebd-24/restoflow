@@ -56,6 +56,7 @@ export const Kitchen = () => {
           text: 'text-rose-600', 
           lightBg: 'bg-rose-50',
           border: 'border-rose-500',
+          lightBorder: 'border-rose-200',
           cardBorder: 'border-black',
         };
       case OrderStatus.PREPARING: 
@@ -64,6 +65,7 @@ export const Kitchen = () => {
           text: 'text-amber-600', 
           lightBg: 'bg-amber-50',
           border: 'border-amber-500',
+          lightBorder: 'border-amber-200',
           cardBorder: 'border-black',
         };
       case OrderStatus.READY: 
@@ -73,6 +75,7 @@ export const Kitchen = () => {
           text: 'text-emerald-600', 
           lightBg: 'bg-emerald-50',
           border: 'border-emerald-500',
+          lightBorder: 'border-emerald-200',
           cardBorder: 'border-black',
         };
       default: 
@@ -81,6 +84,7 @@ export const Kitchen = () => {
           text: 'text-slate-900', 
           lightBg: 'bg-slate-50',
           border: 'border-slate-900',
+          lightBorder: 'border-slate-200',
           cardBorder: 'border-black',
         };
     }
@@ -285,11 +289,11 @@ export const Kitchen = () => {
                   return (
                     <div 
                       key={key} 
-                      className={`flex items-center justify-between p-4 bg-white transition-colors hover:bg-slate-50 ${index !== Object.keys(groupedItems).length - 1 ? 'border-b border-slate-100' : ''}`}
+                      className={`flex items-center justify-between p-4 transition-colors ${itemStatusColors.lightBg} border-2 ${itemStatusColors.border} rounded-xl mb-2`}
                     >
                       <div className="flex items-center gap-3">
                         <span className={`text-sm font-black ${itemStatusColors.text}`}>{group.quantity}x</span>
-                        <h4 className={`text-xs font-black uppercase tracking-tight ${group.status === OrderStatus.READY ? 'text-slate-300 line-through' : 'text-[#1a1a37]'}`}>
+                        <h4 className={`text-xs font-black uppercase tracking-tight ${group.status === OrderStatus.READY ? 'text-slate-300 line-through' : itemStatusColors.text}`}>
                           {group.name}
                         </h4>
                       </div>
