@@ -13,13 +13,13 @@ export const Dashboard = () => {
       <div className="flex-1 flex flex-col items-center justify-start pt-4 md:pt-8 w-full max-w-2xl">
         <div className="flex flex-col items-center text-center mb-12">
           {currentTenant?.logo ? (
-            <img src={currentTenant.logo} alt={currentTenant.name} className="w-24 h-24 object-contain mb-6" />
+            <img src={currentTenant.logo} alt={currentTenant.name} className="w-24 h-24 object-contain mb-6 rounded-full border border-slate-200 p-2" />
           ) : (
-            <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mb-4 shadow-sm border border-indigo-100">
-              <LayoutPanelTop size={32} />
+            <div className="w-24 h-24 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mb-6 shadow-sm border border-indigo-100">
+              <LayoutPanelTop size={40} />
             </div>
           )}
-          <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tighter uppercase mb-2">
+          <h1 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tighter uppercase mb-2 whitespace-nowrap">
             Welcome To {currentTenant?.name || 'Restaurant'}
           </h1>
           <p className="text-slate-400 text-xs font-bold uppercase tracking-[0.3em] max-w-md">
