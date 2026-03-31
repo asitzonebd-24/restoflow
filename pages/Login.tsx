@@ -3,11 +3,12 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Role } from '../types';
-import { LogIn, ChefHat, Mail, Lock, AlertCircle, Utensils, ArrowRight, User as UserIcon, ShoppingBag, UserPlus } from 'lucide-react';
+import { LogIn, ChefHat, Mail, Lock, AlertCircle, Utensils, ArrowRight, User as UserIcon, ShoppingBag, UserPlus, Chrome } from 'lucide-react';
 import { RegistrationModal } from '../src/components/RegistrationModal';
+import { toast } from 'sonner';
 
 export const Login = () => {
-  const { login, business, dbStatus, setCurrentTenantId, isLoading } = useApp();
+  const { login, loginWithGoogle, business, dbStatus, setCurrentTenantId, isLoading } = useApp();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [staffError, setStaffError] = useState('');
@@ -130,6 +131,21 @@ export const Login = () => {
                 className="w-full bg-slate-900 hover:bg-slate-800 disabled:bg-slate-400 disabled:cursor-not-allowed text-white font-bold py-3.5 rounded-xl transition-all duration-300 shadow-lg shadow-slate-200 flex items-center justify-center gap-3 uppercase text-[10px] tracking-widest group"
               >
                 {isLoading ? 'Connecting...' : 'Enter Terminal'} <LogIn size={16} className="group-hover:translate-x-1 transition-transform" />
+              </button>
+
+              <button 
+                type="button"
+                onClick={async () => {
+                  try {
+                    await loginWithGoogle();
+                    navigate('/');
+                  } catch (error) {
+                    toast.error('Google Login failed');
+                  }
+                }}
+                className="w-full bg-white hover:bg-slate-50 text-slate-900 font-bold py-3.5 rounded-xl transition-all duration-300 border border-slate-200 flex items-center justify-center gap-3 uppercase text-[10px] tracking-widest group"
+              >
+                Login with Google <Chrome size={16} className="text-blue-500 group-hover:scale-110 transition-transform" />
               </button>
 
               <div className="relative flex items-center justify-center py-4">

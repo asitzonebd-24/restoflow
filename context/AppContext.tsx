@@ -2,11 +2,13 @@
 import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
 import { Role, Business, User, Order, InventoryItem, MenuItem, OrderStatus, ItemStatus, Transaction, Expense, OrderItem, MonthlyBill, BillStatus, Recipe } from '../types';
 import { BUSINESS_DETAILS, MOCK_USERS, INITIAL_ORDERS, MOCK_INVENTORY, MOCK_MENU, MOCK_EXPENSES, DEFAULT_MENU_IMAGE, DEFAULT_AVATAR, DEFAULT_BUSINESS_LOGO } from '../constants';
-import { auth, db } from '../src/firebase';
+import { auth, db, signInWithGoogle } from '../src/firebase';
 import { 
   onAuthStateChanged, 
-  signOut 
+  signOut,
+  signInWithEmailAndPassword
 } from 'firebase/auth';
+import { toast } from 'sonner';
 import { 
   collection, 
   onSnapshot, 
@@ -49,9 +51,9 @@ const handleFirestoreError = (error: unknown, operationType: OperationType, path
   const errInfo: FirestoreErrorInfo = {
     error: error instanceof Error ? error.message : String(error),
     authInfo: {
-      userId: 'anonymous',
-      email: 'anonymous',
-      emailVerified: true,
+      userId: auth.currentUser?.uid || 'anonymous',
+      email: auth.currentUser?.email || 'anonymous',
+      emailVerified: auth.currentUser?.emailVerified || false,
     },
     operationType,
     path
@@ -59,6 +61,15 @@ const handleFirestoreError = (error: unknown, operationType: OperationType, path
   
   const errorMsg = JSON.stringify(errInfo);
   console.error('Firestore Error: ', errorMsg);
+  
+  // Show toast for user feedback
+  if (errInfo.error.includes('insufficient permissions')) {
+    toast.error('Permission Denied: You do not have access to this resource.');
+  } else if (errInfo.error.includes('Quota exceeded')) {
+    toast.error('Quota Exceeded: Please try again later.');
+  } else {
+    toast.error(`Operation failed: ${errInfo.error}`);
+  }
   
   // Throw error if it's a permission or quota error so ErrorBoundary can catch it
   if (errInfo.error.includes('insufficient permissions') || errInfo.error.includes('Quota exceeded')) {
@@ -114,6 +125,7 @@ interface AppContextType {
   currentTenantId: string | null;
   setCurrentTenantId: (id: string | null) => void;
   createBusiness: (businessData: Partial<Business>, ownerData: Partial<User>, sourceTenantId?: string) => Promise<string>;
+  loginWithGoogle: () => Promise<void>;
   toggleBusinessStatus: (tenantId: string) => Promise<void>;
   transactions: Transaction[];
   addTransaction: (transaction: Omit<Transaction, 'tenantId'>) => Promise<void>;
@@ -443,9 +455,35 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   }, [allRecipes, business.id]);
 
 
+  const loginWithGoogle = async () => {
+    try {
+      setIsLoading(true);
+      await signInWithGoogle();
+      toast.success('Logged in with Google successfully');
+    } catch (error: any) {
+      console.error('Google Login Error:', error);
+      toast.error('Google Login failed: ' + error.message);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const login = async (emailOrMobile: string, password: string, tenantId?: string | null): Promise<boolean> => {
     setIsLoading(true);
     try {
+      // If it's an email, try to sign in with Firebase Auth first
+      if (emailOrMobile.includes('@')) {
+        try {
+          await signInWithEmailAndPassword(auth, emailOrMobile, password);
+          // If successful, onAuthStateChanged will handle setting the currentUser
+          // but we still need to return true
+          return true;
+        } catch (authError: any) {
+          console.log('Firebase Auth failed, falling back to custom login:', authError.message);
+        }
+      }
+
       // 1. Try to find in current loaded users (might be empty if not logged in)
       let user = allUsers.find(u => 
         ((u.email?.toLowerCase() || '') === emailOrMobile.toLowerCase() || u.mobile === emailOrMobile) && 
@@ -476,25 +514,30 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         // If a specific tenantId is provided in the URL, verify the user belongs to it
         if (tenantId && user.tenantId && String(user.tenantId) !== String(tenantId) && user.role !== Role.SUPER_ADMIN) {
           setIsLoading(false);
+          toast.error('Access denied for this restaurant.');
           return false;
         }
         
         if (!tenantId && user.role !== Role.SUPER_ADMIN && !user.tenantId) {
           setIsLoading(false);
+          toast.error('Invalid account configuration.');
           return false;
         }
 
         setCurrentUser(user);
         localStorage.setItem('resto_keep_user', JSON.stringify(user));
+        toast.success(`Welcome back, ${user.name}!`);
         // Note: setIsLoading(false) will be handled by the useEffect listeners once data is fetched
         return true;
       }
       
       setIsLoading(false);
+      toast.error('Invalid credentials');
       return false;
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login error:', error);
       setIsLoading(false);
+      toast.error('Login failed: ' + error.message);
       return false;
     }
   };
@@ -1352,6 +1395,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       setTenants(prev => [...prev, newBusiness]);
       setAllUsers(prev => [...prev, newOwner]);
       
+      toast.success(`Business "${newBusiness.name}" created successfully!`);
       return newTenantId;
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'tenants/users');
@@ -1503,6 +1547,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       currentTenantId,
       setCurrentTenantId,
       createBusiness,
+      loginWithGoogle,
       toggleBusinessStatus,
       transactions,
       addTransaction,

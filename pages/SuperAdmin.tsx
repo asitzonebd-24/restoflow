@@ -4,6 +4,7 @@ import { useApp } from '../context/AppContext';
 import { Business, Role, BillStatus } from '../types';
 import { Plus, Building2, User, Mail, Phone, Globe, MapPin, Search, ExternalLink, Calendar, Power, PowerOff, Edit3, Save, X as CloseIcon, AlertTriangle, Copy, Check, Wallet, Trash2, ChevronDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 
 export const SuperAdmin = () => {
   const { tenants, createBusiness, currentUser, toggleBusinessStatus, updateTenant, deleteTenant, allUsers, updateUser, currentTenant, monthlyBills, setCurrentTenantId } = useApp();
@@ -24,9 +25,10 @@ export const SuperAdmin = () => {
   const CURRENCIES = ['৳', '$', '€', '£', '₹', '₨', 'AED', 'SAR', 'QAR', 'OMR', 'BHD', 'KWD'];
 
   const copyLink = (id: string) => {
-    const link = `https://restokeep.vercel.app/#/${id}`;
+    const link = `${window.location.origin}/#/${id}`;
     navigator.clipboard.writeText(link);
     setCopiedId(id);
+    toast.success('Link copied to clipboard!');
     setTimeout(() => setCopiedId(null), 2000);
   };
   
@@ -92,9 +94,15 @@ export const SuperAdmin = () => {
       }
     }
 
-    await createBusiness(newBusiness, newOwner, duplicateSourceId || undefined);
-
-    resetForm();
+    try {
+      const resultId = await createBusiness(newBusiness, newOwner, duplicateSourceId || undefined);
+      if (resultId) {
+        resetForm();
+      }
+    } catch (err: any) {
+      console.error('Error in handleCreate:', err);
+      toast.error('Failed to create business: ' + err.message);
+    }
   };
 
   const handleDuplicateTenant = (tenant: Business) => {

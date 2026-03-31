@@ -561,11 +561,14 @@ const AppContent = () => {
   );
 }
 
+import { Toaster } from 'sonner';
+
 export default function App() {
   return (
     <AppProvider>
       <Router>
         <AppContent />
+        <Toaster position="top-right" richColors />
       </Router>
     </AppProvider>
   );
