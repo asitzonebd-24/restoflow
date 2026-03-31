@@ -55,7 +55,7 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
 
   if (!currentUser) return null;
 
-  const tId = business?.slug || urlTenantId || currentUser?.tenantId;
+  const tId = urlTenantId || business?.slug || business?.id || currentUser?.tenantId;
 
   const isActive = (path: string) => {
     if (!tId) return location.pathname === path;
