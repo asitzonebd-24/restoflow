@@ -6,7 +6,7 @@ import firebaseConfig from '../firebase-applet-config.json';
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = getFirestore(app, "restokeep-db");
+export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId || "(default)");
 
 // Firestore helpers with error handling
 export enum OperationType {
