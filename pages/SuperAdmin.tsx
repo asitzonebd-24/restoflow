@@ -267,7 +267,7 @@ export const SuperAdmin = () => {
                         <div className="flex flex-col gap-1">
                           <div className="flex items-center gap-2">
                             <code className="text-[10px] font-mono bg-slate-100 px-2 py-1 rounded text-slate-600 border border-slate-200">
-                              restokeep.vercel.app/${tenant.slug || tenant.id}
+                              {`restokeep.vercel.app/${tenant.slug || tenant.id}`}
                             </code>
                             <button 
                               onClick={() => copyLink(tenant.slug || tenant.id)}
