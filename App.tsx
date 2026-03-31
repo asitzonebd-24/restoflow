@@ -32,34 +32,8 @@ import { LayoutDashboard, UtensilsCrossed, ChefHat, Receipt, Package, LogOut, Se
 
 import { collection, addDoc } from "firebase/firestore";
 
-async function testFirestore() {
-  try {
-    console.log('Testing Firestore connection...');
-    const testRef = await addDoc(collection(db, "test_connection"), {
-      timestamp: new Date().toISOString(),
-      message: "Connection test from App.tsx"
-    });
-    console.log('Firestore write successful, ID:', testRef.id);
-    
-    // Try to write a default tenant if possible (might fail if rules are strict, but currently they are permissive)
-    try {
-      const tenantRef = await addDoc(collection(db, "tenants"), {
-        id: "01",
-        name: "RestoKeep Default",
-        isActive: true,
-        createdAt: new Date().toISOString()
-      });
-      console.log('Default tenant created successfully, ID:', tenantRef.id);
-    } catch (e) {
-      console.warn('Could not create default tenant (might already exist or permission denied):', e);
-    }
-  } catch (error) {
-    console.error('Firestore test failed:', error);
-  }
-}
-
 // Run test on load
-testFirestore();
+// testFirestore();
 const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) => {
   const { business, currentUser, logout, orders, categories, setActiveCategory, activeCategory } = useApp();
   const location = useLocation();

@@ -280,8 +280,20 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     }
 
     const unsubTenants = onSnapshot(tenantsQuery, (snapshot) => {
-      const tenantsData = snapshot.docs.map(doc => ({ id: doc.id, ...convertFirestoreData(doc.data()) })) as Business[];
-      console.log('Fetched tenants count:', tenantsData.length);
+      const rawData = snapshot.docs.map(doc => ({ id: doc.id, ...convertFirestoreData(doc.data()) })) as Business[];
+      
+      // Filter out duplicates by ID, keeping the first one encountered
+      const uniqueTenantsMap = new Map<string, Business>();
+      rawData.forEach(t => {
+        const id = String(t.id);
+        if (!uniqueTenantsMap.has(id)) {
+          uniqueTenantsMap.set(id, t);
+        }
+      });
+      
+      const tenantsData = Array.from(uniqueTenantsMap.values());
+      
+      console.log('Fetched unique tenants count:', tenantsData.length);
       if (!tenantsData.some(t => String(t.id) === '01')) {
         // Only add default if it's not already there and we are looking at all or '01'
         if (isSuperAdmin || !effectiveTenantId || effectiveTenantId === '01') {
@@ -1417,8 +1429,14 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       await batch.commit();
 
       // Optimistic update for local state
-      setTenants(prev => [...prev, newBusiness]);
-      setAllUsers(prev => [...prev, newOwner]);
+      setTenants(prev => {
+        if (prev.some(t => t.id === newBusiness.id)) return prev;
+        return [...prev, newBusiness];
+      });
+      setAllUsers(prev => {
+        if (prev.some(u => u.id === newOwner.id)) return prev;
+        return [...prev, newOwner];
+      });
       
       toast.success(`Business "${newBusiness.name}" created successfully!`);
       return newTenantId;
