@@ -1,11 +1,14 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { Utensils, ShieldCheck, ArrowRight, ChefHat, ShoppingBag } from 'lucide-react';
+import { Utensils, ShieldCheck, ArrowRight, ChefHat, ShoppingBag, UserPlus } from 'lucide-react';
+import { RegistrationModal } from '../src/components/RegistrationModal';
+import { useState } from 'react';
 
 export const Landing = () => {
   const { business } = useApp();
   const navigate = useNavigate();
+  const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-[#f8fafc] text-slate-900 font-sans selection:bg-indigo-100 flex flex-col items-center justify-center p-6">
@@ -68,6 +71,28 @@ export const Landing = () => {
           </div>
         </button>
       </div>
+
+      {/* Registration Option */}
+      <div className="mt-12 animate-in fade-in slide-in-from-bottom-4 duration-1000 delay-300">
+        <button 
+          onClick={() => setIsRegisterModalOpen(true)}
+          className="flex items-center gap-3 px-8 py-4 bg-white hover:bg-slate-50 text-slate-900 rounded-2xl border border-slate-200 shadow-sm transition-all hover:shadow-md active:scale-95 group"
+        >
+          <div className="w-8 h-8 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center group-hover:bg-indigo-600 group-hover:text-white transition-colors">
+            <UserPlus size={16} />
+          </div>
+          <div className="text-left">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">New to the platform?</p>
+            <p className="text-sm font-bold text-slate-900">Create a New Account</p>
+          </div>
+          <ArrowRight size={16} className="ml-4 text-slate-300 group-hover:text-indigo-600 group-hover:translate-x-1 transition-all" />
+        </button>
+      </div>
+
+      <RegistrationModal 
+        isOpen={isRegisterModalOpen} 
+        onClose={() => setIsRegisterModalOpen(false)} 
+      />
 
       {/* Footer Branding */}
       <div className="mt-20 flex items-center gap-2 opacity-20">
