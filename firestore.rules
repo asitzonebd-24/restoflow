@@ -2,23 +2,32 @@
 // Assumed Data Model
 // ===============================================================
 //
-// Collection: users
-// Document ID: userId (uid)
-// Fields:
-//   - uid: string (required) - The unique ID of the user
-//   - email: string (required, format: email) - The email address of the user
-//   - displayName: string (optional) - The display name of the user
-//   - photoURL: string (optional, format: uri) - The photo URL of the user
-//   - createdAt: timestamp (required) - When the user was created
+// Collection: tenants
+// Fields: id, name, logo, address, mobile, email, isActive, createdAt, etc.
 //
-// Collection: tasks
-// Document ID: taskId (auto-generated)
-// Fields:
-//   - title: string (required, minLen: 1, maxLen: 100) - The title of the task
-//   - description: string (optional, maxLen: 500) - The description of the task
-//   - completed: boolean (required) - Whether the task is completed
-//   - uid: string (required) - The ID of the user who owns the task
-//   - createdAt: timestamp (required) - When the task was created
+// Collection: users
+// Fields: id, name, email, mobile, password, role, tenantId, permissions, etc.
+//
+// Collection: orders
+// Fields: id, tenantId, items, totalAmount, status, createdAt, etc.
+//
+// Collection: menu_items
+// Fields: id, tenantId, name, category, price, stock, etc.
+//
+// Collection: inventory_items
+// Fields: id, tenantId, name, quantity, unit, etc.
+//
+// Collection: transactions
+// Fields: id, tenantId, amount, type, date, etc.
+//
+// Collection: expenses
+// Fields: id, tenantId, amount, category, date, etc.
+//
+// Collection: recipes
+// Fields: id, tenantId, menuItemId, ingredients, etc.
+//
+// Collection: monthly_bills
+// Fields: id, tenantId, month, amount, status, createdAt, etc.
 //
 // ===============================================================
 
@@ -34,73 +43,60 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function isOwner(userId) {
-      return isAuthenticated() && request.auth.uid == userId;
-    }
-
-    function isDocOwner() {
-      return isAuthenticated() && request.auth.uid == resource.data.uid;
-    }
-
-    function uidUnchanged() {
-      return !('uid' in request.resource.data) || request.resource.data.uid == request.auth.uid;
-    }
-
-    function uidNotModified() {
-      return !('uid' in request.resource.data) || request.resource.data.uid == resource.data.uid;
-    }
-
-    function isValidEmail(email) {
-      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
-    }
-
-    function isValidUrl(url) {
-      return url is string && (url.matches("^https://.*") || url.matches("^http://.*"));
-    }
-
     function isAdmin() {
       return isAuthenticated() &&
         (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
-          (request.auth.token.email == "asitzonebd@gmail.com" && request.auth.token.email_verified == true));
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'super_admin' ||
+         (request.auth.token.email == "asitzonebd@gmail.com" && request.auth.token.email_verified == true));
     }
 
-    // ===============================================================
-    // Domain Validators
-    // ===============================================================
-
-    function isValidUser(data) {
-      return data.keys().hasOnly(['uid', 'email', 'displayName', 'photoURL', 'createdAt', 'role']) &&
-             data.uid == request.auth.uid &&
-             isValidEmail(data.email) &&
-             (data.displayName == null || (data.displayName is string && data.displayName.size() < 100)) &&
-             (data.photoURL == null || isValidUrl(data.photoURL)) &&
-             data.createdAt is timestamp;
+    function isSuperAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'super_admin' ||
+         (request.auth.token.email == "asitzonebd@gmail.com" && request.auth.token.email_verified == true));
     }
 
-    function isValidTask(data) {
-      return data.keys().hasOnly(['title', 'description', 'completed', 'uid', 'createdAt']) &&
-             data.title is string && data.title.size() > 0 && data.title.size() <= 100 &&
-             (data.description == null || (data.description is string && data.description.size() <= 500)) &&
-             data.completed is bool &&
-             data.uid == request.auth.uid &&
-             data.createdAt is timestamp;
+    function isTenantUser(tenantId) {
+      return isAuthenticated() && 
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tenantId == tenantId || isSuperAdmin());
     }
 
     // ===============================================================
     // Match Rules
     // ===============================================================
 
-    match /users/{userId} {
-      allow read: if isOwner(userId) || isAdmin();
-      allow create: if isOwner(userId) && isValidUser(request.resource.data);
-      allow update: if isOwner(userId) && isValidUser(request.resource.data) && uidNotModified();
+    // Tenants
+    match /tenants/{tenantId} {
+      allow read: if true; // Publicly readable for landing pages
+      allow write: if isSuperAdmin();
     }
 
-    match /tasks/{taskId} {
-      allow read: if isDocOwner() || isAdmin();
-      allow create: if isAuthenticated() && isValidTask(request.resource.data) && uidUnchanged();
-      allow update: if isDocOwner() && isValidTask(request.resource.data) && uidNotModified();
-      allow delete: if isDocOwner() || isAdmin();
+    // Users
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isSuperAdmin() || (isAuthenticated() && request.resource.data.role == 'client');
+      allow update: if isAuthenticated() && (request.auth.uid == userId || isSuperAdmin());
+      allow delete: if isSuperAdmin();
+    }
+
+    // Orders, Menu, Inventory, Transactions, Expenses, Recipes, Monthly Bills
+    match /{collectionName}/{docId} {
+      allow read: if collectionName in ['orders', 'menu_items', 'inventory_items', 'transactions', 'expenses', 'recipes', 'monthly_bills'] && 
+                     (isSuperAdmin() || (isAuthenticated() && resource.data.tenantId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tenantId));
+      
+      allow create: if collectionName in ['orders', 'menu_items', 'inventory_items', 'transactions', 'expenses', 'recipes', 'monthly_bills'] && 
+                      (isSuperAdmin() || (isAuthenticated() && request.resource.data.tenantId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tenantId));
+      
+      allow update: if collectionName in ['orders', 'menu_items', 'inventory_items', 'transactions', 'expenses', 'recipes', 'monthly_bills'] && 
+                      (isSuperAdmin() || (isAuthenticated() && resource.data.tenantId == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.tenantId));
+      
+      allow delete: if collectionName in ['orders', 'menu_items', 'inventory_items', 'transactions', 'expenses', 'recipes', 'monthly_bills'] && 
+                      isSuperAdmin();
+    }
+
+    // Test collection
+    match /test/{docId} {
+      allow read, write: if true;
     }
 
     // Default deny

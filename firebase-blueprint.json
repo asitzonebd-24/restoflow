@@ -1,40 +1,72 @@
 {
   "entities": {
+    "Business": {
+      "title": "Business",
+      "description": "A restaurant or tenant",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "logo": { "type": "string" },
+        "address": { "type": "string" },
+        "mobile": { "type": "string" },
+        "email": { "type": "string" },
+        "isActive": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name"]
+    },
     "User": {
       "title": "User",
       "description": "A user of the application",
       "type": "object",
       "properties": {
-        "uid": { "type": "string", "description": "The unique ID of the user" },
-        "email": { "type": "string", "format": "email", "description": "The email address of the user" },
-        "displayName": { "type": "string", "description": "The display name of the user" },
-        "photoURL": { "type": "string", "format": "uri", "description": "The photo URL of the user" },
-        "createdAt": { "type": "string", "format": "date-time", "description": "When the user was created" }
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "mobile": { "type": "string" },
+        "password": { "type": "string" },
+        "role": { "type": "string" },
+        "tenantId": { "type": "string" },
+        "permissions": { "type": "array", "items": { "type": "string" } }
       },
-      "required": ["uid", "email"]
+      "required": ["id", "name", "role"]
     },
-    "Task": {
-      "title": "Task",
-      "description": "A task to be completed",
+    "Order": {
+      "title": "Order",
+      "description": "A customer order",
       "type": "object",
       "properties": {
-        "title": { "type": "string", "description": "The title of the task" },
-        "description": { "type": "string", "description": "The description of the task" },
-        "completed": { "type": "boolean", "description": "Whether the task is completed" },
-        "uid": { "type": "string", "description": "The ID of the user who owns the task" },
-        "createdAt": { "type": "string", "format": "date-time", "description": "When the task was created" }
+        "id": { "type": "string" },
+        "tenantId": { "type": "string" },
+        "items": { "type": "array" },
+        "totalAmount": { "type": "number" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
       },
-      "required": ["title", "uid", "createdAt"]
+      "required": ["id", "tenantId", "items", "totalAmount", "status"]
     }
   },
   "firestore": {
+    "/tenants/{tenantId}": {
+      "schema": "Business",
+      "description": "Restaurant details"
+    },
     "/users/{userId}": {
       "schema": "User",
-      "description": "User profile information"
+      "description": "User profiles"
     },
-    "/tasks/{taskId}": {
-      "schema": "Task",
-      "description": "User tasks"
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Customer orders"
+    },
+    "/menu_items/{itemId}": {
+      "schema": "object",
+      "description": "Menu items"
+    },
+    "/inventory_items/{itemId}": {
+      "schema": "object",
+      "description": "Inventory items"
     }
   }
 }
