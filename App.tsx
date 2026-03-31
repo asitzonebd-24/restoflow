@@ -1,5 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
+import { auth, db } from './src/firebase';
 import { HashRouter as Router, Routes, Route, Navigate, NavLink, useLocation, useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AppProvider, useApp } from './context/AppContext';
@@ -29,6 +30,15 @@ import { PlatformExpenses } from './pages/PlatformExpenses';
 import { Role, OrderStatus } from './types';
 import { LayoutDashboard, UtensilsCrossed, ChefHat, Receipt, Package, LogOut, Settings, Users as UsersIcon, History, Wallet, PieChart, Menu as MenuIcon, User as UserCircle, ShieldCheck, PowerOff, FileText, CheckCircle, Menu, X, Utensils, ShoppingBag, Timer } from 'lucide-react';
 
+import { collection, addDoc } from "firebase/firestore";
+
+async function test() {
+  await addDoc(collection(db, "test"), {
+    name: "Connected OK"
+  });
+}
+
+// test();
 const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) => {
   const { business, currentUser, logout, orders, categories, setActiveCategory, activeCategory } = useApp();
   const location = useLocation();
