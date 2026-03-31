@@ -15,7 +15,8 @@ export const TenantLanding = () => {
     }
   }, [tenantId, setCurrentTenantId]);
 
-  const tenant = tenants.find(t => t.id === tenantId);
+  const tenant = tenants.find(t => t.id === tenantId || t.slug === tenantId);
+  const actualTenantId = tenant?.id || tenantId;
 
   if (isLoading) {
     return (
@@ -88,7 +89,7 @@ export const TenantLanding = () => {
         <div className="space-y-4 animate-in fade-in slide-in-from-right-8 duration-700 delay-150">
           {/* Staff Portal */}
           <button 
-            onClick={() => navigate(`/login?tenantId=${tenantId}`)}
+            onClick={() => navigate(`/login?tenantId=${actualTenantId}`)}
             className="w-full group bg-slate-900 hover:bg-slate-800 p-8 rounded-[2.5rem] border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-1 hover:translate-y-1 transition-all flex items-center justify-between"
           >
             <div className="flex items-center gap-6">
@@ -106,7 +107,7 @@ export const TenantLanding = () => {
           {/* Customer Portal */}
           {tenant.customerAppEnabled && (
             <button 
-              onClick={() => navigate(`/${tenantId}/order/auth`)}
+              onClick={() => navigate(`/${actualTenantId}/order/auth`)}
               className="w-full group bg-white hover:bg-slate-50 p-8 rounded-[2.5rem] border-4 border-slate-200 shadow-[8px_8px_0px_0px_rgba(226,232,240,1)] hover:shadow-none hover:translate-x-1 hover:translate-y-1 transition-all flex items-center justify-between"
             >
               <div className="flex items-center gap-6">
