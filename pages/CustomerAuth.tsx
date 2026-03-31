@@ -50,10 +50,15 @@ export const CustomerAuth = () => {
         };
         await addUser(newUser);
         
-        // Set user directly to avoid state propagation delay
-        setCurrentUser(newUser);
-        localStorage.setItem('resto_keep_user', JSON.stringify(newUser));
-        navigate(`/${tenantId}/order`);
+        // Sign in the newly created user
+        const success = await login(formData.email || formData.mobile, formData.password, tenantId);
+        if (success) {
+          navigate(`/${tenantId}/order`);
+        } else {
+          alert("Registration successful, but auto-login failed. Please log in.");
+          setIsRegistering(false);
+          setLoading(false);
+        }
       } else {
         // Try to login with email or mobile
         const success = await login(formData.email || formData.mobile, formData.password, tenantId);

@@ -8,6 +8,10 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId || "(default)");
 
+// Secondary app for user creation (so admin doesn't get logged out)
+export const secondaryApp = initializeApp(firebaseConfig, "Secondary");
+export const secondaryAuth = getAuth(secondaryApp);
+
 // Firestore helpers with error handling
 export enum OperationType {
   CREATE = 'create',

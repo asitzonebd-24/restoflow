@@ -996,17 +996,6 @@ export const POS = () => {
               </>
             )}
             
-            <div className="relative group w-full">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={14} />
-                <input 
-                    type="text" 
-                    placeholder="Search menu..." 
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-11 pr-4 py-2.5 md:py-3 bg-white border-2 border-indigo-500 rounded-xl md:rounded-2xl text-xs font-medium focus:outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all shadow-xl shadow-indigo-100"
-                />
-            </div>
-            
             <div className="relative w-full">
               <select 
                 value={activeCategory}
@@ -1019,6 +1008,17 @@ export const POS = () => {
                 ))}
               </select>
               <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 rotate-90 pointer-events-none" size={14} />
+            </div>
+
+            <div className="relative group w-full">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={14} />
+                <input 
+                    type="text" 
+                    placeholder="Search menu..." 
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-11 pr-4 py-2.5 md:py-3 bg-white border-2 border-indigo-500 rounded-xl md:rounded-2xl text-xs font-medium focus:outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all shadow-xl shadow-indigo-100"
+                />
             </div>
           </div>
         </div>

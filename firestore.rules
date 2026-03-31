@@ -3,11 +3,105 @@ service cloud.firestore {
   match /databases/{database}/documents {
     
     // ===============================================================
-    // Public Access (Firebase Auth Disabled)
+    // Helper Functions
     // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function getUserData() {
+      let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
+      return userDoc == null ? null : userDoc.data;
+    }
+    
+    function isSuperAdmin() {
+      return isAuthenticated() && (
+        (getUserData() != null && getUserData().role == 'SUPER_ADMIN') || 
+        request.auth.token.email == 'asitzonebd@gmail.com'
+      );
+    }
+    
+    function hasTenantAccess(tenantId) {
+      return isAuthenticated() && (
+        isSuperAdmin() || 
+        (getUserData() != null && getUserData().tenantId == tenantId)
+      );
+    }
 
+    // ===============================================================
+    // Users Collection
+    // ===============================================================
+    match /users/{userId} {
+      // Anyone can read their own user document
+      // Super admins can read all users
+      // Users in a tenant can read other users in the same tenant
+      allow read: if isAuthenticated() && (
+        request.auth.uid == userId || 
+        isSuperAdmin() || 
+        (getUserData() != null && getUserData().tenantId == resource.data.tenantId)
+      );
+      
+      // Only super admins or users with OWNER/MANAGER role in the same tenant can create/update users
+      allow create: if isAuthenticated() && (
+        isSuperAdmin() || 
+        (getUserData() != null && getUserData().tenantId == request.resource.data.tenantId && (getUserData().role == 'OWNER' || getUserData().role == 'MANAGER'))
+      );
+      
+      allow update, delete: if isAuthenticated() && (
+        isSuperAdmin() || 
+        (getUserData() != null && getUserData().tenantId == resource.data.tenantId && (getUserData().role == 'OWNER' || getUserData().role == 'MANAGER'))
+      );
+    }
+
+    // ===============================================================
+    // Tenants Collection
+    // ===============================================================
+    match /tenants/{tenantId} {
+      // Anyone authenticated can read tenants (needed for login and routing)
+      allow read: if isAuthenticated();
+      // Only super admins can write tenants
+      allow write: if isSuperAdmin();
+    }
+
+    // ===============================================================
+    // Tenant-Scoped Collections
+    // ===============================================================
+    match /orders/{document} {
+      allow read, update, delete: if isAuthenticated() && hasTenantAccess(resource.data.tenantId);
+      allow create: if isAuthenticated() && hasTenantAccess(request.resource.data.tenantId);
+    }
+    match /inventory_items/{document} {
+      allow read, update, delete: if isAuthenticated() && hasTenantAccess(resource.data.tenantId);
+      allow create: if isAuthenticated() && hasTenantAccess(request.resource.data.tenantId);
+    }
+    match /menu_items/{document} {
+      allow read, update, delete: if isAuthenticated() && hasTenantAccess(resource.data.tenantId);
+      allow create: if isAuthenticated() && hasTenantAccess(request.resource.data.tenantId);
+    }
+    match /transactions/{document} {
+      allow read, update, delete: if isAuthenticated() && hasTenantAccess(resource.data.tenantId);
+      allow create: if isAuthenticated() && hasTenantAccess(request.resource.data.tenantId);
+    }
+    match /expenses/{document} {
+      allow read, update, delete: if isAuthenticated() && hasTenantAccess(resource.data.tenantId);
+      allow create: if isAuthenticated() && hasTenantAccess(request.resource.data.tenantId);
+    }
+    match /monthly_bills/{document} {
+      allow read, update, delete: if isAuthenticated() && hasTenantAccess(resource.data.tenantId);
+      allow create: if isAuthenticated() && hasTenantAccess(request.resource.data.tenantId);
+    }
+    match /recipes/{document} {
+      allow read, update, delete: if isAuthenticated() && hasTenantAccess(resource.data.tenantId);
+      allow create: if isAuthenticated() && hasTenantAccess(request.resource.data.tenantId);
+    }
+    match /tables/{document} {
+      allow read, update, delete: if isAuthenticated() && hasTenantAccess(resource.data.tenantId);
+      allow create: if isAuthenticated() && hasTenantAccess(request.resource.data.tenantId);
+    }
+
+    // Default deny for anything else
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if false;
     }
   }
 }

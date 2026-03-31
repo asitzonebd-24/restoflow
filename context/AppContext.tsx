@@ -2,9 +2,12 @@
 import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
 import { Role, Business, User, Order, InventoryItem, MenuItem, OrderStatus, ItemStatus, Transaction, Expense, OrderItem, MonthlyBill, BillStatus, Recipe, Table } from '../types';
 import { BUSINESS_DETAILS, MOCK_USERS, INITIAL_ORDERS, MOCK_INVENTORY, MOCK_MENU, MOCK_EXPENSES, DEFAULT_MENU_IMAGE, DEFAULT_AVATAR, DEFAULT_BUSINESS_LOGO } from '../constants';
-import { auth, db } from '../src/firebase';
+import { auth, secondaryAuth, db } from '../src/firebase';
 import { 
-  signOut
+  signOut,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  onAuthStateChanged
 } from 'firebase/auth';
 import { toast } from 'sonner';
 import { 
@@ -199,24 +202,59 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   });
 
   useEffect(() => {
-    // Firebase Auth is disabled as per user request.
-    // We rely on local state and Firestore queries for authentication.
-    setIsAuthReady(true);
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        try {
+          // Fetch user profile from Firestore
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          if (userDoc.exists()) {
+            const userData = { id: userDoc.id, ...convertFirestoreData(userDoc.data()) } as User;
+            setCurrentUser(userData);
+            localStorage.setItem('resto_keep_user', JSON.stringify(userData));
+          } else {
+            // If no user doc exists, clear local state
+            setCurrentUser(null);
+            localStorage.removeItem('resto_keep_user');
+          }
+        } catch (error) {
+          console.error('Error fetching user profile:', error);
+        }
+      } else {
+        setCurrentUser(null);
+        localStorage.removeItem('resto_keep_user');
+      }
+      setIsAuthReady(true);
+    });
 
     // Bootstrap Super Admin into Firestore if it doesn't exist
     const bootstrapSuperAdmin = async () => {
       try {
         const saEmail = 'asitzonebd@gmail.com';
-        const usersRef = collection(db, 'users');
-        const q = query(usersRef, where('email', '==', saEmail), limit(1));
-        const snapshot = await getDocs(q);
+        const saPassword = 'admin'; // Default password
         
-        if (snapshot.empty) {
-          console.log('Bootstrapping Super Admin into Firestore...');
-          const saUser = MOCK_USERS.find(u => u.email === saEmail);
-          if (saUser) {
-            await setDoc(doc(db, 'users', saUser.id), saUser);
-            console.log('Super Admin bootstrapped successfully.');
+        // Try to sign in to see if the user exists in Firebase Auth
+        try {
+          await signInWithEmailAndPassword(secondaryAuth, saEmail, saPassword);
+          await signOut(secondaryAuth);
+        } catch (e: any) {
+          // If user doesn't exist or invalid credentials, try to create them
+          if (e.code === 'auth/user-not-found' || e.code === 'auth/invalid-credential' || e.message.includes('invalid-credential')) {
+            console.log('Bootstrapping Super Admin into Firebase Auth...');
+            try {
+              const userCredential = await createUserWithEmailAndPassword(secondaryAuth, saEmail, saPassword);
+              
+              const saUser = MOCK_USERS.find(u => u.email === saEmail);
+              if (saUser) {
+                const newUser = { ...saUser, id: userCredential.user.uid };
+                await setDoc(doc(db, 'users', newUser.id), newUser);
+                console.log('Super Admin bootstrapped successfully.');
+              }
+              await signOut(secondaryAuth);
+            } catch (createError: any) {
+              if (createError.code !== 'auth/email-already-in-use') {
+                console.error('Failed to create Super Admin:', createError);
+              }
+            }
           }
         }
       } catch (error) {
@@ -225,6 +263,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     };
 
     bootstrapSuperAdmin();
+
+    return () => unsubscribe();
   }, []);
   const convertFirestoreData = (data: any) => {
     const cleaned = { ...data };
@@ -545,46 +585,34 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     setIsLoading(true);
     console.log('Login attempt for:', emailOrMobile);
     try {
-      // 1. Try to find in current loaded users (includes mock users)
-      let user = allUsers.find(u => 
-        ((u.email?.toLowerCase() || '') === emailOrMobile.toLowerCase() || u.mobile === emailOrMobile) && 
-        u.password === password
-      );
+      let emailToUse = emailOrMobile.toLowerCase();
       
-      if (user) {
-        console.log('User found in allUsers:', user.name, user.role);
+      // If it's a mobile number, lookup the email first
+      if (!emailOrMobile.includes('@')) {
+        // Since we can't query users without auth, we assume it's a customer mobile login
+        // or a staff member who was created with a mobile-based email.
+        emailToUse = `${emailOrMobile}@customer.com`;
       }
 
-      // 2. If not found, try direct Firestore query
-      if (!user) {
-        console.log('User not found in allUsers, querying Firestore...');
-        const usersRef = collection(db, 'users');
-        
-        // Try email query
-        const qEmail = query(usersRef, where('email', '==', emailOrMobile.toLowerCase()), where('password', '==', password));
-        const snapshotEmail = await getDocs(qEmail);
-        
-        if (!snapshotEmail.empty) {
-          user = { id: snapshotEmail.docs[0].id, ...convertFirestoreData(snapshotEmail.docs[0].data()) } as User;
-          console.log('User found in Firestore (email):', user.name);
-        } else {
-          // Try mobile query
-          const qMobile = query(usersRef, where('mobile', '==', emailOrMobile), where('password', '==', password));
-          const snapshotMobile = await getDocs(qMobile);
-          if (!snapshotMobile.empty) {
-            user = { id: snapshotMobile.docs[0].id, ...convertFirestoreData(snapshotMobile.docs[0].data()) } as User;
-            console.log('User found in Firestore (mobile):', user.name);
-          }
-        }
-      }
+      // Sign in with Firebase Auth
+      const userCredential = await signInWithEmailAndPassword(auth, emailToUse, password);
       
-      // 3. Last resort: check ENHANCED_MOCK_USERS directly
-      // Removed mock users fallback for production security
+      // Fetch user profile from Firestore
+      const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
+      if (!userDoc.exists()) {
+        await signOut(auth);
+        setIsLoading(false);
+        toast.error('User profile not found.');
+        return false;
+      }
+
+      const user = { id: userDoc.id, ...convertFirestoreData(userDoc.data()) } as User;
       
       if (user) {
         // If a specific tenantId is provided in the URL, verify the user belongs to it
         if (tenantId && user.tenantId && String(user.tenantId) !== String(tenantId) && user.role !== Role.SUPER_ADMIN) {
           console.warn('Access denied: tenant mismatch', { userTenant: user.tenantId, targetTenant: tenantId });
+          await signOut(auth);
           setIsLoading(false);
           toast.error('Access denied for this restaurant.');
           return false;
@@ -592,6 +620,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         
         if (!tenantId && user.role !== Role.SUPER_ADMIN && !user.tenantId) {
           console.warn('Access denied: no tenant for non-superadmin');
+          await signOut(auth);
           setIsLoading(false);
           toast.error('Invalid account configuration.');
           return false;
@@ -600,22 +629,26 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         setCurrentUser(user);
         localStorage.setItem('resto_keep_user', JSON.stringify(user));
         toast.success(`Welcome back, ${user.name}!`);
+        setIsLoading(false);
         return true;
       }
       
-      console.warn('Login failed: Invalid credentials for', emailOrMobile);
       setIsLoading(false);
-      toast.error('Invalid credentials');
       return false;
     } catch (error: any) {
       console.error('Login error:', error);
       setIsLoading(false);
-      toast.error('Login failed: ' + error.message);
+      toast.error('Login failed: ' + (error.message || 'Invalid credentials'));
       return false;
     }
   };
 
   const logout = async () => {
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
     setCurrentUser(null);
     localStorage.removeItem('resto_keep_user');
     toast.success('Logged out successfully');
@@ -1280,17 +1313,28 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
   const addUser = async (user: User | Omit<User, 'tenantId'>) => {
     const tenantId = (user as User).tenantId || resolvedTenantId || '';
-    const newUser = { 
-      ...user, 
-      tenantId,
-      avatar: (user as User).avatar || DEFAULT_AVATAR
-    } as User;
     
     try {
+      // Create user in Firebase Auth using secondary app to avoid signing out current user
+      const userCredential = await createUserWithEmailAndPassword(secondaryAuth, user.email, user.password);
+      
+      const newUser = { 
+        ...user, 
+        id: userCredential.user.uid,
+        tenantId,
+        avatar: (user as User).avatar || DEFAULT_AVATAR
+      } as User;
+      
+      // Save user profile to Firestore
       const userRef = doc(db, 'users', newUser.id);
       await setDoc(userRef, cleanObject(newUser));
       setAllUsers(prev => [...prev, newUser]);
-    } catch (error) {
+      
+      // Sign out the secondary auth instance
+      await signOut(secondaryAuth);
+    } catch (error: any) {
+      console.error('Error creating user:', error);
+      toast.error('Failed to create user: ' + error.message);
       handleFirestoreError(error, OperationType.WRITE, 'users');
     }
   };
