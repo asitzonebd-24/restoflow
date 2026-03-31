@@ -32,8 +32,9 @@ export const Billing = () => {
     return orders
       .filter(o => {
         const isReady = o.status === OrderStatus.READY;
-        const matchesSearch = o.tokenNumber.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesStaff = selectedStaffId === 'all' || o.createdBy === selectedStaffId;
+        const matchesSearch = o.tokenNumber.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                              (o.deliveryStaffName && o.deliveryStaffName.toLowerCase().includes(searchTerm.toLowerCase()));
+        const matchesStaff = selectedStaffId === 'all' || o.createdBy === selectedStaffId || o.deliveryStaffId === selectedStaffId;
         const isOwnOrder = canSeeAll || (currentUser && o.createdBy === currentUser.id);
         return isReady && matchesSearch && matchesStaff && isOwnOrder;
       })
