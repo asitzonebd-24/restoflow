@@ -353,25 +353,29 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
         // Apply tenant filtering if not super admin
         if (!isSuperAdmin && effectiveTenantId) {
-          q = query(collection(db, name), where('tenantId', '==', effectiveTenantId), limit(100));
+          q = query(collection(db, name), where('tenantId', '==', effectiveTenantId));
+        } else {
+          q = query(collection(db, name));
         }
 
-        // Special handling for orders (limit to active ones for performance)
+        // Special handling for orders (limit to active ones for performance, or recent ones)
         if (name === 'orders') {
-          const activeStatuses = [OrderStatus.PENDING, OrderStatus.PREPARING, OrderStatus.READY];
+          // We need completed orders for billing/reports, so we shouldn't filter by active statuses only.
+          // Instead, we can limit to the last 500 orders to prevent memory issues, or fetch all for the current day.
+          // For now, let's just use a reasonable limit for orders.
           if (!isSuperAdmin && effectiveTenantId) {
-            q = query(collection(db, name), where('tenantId', '==', effectiveTenantId), where('status', 'in', activeStatuses), limit(50));
+            q = query(collection(db, name), where('tenantId', '==', effectiveTenantId), limit(500));
           } else {
-            q = query(collection(db, name), where('status', 'in', activeStatuses), limit(50));
+            q = query(collection(db, name), limit(500));
           }
         }
 
         // Apply limit for large collections
-        if (['transactions', 'expenses', 'monthly_bills', 'recipes', 'menu_items', 'inventory_items'].includes(name)) {
+        if (['transactions', 'expenses', 'monthly_bills'].includes(name)) {
           if (!isSuperAdmin && effectiveTenantId) {
-            q = query(collection(db, name), where('tenantId', '==', effectiveTenantId), limit(50));
+            q = query(collection(db, name), where('tenantId', '==', effectiveTenantId), limit(1000));
           } else {
-            q = query(collection(db, name), limit(50));
+            q = query(collection(db, name), limit(1000));
           }
         }
 
@@ -386,14 +390,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
           }
 
           if (name === 'users') {
-            const dataUsers = data as any as User[];
-            const mergedUsers = [...ENHANCED_MOCK_USERS];
-            dataUsers.forEach(u => {
-              if (!mergedUsers.find(mu => mu.id === u.id)) {
-                mergedUsers.push(u);
-              }
-            });
-            setter(mergedUsers as any);
+            setter(data as any);
           } else {
             setter(data as any);
           }
@@ -415,12 +412,12 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             }
           }
           
-          // Fallback to mock data if necessary
-          if (name === 'users') setter(ENHANCED_MOCK_USERS as any);
-          if (name === 'expenses') setter(MOCK_EXPENSES as any);
-          if (name === 'menu_items') setter(MOCK_MENU as any);
-          if (name === 'inventory_items') setter(MOCK_INVENTORY as any);
-          if (name === 'orders') setter(INITIAL_ORDERS as any);
+          // Fallback to empty arrays instead of mock data for production
+          if (name === 'users') setter([] as any);
+          if (name === 'expenses') setter([] as any);
+          if (name === 'menu_items') setter([] as any);
+          if (name === 'inventory_items') setter([] as any);
+          if (name === 'orders') setter([] as any);
         });
         unsubscribers.push(unsub);
       });
@@ -582,14 +579,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       }
       
       // 3. Last resort: check ENHANCED_MOCK_USERS directly
-      if (!user) {
-        console.log('User not found in Firestore, checking ENHANCED_MOCK_USERS...');
-        user = ENHANCED_MOCK_USERS.find(u => 
-          ((u.email?.toLowerCase() || '') === emailOrMobile.toLowerCase() || u.mobile === emailOrMobile) && 
-          u.password === password
-        );
-        if (user) console.log('User found in ENHANCED_MOCK_USERS:', user.name);
-      }
+      // Removed mock users fallback for production security
       
       if (user) {
         // If a specific tenantId is provided in the URL, verify the user belongs to it
