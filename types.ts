@@ -34,6 +34,7 @@ export interface PrinterSettings {
 
 export interface Business {
   id: string;
+  slug?: string;
   name: string;
   logo: string;
   address: string;

@@ -472,20 +472,22 @@ const AppContent = () => {
   const getDefaultRedirect = () => {
     if (!currentUser) return "/";
     
+    const targetId = business?.slug || business?.id || currentUser.tenantId;
+
     // If Super Admin is in a tenant context, go to that tenant's dashboard
     if (currentUser.role === Role.SUPER_ADMIN) {
       if (currentTenantId && currentTenantId !== '00') {
-        return `/${currentTenantId}/dashboard`;
+        return `/${targetId}/dashboard`;
       }
       return "/portal";
     }
     
-    if (currentUser.role === Role.CUSTOMER) return `/${currentUser.tenantId}/order`;
+    if (currentUser.role === Role.CUSTOMER) return `/${targetId}/order`;
     
     const permissions = currentUser.permissions || [];
-    if (permissions.includes('Dashboard')) return `/${currentUser.tenantId}/dashboard`;
-    if (permissions.includes('POS')) return `/${currentUser.tenantId}/pos`;
-    if (permissions.length > 0) return `/${currentUser.tenantId}/${permissions[0].toLowerCase()}`;
+    if (permissions.includes('Dashboard')) return `/${targetId}/dashboard`;
+    if (permissions.includes('POS')) return `/${targetId}/pos`;
+    if (permissions.length > 0) return `/${targetId}/${permissions[0].toLowerCase()}`;
     
     return "/login";
   };

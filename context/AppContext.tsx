@@ -18,6 +18,7 @@ import {
   where, 
   limit,
   orderBy,
+  or,
   getDocs,
   getDoc,
   writeBatch,
@@ -237,13 +238,21 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     return cleaned;
   };
 
+  const resolvedTenantId = useMemo(() => {
+    const rawId = currentUser?.tenantId || currentTenantId;
+    if (!rawId) return null;
+    const tenantBySlug = tenants.find(t => t.slug === rawId || t.id === rawId);
+    if (tenantBySlug) return tenantBySlug.id;
+    return rawId;
+  }, [currentUser?.tenantId, currentTenantId, tenants]);
+
   // 1. Initial Data & Real-time Listeners
   useEffect(() => {
     if (!isAuthReady) return;
 
     const unsubscribers: (() => void)[] = [];
     const isSuperAdmin = currentUser?.role === Role.SUPER_ADMIN;
-    const effectiveTenantId = currentUser?.tenantId || currentTenantId;
+    const effectiveTenantId = resolvedTenantId;
 
     const criticalCollections = ['tenants'];
     if (currentUser) {
@@ -272,8 +281,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     if (!isSuperAdmin && effectiveTenantId) {
       // Use getDoc for a single tenant instead of a query if possible
       // But we are using onSnapshot on a query here.
-      // Note: effectiveTenantId is the document ID, so we should filter by it correctly
-      tenantsQuery = query(collection(db, 'tenants'), where('id', '==', effectiveTenantId), limit(1));
+      // Note: effectiveTenantId could be the document ID or the slug
+      tenantsQuery = query(collection(db, 'tenants'), or(where('id', '==', effectiveTenantId), where('slug', '==', effectiveTenantId)), limit(1));
     } else if (!isSuperAdmin && !effectiveTenantId) {
       // If not logged in and no tenant context, we don't need all tenants
       tenantsQuery = query(collection(db, 'tenants'), limit(10));
@@ -423,7 +432,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       unsubscribers.forEach(unsub => unsub());
       clearTimeout(safetyTimeout);
     };
-  }, [isAuthReady, currentUser?.id, currentUser?.tenantId, currentTenantId]);
+  }, [isAuthReady, currentUser?.id, currentUser?.tenantId, currentTenantId, resolvedTenantId]);
    // Sync currentUser with allUsers in real-time to reflect role/permission changes
   useEffect(() => {
     if (currentUser) {
@@ -445,7 +454,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   }, [allUsers, currentUser?.id]);
 
   const business = useMemo(() => {
-    const targetId = currentUser?.tenantId || currentTenantId;
+    const targetId = resolvedTenantId;
     if (!targetId) return tenants[0] || BUSINESS_DETAILS;
     const found = tenants.find(t => String(t.id) === String(targetId));
     if (found) return found;
@@ -457,7 +466,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     // Return the first tenant as a fallback only if no specific ID was requested
     // and we are not in a "not found" state
     return tenants[0] || BUSINESS_DETAILS;
-  }, [currentUser, tenants, currentTenantId]);
+  }, [currentUser, tenants, resolvedTenantId]);
 
   const orders = useMemo(() => {
     const targetId = business.id;
@@ -590,7 +599,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   const addOrder = async (order: Omit<Order, 'tenantId'>) => {
-    const tenantId = currentUser?.tenantId || currentTenantId || '';
+    const tenantId = resolvedTenantId || '';
     const newOrder = { ...order, tenantId } as Order;
     
     console.log('Attempting to add order:', newOrder);
@@ -952,7 +961,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   const addInventoryItem = async (item: Omit<InventoryItem, 'tenantId'>) => {
-    const tenantId = currentUser?.tenantId || currentTenantId || '';
+    const tenantId = resolvedTenantId || '';
     const newItem = { ...item, tenantId } as InventoryItem;
     
     try {
@@ -1042,7 +1051,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   const addMenuItem = async (item: Omit<MenuItem, 'tenantId'>) => {
-    const tenantId = currentUser?.tenantId || currentTenantId || '';
+    const tenantId = resolvedTenantId || '';
     const newItem = { ...item, tenantId } as MenuItem;
     
     try {
@@ -1091,7 +1100,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   const addMenuCategory = async (catName: string) => {
-    const tenantId = currentUser?.tenantId || currentTenantId || '';
+    const tenantId = resolvedTenantId || '';
     const tenant = tenants.find(t => t.id === tenantId);
     if (!tenant) return;
 
@@ -1105,7 +1114,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   const renameMenuCategory = async (oldName: string, newName: string) => {
-    const tenantId = currentUser?.tenantId || currentTenantId || '';
+    const tenantId = resolvedTenantId || '';
     const tenant = tenants.find(t => t.id === tenantId);
     if (!tenant) return;
 
@@ -1129,7 +1138,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   const deleteMenuCategory = async (catName: string) => {
-    const tenantId = currentUser?.tenantId || currentTenantId || '';
+    const tenantId = resolvedTenantId || '';
     const tenant = tenants.find(t => t.id === tenantId);
     if (!tenant) return;
 
@@ -1153,7 +1162,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   const addExpenseCategory = async (catName: string) => {
-    const tenantId = currentUser?.tenantId || currentTenantId || '';
+    const tenantId = resolvedTenantId || '';
     const tenant = tenants.find(t => t.id === tenantId);
     if (!tenant) return;
 
@@ -1167,7 +1176,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   const renameExpenseCategory = async (oldName: string, newName: string) => {
-    const tenantId = currentUser?.tenantId || currentTenantId || '';
+    const tenantId = resolvedTenantId || '';
     const tenant = tenants.find(t => t.id === tenantId);
     if (!tenant) return;
 
@@ -1191,7 +1200,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   const deleteExpenseCategory = async (catName: string) => {
-    const tenantId = currentUser?.tenantId || currentTenantId || '';
+    const tenantId = resolvedTenantId || '';
     const tenant = tenants.find(t => t.id === tenantId);
     if (!tenant) return;
 
@@ -1215,7 +1224,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   const addRecipe = async (recipe: Omit<Recipe, 'tenantId'>) => {
-    const tenantId = currentUser?.tenantId || currentTenantId || '';
+    const tenantId = resolvedTenantId || '';
     const newRecipe = { ...recipe, tenantId } as Recipe;
     try {
       const recipeRef = doc(db, 'recipes', newRecipe.id);
@@ -1247,7 +1256,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   const addUser = async (user: User | Omit<User, 'tenantId'>) => {
-    const tenantId = (user as User).tenantId || currentUser?.tenantId || currentTenantId || '';
+    const tenantId = (user as User).tenantId || resolvedTenantId || '';
     const newUser = { 
       ...user, 
       tenantId,
@@ -1295,7 +1304,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   const updateBusiness = async (updates: Partial<Business>) => {
-    const tenantId = currentUser?.tenantId || currentTenantId || '';
+    const tenantId = resolvedTenantId || '';
     try {
       const tenantRef = doc(db, 'tenants', tenantId);
       await updateDoc(tenantRef, updates);
@@ -1365,7 +1374,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     
     const nextId = numericIds.length > 0 ? numericIds[0] + 1 : 1;
     const generatedTenantId = nextId < 10 ? `0${nextId}` : `${nextId}`;
-    const newTenantId = businessData.id || generatedTenantId;
+    const newTenantId = generatedTenantId;
 
     let initialMenuCategories = ['Main', 'Starter', 'Beverage', 'Dessert'];
     if (sourceTenantId) {
@@ -1377,6 +1386,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
     const newBusiness: Business = {
       id: newTenantId,
+      slug: businessData.slug || newTenantId,
       name: businessData.name || 'New Restaurant',
       logo: businessData.logo || DEFAULT_BUSINESS_LOGO,
       address: businessData.address || '',
@@ -1447,7 +1457,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   const addTransaction = async (transaction: Omit<Transaction, 'tenantId'>) => {
-    const tenantId = currentUser?.tenantId || currentTenantId || '';
+    const tenantId = resolvedTenantId || '';
     const newTransaction = { ...transaction, tenantId } as Transaction;
     
     try {
@@ -1460,7 +1470,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   const addExpense = async (expense: Omit<Expense, 'tenantId'>) => {
-    const tenantId = currentUser?.tenantId || currentTenantId || '';
+    const tenantId = resolvedTenantId || '';
     const newExpense = { ...expense, tenantId } as Expense;
     
     try {

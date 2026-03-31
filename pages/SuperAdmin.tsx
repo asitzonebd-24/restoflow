@@ -85,11 +85,14 @@ export const SuperAdmin = () => {
       return;
     }
 
-    // Check for tenant ID uniqueness if provided
-    if (newBusiness.id) {
-      const isTenantIdDuplicate = tenants.some(t => t.id.toLowerCase() === newBusiness.id.toLowerCase());
-      if (isTenantIdDuplicate) {
-        setError('This Tenant ID (slug) is already in use.');
+    // Check for tenant slug uniqueness if provided
+    if (newBusiness.slug) {
+      const isTenantSlugDuplicate = tenants.some(t => 
+        (t.slug?.toLowerCase() === newBusiness.slug?.toLowerCase() || t.id.toLowerCase() === newBusiness.slug?.toLowerCase()) 
+        && t.id !== editingTenant?.id
+      );
+      if (isTenantSlugDuplicate) {
+        setError('This slug is already in use.');
         return;
       }
     }
@@ -369,7 +372,7 @@ export const SuperAdmin = () => {
                             <AlertTriangle size={18} />
                           </button>
                           <button 
-                            onClick={() => navigate(`/${tenant.id}/dashboard`)}
+                            onClick={() => navigate(`/${tenant.slug || tenant.id}/dashboard`)}
                             className="p-2 text-slate-400 hover:text-indigo-600 transition" 
                             title="View Dashboard"
                           >
@@ -387,7 +390,7 @@ export const SuperAdmin = () => {
 
       {showModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-0 md:p-4 z-[100] overflow-y-auto">
-          <div className="bg-white rounded-none md:rounded-3xl w-full max-w-4xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 border-0 md:border-2 border-indigo-500 shadow-indigo-100 min-h-screen md:min-h-0 flex flex-col">
+          <div className="bg-white rounded-none md:rounded-3xl w-full max-w-4xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 border-0 md:border-2 border-indigo-500 shadow-indigo-100 min-h-screen md:min-h-0 md:max-h-[90vh] flex flex-col">
             <div className="p-6 border-b border-indigo-100 flex items-center justify-between bg-slate-50/50 sticky top-0 z-10">
               <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
                 <Building2 className="text-indigo-600" />
@@ -416,22 +419,20 @@ export const SuperAdmin = () => {
                   </h3>
                   
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    {!editingTenant && (
-                      <div className="sm:col-span-2">
-                        <label className="block text-xs font-black uppercase text-slate-500 mb-1 tracking-wider">Slug (URL Name) - Manual Input</label>
-                        <div className="relative">
-                          <input 
-                            type="text" 
-                            placeholder="e.g. my-restaurant"
-                            className="w-full px-4 py-3 rounded-xl border-2 border-slate-100 focus:border-indigo-500 outline-none pl-12 transition-all font-bold text-sm"
-                            value={newBusiness.id || ''}
-                            onChange={(e) => setNewBusiness({...newBusiness, id: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')})}
-                          />
-                          <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs"># /</div>
-                        </div>
-                        <p className="text-[9px] text-slate-400 mt-1 uppercase tracking-widest font-bold">Leave empty for auto-generated ID</p>
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-black uppercase text-slate-500 mb-1 tracking-wider">Slug (URL Name)</label>
+                      <div className="relative">
+                        <input 
+                          type="text" 
+                          placeholder="e.g. my-restaurant"
+                          className="w-full px-4 py-3 rounded-xl border-2 border-slate-100 focus:border-indigo-500 outline-none pl-12 transition-all font-bold text-sm"
+                          value={newBusiness.slug || newBusiness.id || ''}
+                          onChange={(e) => setNewBusiness({...newBusiness, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '')})}
+                        />
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs"># /</div>
                       </div>
-                    )}
+                      <p className="text-[9px] text-slate-400 mt-1 uppercase tracking-widest font-bold">Leave empty for auto-generated slug</p>
+                    </div>
                     
                     <div className="sm:col-span-2">
                       <label className="block text-xs font-black uppercase text-slate-500 mb-1 tracking-wider">Restaurant Name</label>
