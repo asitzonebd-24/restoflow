@@ -553,7 +553,7 @@ export const Billing = () => {
                     )}
                   </div>
                 )}
-                <h2 className="text-xl md:text-2xl font-bold text-black tracking-tight mb-1">{currentTenant?.name}</h2>
+                <h2 className="text-xl md:text-2xl font-bold text-black tracking-tight mb-1 text-center whitespace-normal break-words">{currentTenant?.name}</h2>
                 {currentTenant?.printerSettings?.receiptHeader ? (
                   <p className="text-sm text-black font-bold whitespace-pre-line mb-2">{currentTenant.printerSettings.receiptHeader}</p>
                 ) : (
