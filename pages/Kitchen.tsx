@@ -150,7 +150,7 @@ export const Kitchen = () => {
     );
   }, [menu, searchTerm]);
 
-  const itemsPerPage = 5;
+  const itemsPerPage = 10;
   const totalPages = Math.ceil(activeOrders.length / itemsPerPage);
   const paginatedOrders = activeOrders.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
