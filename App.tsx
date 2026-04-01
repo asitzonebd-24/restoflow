@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { auth, db } from './src/firebase';
 import { BrowserRouter as Router, Routes, Route, Navigate, NavLink, useLocation, useParams, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { AppProvider, useApp } from './context/AppContext';
 import { Login } from './pages/Login';
 import { Landing } from './pages/Landing';
@@ -282,6 +282,8 @@ const ProtectedLayout = ({ children, allowedRoles }: { children?: React.ReactNod
   if (!currentUser) {
     // Redirect to the tenant landing page if tenantId is present
     if (tenantId) {
+      // Special case for 'demo' alias
+      if (tenantId === 'demo') return <Navigate to="/demo" replace />;
       return <Navigate to={`/${tenantId}`} replace />;
     }
     return <Navigate to="/login" replace />;
@@ -295,7 +297,9 @@ const ProtectedLayout = ({ children, allowedRoles }: { children?: React.ReactNod
   
   // If tenantId is in URL, ensure it matches user's tenant (unless Super Admin)
   if (tenantId && currentUser.role !== Role.SUPER_ADMIN && currentUser.tenantId !== tenantId) {
-    return <Navigate to={`/${currentUser.tenantId}/dashboard`} replace />;
+    // Instead of forcing back to original tenant dashboard, redirect to the landing page of the requested tenant
+    // This allows the user to see the "Switch Account" option if they try to login
+    return <Navigate to={`/${tenantId}`} replace />;
   }
   
   if (allowedRoles && !allowedRoles.includes(currentUser.role)) {
@@ -472,6 +476,7 @@ const AppContent = () => {
   const getDefaultRedirect = () => {
     if (!currentUser) return "/";
     
+    // Use resolved tenant ID from business or user
     const targetId = business?.slug || business?.id || currentUser.tenantId;
 
     // If Super Admin is in a tenant context, go to that tenant's dashboard

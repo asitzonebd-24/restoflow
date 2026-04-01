@@ -2,11 +2,12 @@
 import React, { useEffect } from 'react';
 import { useParams, useNavigate, Navigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { Utensils, ShieldCheck, User, ArrowRight, Store, Globe, MapPin, Phone, ShoppingBag } from 'lucide-react';
+import { Utensils, ShieldCheck, User, ArrowRight, Store, Globe, MapPin, Phone, ShoppingBag, LogOut, RefreshCw } from 'lucide-react';
+import { toast } from 'sonner';
 
 export const TenantLanding = () => {
   const { tenantId } = useParams<{ tenantId: string }>();
-  const { tenants, setCurrentTenantId, isLoading, isTenantsLoaded } = useApp();
+  const { tenants, setCurrentTenantId, isLoading, isTenantsLoaded, currentUser, logout } = useApp();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -15,8 +16,35 @@ export const TenantLanding = () => {
     }
   }, [tenantId, setCurrentTenantId]);
 
-  const tenant = tenants.find(t => t.id === tenantId || t.slug === tenantId);
+  const tenant = tenants.find(t => t.id === tenantId || t.slug === tenantId || (tenantId === 'demo' && t.id === '01'));
   const actualTenantId = tenant?.id || tenantId;
+
+  const isTenantMismatch = currentUser && tenant && currentUser.tenantId !== tenant.id && currentUser.role !== 'SUPER_ADMIN';
+
+  // Automatically redirect if already logged in for this tenant
+  useEffect(() => {
+    if (!isLoading && isTenantsLoaded && currentUser && tenant && !isTenantMismatch) {
+      const isSuperAdmin = currentUser.role === 'SUPER_ADMIN';
+      const isCorrectTenant = currentUser.tenantId === tenant.id;
+      
+      if (isSuperAdmin || isCorrectTenant) {
+        const targetId = tenant.slug || tenant.id;
+        if (currentUser.role === 'CUSTOMER') {
+          navigate(`/${targetId}/order`);
+        } else {
+          // Check permissions for staff
+          const permissions = currentUser.permissions || [];
+          if (permissions.includes('Dashboard')) {
+            navigate(`/${targetId}/dashboard`);
+          } else if (permissions.includes('POS')) {
+            navigate(`/${targetId}/pos`);
+          } else if (permissions.length > 0) {
+            navigate(`/${targetId}/${permissions[0].toLowerCase()}`);
+          }
+        }
+      }
+    }
+  }, [isLoading, isTenantsLoaded, currentUser, tenant, navigate]);
 
   if (isLoading || !isTenantsLoaded) {
     return (
@@ -50,6 +78,31 @@ export const TenantLanding = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 font-sans">
+      {isTenantMismatch && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 w-full max-w-md z-[100] animate-in slide-in-from-top-4 duration-500">
+          <div className="bg-amber-50 border-2 border-amber-200 p-4 rounded-2xl shadow-xl flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center shrink-0">
+                <RefreshCw size={20} className="text-amber-600" />
+              </div>
+              <div>
+                <p className="text-[10px] font-black text-amber-800 uppercase tracking-widest">Active Session Detected</p>
+                <p className="text-[9px] text-amber-600 font-medium">Logged in as <span className="font-bold">{currentUser.name}</span> for another business.</p>
+              </div>
+            </div>
+            <button 
+              onClick={async () => {
+                await logout();
+                toast.info('Logged out. You can now access ' + tenant.name);
+              }}
+              className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all shadow-lg shadow-amber-200 flex items-center gap-2"
+            >
+              <LogOut size={14} /> Switch
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
         
         {/* Left Side: Branding & Info */}

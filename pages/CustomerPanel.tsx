@@ -3,7 +3,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { OrderStatus } from '../types';
 import { Timer, ShoppingBag, X, MapPin, ChevronRight, Menu as MenuIcon, Clock } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate, useParams, Navigate } from 'react-router-dom';
 
 export const CustomerPanel = ({ setIsSidebarOpen }: { setIsSidebarOpen?: (open: boolean) => void }) => {

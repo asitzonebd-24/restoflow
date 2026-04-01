@@ -221,6 +221,15 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
           }
         } catch (error) {
           console.error('Error fetching user profile:', error);
+          // On error, we might want to keep the local user as a fallback if it exists
+          // but for security, if the fetch fails, we should be cautious.
+          // However, if it's a network error, clearing the user is annoying.
+          if (!window.navigator.onLine) {
+             // Keep existing user if offline
+          } else {
+            setCurrentUser(null);
+            localStorage.removeItem('resto_keep_user');
+          }
         }
       } else {
         setCurrentUser(null);
@@ -288,6 +297,10 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const resolvedTenantId = useMemo(() => {
     const rawId = currentUser?.tenantId || currentTenantId;
     if (!rawId) return null;
+    
+    // Handle 'demo' alias
+    if (rawId === 'demo') return '01';
+    
     const tenantBySlug = tenants.find(t => t.slug === rawId || t.id === rawId);
     if (tenantBySlug) return tenantBySlug.id;
     return rawId;
