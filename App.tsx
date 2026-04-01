@@ -562,11 +562,11 @@ import { Toaster } from 'sonner';
 
 export default function App() {
   return (
-    <AppProvider>
-      <Router>
+    <Router>
+      <AppProvider>
         <AppContent />
         <Toaster position="top-right" richColors />
-      </Router>
-    </AppProvider>
+      </AppProvider>
+    </Router>
   );
 }
