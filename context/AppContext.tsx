@@ -230,7 +230,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     const bootstrapSuperAdmin = async () => {
       try {
         const saEmail = 'asitzonebd@gmail.com';
-        const saPassword = 'admin'; // Default password
+        const saPassword = 'admin123'; // Default password
         
         // Try to sign in to see if the user exists in Firebase Auth
         try {

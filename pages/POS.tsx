@@ -961,7 +961,7 @@ export const POS = () => {
             {isCreatingNew && (
               <>
                 <div className="flex items-center gap-2 md:gap-3 bg-indigo-50 px-3 md:px-4 py-2 md:py-2.5 rounded-xl md:rounded-2xl border-2 border-indigo-500 w-full">
-                  <span className="text-[9px] md:text-[10px] text-indigo-500 font-black uppercase tracking-widest">Token:</span>
+                  <span className="text-[10px] md:text-[11px] text-indigo-800 font-black uppercase tracking-widest">Token:</span>
                   <input 
                     type="text" 
                     value={newTokenNum}
@@ -970,8 +970,19 @@ export const POS = () => {
                   />
                   {isTokenDuplicate && <AlertCircle className="text-rose-500 shrink-0" size={14} />}
                 </div>
+                
+                <div className="relative group w-full">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={14} />
+                    <input 
+                        type="text" 
+                        placeholder="Search menu..." 
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full pl-11 pr-4 py-2.5 md:py-3 bg-white border-2 border-indigo-500 rounded-xl md:rounded-2xl text-xs font-medium focus:outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all shadow-xl shadow-indigo-100"
+                    />
+                </div>
+
                 <div className="flex items-center gap-2 md:gap-3 bg-slate-50 px-3 md:px-4 py-2 md:py-2.5 rounded-xl md:rounded-2xl border-2 border-slate-900 w-full">
-                  <span className="text-[9px] md:text-[10px] text-slate-400 font-black uppercase tracking-widest">Table:</span>
                   <select 
                     value={newTableNum}
                     onChange={(e) => {
@@ -982,9 +993,9 @@ export const POS = () => {
                         setNewTableNum(e.target.value);
                       }
                     }}
-                    className="flex-1 min-w-0 w-full text-center bg-transparent font-black text-sm md:text-lg outline-none transition-all text-slate-900 border-b-2 border-slate-900"
+                    className="flex-1 min-w-0 w-full text-left bg-transparent font-black text-xs md:text-sm outline-none transition-all text-slate-900"
                   >
-                    <option value="" disabled>Select</option>
+                    <option value="" disabled>Select Table</option>
                     {tables.map(t => (
                       <option key={t.id} value={t.name}>{t.name}</option>
                     ))}
@@ -996,29 +1007,32 @@ export const POS = () => {
               </>
             )}
             
+            {!isCreatingNew && (
+                <div className="relative group w-full">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={14} />
+                    <input 
+                        type="text" 
+                        placeholder="Search menu..." 
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full pl-11 pr-4 py-2.5 md:py-3 bg-white border-2 border-indigo-500 rounded-xl md:rounded-2xl text-xs font-medium focus:outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all shadow-xl shadow-indigo-100"
+                    />
+                </div>
+            )
+            }
+
             <div className="relative w-full">
               <select 
                 value={activeCategory}
                 onChange={(e) => setActiveCategory(e.target.value)}
-                className="w-full pl-4 pr-10 py-2.5 md:py-3 bg-white border-2 border-black rounded-xl md:rounded-2xl text-[10px] md:text-xs font-bold uppercase tracking-widest outline-none focus:border-indigo-500 appearance-none cursor-pointer shadow-sm"
+                className="w-full pl-2 pr-6 py-3 bg-white border-2 border-black rounded-xl text-xs font-bold outline-none focus:border-indigo-500 appearance-none cursor-pointer shadow-sm"
               >
-                <option value="" disabled>Select Category</option>
+                <option value="" className="text-sm">Select Menu</option>
                 {categories.filter(c => c !== 'All').map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
+                  <option key={cat} value={cat} className="text-sm uppercase">{cat}</option>
                 ))}
               </select>
-              <ChevronRight className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 rotate-90 pointer-events-none" size={14} />
-            </div>
-
-            <div className="relative group w-full">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={14} />
-                <input 
-                    type="text" 
-                    placeholder="Search menu..." 
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-11 pr-4 py-2.5 md:py-3 bg-white border-2 border-indigo-500 rounded-xl md:rounded-2xl text-xs font-medium focus:outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all shadow-xl shadow-indigo-100"
-                />
+              <ChevronRight className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 rotate-90 pointer-events-none" size={12} />
             </div>
           </div>
         </div>
@@ -1060,17 +1074,17 @@ export const POS = () => {
               ))}
             </AnimatePresence>
           </div>
-          {filteredMenu.length === 0 && (
+          {activeCategory && filteredMenu.length === 0 && (
             <div className="h-full flex flex-col items-center justify-center text-slate-300 py-20">
                 <Search size={64} strokeWidth={1} className="mb-4 opacity-20" />
                 <p className="text-sm font-medium uppercase tracking-widest opacity-40">
-                  {!activeCategory ? 'Select a category to view items' : 'No items found'}
+                  No items found
                 </p>
             </div>
           )}
 
           {/* Mobile Embedded Basket - Visible below menu items */}
-          <div className="lg:hidden mt-12 mb-20">
+          <div className={`lg:hidden ${activeCategory ? 'mt-12' : 'mt-4'} mb-20`}>
             <POSCartContent 
               isEmbedded 
               isCreatingNew={isCreatingNew}
