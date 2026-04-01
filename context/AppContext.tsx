@@ -638,7 +638,11 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     } catch (error: any) {
       console.error('Login error:', error);
       setIsLoading(false);
-      toast.error('Login failed: ' + (error.message || 'Invalid credentials'));
+      if (error.code === 'auth/too-many-requests') {
+        toast.error('Too many failed login attempts. Please wait a few minutes and try again.');
+      } else {
+        toast.error('Login failed: ' + (error.message || 'Invalid credentials'));
+      }
       return false;
     }
   };
