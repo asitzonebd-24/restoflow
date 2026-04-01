@@ -29,12 +29,6 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { BluetoothPrinterService } from '../services/printerService';
 
-const StatusBadge = ({ label, count, styles }: { label: string, count: number, styles: any, active?: boolean }) => (
-  <div className={`flex flex-col items-center justify-center py-3 px-2 rounded-2xl border-2 transition-all ${count > 0 ? `${styles.bg} ${styles.text.replace('text-', 'border-')} ${styles.text}` : 'bg-slate-50/50 border-slate-100 text-slate-200'}`}>
-    <span className="text-[8px] font-black uppercase tracking-widest mb-1 opacity-80">{label}</span>
-    <span className="text-xl font-black">{count}</span>
-  </div>
-);
 
 const ItemSummary = ({ cart, cartTotal, currency }: { cart: OrderItem[], cartTotal: number, currency: string }) => {
   const groupItems = (items: OrderItem[]) => {
@@ -740,31 +734,24 @@ export const POS = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-6 pb-6">
           <AnimatePresence mode="popLayout">
             {paginatedOrders.map(order => {
-              const pendingCount = order.items.filter(i => i.status === OrderStatus.PENDING).reduce((acc, i) => acc + i.quantity, 0);
-              const preparingCount = order.items.filter(i => i.status === OrderStatus.PREPARING).reduce((acc, i) => acc + i.quantity, 0);
-              const readyCount = order.items.filter(i => i.status === OrderStatus.READY).reduce((acc, i) => acc + i.quantity, 0);
-              const statusStyles = getStatusStyles(order.status);
+              const hasPending = order.items.some(i => i.status === OrderStatus.PENDING);
+              const statusStyles = getStatusStyles(hasPending ? OrderStatus.PENDING : order.status);
 
               return (
-                <motion.button
+                <motion.div
                   layout
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
                   key={order.id}
                   onClick={() => handleSelectOrder(order)}
-                  className="group relative bg-white rounded-[2.5rem] shadow-2xl border-4 border-black transition-all duration-300 text-left flex flex-col min-h-[280px] hover:scale-[1.02] overflow-hidden"
+                  className="group relative bg-white rounded-[2.5rem] shadow-2xl border-4 border-black transition-all duration-300 text-left flex flex-col min-h-[280px] hover:scale-[1.02] overflow-hidden cursor-pointer"
                 >
                   {/* Top Border Bar */}
                   <div className={`absolute top-0 left-0 right-0 h-4 ${statusStyles.topBorder}`}></div>
                   
                   <div className="relative z-10 flex flex-col h-full p-6 pt-10">
-                    <div className="flex flex-col items-center mb-4">
-                      <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-900">Status Overview</h3>
-                      <div className={`w-10 h-1.5 rounded-full mt-1.5 ${statusStyles.topBorder}`}></div>
-                    </div>
-
-                    {/* Token Number Pill (Exactly like image) */}
+                    {/* Token Number Pill */}
                     <div className="flex justify-center mb-6 relative">
                       <div className={`min-w-[4.5rem] px-5 h-16 rounded-[2rem] border-4 border-black flex items-center justify-center font-black text-3xl text-white shadow-2xl ${statusStyles.topBorder}`}>
                         {order.tokenNumber}
@@ -783,38 +770,17 @@ export const POS = () => {
                       </div>
                     )}
 
-                    {/* Status Grid */}
-                    <div className="grid grid-cols-3 gap-3 mb-6">
-                      <StatusBadge label="PENDING" count={pendingCount} styles={getStatusStyles(OrderStatus.PENDING)} />
-                      <StatusBadge label="READY" count={preparingCount} styles={getStatusStyles(OrderStatus.PREPARING)} />
-                      <StatusBadge label="DONE" count={readyCount} styles={getStatusStyles(OrderStatus.READY)} />
-                    </div>
-
                     {/* Items Summary List */}
                     <div className="mb-4 space-y-1">
-                      {(() => {
-                        const groupedItems: { [key: string]: { name: string, quantity: number, status: OrderStatus } } = {};
-                        order.items.forEach(item => {
-                          // Only show items when their status is READY (OrderStatus.PREPARING)
-                          if (item.status === OrderStatus.PREPARING) {
-                            const key = `${item.itemId}-${item.status}`;
-                            if (!groupedItems[key]) {
-                              groupedItems[key] = { name: item.name, quantity: 0, status: item.status };
-                            }
-                            groupedItems[key].quantity += item.quantity;
-                          }
-                        });
-                        
-                        return Object.entries(groupedItems).map(([key, group]) => {
-                          const styles = getStatusStyles(group.status);
-                          return (
-                            <div key={key} className={`flex justify-between items-center text-[10px] font-black uppercase tracking-tight px-3 py-1.5 rounded-xl border ${styles.bg} ${styles.text} ${styles.border}`}>
-                              <span className="break-words pr-2">{group.name}</span>
-                              <span className="shrink-0">x{group.quantity}</span>
-                            </div>
-                          );
-                        });
-                      })()}
+                      {order.items.map((item, index) => {
+                        const itemStyles = getStatusStyles(item.status as OrderStatus);
+                        return (
+                          <div key={index} className={`flex justify-between text-[10px] font-bold uppercase tracking-widest py-1 px-2 rounded-lg border-2 ${itemStyles.border} ${itemStyles.topBorder.replace('bg-', 'shadow-')} ${statusStyles.bg}`}>
+                            <span className={itemStyles.text}>{item.name}</span>
+                            <span className={itemStyles.text}>x{item.quantity}</span>
+                          </div>
+                        );
+                      })}
                     </div>
 
                     {/* Dashed Divider */}
@@ -862,7 +828,7 @@ export const POS = () => {
                       </div>
                     </div>
                   </div>
-                </motion.button>
+                </motion.div>
               );
             })}
           </AnimatePresence>

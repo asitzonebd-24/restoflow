@@ -6,7 +6,7 @@ import { Utensils, ShieldCheck, User, ArrowRight, Store, Globe, MapPin, Phone, S
 
 export const TenantLanding = () => {
   const { tenantId } = useParams<{ tenantId: string }>();
-  const { tenants, setCurrentTenantId, isLoading } = useApp();
+  const { tenants, setCurrentTenantId, isLoading, isTenantsLoaded } = useApp();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -18,7 +18,7 @@ export const TenantLanding = () => {
   const tenant = tenants.find(t => t.id === tenantId || t.slug === tenantId);
   const actualTenantId = tenant?.id || tenantId;
 
-  if (isLoading) {
+  if (isLoading || !isTenantsLoaded) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6">
         <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div>

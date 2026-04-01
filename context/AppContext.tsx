@@ -146,6 +146,8 @@ interface AppContextType {
   approveBill: (billId: string) => Promise<void>;
   allUsers: User[];
   isLoading: boolean;
+  isTenantsLoaded: boolean;
+  isAuthReady: boolean;
   activeCategory: string;
   setActiveCategory: (category: string) => void;
   categories: string[];
@@ -189,6 +191,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [allTables, setAllTables] = useState<Table[]>([]);
   const [monthlyBills, setMonthlyBills] = useState<MonthlyBill[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isTenantsLoaded, setIsTenantsLoaded] = useState(false);
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string>('');
   const [dbStatus, setDbStatus] = useState<{
@@ -354,9 +357,11 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         }
       }
       setTenants(tenantsData);
+      setIsTenantsLoaded(true);
       checkLoadingState('tenants');
     }, (error) => {
       console.error('Error fetching tenants:', error);
+      setIsTenantsLoaded(true);
       checkLoadingState('tenants');
       try {
         handleFirestoreError(error, OperationType.GET, 'tenants');
@@ -1683,6 +1688,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       approveBill,
       allUsers,
       isLoading,
+      isTenantsLoaded,
+      isAuthReady,
       activeCategory,
       setActiveCategory,
       categories,
