@@ -603,17 +603,42 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         return true;
       } else {
         // Special case for Super Admin: Auto-create profile if email matches
-        if (user.email === 'asitzonebd@gmail.com') {
+        const userEmail = user.email?.toLowerCase().trim();
+        const saEmail = 'asitzonebd@gmail.com';
+        
+        if (userEmail === saEmail) {
           console.log('Super Admin detected via Google Login. Creating profile...');
-          const saUser = MOCK_USERS.find(u => u.email === 'asitzonebd@gmail.com');
-          if (saUser) {
-            const newUser = { ...saUser, id: user.uid, email: user.email, name: user.displayName || saUser.name };
+          const saUser = MOCK_USERS.find(u => u.email.toLowerCase() === saEmail) || {
+            id: user.uid,
+            name: user.displayName || 'Super Admin',
+            email: saEmail,
+            password: 'admin123',
+            mobile: '0000000',
+            role: Role.SUPER_ADMIN,
+            avatar: user.photoURL || '',
+            permissions: ['Portal']
+          };
+          
+          const newUser = { 
+            ...saUser, 
+            id: user.uid, 
+            email: userEmail, 
+            name: user.displayName || saUser.name,
+            avatar: user.photoURL || saUser.avatar
+          };
+          
+          try {
             await setDoc(doc(db, 'users', newUser.id), newUser);
             setCurrentUser(newUser);
             localStorage.setItem('resto_keep_user', JSON.stringify(newUser));
             localStorage.setItem('sa_bootstrapped', 'true');
             toast.success(`Welcome, Super Admin ${newUser.name}!`);
             return true;
+          } catch (setDocError: any) {
+            console.error('Error creating Super Admin doc:', setDocError);
+            toast.error('Failed to create Super Admin profile: ' + setDocError.message);
+            await signOut(auth);
+            return false;
           }
         }
 
