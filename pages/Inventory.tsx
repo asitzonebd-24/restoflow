@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { InventoryItem } from '../types';
+import { InventoryItem, InventoryMode, Recipe } from '../types';
 import { Package, AlertTriangle, RefreshCw, Plus, Edit2, X, Save, Search, ChevronRight, CheckCircle, MoreHorizontal, ArrowUpRight, ArrowDownRight, Trash2, Truck, List } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Pagination } from '../components/Pagination';
@@ -107,15 +107,27 @@ const ListManagerModal = ({
 };
 
 export const Inventory = () => {
-  const { inventory, updateInventory, addInventoryItem, editInventoryItem, deleteInventoryItem, currentTenant, menu, updateTenant } = useApp();
+  const { inventory, updateInventory, addInventoryItem, editInventoryItem, deleteInventoryItem, currentTenant, menu, updateTenant, business, recipes, addRecipe, updateRecipe, deleteRecipe } = useApp();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isRecipeModalOpen, setIsRecipeModalOpen] = useState(false);
   const [isMaterialManagerOpen, setIsMaterialManagerOpen] = useState(false);
   const [isSupplierManagerOpen, setIsSupplierManagerOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'inventory' | 'menu'>('inventory');
+  const [activeTab, setActiveTab] = useState<'inventory' | 'menu' | 'recipes'>('inventory');
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
+  const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
+
+  const isRecipeMode = business?.inventoryMode === InventoryMode.RECIPE;
+
+  const [recipeFormData, setRecipeFormData] = useState<{
+    menuItemId: string;
+    ingredients: { inventoryItemId: string; quantity: number }[];
+  }>({
+    menuItemId: '',
+    ingredients: [{ inventoryItemId: '', quantity: 0 }]
+  });
 
   const [formData, setFormData] = useState({
     name: '',
@@ -253,6 +265,60 @@ export const Inventory = () => {
     i.supplier.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const handleRecipeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentTenant) return;
+
+    const data = {
+      menuItemId: recipeFormData.menuItemId,
+      ingredients: recipeFormData.ingredients.filter(i => i.inventoryItemId && i.quantity > 0)
+    };
+
+    if (editingRecipe) {
+      await updateRecipe(editingRecipe.id, data);
+    } else {
+      await addRecipe({
+        id: `recipe-${Date.now()}`,
+        ...data
+      });
+    }
+    setIsRecipeModalOpen(false);
+  };
+
+  const openAddRecipeModal = () => {
+    setEditingRecipe(null);
+    setRecipeFormData({ menuItemId: '', ingredients: [{ inventoryItemId: '', quantity: 0 }] });
+    setIsRecipeModalOpen(true);
+  };
+
+  const openEditRecipeModal = (recipe: Recipe) => {
+    setEditingRecipe(recipe);
+    setRecipeFormData({
+      menuItemId: recipe.menuItemId,
+      ingredients: recipe.ingredients.map(i => ({ ...i }))
+    });
+    setIsRecipeModalOpen(true);
+  };
+
+  const addIngredientField = () => {
+    setRecipeFormData({
+      ...recipeFormData,
+      ingredients: [...recipeFormData.ingredients, { inventoryItemId: '', quantity: 0 }]
+    });
+  };
+
+  const removeIngredientField = (index: number) => {
+    const newIngredients = [...recipeFormData.ingredients];
+    newIngredients.splice(index, 1);
+    setRecipeFormData({ ...recipeFormData, ingredients: newIngredients });
+  };
+
+  const updateIngredientField = (index: number, field: 'inventoryItemId' | 'quantity', value: string | number) => {
+    const newIngredients = [...recipeFormData.ingredients];
+    newIngredients[index] = { ...newIngredients[index], [field]: value };
+    setRecipeFormData({ ...recipeFormData, ingredients: newIngredients });
+  };
+
   const totalPages = Math.ceil(filteredInventory.length / itemsPerPage);
   const paginatedInventory = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
@@ -387,12 +453,21 @@ export const Inventory = () => {
         >
           Raw Materials
         </button>
-        <button 
-          onClick={() => setActiveTab('menu')}
-          className={`px-6 py-3 rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === 'menu' ? 'bg-slate-900 text-white shadow-lg' : 'bg-white text-slate-400 hover:bg-slate-50'}`}
-        >
-          Menu Stock Sync
-        </button>
+        {!isRecipeMode ? (
+          <button 
+            onClick={() => setActiveTab('menu')}
+            className={`px-6 py-3 rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === 'menu' ? 'bg-slate-900 text-white shadow-lg' : 'bg-white text-slate-400 hover:bg-slate-50'}`}
+          >
+            Menu Stock Sync
+          </button>
+        ) : (
+          <button 
+            onClick={() => setActiveTab('recipes')}
+            className={`px-6 py-3 rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === 'recipes' ? 'bg-slate-900 text-white shadow-lg' : 'bg-white text-slate-400 hover:bg-slate-50'}`}
+          >
+            Recipes
+          </button>
+        )}
       </div>
 
       {activeTab === 'inventory' ? (
@@ -620,7 +695,7 @@ export const Inventory = () => {
             itemsPerPage={itemsPerPage}
           />
         </>
-      ) : (
+      ) : activeTab === 'menu' ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
           {currentTenant?.menuCategories.map(category => {
             const categoryItems = menu.filter(m => m.category === category);
@@ -685,6 +760,69 @@ export const Inventory = () => {
               </div>
             );
           })}
+        </div>
+      ) : (
+        <div className="space-y-6 mb-10">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-bold text-slate-900">Menu Recipes</h2>
+            <button 
+              onClick={openAddRecipeModal}
+              className="bg-indigo-600 text-white px-6 py-3 rounded-2xl text-[10px] font-bold uppercase tracking-widest shadow-lg hover:bg-indigo-700 transition-all flex items-center gap-2 active:scale-95"
+            >
+              <Plus size={16} /> Create Recipe
+            </button>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {recipes.length === 0 ? (
+              <div className="md:col-span-3 py-20 bg-white rounded-[2rem] border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-400">
+                <List size={48} className="mb-4 opacity-20" />
+                <p className="text-sm font-bold uppercase tracking-widest">No recipes created yet</p>
+                <button onClick={openAddRecipeModal} className="mt-4 text-indigo-600 text-[10px] font-bold uppercase tracking-widest hover:underline">Add your first recipe</button>
+              </div>
+            ) : (
+              recipes.map(recipe => {
+                const menuItem = menu.find(m => m.id === recipe.menuItemId);
+                return (
+                  <div key={recipe.id} className="bg-white p-6 rounded-[2rem] border-2 border-slate-100 shadow-sm hover:border-indigo-500 transition-all group">
+                    <div className="flex justify-between items-start mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400">
+                          {menuItem?.image ? (
+                            <img src={menuItem.image} alt={menuItem.name} className="w-full h-full object-cover rounded-xl" />
+                          ) : (
+                            <Package size={24} />
+                          )}
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-slate-900">{menuItem?.name || 'Unknown Item'}</h3>
+                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{recipe.ingredients.length} Ingredients</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onClick={() => openEditRecipeModal(recipe)} className="p-2 text-slate-400 hover:text-indigo-600 transition-colors"><Edit2 size={16} /></button>
+                        <button onClick={() => { if(window.confirm('Delete recipe?')) deleteRecipe(recipe.id) }} className="p-2 text-slate-400 hover:text-rose-500 transition-colors"><Trash2 size={16} /></button>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      {recipe.ingredients.slice(0, 3).map((ing, idx) => {
+                        const invItem = inventory.find(i => i.id === ing.inventoryItemId);
+                        return (
+                          <div key={idx} className="flex justify-between items-center text-xs">
+                            <span className="text-slate-500 font-medium">{invItem?.name || 'Unknown'}</span>
+                            <span className="text-slate-900 font-bold">{ing.quantity} {invItem?.unit}</span>
+                          </div>
+                        );
+                      })}
+                      {recipe.ingredients.length > 3 && (
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest pt-1">+{recipe.ingredients.length - 3} more ingredients</p>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
         </div>
       )}
 
@@ -997,6 +1135,118 @@ export const Inventory = () => {
         onDelete={handleDeleteSupplier}
         placeholder="e.g. Metro Wholesale"
       />
+      {/* Recipe Modal */}
+      <AnimatePresence>
+        {isRecipeModalOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6"
+          >
+            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setIsRecipeModalOpen(false)}></div>
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="relative bg-white w-full max-w-2xl md:rounded-[2.5rem] rounded-t-[2rem] shadow-2xl overflow-hidden border-2 border-indigo-500 shadow-indigo-100 self-end md:self-center max-h-[90vh] flex flex-col"
+            >
+              <div className="p-8 md:p-10 overflow-y-auto no-scrollbar flex-1">
+                <div className="flex justify-between items-center mb-8 shrink-0">
+                  <div>
+                    <h2 className="text-2xl font-bold text-slate-900 tracking-tight">{editingRecipe ? 'Edit Recipe' : 'Create Recipe'}</h2>
+                    <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1">Link raw materials to menu items</p>
+                  </div>
+                  <button onClick={() => setIsRecipeModalOpen(false)} className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-all">
+                    <X size={24} />
+                  </button>
+                </div>
+
+                <form onSubmit={handleRecipeSubmit} className="space-y-8">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 ml-1">Select Menu Item</label>
+                    <select 
+                      required
+                      value={recipeFormData.menuItemId}
+                      onChange={(e) => setRecipeFormData({ ...recipeFormData, menuItemId: e.target.value })}
+                      className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all appearance-none"
+                    >
+                      <option value="">Choose an item...</option>
+                      {menu.map(item => (
+                        <option key={item.id} value={item.id}>{item.name} ({item.category})</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center mb-2">
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Ingredients & Quantities</label>
+                      <button 
+                        type="button"
+                        onClick={addIngredientField}
+                        className="text-indigo-600 text-[10px] font-bold uppercase tracking-widest hover:underline flex items-center gap-1"
+                      >
+                        <Plus size={14} /> Add Ingredient
+                      </button>
+                    </div>
+
+                    <div className="space-y-4">
+                      {recipeFormData.ingredients.map((ingredient, index) => (
+                        <div key={index} className="flex gap-4 items-start animate-in fade-in slide-in-from-left-2 duration-300">
+                          <div className="flex-1">
+                            <select 
+                              required
+                              value={ingredient.inventoryItemId}
+                              onChange={(e) => updateIngredientField(index, 'inventoryItemId', e.target.value)}
+                              className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all appearance-none"
+                            >
+                              <option value="">Select Material...</option>
+                              {inventory.map(item => (
+                                <option key={item.id} value={item.id}>{item.name} ({item.unit})</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="w-32">
+                            <input 
+                              type="number" 
+                              required
+                              step="0.001"
+                              min="0.001"
+                              placeholder="Qty"
+                              value={ingredient.quantity || ''}
+                              onChange={(e) => updateIngredientField(index, 'quantity', Number(e.target.value))}
+                              className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                            />
+                          </div>
+                          {recipeFormData.ingredients.length > 1 && (
+                            <button 
+                              type="button"
+                              onClick={() => removeIngredientField(index)}
+                              className="w-12 h-12 flex items-center justify-center text-slate-300 hover:text-rose-500 transition-colors"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="pt-4 shrink-0">
+                    <button 
+                      type="submit"
+                      className="w-full bg-slate-900 text-white py-5 rounded-2xl font-bold text-xs uppercase tracking-[0.2em] shadow-xl hover:bg-slate-800 transition-all active:scale-[0.98] flex items-center justify-center gap-3"
+                    >
+                      <Save size={18} />
+                      {editingRecipe ? 'Update Recipe' : 'Save Recipe'}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Settings as SettingsIcon, Save, Store, Globe, Percent, Upload, Image as ImageIcon, User as UserIcon, Lock, Mail, Phone, Printer } from 'lucide-react';
-import { Role } from '../types';
+import { Role, InventoryMode } from '../types';
 import { BluetoothPrinterService } from '../services/printerService';
 
 export const Settings = () => {
@@ -20,6 +20,7 @@ export const Settings = () => {
     const [customerAppEnabled, setCustomerAppEnabled] = useState(true);
     const [customerTokenPrefix, setCustomerTokenPrefix] = useState('ORD');
     const [nextCustomerToken, setNextCustomerToken] = useState(1);
+    const [inventoryMode, setInventoryMode] = useState<InventoryMode>(InventoryMode.SIMPLE);
 
     // Printer Settings state
     const [receiptHeader, setReceiptHeader] = useState('');
@@ -55,6 +56,7 @@ export const Settings = () => {
             setCustomerAppEnabled(business.customerAppEnabled ?? true);
             setCustomerTokenPrefix(business.customerTokenPrefix || 'ORD');
             setNextCustomerToken(business.nextCustomerToken || 1);
+            setInventoryMode(business.inventoryMode || InventoryMode.SIMPLE);
             
             if (business.printerSettings) {
                 setReceiptHeader(business.printerSettings.receiptHeader || '');
@@ -113,6 +115,7 @@ export const Settings = () => {
                 customerAppEnabled,
                 customerTokenPrefix,
                 nextCustomerToken,
+                inventoryMode,
                 printerSettings: {
                     receiptHeader,
                     receiptFooter,
@@ -407,6 +410,37 @@ export const Settings = () => {
                                         rows={2}
                                         className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-indigo-500 outline-none font-bold text-sm transition-all resize-none shadow-sm"
                                     />
+                                </div>
+                                <div className="md:col-span-2">
+                                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Inventory Management Mode</label>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <button 
+                                            type="button"
+                                            onClick={() => setInventoryMode(InventoryMode.SIMPLE)}
+                                            className={`p-4 rounded-2xl border-2 text-left transition-all ${inventoryMode === InventoryMode.SIMPLE ? 'border-indigo-600 bg-indigo-50 shadow-md' : 'border-slate-100 bg-slate-50 hover:border-slate-200'}`}
+                                        >
+                                            <div className="flex items-center gap-3 mb-1">
+                                                <div className={`w-2 h-2 rounded-full ${inventoryMode === InventoryMode.SIMPLE ? 'bg-indigo-600' : 'bg-slate-300'}`}></div>
+                                                <span className="text-xs font-bold text-slate-900 uppercase tracking-widest">Simple Mode</span>
+                                            </div>
+                                            <p className="text-[10px] text-slate-500 font-medium leading-relaxed">
+                                                Directly track stock for each menu item. Best for small restaurants.
+                                            </p>
+                                        </button>
+                                        <button 
+                                            type="button"
+                                            onClick={() => setInventoryMode(InventoryMode.RECIPE)}
+                                            className={`p-4 rounded-2xl border-2 text-left transition-all ${inventoryMode === InventoryMode.RECIPE ? 'border-indigo-600 bg-indigo-50 shadow-md' : 'border-slate-100 bg-slate-50 hover:border-slate-200'}`}
+                                        >
+                                            <div className="flex items-center gap-3 mb-1">
+                                                <div className={`w-2 h-2 rounded-full ${inventoryMode === InventoryMode.RECIPE ? 'bg-indigo-600' : 'bg-slate-300'}`}></div>
+                                                <span className="text-xs font-bold text-slate-900 uppercase tracking-widest">Recipe Mode</span>
+                                            </div>
+                                            <p className="text-[10px] text-slate-500 font-medium leading-relaxed">
+                                                Track raw materials and link them to recipes. Stock updates automatically on sale.
+                                            </p>
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>

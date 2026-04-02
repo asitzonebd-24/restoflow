@@ -32,6 +32,11 @@ export interface PrinterSettings {
   pairedPrinterId?: string;
 }
 
+export enum InventoryMode {
+  SIMPLE = 'SIMPLE',
+  RECIPE = 'RECIPE',
+}
+
 export interface Business {
   id: string;
   slug?: string;
@@ -55,6 +60,7 @@ export interface Business {
   isMaintenanceMode?: boolean;
   maintenanceMessage?: string;
   maintenanceTime?: string;
+  inventoryMode: InventoryMode;
   monthlyBill: number;
   createdAt: string;
   printerSettings?: PrinterSettings;

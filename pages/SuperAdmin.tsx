@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import { Business, Role, BillStatus } from '../types';
+import { Business, Role, BillStatus, InventoryMode } from '../types';
 import { Plus, Building2, User, Mail, Phone, Globe, MapPin, Search, ExternalLink, Calendar, Power, PowerOff, Edit3, Save, X as CloseIcon, AlertTriangle, Copy, Check, Wallet, Trash2, ChevronDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -55,6 +55,7 @@ export const SuperAdmin = () => {
     isMaintenanceMode: false,
     maintenanceMessage: '',
     maintenanceTime: '',
+    inventoryMode: InventoryMode.SIMPLE,
   });
 
   const [newOwner, setNewOwner] = useState({

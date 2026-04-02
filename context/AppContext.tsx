@@ -1,6 +1,6 @@
 
 import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
-import { Role, Business, User, Order, InventoryItem, MenuItem, OrderStatus, ItemStatus, Transaction, Expense, OrderItem, MonthlyBill, BillStatus, Recipe, Table } from '../types';
+import { Role, Business, User, Order, InventoryItem, MenuItem, OrderStatus, ItemStatus, Transaction, Expense, OrderItem, MonthlyBill, BillStatus, Recipe, Table, InventoryMode } from '../types';
 import { BUSINESS_DETAILS, MOCK_USERS, INITIAL_ORDERS, MOCK_INVENTORY, MOCK_MENU, MOCK_EXPENSES, DEFAULT_MENU_IMAGE, DEFAULT_AVATAR, DEFAULT_BUSINESS_LOGO } from '../constants';
 import { auth, secondaryAuth, db, googleProvider } from '../src/firebase';
 import { 
@@ -716,27 +716,38 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     // Update menu item stock and validate
     const inventoryUpdates: { [id: string]: number } = {};
     const menuUpdates: { [id: string]: number } = {};
+    const isRecipeMode = business.inventoryMode === InventoryMode.RECIPE;
 
     for (const item of newOrder.items) {
       const menuItem = allMenu.find(m => m.id === item.itemId);
-      if (menuItem && menuItem.stock !== undefined && menuItem.stock !== null) {
-        const currentMenuStock = menuUpdates[item.itemId] !== undefined ? menuUpdates[item.itemId] : menuItem.stock;
-        if (currentMenuStock < item.quantity) {
-          throw new Error(`Insufficient stock for ${menuItem.name}`);
+      if (menuItem) {
+        // In Simple Mode, we check menu item stock
+        if (!isRecipeMode && menuItem.stock !== undefined && menuItem.stock !== null) {
+          const currentMenuStock = menuUpdates[item.itemId] !== undefined ? menuUpdates[item.itemId] : menuItem.stock;
+          if (currentMenuStock < item.quantity) {
+            throw new Error(`Insufficient stock for ${menuItem.name}`);
+          }
+          menuUpdates[item.itemId] = Math.max(0, currentMenuStock - item.quantity);
         }
-        menuUpdates[item.itemId] = Math.max(0, currentMenuStock - item.quantity);
 
-        // Sync with inventory if linked (Direct link or Category link)
-        const recipe = recipes.find(r => r.menuItemId === item.itemId);
-        if (recipe) {
-          for (const ingredient of recipe.ingredients) {
-            const invItem = allInventory.find(i => i.id === ingredient.inventoryItemId);
-            if (invItem) {
-              const currentInvQty = inventoryUpdates[invItem.id] !== undefined ? inventoryUpdates[invItem.id] : invItem.quantity;
-              inventoryUpdates[invItem.id] = Math.max(0, currentInvQty - (ingredient.quantity * item.quantity));
+        // Handle Inventory Deductions
+        if (isRecipeMode) {
+          const recipe = recipes.find(r => r.menuItemId === item.itemId);
+          if (recipe) {
+            for (const ingredient of recipe.ingredients) {
+              const invItem = allInventory.find(i => i.id === ingredient.inventoryItemId);
+              if (invItem) {
+                const currentInvQty = inventoryUpdates[invItem.id] !== undefined ? inventoryUpdates[invItem.id] : invItem.quantity;
+                const deduction = ingredient.quantity * item.quantity;
+                if (currentInvQty < deduction) {
+                   throw new Error(`Insufficient ${invItem.name} for ${menuItem.name}`);
+                }
+                inventoryUpdates[invItem.id] = Math.max(0, currentInvQty - deduction);
+              }
             }
           }
         } else {
+          // Simple Mode Inventory Sync
           const linkedInvItem = allInventory.find(inv => 
             inv.menuItemId === item.itemId || 
             (inv.menuCategory === menuItem.category && !inv.menuItemId)
@@ -819,28 +830,39 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       // Update stock in Firestore and validate
       const inventoryUpdates: { [id: string]: number } = {};
       const menuUpdates: { [id: string]: number } = {};
+      const isRecipeMode = business.inventoryMode === InventoryMode.RECIPE;
 
       for (const itemId in stockChanges) {
         const change = stockChanges[itemId];
         const menuItem = allMenu.find(m => m.id === itemId);
-        if (menuItem && menuItem.stock !== undefined && menuItem.stock !== null) {
-          const currentMenuStock = menuUpdates[itemId] !== undefined ? menuUpdates[itemId] : menuItem.stock;
-          if (change > 0 && currentMenuStock < change) {
-            throw new Error(`Insufficient stock for ${menuItem.name}`);
+        if (menuItem) {
+          // In Simple Mode, we check menu item stock
+          if (!isRecipeMode && menuItem.stock !== undefined && menuItem.stock !== null) {
+            const currentMenuStock = menuUpdates[itemId] !== undefined ? menuUpdates[itemId] : menuItem.stock;
+            if (change > 0 && currentMenuStock < change) {
+              throw new Error(`Insufficient stock for ${menuItem.name}`);
+            }
+            menuUpdates[itemId] = Math.max(0, currentMenuStock - change);
           }
-          menuUpdates[itemId] = Math.max(0, currentMenuStock - change);
 
-          // Sync with inventory if linked (Direct link or Category link)
-          const recipe = recipes.find(r => r.menuItemId === itemId);
-          if (recipe) {
-            for (const ingredient of recipe.ingredients) {
-              const invItem = allInventory.find(i => i.id === ingredient.inventoryItemId);
-              if (invItem) {
-                const currentInvQty = inventoryUpdates[invItem.id] !== undefined ? inventoryUpdates[invItem.id] : invItem.quantity;
-                inventoryUpdates[invItem.id] = Math.max(0, currentInvQty - (ingredient.quantity * change));
+          // Handle Inventory Deductions
+          if (isRecipeMode) {
+            const recipe = recipes.find(r => r.menuItemId === itemId);
+            if (recipe) {
+              for (const ingredient of recipe.ingredients) {
+                const invItem = allInventory.find(i => i.id === ingredient.inventoryItemId);
+                if (invItem) {
+                  const currentInvQty = inventoryUpdates[invItem.id] !== undefined ? inventoryUpdates[invItem.id] : invItem.quantity;
+                  const deduction = ingredient.quantity * change;
+                  if (change > 0 && currentInvQty < deduction) {
+                    throw new Error(`Insufficient ${invItem.name} for ${menuItem.name}`);
+                  }
+                  inventoryUpdates[invItem.id] = Math.max(0, currentInvQty - deduction);
+                }
               }
             }
           } else {
+            // Simple Mode Inventory Sync
             const linkedInvItem = allInventory.find(inv => 
               inv.menuItemId === itemId || 
               (inv.menuCategory === menuItem.category && !inv.menuItemId)
@@ -928,24 +950,31 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       if (status === OrderStatus.CANCELLED) {
         const inventoryUpdates: { [id: string]: number } = {};
         const menuUpdates: { [id: string]: number } = {};
+        const isRecipeMode = business.inventoryMode === InventoryMode.RECIPE;
 
         for (const item of order.items) {
           const menuItem = allMenu.find(m => m.id === item.itemId);
-          if (menuItem && menuItem.stock !== undefined) {
-            const currentMenuStock = menuUpdates[item.itemId] !== undefined ? menuUpdates[item.itemId] : menuItem.stock;
-            menuUpdates[item.itemId] = currentMenuStock + item.quantity;
+          if (menuItem) {
+            // Return Menu Stock in Simple Mode
+            if (!isRecipeMode && menuItem.stock !== undefined) {
+              const currentMenuStock = menuUpdates[item.itemId] !== undefined ? menuUpdates[item.itemId] : menuItem.stock;
+              menuUpdates[item.itemId] = currentMenuStock + item.quantity;
+            }
 
-            // Sync with inventory if linked (Direct link or Category link)
-            const recipe = recipes.find(r => r.menuItemId === item.itemId);
-            if (recipe) {
-              for (const ingredient of recipe.ingredients) {
-                const invItem = allInventory.find(i => i.id === ingredient.inventoryItemId);
-                if (invItem) {
-                  const currentInvQty = inventoryUpdates[invItem.id] !== undefined ? inventoryUpdates[invItem.id] : invItem.quantity;
-                  inventoryUpdates[invItem.id] = currentInvQty + (ingredient.quantity * item.quantity);
+            // Return Inventory Stock
+            if (isRecipeMode) {
+              const recipe = recipes.find(r => r.menuItemId === item.itemId);
+              if (recipe) {
+                for (const ingredient of recipe.ingredients) {
+                  const invItem = allInventory.find(i => i.id === ingredient.inventoryItemId);
+                  if (invItem) {
+                    const currentInvQty = inventoryUpdates[invItem.id] !== undefined ? inventoryUpdates[invItem.id] : invItem.quantity;
+                    inventoryUpdates[invItem.id] = currentInvQty + (ingredient.quantity * item.quantity);
+                  }
                 }
               }
             } else {
+              // Simple Mode Inventory Sync
               const linkedInvItem = allInventory.find(inv => 
                 inv.menuItemId === item.itemId || 
                 (inv.menuCategory === menuItem.category && !inv.menuItemId)
@@ -1553,6 +1582,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       customerAppEnabled: businessData.customerAppEnabled ?? true,
       isActive: true,
       monthlyBill: businessData.monthlyBill || 500,
+      inventoryMode: businessData.inventoryMode || InventoryMode.SIMPLE,
       createdAt: new Date().toISOString()
     };
 

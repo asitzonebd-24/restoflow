@@ -1,5 +1,5 @@
 
-import { Role, Business, User, MenuItem, InventoryItem, Order, OrderStatus, Expense } from './types';
+import { Role, Business, User, MenuItem, InventoryItem, Order, OrderStatus, Expense, InventoryMode } from './types';
 
 export const DEFAULT_MENU_IMAGE = '';
 export const DEFAULT_AVATAR = '';
@@ -23,6 +23,7 @@ export const BUSINESS_DETAILS: Business = {
   customerAppEnabled: true,
   isActive: true,
   monthlyBill: 500,
+  inventoryMode: InventoryMode.SIMPLE,
   createdAt: new Date().toISOString()
 };
 
