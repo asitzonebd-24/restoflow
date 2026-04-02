@@ -26,7 +26,7 @@ import {
   Utensils,
   Bluetooth
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { BluetoothPrinterService } from '../services/printerService';
 
 
@@ -738,14 +738,14 @@ export const POS = () => {
               const statusStyles = getStatusStyles(hasPending ? OrderStatus.PENDING : order.status);
 
               return (
-                <motion.div
+                <motion.button
                   layout
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
                   key={order.id}
                   onClick={() => handleSelectOrder(order)}
-                  className="group relative bg-white rounded-[2.5rem] shadow-2xl border-4 border-black transition-all duration-300 text-left flex flex-col min-h-[280px] hover:scale-[1.02] overflow-hidden cursor-pointer"
+                  className="group relative bg-white rounded-[2.5rem] shadow-2xl border-4 border-black transition-all duration-300 text-left flex flex-col min-h-[280px] hover:scale-[1.02] overflow-hidden"
                 >
                   {/* Top Border Bar */}
                   <div className={`absolute top-0 left-0 right-0 h-4 ${statusStyles.topBorder}`}></div>
@@ -775,7 +775,7 @@ export const POS = () => {
                       {order.items.map((item, index) => {
                         const itemStyles = getStatusStyles(item.status as OrderStatus);
                         return (
-                          <div key={index} className={`flex justify-between text-[10px] font-bold uppercase tracking-widest py-1 px-2 rounded-lg border-2 ${itemStyles.border} ${itemStyles.topBorder.replace('bg-', 'shadow-')} ${statusStyles.bg}`}>
+                          <div key={index} className={`flex justify-between text-[10px] font-bold uppercase tracking-widest p-2 rounded-lg border-2 ${itemStyles.border} ${itemStyles.topBorder.replace('bg-', 'shadow-')}`}>
                             <span className={itemStyles.text}>{item.name}</span>
                             <span className={itemStyles.text}>x{item.quantity}</span>
                           </div>
@@ -828,7 +828,7 @@ export const POS = () => {
                       </div>
                     </div>
                   </div>
-                </motion.div>
+                </motion.button>
               );
             })}
           </AnimatePresence>

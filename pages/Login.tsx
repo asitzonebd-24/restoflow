@@ -3,11 +3,11 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Role } from '../types';
-import { LogIn, ChefHat, Mail, Lock, AlertCircle, Utensils, ArrowRight, User as UserIcon, ShoppingBag, UserPlus, Chrome, RefreshCw, LogOut } from 'lucide-react';
+import { LogIn, ChefHat, Mail, Lock, AlertCircle, Utensils, ArrowRight, User as UserIcon, ShoppingBag, UserPlus, Chrome } from 'lucide-react';
 import { toast } from 'sonner';
 
 export const Login = () => {
-  const { login, loginWithGoogle, business, dbStatus, setCurrentTenantId, isLoading, currentUser, logout } = useApp();
+  const { login, loginWithGoogle, business, dbStatus, setCurrentTenantId, isLoading } = useApp();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [staffError, setStaffError] = useState('');
@@ -16,22 +16,11 @@ export const Login = () => {
   const [searchParams] = useSearchParams();
   const tenantId = searchParams.get('tenantId');
 
-  // Check for tenant mismatch
-  const isTenantMismatch = currentUser && tenantId && currentUser.tenantId !== tenantId && currentUser.role !== Role.SUPER_ADMIN;
-
   useEffect(() => {
     if (tenantId) {
       setCurrentTenantId(tenantId);
     }
   }, [tenantId, setCurrentTenantId]);
-
-  // If already logged in and tenant matches, go to dashboard
-  useEffect(() => {
-    if (currentUser && !isLoading && !isTenantMismatch) {
-      const targetId = tenantId || currentUser.tenantId;
-      navigate(`/${targetId}/dashboard`);
-    }
-  }, [currentUser, isLoading, navigate, tenantId, isTenantMismatch]);
 
   const handleStaffSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,12 +31,6 @@ export const Login = () => {
     } else {
       setStaffError('Access denied. Please check your credentials.');
     }
-  };
-
-  const handleSwitchAccount = async () => {
-    await logout();
-    // Stay on login page but now currentUser is null, so form will show
-    toast.info('Logged out. You can now log in to ' + (business.name || 'this business'));
   };
 
   return (
@@ -74,36 +57,8 @@ export const Login = () => {
         </div>
 
         <div className="p-8 md:p-10 flex flex-col flex-1 gap-10">
-          {isTenantMismatch ? (
-            <div className="w-full flex flex-col items-center text-center py-4">
-              <div className="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center mb-6 border-4 border-amber-100">
-                <RefreshCw size={32} className="text-amber-500 animate-spin-slow" />
-              </div>
-              <h2 className="text-xl font-bold text-slate-900 mb-2">Switch Business?</h2>
-              <p className="text-slate-500 text-xs mb-8 leading-relaxed">
-                You are currently logged in as <span className="font-bold text-slate-900">{currentUser.name}</span> for another business. 
-                To access <span className="font-bold text-slate-900">{business.name}</span>, you need to switch accounts.
-              </p>
-
-              <div className="w-full space-y-3">
-                <button 
-                  onClick={handleSwitchAccount}
-                  className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-4 rounded-xl transition-all shadow-lg flex items-center justify-center gap-3 uppercase text-[10px] tracking-widest"
-                >
-                  <LogOut size={16} /> Switch to {business.name}
-                </button>
-                
-                <button 
-                  onClick={() => navigate(`/${currentUser.tenantId}/dashboard`)}
-                  className="w-full bg-white hover:bg-slate-50 text-slate-500 font-bold py-4 rounded-xl transition-all border border-slate-200 flex items-center justify-center gap-3 uppercase text-[10px] tracking-widest"
-                >
-                  Back to {currentUser.tenantId}
-                </button>
-              </div>
-            </div>
-          ) : (
-            /* Staff Section */
-            <div className="w-full bg-white flex flex-col justify-center">
+          {/* Staff Section */}
+          <div className="w-full bg-white flex flex-col justify-center">
             <div className="mb-6 text-center">
                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 text-slate-500 text-[8px] font-black uppercase tracking-widest mb-3">
                  <Lock size={10} /> Staff Terminal
@@ -212,9 +167,8 @@ export const Login = () => {
               </div>
             )}
           </div>
-        )}
+        </div>
       </div>
     </div>
-  </div>
   );
 };

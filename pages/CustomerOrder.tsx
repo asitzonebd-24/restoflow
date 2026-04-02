@@ -4,7 +4,7 @@ import { useApp } from '../context/AppContext';
 import { MenuItem, OrderItem, Order, OrderStatus } from '../types';
 import { ShoppingBasket, Plus, Minus, Search, ArrowRight, LogOut, MapPin, Menu as MenuIcon, X, ShoppingCart, Timer, History, ShoppingBag, CheckCircle, FileText, ChevronRight, Store, User as UserCircle, Utensils } from 'lucide-react';
 import { useNavigate, useLocation, useParams, Navigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export const CustomerOrder = () => {
   const { tenantId: urlTenantId } = useParams<{ tenantId: string }>();

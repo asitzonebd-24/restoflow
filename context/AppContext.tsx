@@ -146,8 +146,6 @@ interface AppContextType {
   approveBill: (billId: string) => Promise<void>;
   allUsers: User[];
   isLoading: boolean;
-  isTenantsLoaded: boolean;
-  isAuthReady: boolean;
   activeCategory: string;
   setActiveCategory: (category: string) => void;
   categories: string[];
@@ -191,7 +189,6 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [allTables, setAllTables] = useState<Table[]>([]);
   const [monthlyBills, setMonthlyBills] = useState<MonthlyBill[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isTenantsLoaded, setIsTenantsLoaded] = useState(false);
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string>('');
   const [dbStatus, setDbStatus] = useState<{
@@ -221,15 +218,6 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
           }
         } catch (error) {
           console.error('Error fetching user profile:', error);
-          // On error, we might want to keep the local user as a fallback if it exists
-          // but for security, if the fetch fails, we should be cautious.
-          // However, if it's a network error, clearing the user is annoying.
-          if (!window.navigator.onLine) {
-             // Keep existing user if offline
-          } else {
-            setCurrentUser(null);
-            localStorage.removeItem('resto_keep_user');
-          }
         }
       } else {
         setCurrentUser(null);
@@ -297,10 +285,6 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const resolvedTenantId = useMemo(() => {
     const rawId = currentUser?.tenantId || currentTenantId;
     if (!rawId) return null;
-    
-    // Handle 'demo' alias
-    if (rawId === 'demo') return '01';
-    
     const tenantBySlug = tenants.find(t => t.slug === rawId || t.id === rawId);
     if (tenantBySlug) return tenantBySlug.id;
     return rawId;
@@ -370,11 +354,9 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         }
       }
       setTenants(tenantsData);
-      setIsTenantsLoaded(true);
       checkLoadingState('tenants');
     }, (error) => {
       console.error('Error fetching tenants:', error);
-      setIsTenantsLoaded(true);
       checkLoadingState('tenants');
       try {
         handleFirestoreError(error, OperationType.GET, 'tenants');
@@ -1701,8 +1683,6 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       approveBill,
       allUsers,
       isLoading,
-      isTenantsLoaded,
-      isAuthReady,
       activeCategory,
       setActiveCategory,
       categories,
