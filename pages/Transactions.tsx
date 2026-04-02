@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { Transaction, Order, Role } from '../types';
+import { Transaction, Order, Role, OrderItem } from '../types';
 import { History, Search, Calendar, Eye, FileText, Printer, X, Hash, ChevronRight, User as UserIcon, Receipt, TrendingUp, Trophy, Award, Filter, Store, Bluetooth } from 'lucide-react';
 import { BluetoothPrinterService } from '../services/printerService';
 import { Pagination } from '../components/Pagination';
@@ -166,9 +166,26 @@ export const Transactions = () => {
     };
 
     const calculateInvoiceTotal = (order: Order, discount: number = 0) => {
-      const subtotal = order.totalAmount;
+      const subtotal = order.items.reduce((sum, item) => {
+        if (item.status === 'CANCELLED') return sum;
+        return sum + (item.price * item.quantity);
+      }, 0);
       const vat = currentTenant?.includeVat ? (subtotal * ((currentTenant?.vatRate || 0) / 100)) : 0;
       return { subtotal, vat, total: subtotal + vat - discount };
+    };
+
+    const groupItems = (items: OrderItem[]) => {
+      const grouped = items.reduce((acc, item) => {
+        if (item.status === 'CANCELLED') return acc;
+        const existing = acc.find(i => i.itemId === item.itemId);
+        if (existing) {
+          existing.quantity += item.quantity;
+        } else {
+          acc.push({ ...item });
+        }
+        return acc;
+      }, [] as OrderItem[]);
+      return grouped;
     };
 
     return (
@@ -524,7 +541,7 @@ export const Transactions = () => {
                                   <span>Subtotal</span>
                                 </div>
                                 <div className="space-y-3">
-                                    {viewInvoice.order.items.map((item, i) => (
+                                    {groupItems(viewInvoice.order.items).map((item, i) => (
                                         <div key={i} className="flex justify-between items-center text-base font-medium">
                                             <div className="flex items-center gap-3">
                                                 <span className="text-black font-bold">{item.quantity} x</span>

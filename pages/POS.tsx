@@ -35,6 +35,7 @@ import { BluetoothPrinterService } from '../services/printerService';
 const ItemSummary = ({ cart, cartTotal, currency }: { cart: OrderItem[], cartTotal: number, currency: string }) => {
   const groupItems = (items: OrderItem[]) => {
     const grouped = items.reduce((acc, item) => {
+      if (item.status === OrderStatus.CANCELLED) return acc;
       const status = item.status || OrderStatus.PENDING;
       const existing = acc.find(i => i.itemId === item.itemId && i.status === status);
       if (existing) {
@@ -370,6 +371,7 @@ export const POS = () => {
 
   const groupItems = (items: OrderItem[]) => {
     const grouped = items.reduce((acc, item) => {
+      if (item.status === OrderStatus.CANCELLED) return acc;
       const status = item.status || OrderStatus.PENDING;
       const existing = acc.find(i => i.itemId === item.itemId && i.status === status);
       if (existing) {

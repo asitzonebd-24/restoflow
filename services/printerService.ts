@@ -1,6 +1,6 @@
 
 import html2canvas from 'html2canvas';
-import { Business, Order, OrderItem } from '../types';
+import { Business, Order, OrderItem, OrderStatus } from '../types';
 
 export class BluetoothPrinterService {
   private static device: any = null;
@@ -353,6 +353,7 @@ export class BluetoothPrinterService {
 
   private static groupItems(items: OrderItem[]): OrderItem[] {
     const grouped = items.reduce((acc, item) => {
+      if (item.status === OrderStatus.CANCELLED) return acc;
       const existing = acc.find(i => i.itemId === item.itemId);
       if (existing) {
         existing.quantity += item.quantity;
