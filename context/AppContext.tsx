@@ -191,6 +191,10 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [monthlyBills, setMonthlyBills] = useState<MonthlyBill[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthReady, setIsAuthReady] = useState(false);
+
+  useEffect(() => {
+    console.log(`[AppContext] isLoading changed to: ${isLoading}`);
+  }, [isLoading]);
   const [activeCategory, setActiveCategory] = useState<string>('');
   const [dbStatus, setDbStatus] = useState<{
     isConfigured: boolean;
@@ -324,12 +328,21 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
     const checkLoadingState = (name: string) => {
       loadedCollections.add(name);
-      console.log(`Collection loaded: ${name}. Progress: ${loadedCollections.size}/${criticalCollections.length}`);
+      const progress = `${loadedCollections.size}/${criticalCollections.length}`;
+      console.log(`[AppContext] Collection loaded: ${name}. Progress: ${progress}`);
+      console.log(`[AppContext] Critical collections:`, criticalCollections);
+      console.log(`[AppContext] Loaded collections:`, Array.from(loadedCollections));
+      
       if (criticalCollections.every(c => loadedCollections.has(c))) {
-        console.log('All critical collections loaded. Setting isLoading to false.');
+        console.log('[AppContext] All critical collections loaded. Setting isLoading to false.');
         setIsLoading(false);
       }
     };
+
+    if (criticalCollections.length === 0) {
+      console.log('[AppContext] No critical collections to load. Setting isLoading to false.');
+      setIsLoading(false);
+    }
 
     console.log('Starting listeners. Critical collections:', criticalCollections);
     console.log('Current User:', currentUser?.email, 'Role:', currentUser?.role);
@@ -479,10 +492,13 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
     // Safety timeout to ensure loading screen disappears
     const safetyTimeout = setTimeout(() => {
-      if (isLoading) {
-        console.warn('Safety timeout reached. Forcing isLoading to false.');
-        setIsLoading(false);
-      }
+      setIsLoading(current => {
+        if (current) {
+          console.warn('[AppContext] Safety timeout reached. Forcing isLoading to false.');
+          return false;
+        }
+        return current;
+      });
     }, 10000); // 10 seconds
 
     return () => {
