@@ -17,6 +17,7 @@ export const Login = () => {
   const tenantId = searchParams.get('tenantId');
 
   useEffect(() => {
+    console.log('[Login] Page loaded. tenantId from URL:', tenantId);
     if (tenantId) {
       setCurrentTenantId(tenantId);
     }

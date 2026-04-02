@@ -179,6 +179,12 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     return savedUser ? JSON.parse(savedUser) : null;
   });
   const [currentTenantId, setCurrentTenantId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (currentTenantId) {
+      console.log('[AppContext] currentTenantId updated to:', currentTenantId);
+    }
+  }, [currentTenantId]);
   const [tenants, setTenants] = useState<Business[]>([BUSINESS_DETAILS]);
   const [allOrders, setAllOrders] = useState<Order[]>([]);
   const [allInventory, setAllInventory] = useState<InventoryItem[]>([]);
