@@ -602,9 +602,22 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         toast.success(`Welcome back, ${userData.name}!`);
         return true;
       } else {
+        // Special case for Super Admin: Auto-create profile if email matches
+        if (user.email === 'asitzonebd@gmail.com') {
+          console.log('Super Admin detected via Google Login. Creating profile...');
+          const saUser = MOCK_USERS.find(u => u.email === 'asitzonebd@gmail.com');
+          if (saUser) {
+            const newUser = { ...saUser, id: user.uid, email: user.email, name: user.displayName || saUser.name };
+            await setDoc(doc(db, 'users', newUser.id), newUser);
+            setCurrentUser(newUser);
+            localStorage.setItem('resto_keep_user', JSON.stringify(newUser));
+            localStorage.setItem('sa_bootstrapped', 'true');
+            toast.success(`Welcome, Super Admin ${newUser.name}!`);
+            return true;
+          }
+        }
+
         // If it's a new user via Google, we might want to create a profile or deny access
-        // For now, we'll deny access if they aren't already in the system
-        // unless they are a customer (we could auto-create customer profiles)
         toast.error('No account found with this Google profile. Please register first.');
         await signOut(auth);
         return false;
