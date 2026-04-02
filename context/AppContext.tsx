@@ -222,7 +222,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   useEffect(() => {
     console.log(`[AppContext] State Update - isLoading: ${isLoading}, isAuthReady: ${isAuthReady}, currentUser: ${currentUser?.email || 'null'}`);
   }, [isLoading, isAuthReady, currentUser]);
-  const [activeCategory, setActiveCategory] = useState<string>('');
+  const [activeCategory, setActiveCategory] = useState<string>('Select Categories');
   const [dbStatus, setDbStatus] = useState<{
     isConfigured: boolean;
     hasTables: boolean;

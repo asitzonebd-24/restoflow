@@ -1,9 +1,10 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { InventoryItem } from '../types';
 import { Package, AlertTriangle, RefreshCw, Plus, Edit2, X, Save, Search, ChevronRight, CheckCircle, MoreHorizontal, ArrowUpRight, ArrowDownRight, Trash2, Truck, List } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Pagination } from '../components/Pagination';
 
 const ListManagerModal = ({ 
   isOpen, 
@@ -113,6 +114,8 @@ export const Inventory = () => {
   const [activeTab, setActiveTab] = useState<'inventory' | 'menu'>('inventory');
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
 
   const [formData, setFormData] = useState({
     name: '',
@@ -250,6 +253,17 @@ export const Inventory = () => {
     i.supplier.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const totalPages = Math.ceil(filteredInventory.length / itemsPerPage);
+  const paginatedInventory = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredInventory.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredInventory, currentPage]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
   const lowStockCount = inventory.filter(i => i.quantity <= i.minThreshold).length;
 
   const uniqueMaterialNames = Array.from(new Set([
@@ -385,7 +399,8 @@ export const Inventory = () => {
         <>
           {/* Inventory Table */}
           <div className="bg-white rounded-[2rem] border-2 border-indigo-500 shadow-xl shadow-indigo-100 overflow-hidden mb-10">
-            <div className="overflow-x-auto no-scrollbar">
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto no-scrollbar">
               <table className="w-full text-left border-collapse min-w-[900px]">
                 <thead>
                   <tr className="bg-slate-50/80 border-b-2 border-slate-100">
@@ -400,7 +415,7 @@ export const Inventory = () => {
                 </thead>
                 <tbody className="divide-y-2 divide-slate-50">
                   <AnimatePresence mode="popLayout">
-                    {filteredInventory.map(item => {
+                    {paginatedInventory.map(item => {
                       const isLow = item.quantity <= item.minThreshold;
                       const linkedMenu = menu.find(m => m.id === item.menuItemId);
                       return (
@@ -510,6 +525,85 @@ export const Inventory = () => {
                 </tbody>
               </table>
             </div>
+
+            {/* Mobile Card View */}
+            <div className="md:hidden divide-y-2 divide-slate-50">
+              {paginatedInventory.map(item => {
+                const isLow = item.quantity <= item.minThreshold;
+                const linkedMenu = menu.find(m => m.id === item.menuItemId);
+                return (
+                  <div key={item.id} className="p-6 hover:bg-slate-50/30 transition-colors group">
+                    <div className="flex justify-between items-start mb-4">
+                      <div className="flex items-center gap-4">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs ${isLow ? 'bg-rose-50 text-rose-600' : 'bg-slate-50 text-slate-400'}`}>
+                          {item.name.charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <p className="font-bold text-slate-900 text-sm">{item.name}</p>
+                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">ID: {item.id.slice(-6).toUpperCase()}</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button 
+                          onClick={() => openEditModal(item)}
+                          className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-slate-400 hover:text-indigo-600 shadow-sm border border-slate-100"
+                        >
+                          <Edit2 size={14} />
+                        </button>
+                        <button 
+                          onClick={() => {
+                            setRestockItem(item);
+                            setRestockQuantity(1);
+                          }}
+                          className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-slate-400 hover:text-emerald-500 shadow-sm border border-slate-100"
+                        >
+                          <RefreshCw size={14} />
+                        </button>
+                        <button 
+                          onClick={() => handleDelete(item.id)}
+                          className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-slate-400 hover:text-rose-500 shadow-sm border border-slate-100"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1">Stock Level</p>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-lg font-bold ${isLow ? 'text-rose-600' : 'text-slate-900'}`}>{item.quantity}</span>
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{item.unit}</span>
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1">Unit Price</p>
+                        <span className="text-sm font-bold text-slate-900">{currentTenant?.currency}{item.pricePerUnit.toFixed(2)}</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-4 border-t border-slate-50">
+                      <div className="flex items-center gap-2">
+                        <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest">Supplier:</p>
+                        <span className="text-[10px] font-bold text-slate-600">{item.supplier}</span>
+                      </div>
+                      {isLow ? (
+                        <div className="inline-flex items-center gap-1.5 px-2 py-1 bg-rose-50 text-rose-600 rounded-lg border border-rose-100">
+                          <AlertTriangle size={10} />
+                          <span className="text-[8px] font-black uppercase tracking-widest">Low</span>
+                        </div>
+                      ) : (
+                        <div className="inline-flex items-center gap-1.5 px-2 py-1 bg-emerald-50 text-emerald-600 rounded-lg border border-emerald-100">
+                          <CheckCircle size={10} />
+                          <span className="text-[8px] font-black uppercase tracking-widest">OK</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
             {filteredInventory.length === 0 && (
               <div className="py-20 flex flex-col items-center justify-center text-slate-300">
                 <Search size={48} strokeWidth={1} className="mb-4 opacity-20" />
@@ -517,6 +611,14 @@ export const Inventory = () => {
               </div>
             )}
           </div>
+
+          <Pagination 
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            totalItems={filteredInventory.length}
+            itemsPerPage={itemsPerPage}
+          />
         </>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">

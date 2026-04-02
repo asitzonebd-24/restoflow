@@ -147,7 +147,8 @@ export const CustomerHistory = () => {
         <div className="flex-1 overflow-y-auto p-4 md:p-12 no-scrollbar">
           <div className="max-w-4xl mx-auto">
             <div className="bg-white rounded-[2.5rem] border-4 border-indigo-500 overflow-hidden shadow-2xl shadow-indigo-100">
-               <div className="overflow-x-auto no-scrollbar">
+               {/* Desktop Table View */}
+               <div className="hidden md:block overflow-x-auto no-scrollbar">
                   <table className="w-full text-left border-collapse min-w-[500px]">
                      <thead className="bg-slate-50 text-[9px] font-black uppercase tracking-widest text-slate-400 border-b-4 border-indigo-500">
                         <tr>
@@ -209,6 +210,58 @@ export const CustomerHistory = () => {
                         ))}
                      </tbody>
                   </table>
+               </div>
+
+               {/* Mobile Card View */}
+               <div className="md:hidden divide-y-2 divide-slate-100">
+                  {pastOrders.length === 0 ? (
+                    <div className="p-20 text-center">
+                       <ShoppingBag className="mx-auto text-slate-100 mb-4" size={48} />
+                       <p className="text-slate-300 font-black uppercase tracking-widest text-xs">No completed transactions found</p>
+                    </div>
+                  ) : pastOrders.map(order => (
+                    <div 
+                      key={order.id} 
+                      onClick={() => setSelectedOrder(order)}
+                      className="p-6 hover:bg-slate-50 transition group cursor-pointer"
+                    >
+                       <div className="flex justify-between items-start mb-4">
+                          <div className="min-w-[2.5rem] px-3 h-10 bg-indigo-600 text-white rounded-xl flex items-center justify-center font-black border-2 border-white shadow-lg shadow-indigo-200">
+                            #{order.tokenNumber}
+                          </div>
+                          <div className="text-right">
+                             <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{new Date(order.createdAt).toLocaleDateString()}</div>
+                             <div className="text-[8px] font-bold text-slate-300 uppercase">{new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                          </div>
+                       </div>
+
+                       <div className="mb-4">
+                          <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1">Items</p>
+                          <div className="font-black uppercase text-[10px] text-slate-900 tracking-tight line-clamp-2">
+                            {order.items.map(i => `${i.quantity}x ${i.name}`).join(', ')}
+                          </div>
+                          {order.deliveryStaffName && (
+                            <div className="mt-3 p-3 bg-indigo-50/50 rounded-xl border border-indigo-100/50">
+                              <div className="flex items-center gap-1.5 mb-1">
+                                <ShoppingBag size={10} className="text-indigo-500" />
+                                <span className="text-[7px] font-black uppercase tracking-widest text-indigo-500">Assigned Delivery</span>
+                              </div>
+                              <div className="flex flex-col">
+                                <p className="text-[9px] font-black text-slate-900 leading-none">{order.deliveryStaffName}</p>
+                                <p className="text-[8px] font-bold text-slate-400 mt-0.5 leading-none">{order.deliveryStaffMobile}</p>
+                              </div>
+                            </div>
+                          )}
+                       </div>
+
+                       <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+                          <span className="font-black text-indigo-600 text-lg">{business.currency}{order.totalAmount.toFixed(0)}</span>
+                          <div className="flex items-center gap-2 text-indigo-600 font-black uppercase tracking-widest text-[9px]">
+                             Details <ChevronRight size={14} />
+                          </div>
+                       </div>
+                    </div>
+                  ))}
                </div>
             </div>
           </div>

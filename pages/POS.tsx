@@ -25,7 +25,8 @@ import {
   Printer,
   Utensils,
   Bluetooth,
-  Trash2
+  Trash2,
+  ListTree
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BluetoothPrinterService } from '../services/printerService';
@@ -333,7 +334,7 @@ export const POS = () => {
   const { menu, currentTenant, currentUser, addOrder, updateOrderItems, orders, users, isLoading, categories, tables, addTable, deleteTable } = useApp();
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [cart, setCart] = useState<OrderItem[]>([]);
-  const [activeCategory, setActiveCategory] = useState<string>('');
+  const [activeCategory, setActiveCategory] = useState<string>('Select Categories');
   const [orderNote, setOrderNote] = useState('');
   const [isNoteEditable, setIsNoteEditable] = useState(true);
   const [isCreatingNew, setIsCreatingNew] = useState(false);
@@ -626,7 +627,7 @@ export const POS = () => {
   };
 
   const filteredMenu = useMemo(() => {
-    if (!activeCategory) return [];
+    if (!activeCategory || activeCategory === 'Select Categories') return [];
     return menu.filter(m => {
       const matchesCategory = m.category === activeCategory;
       const matchesSearch = m.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -1015,7 +1016,7 @@ export const POS = () => {
                 onChange={(e) => setActiveCategory(e.target.value)}
                 className="w-full pl-2 pr-6 py-3 bg-white border-2 border-black rounded-xl text-xs font-bold outline-none focus:border-indigo-500 appearance-none cursor-pointer shadow-sm"
               >
-                <option value="" className="text-sm">Select Menu</option>
+                <option value="Select Categories" className="text-sm">Select Categories</option>
                 {categories.filter(c => c !== 'All').map(cat => (
                   <option key={cat} value={cat} className="text-sm uppercase">{cat}</option>
                 ))}
@@ -1027,42 +1028,51 @@ export const POS = () => {
 
         {/* Menu Grid */}
         <div className="flex-1 overflow-y-auto p-4 md:p-8 no-scrollbar pb-12 lg:pb-32">
-          <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-6">
-            <AnimatePresence mode="popLayout">
-              {filteredMenu.map(item => (
-                <motion.button 
-                  layout
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.9 }}
-                  key={item.id} 
-                  onClick={() => addToCart(item)}
-                  className={`group bg-white rounded-[1.5rem] border-2 border-black p-3 flex flex-col hover:border-indigo-500 shadow-xl shadow-slate-200/20 hover:shadow-2xl transition-all active:scale-95 relative overflow-hidden hover:-translate-y-1`}
-                >
-                  <div className="text-center flex flex-col items-center justify-center h-full">
-                    <div className="mb-2">
-                      <h4 className="font-black text-slate-900 text-[11px] capitalize tracking-tight group-hover:text-indigo-600 transition-colors mb-1">{item.name}</h4>
-                      <span className="text-[14px] font-black text-indigo-600">{currentTenant.currency}{item.price.toFixed(0)}</span>
-                    </div>
-                    
-                    <div className="flex items-center justify-center mt-auto w-full">
-                      <div className="flex flex-col items-center">
-                        {item.stock !== undefined && item.stock !== null && (
-                          <span className={`text-[8px] font-black uppercase tracking-tighter ${item.stock <= 5 ? 'text-rose-500' : 'text-slate-400'}`}>
-                            Stock: {item.stock}
-                          </span>
-                        )}
+          {activeCategory === 'Select Categories' ? (
+            <div className="h-full flex flex-col items-center justify-center text-slate-300 py-20 bg-white rounded-[2rem] border-2 border-dashed border-slate-200">
+                <ListTree size={64} strokeWidth={1} className="mb-4 opacity-20" />
+                <p className="text-sm font-medium uppercase tracking-widest opacity-40">
+                  Please select a category to view items
+                </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-6">
+              <AnimatePresence mode="popLayout">
+                {filteredMenu.map(item => (
+                  <motion.button 
+                    layout
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    key={item.id} 
+                    onClick={() => addToCart(item)}
+                    className={`group bg-white rounded-[1.5rem] border-2 border-black p-3 flex flex-col hover:border-indigo-500 shadow-xl shadow-slate-200/20 hover:shadow-2xl transition-all active:scale-95 relative overflow-hidden hover:-translate-y-1`}
+                  >
+                    <div className="text-center flex flex-col items-center justify-center h-full">
+                      <div className="mb-2">
+                        <h4 className="font-black text-slate-900 text-[11px] capitalize tracking-tight group-hover:text-indigo-600 transition-colors mb-1">{item.name}</h4>
+                        <span className="text-[14px] font-black text-indigo-600">{currentTenant.currency}{item.price.toFixed(0)}</span>
+                      </div>
+                      
+                      <div className="flex items-center justify-center mt-auto w-full">
+                        <div className="flex flex-col items-center">
+                          {item.stock !== undefined && item.stock !== null && (
+                            <span className={`text-[8px] font-black uppercase tracking-tighter ${item.stock <= 5 ? 'text-rose-500' : 'text-slate-400'}`}>
+                              Stock: {item.stock}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div className={`absolute bottom-2 right-2 w-7 h-7 rounded-lg flex items-center justify-center transition-all ${item.stock !== undefined && item.stock !== null && item.stock <= 0 ? 'bg-slate-100 text-slate-300' : 'bg-slate-900 text-white group-hover:bg-indigo-600 group-hover:scale-110 shadow-lg'}`}>
+                        {item.stock !== undefined && item.stock !== null && item.stock <= 0 ? <X size={12} /> : <Plus size={12} strokeWidth={3} />}
                       </div>
                     </div>
-                    <div className={`absolute bottom-2 right-2 w-7 h-7 rounded-lg flex items-center justify-center transition-all ${item.stock !== undefined && item.stock !== null && item.stock <= 0 ? 'bg-slate-100 text-slate-300' : 'bg-slate-900 text-white group-hover:bg-indigo-600 group-hover:scale-110 shadow-lg'}`}>
-                      {item.stock !== undefined && item.stock !== null && item.stock <= 0 ? <X size={12} /> : <Plus size={12} strokeWidth={3} />}
-                    </div>
-                  </div>
-                </motion.button>
-              ))}
-            </AnimatePresence>
-          </div>
-          {activeCategory && filteredMenu.length === 0 && (
+                  </motion.button>
+                ))}
+              </AnimatePresence>
+            </div>
+          )}
+          {activeCategory !== 'Select Categories' && filteredMenu.length === 0 && (
             <div className="h-full flex flex-col items-center justify-center text-slate-300 py-20">
                 <Search size={64} strokeWidth={1} className="mb-4 opacity-20" />
                 <p className="text-sm font-medium uppercase tracking-widest opacity-40">

@@ -1,13 +1,16 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Order, MenuItem } from '../types';
 import { Search, Calendar, Filter, ShoppingBag } from 'lucide-react';
+import { Pagination } from '../components/Pagination';
 
 export const SalesItems = () => {
   const { orders, menu, currentTenant } = useApp();
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [itemFilter, setItemFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
 
   const filteredSales = useMemo(() => {
     let filtered = orders.flatMap(order => 
@@ -43,6 +46,17 @@ export const SalesItems = () => {
 
     return filtered;
   }, [orders, menu, categoryFilter, itemFilter, dateFilter]);
+
+  const totalPages = Math.ceil(filteredSales.length / itemsPerPage);
+  const paginatedSales = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredSales.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredSales, currentPage]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [categoryFilter, itemFilter, dateFilter]);
 
   const filteredMenuItems = useMemo(() => {
     if (categoryFilter === 'all') return menu;
@@ -103,31 +117,68 @@ export const SalesItems = () => {
       </div>
 
       <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 overflow-hidden">
-        <table className="w-full text-left border-collapse">
-          <thead>
-            <tr className="bg-slate-50/80 border-b border-slate-100">
-              <th className="px-8 py-6 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Item Name</th>
-              <th className="px-8 py-6 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Quantity</th>
-              <th className="px-8 py-6 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Price</th>
-              <th className="px-8 py-6 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Date</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-50">
-            {filteredSales.map((item, index) => (
-              <tr key={index} className="hover:bg-slate-50/50">
-                <td className="px-8 py-6 text-sm font-bold text-slate-900">{item.name}</td>
-                <td className="px-8 py-6 text-sm text-slate-600">{item.quantity}</td>
-                <td className="px-8 py-6 text-sm text-slate-600">{currentTenant?.currency}{item.price.toFixed(2)}</td>
-                <td className="px-8 py-6 text-sm text-slate-600">
+        {/* Desktop Table View */}
+        <div className="hidden md:block overflow-x-auto no-scrollbar">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-slate-50/80 border-b border-slate-100">
+                <th className="px-8 py-6 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Item Name</th>
+                <th className="px-8 py-6 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Quantity</th>
+                <th className="px-8 py-6 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Price</th>
+                <th className="px-8 py-6 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Date</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-50">
+              {paginatedSales.map((item, index) => (
+                <tr key={index} className="hover:bg-slate-50/50">
+                  <td className="px-8 py-6 text-sm font-bold text-slate-900">{item.name}</td>
+                  <td className="px-8 py-6 text-sm text-slate-600">{item.quantity}</td>
+                  <td className="px-8 py-6 text-sm text-slate-600">{currentTenant?.currency}{item.price.toFixed(2)}</td>
+                  <td className="px-8 py-6 text-sm text-slate-600">
+                    {isNaN(new Date(item.createdAt).getTime()) 
+                      ? 'N/A' 
+                      : new Date(item.createdAt).toLocaleDateString()}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Mobile Card View */}
+        <div className="md:hidden divide-y divide-slate-50">
+          {paginatedSales.map((item, index) => (
+            <div key={index} className="p-6 hover:bg-slate-50/50">
+              <div className="flex justify-between items-start mb-3">
+                <h4 className="font-bold text-slate-900 text-sm">{item.name}</h4>
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                   {isNaN(new Date(item.createdAt).getTime()) 
                     ? 'N/A' 
                     : new Date(item.createdAt).toLocaleDateString()}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Qty:</span>
+                  <span className="text-sm font-black text-slate-900">{item.quantity}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Price:</span>
+                  <span className="text-sm font-black text-indigo-600">{currentTenant?.currency}{item.price.toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
+
+      <Pagination 
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={setCurrentPage}
+        totalItems={filteredSales.length}
+        itemsPerPage={itemsPerPage}
+      />
     </div>
   );
 };

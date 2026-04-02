@@ -116,15 +116,15 @@ export const CustomerPanel = ({ setIsSidebarOpen }: { setIsSidebarOpen?: (open: 
                             <div className={`absolute top-0 left-0 right-0 h-4 ${status.topBorder}`}></div>
 
                             <div className="relative z-10 flex flex-col h-full p-6 pt-10">
-                                <div className="flex flex-col items-center mb-4">
-                                    <div className="text-[10px] font-black text-black uppercase tracking-[0.2em] mb-1">{headerLabel}</div>
-                                    <div className={`h-1.5 w-12 ${status.color} rounded-full`}></div>
-                                </div>
-
-                                <div className="flex justify-center items-center mb-6">
-                                    <div className={`w-fit min-w-[3rem] px-4 h-12 rounded-full border-4 border-black flex items-center justify-center font-black text-2xl text-white shadow-xl ${status.color}`}>
-                                        <span className="text-white text-xl md:text-2xl font-black leading-none">{order.tokenNumber}</span>
+                                <div className="flex justify-center mb-6 relative">
+                                    <div className={`w-fit min-w-[3rem] px-4 h-12 rounded-full border-4 border-black flex items-center justify-center font-black text-2xl text-white shadow-xl ${status.topBorder}`}>
+                                        {order.tokenNumber}
                                     </div>
+                                    {order.tableNumber && (
+                                        <div className="absolute -top-2 -right-2 bg-black text-white text-[10px] font-black px-3 py-1 rounded-full border-2 border-white shadow-lg">
+                                            {order.tableNumber}
+                                        </div>
+                                    )}
                                 </div>
 
                                 {order.deliveryStaffName && (
@@ -155,7 +155,7 @@ export const CustomerPanel = ({ setIsSidebarOpen }: { setIsSidebarOpen?: (open: 
                                         return Object.entries(groupedItems).map(([key, group]) => {
                                             const itemStyles = getStatusDisplay(group.status);
                                             return (
-                                                <div key={key} className={`flex justify-between items-center text-[10px] font-bold capitalize tracking-widest px-2 py-1 rounded-md border-2 ${itemStyles.lightBg} ${itemStyles.color.replace('bg-', 'border-')}`}>
+                                                <div key={key} className={`flex justify-between items-center text-[10px] font-bold capitalize tracking-widest px-2 py-0.5 rounded-md border-2 ${itemStyles.lightBg} ${itemStyles.topBorder.replace('bg-', 'border-')}`}>
                                                     <span className={`${itemStyles.text} ${group.status === OrderStatus.READY || group.status === OrderStatus.COMPLETED || group.status === OrderStatus.CANCELLED ? 'line-through opacity-50' : ''}`}>{group.name}</span>
                                                     <span className={`${itemStyles.text}`}>x{group.quantity}</span>
                                                 </div>

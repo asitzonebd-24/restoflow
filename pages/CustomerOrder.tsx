@@ -2,9 +2,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { MenuItem, OrderItem, Order, OrderStatus } from '../types';
-import { ShoppingBasket, Plus, Minus, Search, ArrowRight, LogOut, MapPin, Menu as MenuIcon, X, ShoppingCart, Timer, History, ShoppingBag, CheckCircle, FileText, ChevronRight, Store, User as UserCircle, Utensils } from 'lucide-react';
+import { ShoppingBasket, Plus, Minus, Search, ArrowRight, LogOut, MapPin, Menu as MenuIcon, X, ShoppingCart, Timer, History, ShoppingBag, CheckCircle, FileText, ChevronRight, Store, User as UserCircle, Utensils, ListTree } from 'lucide-react';
 import { useNavigate, useLocation, useParams, Navigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export const CustomerOrder = () => {
   const { tenantId: urlTenantId } = useParams<{ tenantId: string }>();
@@ -31,7 +31,7 @@ export const CustomerOrder = () => {
 
   const filteredMenu = menu.filter(item => 
     item.isAvailable &&
-    (activeCategory !== '' && item.category === activeCategory) &&
+    (activeCategory !== 'Select Categories' && item.category === activeCategory) &&
     item.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -281,7 +281,7 @@ export const CustomerOrder = () => {
                   onChange={(e) => setActiveCategory(e.target.value)}
                   className="bg-white border-2 border-indigo-500 rounded-xl font-black uppercase text-[10px] outline-none focus:ring-4 focus:ring-indigo-500/10 transition px-2"
                 >
-                  <option value="" disabled>Select Category</option>
+                  <option value="Select Categories">Select Categories</option>
                   {categories.map(cat => (
                     <option key={cat} value={cat}>{cat}</option>
                   ))}
@@ -310,7 +310,12 @@ export const CustomerOrder = () => {
 
         <div className="flex-1 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden min-h-0 no-scrollbar">
           <div className="flex-none lg:flex-1 p-4 md:p-8 lg:overflow-y-auto no-scrollbar pb-12 lg:pb-32 min-h-0">
-            {filteredMenu.length === 0 ? (
+            {activeCategory === 'Select Categories' ? (
+              <div className="flex flex-col items-center justify-center py-20 text-slate-300 bg-white rounded-[2.5rem] border-2 border-dashed border-slate-200">
+                <ListTree size={64} strokeWidth={1} className="mb-4 opacity-20" />
+                <p className="font-black uppercase text-[10px] tracking-[0.3em] opacity-40">Please select a category to view items</p>
+              </div>
+            ) : filteredMenu.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 text-slate-400">
                 <MenuIcon size={48} className="mb-4 opacity-20" />
                 <p className="font-black uppercase text-[10px] tracking-[0.3em]">No items found</p>

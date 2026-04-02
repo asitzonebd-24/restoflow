@@ -1,9 +1,10 @@
 
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '../context/AppContext';
 import { Role, User } from '../types';
 import { UserPlus, Users as UsersIcon, Shield, Trash2, Mail, Phone, Lock, CheckSquare, Square, Edit2, X, ChevronRight, Search, AlertTriangle, User as UserCircle } from 'lucide-react';
+import { Pagination } from '../components/Pagination';
 
 const AVAILABLE_MODULES = ['Dashboard', 'POS', 'Kitchen', 'Menu', 'Billing', 'Transactions', 'Expenses', 'Reports', 'Inventory', 'Users', 'Settings'];
 
@@ -12,6 +13,8 @@ export const Users = () => {
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editingUserId, setEditingUserId] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 20;
     const [error, setError] = useState<string | null>(null);
     
     // Form state
@@ -143,6 +146,17 @@ export const Users = () => {
         u.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
         u.role.toLowerCase().includes(searchTerm.toLowerCase())
     );
+
+    const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+    const paginatedUsers = useMemo(() => {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        return filteredUsers.slice(startIndex, startIndex + itemsPerPage);
+    }, [filteredUsers, currentPage]);
+
+    // Reset to page 1 when filters change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm]);
 
     return (
         <div className="p-4 md:p-8 bg-[#f8fafc] min-h-full space-y-8">
@@ -308,21 +322,22 @@ export const Users = () => {
             </AnimatePresence>
 
             <div className="bg-white rounded-[2.5rem] shadow-xl border-2 border-indigo-500 overflow-hidden shadow-indigo-100">
-                <div className="overflow-x-auto no-scrollbar">
-                    <table className="w-full text-left border-collapse min-w-[900px]">
-                        <thead className="bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b-2 border-indigo-100">
+                {/* Desktop Table View */}
+                <div className="hidden md:block overflow-x-auto no-scrollbar">
+                    <table className="w-full text-left border-collapse min-w-[900px] border-2 border-black">
+                        <thead className="bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b-2 border-black">
                             <tr>
-                                <th className="p-6">Staff Details</th>
-                                <th className="p-6">Position</th>
-                                <th className="p-6">Module Access</th>
-                                <th className="p-6">Contact info</th>
+                                <th className="p-6 border-r border-black">Staff Details</th>
+                                <th className="p-6 border-r border-black">Position</th>
+                                <th className="p-6 border-r border-black">Module Access</th>
+                                <th className="p-6 border-r border-black">Contact info</th>
                                 <th className="p-6 text-right">Actions</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y-2 divide-slate-100">
-                            {filteredUsers.map(user => (
-                                <tr key={user.id} className="hover:bg-slate-50 transition group">
-                                    <td className="p-6">
+                        <tbody className="divide-y divide-black">
+                            {paginatedUsers.map(user => (
+                                <tr key={user.id} className="hover:bg-slate-50 transition group border-b border-black">
+                                    <td className="p-6 border-r border-black">
                                         <div className="flex items-center gap-4">
                                             <div className="relative">
                                                 <div className="w-12 h-12 rounded-full border-2 border-slate-900 bg-slate-50 flex items-center justify-center overflow-hidden shadow-sm">
@@ -340,7 +355,7 @@ export const Users = () => {
                                             </div>
                                         </div>
                                     </td>
-                                    <td className="p-6">
+                                    <td className="p-6 border-r border-black">
                                         <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-xl text-[9px] font-black uppercase tracking-widest border-2
                                             ${user.role === Role.SUPER_ADMIN ? 'bg-rose-50 border-rose-200 text-rose-600' : 
                                               user.role === Role.OWNER ? 'bg-indigo-50 border-indigo-200 text-indigo-600' : 
@@ -349,7 +364,7 @@ export const Users = () => {
                                             <Shield size={10} /> {user.role}
                                         </span>
                                     </td>
-                                    <td className="p-6">
+                                    <td className="p-6 border-r border-black">
                                         <div className="flex flex-wrap gap-1 max-w-[240px]">
                                             {(user.permissions || []).map(p => (
                                                 <span key={p} className="text-[8px] px-1.5 py-0.5 bg-white border border-slate-200 rounded-lg text-slate-400 font-black uppercase tracking-tighter">
@@ -367,7 +382,7 @@ export const Users = () => {
                                             </div>
                                         )}
                                     </td>
-                                    <td className="p-6">
+                                    <td className="p-6 border-r border-black">
                                         <span className="text-[10px] font-black text-slate-900 tracking-widest">{user.mobile}</span>
                                     </td>
                                     <td className="p-6 text-right">
@@ -383,7 +398,76 @@ export const Users = () => {
                         </tbody>
                     </table>
                 </div>
+
+                {/* Mobile Card View */}
+                <div className="md:hidden divide-y divide-black">
+                    {paginatedUsers.map(user => (
+                        <div key={user.id} className="p-6 hover:bg-slate-50 transition group border-b border-black last:border-b-0">
+                            <div className="flex justify-between items-start mb-4">
+                                <div className="flex items-center gap-4">
+                                    <div className="relative">
+                                        <div className="w-12 h-12 rounded-full border-2 border-slate-900 bg-slate-50 flex items-center justify-center overflow-hidden shadow-sm">
+                                            {user.avatar ? (
+                                                <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+                                            ) : (
+                                                <UserCircle size={24} className="text-slate-300" />
+                                            )}
+                                        </div>
+                                        <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white"></div>
+                                    </div>
+                                    <div>
+                                        <div className="font-black text-slate-900 uppercase tracking-tighter text-sm">{user.name}</div>
+                                        <div className="text-[10px] font-bold text-slate-400 lowercase">{user.email}</div>
+                                    </div>
+                                </div>
+                                {user.role !== Role.OWNER && user.role !== Role.SUPER_ADMIN && (
+                                    <div className="flex gap-2">
+                                        <button onClick={() => handleEditClick(user)} className="p-2 text-slate-300 hover:text-indigo-600 bg-white border border-slate-100 rounded-lg transition shadow-sm"><Edit2 size={14} strokeWidth={3}/></button>
+                                        <button onClick={(e) => handleDelete(user.id, e)} className="p-2 text-slate-300 hover:text-red-600 bg-white border border-slate-100 rounded-lg transition shadow-sm"><Trash2 size={14} strokeWidth={3}/></button>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="space-y-3">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Position</span>
+                                    <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-xl text-[9px] font-black uppercase tracking-widest border-2
+                                        ${user.role === Role.SUPER_ADMIN ? 'bg-rose-50 border-rose-200 text-rose-600' : 
+                                          user.role === Role.OWNER ? 'bg-indigo-50 border-indigo-200 text-indigo-600' : 
+                                          user.role === Role.MANAGER ? 'bg-amber-50 border-amber-200 text-amber-600' : 
+                                          'bg-slate-50 border-slate-200 text-slate-600'}`}>
+                                        <Shield size={10} /> {user.role}
+                                    </span>
+                                </div>
+
+                                <div className="flex justify-between items-start">
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Access</span>
+                                    <div className="flex flex-wrap justify-end gap-1 max-w-[200px]">
+                                        {(user.permissions || []).map(p => (
+                                            <span key={p} className="text-[8px] px-1.5 py-0.5 bg-white border border-slate-200 rounded-lg text-slate-400 font-black uppercase tracking-tighter">
+                                                {p}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="flex justify-between items-center">
+                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Mobile</span>
+                                    <span className="text-[10px] font-black text-slate-900 tracking-widest">{user.mobile}</span>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
             </div>
+
+            <Pagination 
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+                totalItems={filteredUsers.length}
+                itemsPerPage={itemsPerPage}
+            />
         </div>
     );
 };

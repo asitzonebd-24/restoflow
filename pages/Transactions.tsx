@@ -1,9 +1,10 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Transaction, Order, Role } from '../types';
 import { History, Search, Calendar, Eye, FileText, Printer, X, Hash, ChevronRight, User as UserIcon, Receipt, TrendingUp, Trophy, Award, Filter, Store, Bluetooth } from 'lucide-react';
 import { BluetoothPrinterService } from '../services/printerService';
+import { Pagination } from '../components/Pagination';
 
 type DateFilter = 'all' | 'today' | 'week' | 'month' | 'custom';
 
@@ -12,6 +13,8 @@ export const Transactions = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [dateFilter, setDateFilter] = useState<DateFilter>('all');
     const [selectedStaffId, setSelectedStaffId] = useState<string>('all');
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 20;
     const [customRange, setCustomRange] = useState({
         start: new Date().toISOString().split('T')[0],
         end: new Date().toISOString().split('T')[0]
@@ -64,6 +67,17 @@ export const Transactions = () => {
             return matchesSearch && matchesDate && matchesStaff && isOwnTxn;
         });
     }, [transactions, searchTerm, dateFilter, customRange, selectedStaffId, staffList, currentUser]);
+
+    const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
+    const paginatedTransactions = useMemo(() => {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        return filteredTransactions.slice(startIndex, startIndex + itemsPerPage);
+    }, [filteredTransactions, currentPage]);
+
+    // Reset to page 1 when filters change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, dateFilter, customRange, selectedStaffId]);
 
     // Summary calculations including Top Performer
     const stats = useMemo(() => {
@@ -298,9 +312,10 @@ export const Transactions = () => {
                 </div>
             </div>
 
-            {/* Transactions Table */}
+            {/* Transactions Table/Cards */}
             <div className="bg-white rounded-[2.5rem] shadow-xl shadow-slate-200/50 border-2 border-black overflow-hidden">
-                <div className="overflow-x-auto no-scrollbar">
+                {/* Desktop Table View */}
+                <div className="hidden md:block overflow-x-auto no-scrollbar">
                     <table className="w-full text-left border-collapse min-w-[700px]">
                         <thead className="bg-slate-50/80 text-slate-400 text-[10px] font-bold uppercase tracking-[0.2em] border-b-2 border-black">
                             <tr>
@@ -314,9 +329,9 @@ export const Transactions = () => {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-black">
-                            {filteredTransactions.length === 0 ? (
+                            {paginatedTransactions.length === 0 ? (
                                 <tr>
-                                    <td colSpan={6} className="px-8 py-24 text-center">
+                                    <td colSpan={7} className="px-8 py-24 text-center">
                                         <div className="flex flex-col items-center justify-center text-slate-300">
                                             <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-6 border-2 border-dashed border-slate-200">
                                                 <Search size={32} strokeWidth={1.5} className="opacity-40" />
@@ -326,7 +341,7 @@ export const Transactions = () => {
                                     </td>
                                 </tr>
                             ) : (
-                                filteredTransactions.map(txn => (
+                                paginatedTransactions.map(txn => (
                                     <tr key={txn.id} className="hover:bg-indigo-50/30 transition-all group">
                                         <td className="px-8 py-6 border-r border-black">
                                             <p className="text-xs font-black text-slate-900 uppercase tracking-tight">{new Date(txn.date).toLocaleDateString()}</p>
@@ -376,7 +391,82 @@ export const Transactions = () => {
                         </tbody>
                     </table>
                 </div>
+
+                {/* Mobile Card View */}
+                <div className="md:hidden divide-y divide-black">
+                    {paginatedTransactions.length === 0 ? (
+                        <div className="px-8 py-24 text-center">
+                            <div className="flex flex-col items-center justify-center text-slate-300">
+                                <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-6 border-2 border-dashed border-slate-200">
+                                    <Search size={32} strokeWidth={1.5} className="opacity-40" />
+                                </div>
+                                <p className="text-sm font-black opacity-60 uppercase tracking-[0.2em]">No matching records found</p>
+                            </div>
+                        </div>
+                    ) : (
+                        paginatedTransactions.map(txn => (
+                            <div key={txn.id} className="p-6 hover:bg-indigo-50/30 transition-all group">
+                                <div className="flex justify-between items-start mb-4">
+                                    <div>
+                                        <p className="text-xs font-black text-slate-900 uppercase tracking-tight">{new Date(txn.date).toLocaleDateString()}</p>
+                                        <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-widest">{new Date(txn.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                                    </div>
+                                    <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-xl border-2 border-black uppercase tracking-widest shadow-sm">
+                                        #{txn.id.slice(-6).toUpperCase()}
+                                    </span>
+                                </div>
+                                
+                                <div className="mb-4">
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Items</p>
+                                    <p className="text-xs font-bold text-slate-600 uppercase tracking-tight line-clamp-2">
+                                        {txn.itemsSummary}
+                                    </p>
+                                </div>
+
+                                <div className="flex justify-between items-end">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center text-[10px] font-black shadow-lg border-b-2 border-slate-700">
+                                            {txn.creatorName?.[0] || '?'}
+                                        </div>
+                                        <div>
+                                            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Processor</p>
+                                            <p className="text-xs font-black text-slate-900 uppercase tracking-tight leading-none">{txn.creatorName || '-'}</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="text-right">
+                                        <div className="flex flex-col items-end gap-1 mb-3">
+                                            {txn.discount > 0 && (
+                                                <span className="text-[10px] font-black text-red-500 tracking-tighter">
+                                                    Disc: -{currentTenant?.currency}{txn.discount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                </span>
+                                            )}
+                                            <span className="text-lg font-black text-slate-900 tracking-tighter">
+                                                {currentTenant?.currency}{txn.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            </span>
+                                        </div>
+                                        <button 
+                                            type="button"
+                                            onClick={() => openInvoice(txn)}
+                                            className="w-full px-4 py-2 bg-white rounded-xl flex items-center justify-center gap-2 text-slate-600 font-bold uppercase tracking-widest text-[9px] shadow-sm border-2 border-black hover:border-indigo-500 hover:text-indigo-500 transition-all"
+                                        >
+                                            <Eye size={14} /> View Receipt
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        ))
+                    )}
+                </div>
             </div>
+
+            <Pagination 
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+                totalItems={filteredTransactions.length}
+                itemsPerPage={itemsPerPage}
+            />
 
              {viewInvoice && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 print:p-0 print:static print:block print-visible">

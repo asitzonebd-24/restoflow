@@ -1,9 +1,10 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { OrderStatus, Order, Transaction, OrderItem, Role } from '../types';
 import { Receipt, CheckCheck, Printer, X, FileText, Store, Search, Users, Eye, AlertTriangle, Truck, ChevronDown, Bluetooth } from 'lucide-react';
 import { BluetoothPrinterService } from '../services/printerService';
+import { Pagination } from '../components/Pagination';
 
 export const Billing = () => {
   const { orders, currentTenant, currentUser, updateOrderStatus, updateOrderItems, addTransaction, users } = useApp();
@@ -11,6 +12,8 @@ export const Billing = () => {
   const [discounts, setDiscounts] = useState<{ [key: string]: number }>({});
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStaffId, setSelectedStaffId] = useState<string>('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [showConfirmCollect, setShowConfirmCollect] = useState(false);
   
@@ -40,6 +43,17 @@ export const Billing = () => {
       })
       .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
   }, [orders, searchTerm, selectedStaffId, currentUser]);
+
+  const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
+  const paginatedOrders = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredOrders.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredOrders, currentPage]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedStaffId]);
 
   const totalAwaitingAmount = useMemo(() => {
     return filteredOrders.reduce((acc, order) => {
@@ -318,7 +332,7 @@ export const Billing = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-black">
-              {filteredOrders.length === 0 ? (
+              {paginatedOrders.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-8 py-24 text-center">
                     <div className="flex flex-col items-center justify-center text-slate-300">
@@ -328,7 +342,7 @@ export const Billing = () => {
                   </td>
                 </tr>
               ) : (
-                filteredOrders.map(order => {
+                paginatedOrders.map(order => {
                   const discount = discounts[order.id] || 0;
                   const { total } = calculateTotal(order, discount);
                   const creator = getCreator(order.createdBy);
@@ -424,7 +438,7 @@ export const Billing = () => {
 
         {/* Mobile Card View */}
         <div className="md:hidden divide-y divide-black">
-          {filteredOrders.length > 0 && (
+          {paginatedOrders.length > 0 && (
             <div className="p-4 bg-slate-50 border-b border-black flex items-center justify-between">
               <label className="flex items-center gap-3 cursor-pointer">
                 <input 
@@ -438,7 +452,7 @@ export const Billing = () => {
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{selectedOrderIds.length} Selected</span>
             </div>
           )}
-          {filteredOrders.length === 0 ? (
+          {paginatedOrders.length === 0 ? (
             <div className="px-8 py-24 text-center">
               <div className="flex flex-col items-center justify-center text-slate-300">
                 <Receipt size={64} strokeWidth={1} className="mb-6 opacity-40" />
@@ -446,7 +460,7 @@ export const Billing = () => {
               </div>
             </div>
           ) : (
-            filteredOrders.map(order => {
+            paginatedOrders.map(order => {
               const discount = discounts[order.id] || 0;
               const { total } = calculateTotal(order, discount);
               const creator = getCreator(order.createdBy);
@@ -529,6 +543,14 @@ export const Billing = () => {
           )}
         </div>
       </div>
+
+      <Pagination 
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={setCurrentPage}
+        totalItems={filteredOrders.length}
+        itemsPerPage={itemsPerPage}
+      />
 
       {/* Invoice Modal */}
       {invoiceOrder && (

@@ -11,7 +11,7 @@ export const MenuManagement = () => {
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeCategory, setActiveCategory] = useState<string>('All');
+  const [activeCategory, setActiveCategory] = useState<string>('Select Categories');
   const [statusFilter, setStatusFilter] = useState<'All' | 'Available' | 'Sold Out'>('All');
   const [stockFilter, setStockFilter] = useState<'All' | 'In Stock' | 'Out of Stock'>('All');
 
@@ -180,6 +180,7 @@ export const MenuManagement = () => {
             onChange={(e) => setActiveCategory(e.target.value)}
             className="w-full lg:w-48 px-6 py-3 bg-white border-2 border-black rounded-2xl text-[10px] font-black uppercase tracking-widest appearance-none focus:outline-none focus:ring-4 focus:ring-slate-900/10 transition-all cursor-pointer"
           >
+            <option value="Select Categories">Select Categories</option>
             <option value="All">All Categories</option>
             {categories.map(cat => (
               <option key={cat} value={cat}>{cat}</option>
@@ -223,7 +224,12 @@ export const MenuManagement = () => {
 
       {/* Menu Grid */}
       <div className="space-y-16">
-        {categories.length === 0 ? (
+        {activeCategory === 'Select Categories' ? (
+           <div className="text-center py-24 bg-white rounded-[2.5rem] border-2 border-black shadow-xl shadow-slate-200">
+             <ListTree size={64} strokeWidth={1} className="mx-auto text-slate-100 mb-6" />
+             <p className="text-slate-300 font-bold uppercase tracking-widest">Please select a category to view items</p>
+           </div>
+        ) : categories.length === 0 ? (
            <div className="text-center py-24 bg-white rounded-[2.5rem] border-2 border-black shadow-xl shadow-slate-200">
              <Utensils size={64} strokeWidth={1} className="mx-auto text-slate-100 mb-6" />
              <p className="text-slate-300 font-bold uppercase tracking-widest">Your menu is empty</p>

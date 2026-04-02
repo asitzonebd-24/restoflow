@@ -201,7 +201,8 @@ export const Expenses = () => {
 
             {/* Expense Table */}
             <div className="bg-white rounded-[2.5rem] border-2 border-slate-100 shadow-2xl shadow-slate-200/50 overflow-hidden">
-                <div className="overflow-x-auto no-scrollbar">
+                {/* Desktop Table View */}
+                <div className="hidden md:block overflow-x-auto no-scrollbar">
                     <table className="w-full text-left border-collapse min-w-[800px]">
                         <thead className="bg-slate-50/80 text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] border-b-2 border-slate-100">
                             <tr>
@@ -257,6 +258,47 @@ export const Expenses = () => {
                             )}
                         </tbody>
                     </table>
+                </div>
+
+                {/* Mobile Card View */}
+                <div className="md:hidden divide-y divide-slate-50">
+                    {filteredExpenses.length === 0 ? (
+                        <div className="px-8 py-24 text-center">
+                            <div className="flex flex-col items-center gap-6 opacity-30">
+                                <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center border-2 border-dashed border-slate-200">
+                                    <Wallet size={32} />
+                                </div>
+                                <p className="text-sm font-black uppercase tracking-[0.2em]">No expenses recorded</p>
+                            </div>
+                        </div>
+                    ) : (
+                        filteredExpenses.map(exp => (
+                            <div key={exp.id} className="p-6 hover:bg-rose-50/30 transition-all group">
+                                <div className="flex justify-between items-start mb-4">
+                                    <div>
+                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">{new Date(exp.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                                        <p className="font-black text-slate-900 uppercase tracking-tight text-sm">{exp.title}</p>
+                                    </div>
+                                    <button 
+                                        onClick={() => handleDelete(exp.id)}
+                                        className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-300 hover:text-rose-600 shadow-sm border-2 border-slate-100"
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
+                                </div>
+                                
+                                <div className="flex items-center justify-between mt-4">
+                                    <span className="px-3 py-1.5 bg-slate-50 text-slate-600 rounded-lg text-[9px] font-black uppercase tracking-widest border border-slate-100">
+                                        {exp.category}
+                                    </span>
+                                    <span className="text-lg font-black text-rose-600 tracking-tighter">
+                                        -{business.currency}{exp.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                    </span>
+                                </div>
+                                {exp.note && <p className="text-[9px] text-slate-400 font-bold mt-3 italic opacity-60 bg-slate-50 p-2 rounded-lg">"{exp.note}"</p>}
+                            </div>
+                        ))
+                    )}
                 </div>
             </div>
 
