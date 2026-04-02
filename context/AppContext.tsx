@@ -609,35 +609,39 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
   const login = async (emailOrMobile: string, password: string, tenantId?: string | null): Promise<boolean> => {
     setIsLoading(true);
-    console.log('Login attempt for:', emailOrMobile);
+    console.log('[AppContext] Login attempt for:', emailOrMobile, 'Tenant:', tenantId);
     try {
-      let emailToUse = emailOrMobile.toLowerCase();
+      let emailToUse = emailOrMobile.trim().toLowerCase();
       
       // If it's a mobile number, lookup the email first
       if (!emailOrMobile.includes('@')) {
         // Since we can't query users without auth, we assume it's a customer mobile login
         // or a staff member who was created with a mobile-based email.
-        emailToUse = `${emailOrMobile}@customer.com`;
+        emailToUse = `${emailOrMobile.trim()}@customer.com`;
+        console.log('[AppContext] Mobile detected, using email:', emailToUse);
       }
 
       // Sign in with Firebase Auth
       const userCredential = await signInWithEmailAndPassword(auth, emailToUse, password);
+      console.log('[AppContext] Auth successful for UID:', userCredential.user.uid);
       
       // Fetch user profile from Firestore
       const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
       if (!userDoc.exists()) {
+        console.error('[AppContext] User profile missing in Firestore for UID:', userCredential.user.uid);
         await signOut(auth);
         setIsLoading(false);
-        toast.error('User profile not found.');
+        toast.error('User profile not found. Please contact support.');
         return false;
       }
 
       const user = { id: userDoc.id, ...convertFirestoreData(userDoc.data()) } as User;
+      console.log('[AppContext] Profile loaded:', user.name, 'Role:', user.role);
       
       if (user) {
         // If a specific tenantId is provided in the URL, verify the user belongs to it
         if (tenantId && user.tenantId && String(user.tenantId) !== String(tenantId) && user.role !== Role.SUPER_ADMIN) {
-          console.warn('Access denied: tenant mismatch', { userTenant: user.tenantId, targetTenant: tenantId });
+          console.warn('[AppContext] Access denied: tenant mismatch', { userTenant: user.tenantId, targetTenant: tenantId });
           await signOut(auth);
           setIsLoading(false);
           toast.error('Access denied for this restaurant.');
@@ -645,11 +649,18 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         }
         
         if (!tenantId && user.role !== Role.SUPER_ADMIN && !user.tenantId) {
-          console.warn('Access denied: no tenant for non-superadmin');
+          console.warn('[AppContext] Access denied: no tenant for non-superadmin');
           await signOut(auth);
           setIsLoading(false);
           toast.error('Invalid account configuration.');
           return false;
+        }
+
+        // Set tenant context if provided or if user has one
+        if (tenantId) {
+          setCurrentTenantId(tenantId);
+        } else if (user.tenantId && user.role !== Role.SUPER_ADMIN) {
+          setCurrentTenantId(user.tenantId);
         }
 
         setCurrentUser(user);
@@ -662,10 +673,12 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       setIsLoading(false);
       return false;
     } catch (error: any) {
-      console.error('Login error:', error);
+      console.error('[AppContext] Login error:', error.code, error.message);
       setIsLoading(false);
       if (error.code === 'auth/too-many-requests') {
         toast.error('Too many failed login attempts. Please wait a few minutes and try again.');
+      } else if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
+        toast.error('Invalid email/mobile or password. Please try again.');
       } else {
         toast.error('Login failed: ' + (error.message || 'Invalid credentials'));
       }

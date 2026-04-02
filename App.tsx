@@ -488,11 +488,12 @@ const AppContent = () => {
   const getDefaultRedirect = () => {
     if (!currentUser) return "/";
     
-    const targetId = business?.slug || business?.id || currentUser.tenantId;
+    // Prioritize explicit tenant context or user's assigned tenant
+    const targetId = currentTenantId || currentUser.tenantId || business?.slug || business?.id;
 
     // If Super Admin is in a tenant context, go to that tenant's dashboard
     if (currentUser.role === Role.SUPER_ADMIN) {
-      if (currentTenantId && currentTenantId !== '00') {
+      if (currentTenantId && currentTenantId !== '00' && currentTenantId !== '01') {
         return `/${targetId}/dashboard`;
       }
       return "/portal";
@@ -505,7 +506,8 @@ const AppContent = () => {
     if (permissions.includes('POS')) return `/${targetId}/pos`;
     if (permissions.length > 0) return `/${targetId}/${permissions[0].toLowerCase()}`;
     
-    return "/login";
+    // Final fallback to avoid redirect loops
+    return currentUser.role === Role.SUPER_ADMIN ? "/portal" : "/";
   };
 
   return (
