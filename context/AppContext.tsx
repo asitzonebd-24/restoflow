@@ -883,9 +883,41 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       const batch = writeBatch(db);
       const orderRef = doc(db, 'orders', orderId);
       
-      const updatedItems = order.items.map(i => ({ ...i, status: status as unknown as ItemStatus }));
+      // If kitchen staff has assigned categories, only update those items
+      let updatedItems = [...order.items];
+      const isKitchen = currentUser?.role === Role.KITCHEN;
+      const hasAssignedCats = currentUser?.assignedCategories && currentUser.assignedCategories.length > 0;
+
+      if (isKitchen && hasAssignedCats) {
+        updatedItems = order.items.map(item => {
+          const menuItem = allMenu.find(m => m.id === item.itemId);
+          if (menuItem && currentUser.assignedCategories?.includes(menuItem.category)) {
+            return { ...item, status: status as unknown as ItemStatus };
+          }
+          return item;
+        });
+      } else {
+        // Otherwise update all items
+        updatedItems = order.items.map(i => ({ ...i, status: status as unknown as ItemStatus }));
+      }
+
+      // Determine the overall order status
+      // If some items are still PENDING, the order should probably stay PREPARING or PENDING
+      // But for simplicity, we'll keep the requested status if it's an admin or if all items match the new status
+      let finalOrderStatus = status;
+      if (isKitchen && hasAssignedCats) {
+        const allReady = updatedItems.every(i => i.status === OrderStatus.READY || i.status === OrderStatus.CANCELLED);
+        const allPreparing = updatedItems.every(i => i.status === OrderStatus.PREPARING || i.status === OrderStatus.READY || i.status === OrderStatus.CANCELLED);
+        
+        if (status === OrderStatus.READY && !allReady) {
+          finalOrderStatus = OrderStatus.PREPARING;
+        } else if (status === OrderStatus.PREPARING && !allPreparing) {
+          finalOrderStatus = OrderStatus.PENDING;
+        }
+      }
+
       const updates: any = {
-        status,
+        status: finalOrderStatus,
         items: updatedItems
       };
       if (discount !== undefined) updates.discount = discount;

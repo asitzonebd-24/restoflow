@@ -68,6 +68,7 @@ export interface User {
   permissions: string[];
   avatar: string;
   address?: string;
+  assignedCategories?: string[]; // Categories assigned to kitchen staff
 }
 
 export interface MenuItem {

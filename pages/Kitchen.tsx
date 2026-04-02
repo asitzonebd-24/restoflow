@@ -24,10 +24,23 @@ export const Kitchen = () => {
     let filtered = orders.filter(o => o.status !== OrderStatus.CANCELLED);
     
     // Only Owner, Manager, Kitchen, and Super Admin can see all orders
-    const canSeeAll = currentUser && [Role.OWNER, Role.MANAGER, Role.KITCHEN, Role.SUPER_ADMIN].includes(currentUser.role);
+    const isAdmin = currentUser && [Role.OWNER, Role.MANAGER, Role.SUPER_ADMIN].includes(currentUser.role);
+    const isKitchen = currentUser?.role === Role.KITCHEN;
     
-    if (!canSeeAll && currentUser) {
+    // Filter by creator if not admin/kitchen
+    if (!isAdmin && !isKitchen && currentUser) {
       filtered = filtered.filter(o => o.createdBy === currentUser.id);
+    }
+
+    // Special filtering for Kitchen staff with assigned categories
+    if (isKitchen && currentUser?.assignedCategories && currentUser.assignedCategories.length > 0) {
+      filtered = filtered.filter(order => {
+        // Check if any item in this order belongs to the assigned categories
+        return order.items.some(item => {
+          const menuItem = menu.find(m => m.id === item.itemId);
+          return menuItem && currentUser.assignedCategories?.includes(menuItem.category);
+        });
+      });
     }
     
     if (filter === 'pending') {
@@ -282,6 +295,14 @@ export const Kitchen = () => {
               {(() => {
                 const groupedItems: { [key: string]: { name: string, quantity: number, status: ItemStatus, rowIds: string[] } } = {};
                 order.items.forEach(item => {
+                  // Filter items by category for kitchen staff
+                  if (isKitchen && currentUser?.assignedCategories && currentUser.assignedCategories.length > 0) {
+                    const menuItem = menu.find(m => m.id === item.itemId);
+                    if (!menuItem || !currentUser.assignedCategories.includes(menuItem.category)) {
+                      return; // Skip this item
+                    }
+                  }
+
                   const status = item.status || OrderStatus.PENDING;
                   // Only group if status is PREPARING ("Ready") or READY ("Done")
                   // If status is PENDING ("New"), use rowId as part of the key to keep them separate

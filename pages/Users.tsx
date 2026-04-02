@@ -21,11 +21,20 @@ export const Users = () => {
         password: '',
         mobile: '',
         role: Role.WAITER,
-        permissions: [] as string[]
+        permissions: [] as string[],
+        assignedCategories: [] as string[]
     });
 
     const resetForm = () => {
-        setFormData({ name: '', email: '', password: '', mobile: '', role: Role.WAITER, permissions: ['POS'] });
+        setFormData({ 
+            name: '', 
+            email: '', 
+            password: '', 
+            mobile: '', 
+            role: Role.WAITER, 
+            permissions: ['POS'],
+            assignedCategories: []
+        });
         setEditingUserId(null);
         setError(null);
     };
@@ -38,7 +47,8 @@ export const Users = () => {
             password: user.password || '',
             mobile: user.mobile,
             role: user.role,
-            permissions: user.permissions || []
+            permissions: user.permissions || [],
+            assignedCategories: user.assignedCategories || []
         });
         setEditingUserId(user.id);
         setIsFormOpen(true);
@@ -67,7 +77,23 @@ export const Users = () => {
             case Role.DELIVERY: perms = []; break;
             default: perms = [];
         }
-        setFormData(prev => ({ ...prev, role, permissions: perms }));
+        setFormData(prev => ({ 
+            ...prev, 
+            role, 
+            permissions: perms,
+            assignedCategories: role === Role.KITCHEN ? prev.assignedCategories : []
+        }));
+    };
+
+    const toggleCategory = (category: string) => {
+        setFormData(prev => {
+            const current = prev.assignedCategories || [];
+            if (current.includes(category)) {
+                return { ...prev, assignedCategories: current.filter(c => c !== category) };
+            } else {
+                return { ...prev, assignedCategories: [...current, category] };
+            }
+        });
     };
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -245,6 +271,29 @@ export const Users = () => {
                                         </div>
                                     </div>
 
+                                    {formData.role === Role.KITCHEN && currentTenant?.menuCategories && (
+                                        <div className="space-y-4 animate-in fade-in slide-in-from-top-4">
+                                            <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Assigned Kitchen Categories</label>
+                                            <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest ml-1 mb-2">Staff will only see items from selected categories</p>
+                                            <div className="flex flex-wrap gap-2 md:gap-3">
+                                                {currentTenant.menuCategories.map(category => (
+                                                    <button
+                                                        type="button"
+                                                        key={category}
+                                                        onClick={() => toggleCategory(category)}
+                                                        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 text-[10px] font-black uppercase tracking-widest transition-all
+                                                            ${(formData.assignedCategories || []).includes(category) 
+                                                                ? 'bg-orange-500 border-orange-500 text-white shadow-lg' 
+                                                                : 'bg-white border-slate-100 text-slate-400 hover:border-orange-500'}`}
+                                                    >
+                                                        {(formData.assignedCategories || []).includes(category) ? <CheckSquare size={14} /> : <Square size={14} />}
+                                                        {category}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
                                     <div className="flex flex-col sm:flex-row justify-end gap-3 pt-6 border-t-2 border-dashed border-slate-100 shrink-0">
                                         <button type="button" onClick={() => setIsFormOpen(false)} className="px-8 py-4 text-[10px] font-black uppercase text-slate-400 hover:text-slate-900 transition">Cancel</button>
                                         <button type="submit" className="bg-slate-900 text-white px-10 py-5 rounded-[2rem] font-black uppercase tracking-widest text-[10px] border-4 border-white shadow-xl hover:bg-black transition">
@@ -308,6 +357,15 @@ export const Users = () => {
                                                 </span>
                                             ))}
                                         </div>
+                                        {user.role === Role.KITCHEN && user.assignedCategories && user.assignedCategories.length > 0 && (
+                                            <div className="mt-2 flex flex-wrap gap-1 max-w-[240px]">
+                                                {user.assignedCategories.map(c => (
+                                                    <span key={c} className="text-[8px] px-1.5 py-0.5 bg-orange-50 border border-orange-100 rounded-lg text-orange-600 font-black uppercase tracking-tighter">
+                                                        {c}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        )}
                                     </td>
                                     <td className="p-6">
                                         <span className="text-[10px] font-black text-slate-900 tracking-widest">{user.mobile}</span>
