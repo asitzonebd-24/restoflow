@@ -54,6 +54,7 @@ export interface Business {
   isActive: boolean;
   isMaintenanceMode?: boolean;
   maintenanceMessage?: string;
+  maintenanceTime?: string;
   monthlyBill: number;
   createdAt: string;
   printerSettings?: PrinterSettings;

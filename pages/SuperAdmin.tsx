@@ -5,6 +5,7 @@ import { Business, Role, BillStatus } from '../types';
 import { Plus, Building2, User, Mail, Phone, Globe, MapPin, Search, ExternalLink, Calendar, Power, PowerOff, Edit3, Save, X as CloseIcon, AlertTriangle, Copy, Check, Wallet, Trash2, ChevronDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export const SuperAdmin = () => {
   const { tenants, createBusiness, currentUser, toggleBusinessStatus, updateTenant, deleteTenant, allUsers, updateUser, currentTenant, monthlyBills, setCurrentTenantId } = useApp();
@@ -21,6 +22,11 @@ export const SuperAdmin = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [selectedTenants, setSelectedTenants] = useState<string[]>([]);
+  const [bulkMaintenanceMsg, setBulkMaintenanceMsg] = useState('');
+  const [isBulkUpdating, setIsBulkUpdating] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [tenantToDelete, setTenantToDelete] = useState<string | null>(null);
 
   const CURRENCIES = ['৳', '$', '€', '£', '₹', '₨', 'AED', 'SAR', 'QAR', 'OMR', 'BHD', 'KWD'];
 
@@ -48,6 +54,7 @@ export const SuperAdmin = () => {
     customerAppEnabled: true,
     isMaintenanceMode: false,
     maintenanceMessage: '',
+    maintenanceTime: '',
   });
 
   const [newOwner, setNewOwner] = useState({
@@ -142,8 +149,16 @@ export const SuperAdmin = () => {
   };
 
   const handleDeleteTenant = (tenantId: string) => {
-    if (window.confirm('Are you sure you want to delete this business? This will delete all associated data and cannot be undone.')) {
-      deleteTenant(tenantId);
+    setTenantToDelete(tenantId);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = () => {
+    if (tenantToDelete) {
+      deleteTenant(tenantToDelete);
+      setShowDeleteConfirm(false);
+      setTenantToDelete(null);
+      toast.success('Restaurant deleted successfully');
     }
   };
 
@@ -161,7 +176,7 @@ export const SuperAdmin = () => {
     setShowModal(false);
     setEditingTenant(null);
     setDuplicateSourceId(null);
-    setNewBusiness({ id: '', name: '', address: '', phone: '', currency: '৳', themeColor: '#0f172a', monthlyBill: 500, logo: '', vatRate: 0, includeVat: false, timezone: 'UTC', customerTokenPrefix: 'ORD', customerAppEnabled: true, isMaintenanceMode: false, maintenanceMessage: '' });
+    setNewBusiness({ id: '', name: '', address: '', phone: '', currency: '৳', themeColor: '#0f172a', monthlyBill: 500, logo: '', vatRate: 0, includeVat: false, timezone: 'UTC', customerTokenPrefix: 'ORD', customerAppEnabled: true, isMaintenanceMode: false, maintenanceMessage: '', maintenanceTime: '' });
     setNewOwner({ name: '', email: '', password: '', mobile: '' });
   };
 
@@ -169,6 +184,43 @@ export const SuperAdmin = () => {
     t.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     t.address.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const toggleSelectAll = () => {
+    if (selectedTenants.length === filteredTenants.length) {
+      setSelectedTenants([]);
+    } else {
+      setSelectedTenants(filteredTenants.map(t => t.id));
+    }
+  };
+
+  const toggleSelectTenant = (id: string) => {
+    setSelectedTenants(prev => 
+      prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]
+    );
+  };
+
+  const handleBulkMaintenance = async (enable: boolean) => {
+    if (selectedTenants.length === 0) return;
+    
+    setIsBulkUpdating(true);
+    try {
+      const promises = selectedTenants.map(id => 
+        updateTenant(id, { 
+          isMaintenanceMode: enable,
+          maintenanceMessage: enable ? bulkMaintenanceMsg : '',
+          maintenanceTime: enable ? '' : ''
+        })
+      );
+      await Promise.all(promises);
+      toast.success(`Maintenance mode ${enable ? 'enabled' : 'disabled'} for ${selectedTenants.length} restaurants`);
+      setSelectedTenants([]);
+      setBulkMaintenanceMsg('');
+    } catch (err) {
+      toast.error('Failed to update maintenance mode');
+    } finally {
+      setIsBulkUpdating(false);
+    }
+  };
 
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8">
@@ -221,9 +273,53 @@ export const SuperAdmin = () => {
       </div>
 
       <div className="w-full">
-        <div className="bg-white rounded-2xl border-2 border-indigo-500 shadow-xl overflow-hidden shadow-indigo-100">
-            <div className="p-4 border-b border-indigo-100 bg-slate-50/50 flex items-center gap-3 group">
-              <Search size={20} className="text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+        {selectedTenants.length > 0 && (
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-amber-50 border-2 border-amber-200 p-4 rounded-2xl mb-4 flex flex-col md:flex-row items-center justify-between gap-4 shadow-lg shadow-amber-100"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center text-amber-600">
+                <AlertTriangle size={20} />
+              </div>
+              <div>
+                <p className="text-sm font-black text-amber-900 uppercase tracking-tight">Bulk Actions ({selectedTenants.length} Selected)</p>
+                <p className="text-[10px] font-bold text-amber-600 uppercase tracking-widest">Apply changes to multiple restaurants at once</p>
+              </div>
+            </div>
+
+            <div className="flex flex-1 items-center gap-3 w-full md:w-auto">
+              <input 
+                type="text" 
+                placeholder="Write maintenance message here..."
+                className="flex-1 bg-white border-2 border-amber-100 rounded-xl px-4 py-2 text-sm font-medium outline-none focus:border-amber-400 transition-all"
+                value={bulkMaintenanceMsg}
+                onChange={(e) => setBulkMaintenanceMsg(e.target.value)}
+              />
+              <div className="flex items-center gap-2">
+                <button 
+                  disabled={isBulkUpdating}
+                  onClick={() => handleBulkMaintenance(true)}
+                  className="bg-amber-600 text-white px-4 py-2 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-amber-700 transition shadow-md disabled:opacity-50"
+                >
+                  Enable Maintenance
+                </button>
+                <button 
+                  disabled={isBulkUpdating}
+                  onClick={() => handleBulkMaintenance(false)}
+                  className="bg-slate-200 text-slate-700 px-4 py-2 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-slate-300 transition disabled:opacity-50"
+                >
+                  Disable
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        <div className="bg-white rounded-2xl border-2 border-black shadow-xl overflow-hidden">
+            <div className="p-3 border-b-2 border-black bg-slate-50/50 flex items-center gap-3 group">
+              <Search size={20} className="text-slate-400 group-focus-within:text-black transition-colors" />
               <input 
                 type="text" 
                 placeholder="Search restaurants by name or address..."
@@ -231,174 +327,296 @@ export const SuperAdmin = () => {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
+              <div className="hidden md:flex items-center gap-2">
+                <button 
+                  onClick={toggleSelectAll}
+                  className="text-[10px] font-black uppercase tracking-widest text-slate-600 hover:text-black transition"
+                >
+                  {selectedTenants.length === filteredTenants.length ? 'Deselect All' : 'Select All'}
+                </button>
+              </div>
             </div>
             
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left border-collapse table-auto">
                 <thead>
-                  <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
-                    <th className="px-6 py-4 font-semibold">Restaurant</th>
-                    <th className="px-6 py-4 font-semibold">Tenant Link</th>
-                    <th className="px-6 py-4 font-semibold">Contact</th>
-                    <th className="px-6 py-4 font-semibold">Status</th>
-                    <th className="px-6 py-4 font-semibold">Maintenance</th>
-                    <th className="px-6 py-4 font-semibold">Monthly Bill</th>
-                    <th className="px-6 py-4 font-semibold text-right">Actions</th>
+                  <tr className="bg-slate-100 text-slate-900 text-[9px] uppercase tracking-wider border-b-2 border-black">
+                    <th className="px-2 py-2 font-black w-8 border-r border-black">
+                      <input 
+                        type="checkbox" 
+                        className="w-3 h-3 rounded border-2 border-black text-black focus:ring-black cursor-pointer"
+                        checked={selectedTenants.length === filteredTenants.length && filteredTenants.length > 0}
+                        onChange={toggleSelectAll}
+                      />
+                    </th>
+                    <th className="px-2 py-2 font-black border-r border-black min-w-[120px]">Restaurant</th>
+                    <th className="px-2 py-2 font-black border-r border-black w-24">Link</th>
+                    <th className="px-2 py-2 font-black border-r border-black w-28">Contact</th>
+                    <th className="px-2 py-2 font-black border-r border-black w-16">Status</th>
+                    <th className="px-2 py-2 font-black border-r border-black w-16">Maint.</th>
+                    <th className="px-2 py-2 font-black border-r border-black">Message</th>
+                    <th className="px-2 py-2 font-black border-r border-black w-16">Time</th>
+                    <th className="px-2 py-2 font-black border-r border-black w-16">Bill</th>
+                    <th className="px-2 py-2 font-black text-right w-24">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y-2 divide-black">
                   {filteredTenants.map((tenant) => (
-                    <tr key={tenant.id} className={`hover:bg-slate-50/50 transition ${!tenant.isActive ? 'opacity-60' : ''}`}>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full border border-slate-200 bg-slate-50 flex items-center justify-center overflow-hidden">
+                    <tr key={tenant.id} className={`hover:bg-slate-50/50 transition ${!tenant.isActive ? 'opacity-60' : ''} ${selectedTenants.includes(tenant.id) ? 'bg-indigo-50/30' : ''}`}>
+                      <td className="px-2 py-2 border-r border-black">
+                        <input 
+                          type="checkbox" 
+                          className="w-3 h-3 rounded border-2 border-black text-black focus:ring-black cursor-pointer"
+                          checked={selectedTenants.includes(tenant.id)}
+                          onChange={() => toggleSelectTenant(tenant.id)}
+                        />
+                      </td>
+                      <td className="px-2 py-2 border-r border-black">
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-7 h-7 rounded-lg border-2 border-black bg-slate-50 flex items-center justify-center overflow-hidden shrink-0">
                             {tenant.logo ? (
                               <img src={tenant.logo} className="w-full h-full object-cover" alt="Logo" />
                             ) : (
-                              <Building2 size={20} className="text-slate-300" />
+                              <Building2 size={14} className="text-slate-300" />
                             )}
                           </div>
-                          <div>
-                            <p className="font-bold text-slate-900">{tenant.name}</p>
-                            <p className="text-[9px] font-bold text-indigo-500 uppercase tracking-widest bg-indigo-50 px-2 py-0.5 rounded inline-block mt-1">
-                              ID: {tenant.id}
+                          <div className="min-w-0">
+                            <p className="font-bold text-slate-900 text-[10px] truncate leading-tight">{tenant.name}</p>
+                            <p className="text-[7px] font-bold text-black uppercase tracking-widest bg-slate-100 px-1 py-0.5 rounded inline-block border border-black leading-none">
+                              {tenant.id.slice(0, 6)}...
                             </p>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
-                        <div className="flex flex-col gap-1">
-                          <div className="flex items-center gap-2">
-                            <code className="text-[10px] font-mono bg-slate-100 px-2 py-1 rounded text-slate-600 border border-slate-200">
-                              {`restokeep.vercel.app/${tenant.slug || tenant.id}`}
-                            </code>
-                            <button 
-                              onClick={() => copyLink(tenant.slug || tenant.id)}
-                              className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition"
-                              title="Copy Link"
-                            >
-                              {copiedId === (tenant.slug || tenant.id) ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
-                            </button>
-                            <a 
-                              href={`https://restokeep.vercel.app/${tenant.slug || tenant.id}`} 
-                              target="_blank" 
-                              rel="noopener noreferrer"
-                              className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition"
-                              title="Open Link"
-                            >
-                              <ExternalLink size={14} />
-                            </a>
+                      <td className="px-2 py-2 border-r border-black">
+                        <div className="flex items-center gap-1">
+                          <button 
+                            onClick={() => copyLink(tenant.slug || tenant.id)}
+                            className="p-1 text-slate-700 hover:text-black hover:bg-slate-100 rounded border border-black flex items-center gap-1 group shrink-0"
+                            title="Copy Link"
+                          >
+                            {copiedId === (tenant.slug || tenant.id) ? (
+                              <Check size={10} className="text-emerald-600" />
+                            ) : (
+                              <Copy size={10} />
+                            )}
+                            <span className="text-[7px] font-black uppercase tracking-widest">Copy</span>
+                          </button>
+                          <a 
+                            href={`https://restokeep.vercel.app/${tenant.slug || tenant.id}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="p-1 text-slate-700 hover:text-black hover:bg-slate-100 rounded border border-black shrink-0"
+                            title="Open Link"
+                          >
+                            <ExternalLink size={10} />
+                          </a>
+                        </div>
+                      </td>
+                      <td className="px-2 py-2 border-r border-black">
+                        <div className="flex flex-col leading-tight">
+                          <div className="flex items-center gap-1 text-slate-900">
+                            <Phone size={8} />
+                            <span className="text-[9px] font-bold whitespace-nowrap">{tenant.phone || 'N/A'}</span>
+                          </div>
+                          <div className="flex items-center gap-1 text-slate-500">
+                            <MapPin size={8} />
+                            <span className="text-[8px] truncate max-w-[80px]">{tenant.address || 'N/A'}</span>
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
-                        <div className="flex flex-col gap-1">
-                          <div className="flex items-center gap-1 text-slate-600">
-                            <Phone size={12} />
-                            <span className="text-xs font-medium">{tenant.phone || 'No Phone'}</span>
-                          </div>
-                          <div className="flex items-center gap-1 text-slate-400">
-                            <MapPin size={12} />
-                            <span className="text-[10px] truncate max-w-[150px]">{tenant.address || 'No Address'}</span>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                      <td className="px-2 py-2 border-r border-black">
+                        <span className={`px-1.5 py-0.5 rounded-full text-[7px] font-black uppercase tracking-widest border border-black ${
                           tenant.isActive 
                             ? 'bg-emerald-100 text-emerald-700' 
                             : 'bg-red-100 text-red-700'
                         }`}>
-                          {tenant.isActive ? 'Active' : 'Deactivated'}
+                          {tenant.isActive ? 'Active' : 'Off'}
                         </span>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-2 py-2 border-r border-black">
                         <button 
                           onClick={() => updateTenant(tenant.id, { isMaintenanceMode: !tenant.isMaintenanceMode })}
-                          className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${
+                          className={`px-1.5 py-0.5 rounded-full text-[7px] font-black uppercase tracking-widest transition-all border border-black ${
                             tenant.isMaintenanceMode 
-                              ? 'bg-amber-100 text-amber-700 border-2 border-amber-200' 
-                              : 'bg-slate-100 text-slate-500 border-2 border-transparent hover:border-slate-200'
+                              ? 'bg-amber-100 text-amber-700' 
+                              : 'bg-white text-slate-400'
                           }`}
                         >
-                          {tenant.isMaintenanceMode ? 'Maintenance ON' : 'Maintenance OFF'}
+                          {tenant.isMaintenanceMode ? 'ON' : 'OFF'}
                         </button>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-2 py-2 border-r border-black">
+                        <div className="min-w-[80px]">
+                          <input 
+                            type="text" 
+                            placeholder="Msg..."
+                            className="w-full bg-transparent border-b border-black hover:bg-white px-1 py-0.5 text-[8px] font-bold transition-all outline-none"
+                            value={tenant.maintenanceMessage || ''}
+                            onChange={(e) => updateTenant(tenant.id, { maintenanceMessage: e.target.value })}
+                          />
+                        </div>
+                      </td>
+                      <td className="px-2 py-2 border-r border-black">
+                        <div className="min-w-[60px]">
+                          <input 
+                            type="text" 
+                            placeholder="Time..."
+                            className="w-full bg-transparent border-b border-black hover:bg-white px-1 py-0.5 text-[8px] font-bold transition-all outline-none"
+                            value={tenant.maintenanceTime || ''}
+                            onChange={(e) => updateTenant(tenant.id, { maintenanceTime: e.target.value })}
+                          />
+                        </div>
+                      </td>
+                      <td className="px-2 py-2 border-r border-black">
                         {editingBill === tenant.id ? (
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1">
                             <input 
                               type="number" 
-                              className="w-20 px-2 py-1 border border-indigo-300 rounded text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                              className="w-10 px-1 py-0.5 border border-black rounded text-[8px] font-bold outline-none"
                               value={billAmount}
                               onChange={(e) => setBillAmount(Number(e.target.value))}
                             />
-                            <button onClick={() => saveBill(tenant.id)} className="text-emerald-600 hover:text-emerald-700">
-                              <Save size={16} />
-                            </button>
-                            <button onClick={() => setEditingBill(null)} className="text-slate-400 hover:text-slate-600">
-                              <CloseIcon size={16} />
+                            <button onClick={() => saveBill(tenant.id)} className="text-emerald-600">
+                              <Save size={10} />
                             </button>
                           </div>
                         ) : (
-                          <div className="flex items-center gap-2 group">
-                            <span className="font-bold text-slate-700">{currentTenant?.currency || '৳'}{tenant.monthlyBill}</span>
+                          <div className="flex items-center gap-1 group">
+                            <span className="font-bold text-slate-900 text-[9px]">{currentTenant?.currency || '৳'}{tenant.monthlyBill}</span>
                             <button 
                               onClick={() => handleEditBill(tenant)}
-                              className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-indigo-600 transition"
+                              className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-black"
                             >
-                              <Edit3 size={14} />
+                              <Edit3 size={8} />
                             </button>
                           </div>
                         )}
                       </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <button 
-                            onClick={() => handleDuplicateTenant(tenant)}
-                            className="p-2 text-slate-400 hover:text-indigo-600 transition"
-                            title="Duplicate Business"
-                          >
-                            <Copy size={18} />
-                          </button>
-                          <button 
-                            onClick={() => handleEditTenant(tenant)}
-                            className="p-2 text-slate-400 hover:text-indigo-600 transition"
-                            title="Edit Business"
-                          >
-                            <Edit3 size={18} />
-                          </button>
-                          <button 
-                            onClick={() => toggleBusinessStatus(tenant.id)}
-                            className={`p-2 rounded-lg transition ${
-                              tenant.isActive 
-                                ? 'text-red-500 hover:bg-red-50' 
-                                : 'text-emerald-500 hover:bg-emerald-50'
-                            }`}
-                            title={tenant.isActive ? 'Deactivate Restaurant' : 'Activate Restaurant'}
-                          >
-                            {tenant.isActive ? <PowerOff size={18} /> : <Power size={18} />}
-                          </button>
-                          <button 
-                            onClick={() => handleDeleteTenant(tenant.id)}
-                            className="p-2 text-slate-400 hover:text-red-600 transition"
-                            title="Delete Business"
-                          >
-                            <AlertTriangle size={18} />
-                          </button>
-                          <button 
-                            onClick={() => navigate(`/${tenant.slug || tenant.id}/dashboard`)}
-                            className="p-2 text-slate-400 hover:text-indigo-600 transition" 
-                            title="View Dashboard"
-                          >
-                            <ExternalLink size={18} />
-                          </button>
+                      <td className="px-2 py-2 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button onClick={() => handleEditTenant(tenant)} className="p-0.5 text-slate-400 hover:text-black" title="Edit"><Edit3 size={12} /></button>
+                          <button onClick={() => toggleBusinessStatus(tenant.id)} className={tenant.isActive ? 'text-red-500' : 'text-emerald-500'} title={tenant.isActive ? 'Deactivate' : 'Activate'}><Power size={12} /></button>
+                          <button onClick={() => handleDeleteTenant(tenant.id)} className="p-0.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors" title="Delete"><Trash2 size={12} /></button>
+                          <button onClick={() => navigate(`/${tenant.slug || tenant.id}/dashboard`)} className="p-0.5 text-slate-400 hover:text-black" title="Dashboard"><ExternalLink size={12} /></button>
                         </div>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+            </div>
+
+            {/* Mobile Card View */}
+            <div className="md:hidden divide-y-2 divide-black">
+              {filteredTenants.map((tenant) => (
+                <div 
+                  key={tenant.id} 
+                  className={`p-4 space-y-4 transition-all border-2 m-2 rounded-2xl ${
+                    selectedTenants.includes(tenant.id) 
+                      ? 'bg-indigo-50/50 border-black shadow-lg' 
+                      : 'bg-white border-black hover:bg-slate-50'
+                  } ${!tenant.isActive ? 'opacity-75 grayscale-[0.5]' : ''}`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <input 
+                        type="checkbox" 
+                        className="w-5 h-5 rounded border-2 border-black text-black focus:ring-black cursor-pointer"
+                        checked={selectedTenants.includes(tenant.id)}
+                        onChange={() => toggleSelectTenant(tenant.id)}
+                      />
+                      <div className="w-12 h-12 rounded-2xl border-2 border-black bg-slate-50 flex items-center justify-center overflow-hidden shadow-sm">
+                        {tenant.logo ? (
+                          <img src={tenant.logo} className="w-full h-full object-cover" alt="Logo" />
+                        ) : (
+                          <Building2 size={24} className="text-slate-300" />
+                        )}
+                      </div>
+                      <div>
+                        <p className="font-black text-slate-900 leading-tight">{tenant.name}</p>
+                        <p className="text-[9px] font-black text-black uppercase tracking-widest bg-slate-100 px-2 py-0.5 rounded inline-block mt-1 border border-black">
+                          ID: {tenant.id}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end gap-2">
+                      <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${
+                        tenant.isActive 
+                          ? 'bg-emerald-100 text-emerald-700 border border-emerald-600' 
+                          : 'bg-red-100 text-red-700 border border-red-600'
+                      }`}>
+                        {tenant.isActive ? 'Active' : 'Offline'}
+                      </span>
+                      <p className="text-xs font-black text-slate-900">{currentTenant?.currency || '৳'}{tenant.monthlyBill}</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <button 
+                      onClick={() => copyLink(tenant.slug || tenant.id)}
+                      className="flex items-center justify-center gap-2 p-2.5 bg-white rounded-xl border-2 border-black text-black active:scale-95 transition-all"
+                    >
+                      {copiedId === (tenant.slug || tenant.id) ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
+                      <span className="text-[10px] font-black uppercase tracking-widest">Copy Link</span>
+                    </button>
+                    <a 
+                      href={`https://restokeep.vercel.app/${tenant.slug || tenant.id}`} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 p-2.5 bg-white rounded-xl border-2 border-black text-black active:scale-95 transition-all"
+                    >
+                      <ExternalLink size={14} />
+                      <span className="text-[10px] font-black uppercase tracking-widest">Open</span>
+                    </a>
+                  </div>
+
+                  <div className="space-y-3 p-3 bg-slate-50/50 rounded-xl border-2 border-black">
+                    <div className="flex items-center justify-between">
+                      <p className="text-[9px] font-black text-black uppercase tracking-widest">Maintenance</p>
+                      <button 
+                        onClick={() => updateTenant(tenant.id, { isMaintenanceMode: !tenant.isMaintenanceMode })}
+                        className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${
+                          tenant.isMaintenanceMode 
+                            ? 'bg-amber-100 text-amber-700 border-2 border-black' 
+                            : 'bg-white text-black border-2 border-black'
+                        }`}
+                      >
+                        {tenant.isMaintenanceMode ? 'ON' : 'OFF'}
+                      </button>
+                    </div>
+                    <input 
+                      type="text" 
+                      placeholder="Write maintenance message..."
+                      className="w-full bg-white border-2 border-black rounded-lg px-3 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-black transition-all"
+                      value={tenant.maintenanceMessage || ''}
+                      onChange={(e) => updateTenant(tenant.id, { maintenanceMessage: e.target.value })}
+                    />
+                    <input 
+                      type="text" 
+                      placeholder="Estimated Time (e.g. 2:00 PM)"
+                      className="w-full bg-white border-2 border-black rounded-lg px-3 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-black transition-all"
+                      value={tenant.maintenanceTime || ''}
+                      onChange={(e) => updateTenant(tenant.id, { maintenanceTime: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t-2 border-black">
+                    <div className="flex items-center gap-3">
+                      <button onClick={() => handleEditTenant(tenant)} className="p-2 text-slate-700 hover:text-black" title="Edit"><Edit3 size={18} /></button>
+                      <button onClick={() => toggleBusinessStatus(tenant.id)} className={tenant.isActive ? 'text-red-600' : 'text-emerald-600'} title={tenant.isActive ? 'Deactivate' : 'Activate'}><Power size={18} /></button>
+                      <button onClick={() => handleDeleteTenant(tenant.id)} className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all" title="Delete"><Trash2 size={18} /></button>
+                    </div>
+                    <button 
+                      onClick={() => navigate(`/${tenant.slug || tenant.id}/dashboard`)}
+                      className="flex items-center gap-2 bg-black text-white px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border-2 border-black"
+                    >
+                      Dashboard <ChevronDown size={14} className="-rotate-90" />
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -605,14 +823,26 @@ export const SuperAdmin = () => {
                       </div>
                       
                       {newBusiness.isMaintenanceMode && (
-                        <div className="animate-in fade-in slide-in-from-top-2 duration-300">
-                          <label className="block text-xs font-black uppercase text-slate-500 mb-1 tracking-wider">Maintenance Message</label>
-                          <textarea 
-                            className="w-full px-4 py-3 rounded-xl border-2 border-amber-100 focus:border-amber-500 outline-none transition-all font-bold text-sm h-24 resize-none bg-amber-50/30"
-                            placeholder="e.g. We are currently updating our system. We will be back shortly!"
-                            value={newBusiness.maintenanceMessage || ''}
-                            onChange={(e) => setNewBusiness({...newBusiness, maintenanceMessage: e.target.value})}
-                          />
+                        <div className="animate-in fade-in slide-in-from-top-2 duration-300 space-y-4">
+                          <div>
+                            <label className="block text-xs font-black uppercase text-slate-500 mb-1 tracking-wider">Maintenance Message</label>
+                            <textarea 
+                              className="w-full px-4 py-3 rounded-xl border-2 border-amber-100 focus:border-amber-500 outline-none transition-all font-bold text-sm h-24 resize-none bg-amber-50/30"
+                              placeholder="e.g. We are currently updating our system. We will be back shortly!"
+                              value={newBusiness.maintenanceMessage || ''}
+                              onChange={(e) => setNewBusiness({...newBusiness, maintenanceMessage: e.target.value})}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs font-black uppercase text-slate-500 mb-1 tracking-wider">Estimated Time</label>
+                            <input 
+                              type="text" 
+                              className="w-full px-4 py-3 rounded-xl border-2 border-amber-100 focus:border-amber-500 outline-none transition-all font-bold text-sm bg-amber-50/30"
+                              placeholder="e.g. 2:00 PM"
+                              value={newBusiness.maintenanceTime || ''}
+                              onChange={(e) => setNewBusiness({...newBusiness, maintenanceTime: e.target.value})}
+                            />
+                          </div>
                         </div>
                       )}
                     </div>
@@ -696,6 +926,44 @@ export const SuperAdmin = () => {
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[110]">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white rounded-[2rem] border-[3px] border-black shadow-2xl w-full max-w-md overflow-hidden"
+            >
+              <div className="p-8 text-center">
+                <div className="w-20 h-20 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-6 border-[3px] border-red-500">
+                  <Trash2 size={40} className="text-red-500" />
+                </div>
+                <h3 className="text-2xl font-black text-slate-900 mb-2 uppercase tracking-tight">Confirm Delete?</h3>
+                <p className="text-slate-500 font-bold mb-8 leading-relaxed">
+                  Are you sure you want to delete this restaurant? This action is <span className="text-red-600 underline">permanent</span> and all data will be lost forever.
+                </p>
+                <div className="flex flex-col gap-3">
+                  <button 
+                    onClick={confirmDelete}
+                    className="w-full bg-red-600 text-white py-4 rounded-2xl font-black uppercase tracking-widest hover:bg-red-700 active:scale-[0.98] transition-all border-[3px] border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
+                  >
+                    Yes, Delete Forever
+                  </button>
+                  <button 
+                    onClick={() => setShowDeleteConfirm(false)}
+                    className="w-full bg-white text-black py-4 rounded-2xl font-black uppercase tracking-widest hover:bg-slate-50 active:scale-[0.98] transition-all border-[3px] border-black"
+                  >
+                    No, Keep It
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
