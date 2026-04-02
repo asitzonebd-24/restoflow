@@ -35,7 +35,7 @@ import { collection, addDoc } from "firebase/firestore";
 // Run test on load
 // testFirestore();
 const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) => {
-  const { business, currentUser, logout, orders, categories, setActiveCategory, activeCategory } = useApp();
+  const { business, currentUser, logout, orders, categories, setActiveCategory, activeCategory, menu } = useApp();
   const location = useLocation();
   const { tenantId: urlTenantId } = useParams();
   const navigate = useNavigate();
@@ -43,15 +43,26 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
   const activeOrdersCount = useMemo(() => {
     let filtered = orders.filter(o => o.status === OrderStatus.PENDING || o.status === OrderStatus.PREPARING);
     
-    // Only Owner, Manager, Kitchen, and Super Admin can see all orders
-    const canSeeAll = currentUser && [Role.OWNER, Role.MANAGER, Role.KITCHEN, Role.SUPER_ADMIN].includes(currentUser.role);
+    // Only Owner, Manager, and Super Admin can see all orders
+    const isAdmin = currentUser && [Role.OWNER, Role.MANAGER, Role.SUPER_ADMIN].includes(currentUser.role);
+    const isKitchen = currentUser?.role === Role.KITCHEN;
     
-    if (!canSeeAll && currentUser) {
+    if (!isAdmin && !isKitchen && currentUser) {
       filtered = filtered.filter(o => o.createdBy === currentUser.id);
+    }
+
+    // Special filtering for Kitchen staff with assigned categories
+    if (isKitchen && currentUser?.assignedCategories && currentUser.assignedCategories.length > 0) {
+      filtered = filtered.filter(order => {
+        return order.items.some(item => {
+          const menuItem = menu.find(m => m.id === item.itemId);
+          return menuItem && currentUser.assignedCategories?.includes(menuItem.category);
+        });
+      });
     }
     
     return filtered.length;
-  }, [orders, currentUser]);
+  }, [orders, currentUser, menu]);
 
   if (!currentUser) return null;
 
