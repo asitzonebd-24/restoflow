@@ -209,13 +209,13 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         }
         return current;
       });
-    }, 15000);
+    }, 5000);
     return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
-    console.log(`[AppContext] isLoading changed to: ${isLoading}`);
-  }, [isLoading]);
+    console.log(`[AppContext] State Update - isLoading: ${isLoading}, isAuthReady: ${isAuthReady}, currentUser: ${currentUser?.email || 'null'}`);
+  }, [isLoading, isAuthReady, currentUser]);
   const [activeCategory, setActiveCategory] = useState<string>('');
   const [dbStatus, setDbStatus] = useState<{
     isConfigured: boolean;
@@ -335,6 +335,20 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   useEffect(() => {
     if (!isAuthReady) return;
 
+    // If no user is logged in, we should stop loading quickly to show the landing/login pages
+    let timer: NodeJS.Timeout;
+    if (!currentUser) {
+      timer = setTimeout(() => {
+        setIsLoading(current => {
+          if (current) {
+            console.log('[AppContext] No user detected, stopping load after 3s timeout');
+            return false;
+          }
+          return current;
+        });
+      }, 3000);
+    }
+
     const isSuperAdmin = currentUser?.role === Role.SUPER_ADMIN;
     const rawTenantId = currentUser?.tenantId || currentTenantId;
 
@@ -370,7 +384,10 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       setTenants([BUSINESS_DETAILS]);
     });
 
-    return () => unsubTenants();
+    return () => {
+      if (timer) clearTimeout(timer);
+      unsubTenants();
+    };
   }, [isAuthReady, currentUser?.role, currentTenantId]);
 
   // 2. Data Listeners (Dependent on resolvedTenantId)
