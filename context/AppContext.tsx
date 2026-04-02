@@ -263,6 +263,9 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
     // Bootstrap Super Admin into Firestore if it doesn't exist
     const bootstrapSuperAdmin = async () => {
+      // Only run once per browser to avoid "too many login attempts" from Firebase Auth
+      if (localStorage.getItem('sa_bootstrapped')) return;
+
       try {
         const saEmail = 'asitzonebd@gmail.com';
         const saPassword = 'admin123'; // Match MOCK_USERS password
@@ -283,6 +286,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             }
           }
           await signOut(secondaryAuth);
+          localStorage.setItem('sa_bootstrapped', 'true');
         } catch (e: any) {
           // If user doesn't exist or invalid credentials, try to create them
           if (e.code === 'auth/user-not-found' || e.code === 'auth/invalid-credential' || e.message.includes('invalid-credential')) {
@@ -297,11 +301,18 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
                 console.log('Super Admin bootstrapped successfully.');
               }
               await signOut(secondaryAuth);
+              localStorage.setItem('sa_bootstrapped', 'true');
             } catch (createError: any) {
-              if (createError.code !== 'auth/email-already-in-use') {
+              if (createError.code === 'auth/email-already-in-use') {
+                localStorage.setItem('sa_bootstrapped', 'true');
+              } else if (createError.code === 'auth/too-many-requests') {
+                console.warn('Too many login attempts. Skipping bootstrap for now.');
+              } else {
                 console.error('Failed to create Super Admin:', createError);
               }
             }
+          } else if (e.code === 'auth/too-many-requests') {
+            console.warn('Too many login attempts. Skipping bootstrap for now.');
           }
         }
       } catch (error) {
@@ -803,13 +814,16 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     const stockChanges: { [itemId: string]: number } = {};
     items.forEach(newItem => {
       const oldItem = oldOrder.items.find(oi => oi.itemId === newItem.itemId);
-      const oldQty = oldItem ? oldItem.quantity : 0;
-      const diff = newItem.quantity - oldQty;
+      const oldQty = (oldItem && oldItem.status !== OrderStatus.CANCELLED) ? oldItem.quantity : 0;
+      const newQty = (newItem.status !== OrderStatus.CANCELLED) ? newItem.quantity : 0;
+      const diff = newQty - oldQty;
       if (diff !== 0) stockChanges[newItem.itemId] = (stockChanges[newItem.itemId] || 0) + diff;
     });
     oldOrder.items.forEach(oldItem => {
       const newItem = items.find(ni => ni.itemId === oldItem.itemId);
-      if (!newItem) stockChanges[oldItem.itemId] = (stockChanges[oldItem.itemId] || 0) - oldItem.quantity;
+      if (!newItem && oldItem.status !== OrderStatus.CANCELLED) {
+        stockChanges[oldItem.itemId] = (stockChanges[oldItem.itemId] || 0) - oldItem.quantity;
+      }
     });
 
     try {
@@ -947,12 +961,14 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       batch.update(orderRef, updates);
 
       // If order is cancelled, return items to stock
-      if (status === OrderStatus.CANCELLED) {
+      if (status === OrderStatus.CANCELLED && order.status !== OrderStatus.CANCELLED) {
         const inventoryUpdates: { [id: string]: number } = {};
         const menuUpdates: { [id: string]: number } = {};
         const isRecipeMode = business.inventoryMode === InventoryMode.RECIPE;
 
         for (const item of order.items) {
+          if (item.status === OrderStatus.CANCELLED) continue; // Already returned stock
+
           const menuItem = allMenu.find(m => m.id === item.itemId);
           if (menuItem) {
             // Return Menu Stock in Simple Mode
@@ -1045,10 +1061,14 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       // If items are cancelled, return to stock
       const itemsToUpdate = order.items.filter(i => rowIds.includes(i.rowId));
       for (const itemToUpdate of itemsToUpdate) {
-        if (itemToUpdate && status === OrderStatus.CANCELLED && itemToUpdate.status !== OrderStatus.CANCELLED) {
+        const isCancelling = status === OrderStatus.CANCELLED && itemToUpdate.status !== OrderStatus.CANCELLED;
+        const isUncancelling = status !== OrderStatus.CANCELLED && itemToUpdate.status === OrderStatus.CANCELLED;
+
+        if (itemToUpdate && (isCancelling || isUncancelling)) {
+          const multiplier = isCancelling ? 1 : -1;
           const menuItem = allMenu.find(m => m.id === itemToUpdate.itemId);
           if (menuItem && menuItem.stock !== undefined) {
-            const newStock = menuItem.stock + itemToUpdate.quantity;
+            const newStock = menuItem.stock + (itemToUpdate.quantity * multiplier);
             const itemRef = doc(db, 'menu_items', itemToUpdate.itemId);
             batch.update(itemRef, { stock: newStock });
 
@@ -1060,7 +1080,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
                 if (invItem) {
                   const invRef = doc(db, 'inventory_items', invItem.id);
                   batch.update(invRef, { 
-                    quantity: invItem.quantity + (ingredient.quantity * itemToUpdate.quantity),
+                    quantity: invItem.quantity + (ingredient.quantity * itemToUpdate.quantity * multiplier),
                     lastUpdated: serverTimestamp()
                   });
                 }
@@ -1071,7 +1091,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
                 (inv.menuCategory === menuItem.category && !inv.menuItemId)
               );
               if (linkedInvItem) {
-                const newInvQty = linkedInvItem.quantity + itemToUpdate.quantity;
+                const newInvQty = linkedInvItem.quantity + (itemToUpdate.quantity * multiplier);
                 const invRef = doc(db, 'inventory_items', linkedInvItem.id);
                 batch.update(invRef, { 
                   quantity: newInvQty,
