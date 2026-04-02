@@ -41,24 +41,29 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
   const navigate = useNavigate();
 
   const activeOrdersCount = useMemo(() => {
-    let filtered = orders.filter(o => o.status === OrderStatus.PENDING || o.status === OrderStatus.PREPARING);
+    let filtered = orders.filter(o => o.status !== OrderStatus.CANCELLED);
     
     // Only Owner, Manager, and Super Admin can see all orders
     const isAdmin = currentUser && [Role.OWNER, Role.MANAGER, Role.SUPER_ADMIN].includes(currentUser.role);
     const isKitchen = currentUser?.role === Role.KITCHEN;
+    const hasAssignedCats = isKitchen && currentUser?.assignedCategories && currentUser.assignedCategories.length > 0;
     
     if (!isAdmin && !isKitchen && currentUser) {
       filtered = filtered.filter(o => o.createdBy === currentUser.id);
     }
 
-    // Special filtering for Kitchen staff with assigned categories
-    if (isKitchen && currentUser?.assignedCategories && currentUser.assignedCategories.length > 0) {
+    if (hasAssignedCats) {
+      // For kitchen staff, only count orders where at least one of THEIR items is not ready
       filtered = filtered.filter(order => {
-        return order.items.some(item => {
+        const myItems = order.items.filter(item => {
           const menuItem = menu.find(m => m.id === item.itemId);
           return menuItem && currentUser.assignedCategories?.includes(menuItem.category);
         });
+        return myItems.some(i => i.status === OrderStatus.PENDING || i.status === OrderStatus.PREPARING);
       });
+    } else {
+      // Default: count orders that are not ready
+      filtered = filtered.filter(o => o.status === OrderStatus.PENDING || o.status === OrderStatus.PREPARING);
     }
     
     return filtered.length;

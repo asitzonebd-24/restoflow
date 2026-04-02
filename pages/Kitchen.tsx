@@ -33,7 +33,9 @@ export const Kitchen = () => {
     }
 
     // Special filtering for Kitchen staff with assigned categories
-    if (isKitchen && currentUser?.assignedCategories && currentUser.assignedCategories.length > 0) {
+    const hasAssignedCats = isKitchen && currentUser?.assignedCategories && currentUser.assignedCategories.length > 0;
+    
+    if (hasAssignedCats) {
       filtered = filtered.filter(order => {
         // Check if any item in this order belongs to the assigned categories
         return order.items.some(item => {
@@ -44,13 +46,31 @@ export const Kitchen = () => {
     }
     
     if (filter === 'pending') {
-      // Show orders that are not completed and not ready (or ready but still in kitchen)
-      // Actually, let's follow the user's "Pending" vs "Done"
-      // Pending: PENDING, PREPARING
-      // Done: READY
-      filtered = filtered.filter(o => o.status === OrderStatus.PENDING || o.status === OrderStatus.PREPARING);
+      if (hasAssignedCats) {
+        // For kitchen staff, "Pending" means at least one of THEIR items is not ready
+        filtered = filtered.filter(order => {
+          const myItems = order.items.filter(item => {
+            const menuItem = menu.find(m => m.id === item.itemId);
+            return menuItem && currentUser.assignedCategories?.includes(menuItem.category);
+          });
+          return myItems.some(i => i.status === OrderStatus.PENDING || i.status === OrderStatus.PREPARING);
+        });
+      } else {
+        filtered = filtered.filter(o => o.status === OrderStatus.PENDING || o.status === OrderStatus.PREPARING);
+      }
     } else {
-      filtered = filtered.filter(o => o.status === OrderStatus.READY);
+      if (hasAssignedCats) {
+        // For kitchen staff, "Done" means ALL of THEIR items are ready
+        filtered = filtered.filter(order => {
+          const myItems = order.items.filter(item => {
+            const menuItem = menu.find(m => m.id === item.itemId);
+            return menuItem && currentUser.assignedCategories?.includes(menuItem.category);
+          });
+          return myItems.length > 0 && myItems.every(i => i.status === OrderStatus.READY || i.status === OrderStatus.CANCELLED);
+        });
+      } else {
+        filtered = filtered.filter(o => o.status === OrderStatus.READY);
+      }
     }
 
     // Sort by creation time (newest first for done, oldest first for pending)
