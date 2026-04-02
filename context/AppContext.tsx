@@ -192,6 +192,27 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthReady, setIsAuthReady] = useState(false);
 
+  // Global safety timeout to ensure the app always loads
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(current => {
+        if (current) {
+          console.warn('[AppContext] Global safety timeout reached. Forcing isLoading to false.');
+          return false;
+        }
+        return current;
+      });
+      setIsAuthReady(current => {
+        if (!current) {
+          console.warn('[AppContext] Global safety timeout reached. Forcing isAuthReady to true.');
+          return true;
+        }
+        return current;
+      });
+    }, 15000);
+    return () => clearTimeout(timer);
+  }, []);
+
   useEffect(() => {
     console.log(`[AppContext] isLoading changed to: ${isLoading}`);
   }, [isLoading]);
@@ -208,8 +229,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        try {
+      try {
+        if (user) {
           // Fetch user profile from Firestore
           const userDoc = await getDoc(doc(db, 'users', user.uid));
           if (userDoc.exists()) {
@@ -223,14 +244,15 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             localStorage.removeItem('resto_keep_user');
             await signOut(auth);
           }
-        } catch (error) {
-          console.error('Error fetching user profile:', error);
+        } else {
+          setCurrentUser(null);
+          localStorage.removeItem('resto_keep_user');
         }
-      } else {
-        setCurrentUser(null);
-        localStorage.removeItem('resto_keep_user');
+      } catch (error) {
+        console.error('Error in onAuthStateChanged:', error);
+      } finally {
+        setIsAuthReady(true);
       }
-      setIsAuthReady(true);
     });
 
     // Bootstrap Super Admin into Firestore if it doesn't exist
@@ -309,204 +331,128 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     return rawId;
   }, [currentUser?.tenantId, currentTenantId, tenants]);
 
-  // 1. Initial Data & Real-time Listeners
+  // 1. Tenants Listener (Global or Tenant-specific)
   useEffect(() => {
     if (!isAuthReady) return;
 
-    const unsubscribers: (() => void)[] = [];
     const isSuperAdmin = currentUser?.role === Role.SUPER_ADMIN;
-    const effectiveTenantId = resolvedTenantId;
+    const rawTenantId = currentUser?.tenantId || currentTenantId;
 
-    const criticalCollections = ['tenants'];
-    if (currentUser) {
-      criticalCollections.push('users');
-      if (!isSuperAdmin || currentTenantId) {
-        criticalCollections.push('transactions', 'expenses', 'orders', 'menu_items', 'inventory_items', 'tables');
-      }
-    }
-    const loadedCollections = new Set<string>();
-
-    const checkLoadingState = (name: string) => {
-      loadedCollections.add(name);
-      const progress = `${loadedCollections.size}/${criticalCollections.length}`;
-      console.log(`[AppContext] Collection loaded: ${name}. Progress: ${progress}`);
-      console.log(`[AppContext] Critical collections:`, criticalCollections);
-      console.log(`[AppContext] Loaded collections:`, Array.from(loadedCollections));
-      
-      if (criticalCollections.every(c => loadedCollections.has(c))) {
-        console.log('[AppContext] All critical collections loaded. Setting isLoading to false.');
-        setIsLoading(false);
-      }
-    };
-
-    if (criticalCollections.length === 0) {
-      console.log('[AppContext] No critical collections to load. Setting isLoading to false.');
-      setIsLoading(false);
-    }
-
-    console.log('Starting listeners. Critical collections:', criticalCollections);
-    console.log('Current User:', currentUser?.email, 'Role:', currentUser?.role);
-    console.log('Auth Current User:', auth.currentUser?.email);
-
-    // A. Fetch Tenants (Filtered for regular users to save quota)
     let tenantsQuery = query(collection(db, 'tenants'), limit(100));
-    if (!isSuperAdmin && effectiveTenantId) {
-      // Use getDoc for a single tenant instead of a query if possible
-      // But we are using onSnapshot on a query here.
-      // Note: effectiveTenantId could be the document ID or the slug
-      tenantsQuery = query(collection(db, 'tenants'), or(where('id', '==', effectiveTenantId), where('slug', '==', effectiveTenantId)), limit(1));
-    } else if (!isSuperAdmin && !effectiveTenantId) {
-      // If not logged in and no tenant context, we don't need all tenants
+    if (!isSuperAdmin && rawTenantId) {
+      tenantsQuery = query(collection(db, 'tenants'), or(where('id', '==', rawTenantId), where('slug', '==', rawTenantId)), limit(1));
+    } else if (!isSuperAdmin && !rawTenantId) {
       tenantsQuery = query(collection(db, 'tenants'), limit(10));
     }
 
     const unsubTenants = onSnapshot(tenantsQuery, (snapshot) => {
       const rawData = snapshot.docs.map(doc => ({ id: doc.id, ...convertFirestoreData(doc.data()) })) as Business[];
-      
-      // Filter out duplicates by ID, keeping the first one encountered
       const uniqueTenantsMap = new Map<string, Business>();
       rawData.forEach(t => {
         const id = String(t.id);
-        if (!uniqueTenantsMap.has(id)) {
-          uniqueTenantsMap.set(id, t);
-        }
+        if (!uniqueTenantsMap.has(id)) uniqueTenantsMap.set(id, t);
       });
       
       const tenantsData = Array.from(uniqueTenantsMap.values());
-      
-      console.log('Fetched unique tenants count:', tenantsData.length);
       if (!tenantsData.some(t => String(t.id) === '01')) {
-        // Only add default if it's not already there and we are looking at all or '01'
-        if (isSuperAdmin || !effectiveTenantId || effectiveTenantId === '01') {
+        if (isSuperAdmin || !rawTenantId || rawTenantId === '01') {
           tenantsData.unshift(BUSINESS_DETAILS);
         }
       }
       setTenants(tenantsData);
-      checkLoadingState('tenants');
+      
+      if (!currentUser) {
+        setIsLoading(false);
+      }
     }, (error) => {
       console.error('Error fetching tenants:', error);
-      checkLoadingState('tenants');
-      try {
-        handleFirestoreError(error, OperationType.GET, 'tenants');
-      } catch (e) {
-        // Logged
-      }
+      if (!currentUser) setIsLoading(false);
       setTenants([BUSINESS_DETAILS]);
     });
-    unsubscribers.push(unsubTenants);
 
-    // B. Data Listeners
-    const collections: { name: string, setter: (data: any) => void }[] = [];
+    return () => unsubTenants();
+  }, [isAuthReady, currentUser?.role, currentTenantId]);
 
-    // Only start these listeners if we have a real authenticated user
-    if (currentUser) {
-      collections.push({ name: 'users', setter: setAllUsers });
-      collections.push({ name: 'monthly_bills', setter: setMonthlyBills });
+  // 2. Data Listeners (Dependent on resolvedTenantId)
+  useEffect(() => {
+    if (!isAuthReady || !currentUser) return;
 
-      if (!isSuperAdmin || currentTenantId) {
-        collections.push(
-          { name: 'transactions', setter: setAllTransactions },
-          { name: 'expenses', setter: setAllExpenses },
-          { name: 'recipes', setter: setAllRecipes },
-          { name: 'orders', setter: setAllOrders },
-          { name: 'menu_items', setter: setAllMenu },
-          { name: 'inventory_items', setter: setAllInventory },
-          { name: 'tables', setter: setAllTables }
-        );
+    const unsubscribers: (() => void)[] = [];
+    const isSuperAdmin = currentUser?.role === Role.SUPER_ADMIN;
+    const effectiveTenantId = resolvedTenantId;
+
+    const criticalCollections = ['users'];
+    if (!isSuperAdmin || currentTenantId) {
+      criticalCollections.push('transactions', 'expenses', 'orders', 'menu_items', 'inventory_items', 'tables');
+    }
+    
+    const loadedCollections = new Set<string>();
+
+    const checkLoadingState = (name: string) => {
+      loadedCollections.add(name);
+      if (criticalCollections.every(c => loadedCollections.has(c))) {
+        setIsLoading(false);
       }
+    };
+
+    if (criticalCollections.length === 0) {
+      setIsLoading(false);
+    }
+
+    const collections: { name: string, setter: (data: any) => void }[] = [
+      { name: 'users', setter: setAllUsers },
+      { name: 'monthly_bills', setter: setMonthlyBills }
+    ];
+
+    if (!isSuperAdmin || currentTenantId) {
+      collections.push(
+        { name: 'transactions', setter: setAllTransactions },
+        { name: 'expenses', setter: setAllExpenses },
+        { name: 'recipes', setter: setAllRecipes },
+        { name: 'orders', setter: setAllOrders },
+        { name: 'menu_items', setter: setAllMenu },
+        { name: 'inventory_items', setter: setAllInventory },
+        { name: 'tables', setter: setAllTables }
+      );
     }
 
     collections.forEach(({ name, setter }) => {
-        let q = query(collection(db, name), limit(100));
+      let q;
+      if (!isSuperAdmin && effectiveTenantId) {
+        q = query(collection(db, name), where('tenantId', '==', effectiveTenantId));
+      } else {
+        q = query(collection(db, name));
+      }
 
-        // Apply tenant filtering if not super admin
-        if (!isSuperAdmin && effectiveTenantId) {
-          q = query(collection(db, name), where('tenantId', '==', effectiveTenantId));
-        } else {
-          q = query(collection(db, name));
+      if (name === 'orders') {
+        q = query(collection(db, name), ...(effectiveTenantId && !isSuperAdmin ? [where('tenantId', '==', effectiveTenantId)] : []), limit(500));
+      }
+
+      if (['transactions', 'expenses', 'monthly_bills'].includes(name)) {
+        q = query(collection(db, name), ...(effectiveTenantId && !isSuperAdmin ? [where('tenantId', '==', effectiveTenantId)] : []), limit(1000));
+      }
+
+      const unsub = onSnapshot(q, (snapshot) => {
+        let data = snapshot.docs.map(doc => ({ id: doc.id, ...convertFirestoreData(doc.data()) }));
+        if (['transactions', 'expenses', 'orders', 'monthly_bills'].includes(name)) {
+          const sortField = name === 'orders' || name === 'monthly_bills' ? 'createdAt' : 'date';
+          data.sort((a: any, b: any) => (b[sortField] || '').localeCompare(a[sortField] || ''));
         }
-
-        // Special handling for orders (limit to active ones for performance, or recent ones)
-        if (name === 'orders') {
-          // We need completed orders for billing/reports, so we shouldn't filter by active statuses only.
-          // Instead, we can limit to the last 500 orders to prevent memory issues, or fetch all for the current day.
-          // For now, let's just use a reasonable limit for orders.
-          if (!isSuperAdmin && effectiveTenantId) {
-            q = query(collection(db, name), where('tenantId', '==', effectiveTenantId), limit(500));
-          } else {
-            q = query(collection(db, name), limit(500));
-          }
+        setter(data as any);
+        if (criticalCollections.includes(name)) checkLoadingState(name);
+      }, (error) => {
+        if (criticalCollections.includes(name)) checkLoadingState(name);
+        if (!error.message.includes('Quota exceeded')) {
+          console.error(`Error in listener for ${name}:`, error);
         }
-
-        // Apply limit for large collections
-        if (['transactions', 'expenses', 'monthly_bills'].includes(name)) {
-          if (!isSuperAdmin && effectiveTenantId) {
-            q = query(collection(db, name), where('tenantId', '==', effectiveTenantId), limit(1000));
-          } else {
-            q = query(collection(db, name), limit(1000));
-          }
-        }
-
-        const unsub = onSnapshot(q, (snapshot) => {
-          let data = snapshot.docs.map(doc => ({ id: doc.id, ...convertFirestoreData(doc.data()) }));
-          console.log(`Fetched ${name} count:`, data.length);
-
-          // Client-side sorting for consistency
-          if (['transactions', 'expenses', 'orders', 'monthly_bills'].includes(name)) {
-            const sortField = name === 'orders' || name === 'monthly_bills' ? 'createdAt' : 'date';
-            data.sort((a: any, b: any) => (b[sortField] || '').localeCompare(a[sortField] || ''));
-          }
-
-          if (name === 'users') {
-            setter(data as any);
-          } else {
-            setter(data as any);
-          }
-          
-          if (criticalCollections.includes(name)) {
-            checkLoadingState(name);
-          }
-        }, (error) => {
-          if (criticalCollections.includes(name)) {
-            checkLoadingState(name);
-          }
-          // Only log if it's not a quota error (already handled by ErrorBoundary)
-          if (!error.message.includes('Quota exceeded')) {
-            console.error(`Error in real-time listener for ${name}:`, error);
-            try {
-              handleFirestoreError(error, OperationType.GET, name);
-            } catch (e) {
-              // Logged
-            }
-          }
-          
-          // Fallback to empty arrays instead of mock data for production
-          if (name === 'users') setter([] as any);
-          if (name === 'expenses') setter([] as any);
-          if (name === 'menu_items') setter([] as any);
-          if (name === 'inventory_items') setter([] as any);
-          if (name === 'orders') setter([] as any);
-        });
-        unsubscribers.push(unsub);
       });
+      unsubscribers.push(unsub);
+    });
 
-    // Safety timeout to ensure loading screen disappears
-    const safetyTimeout = setTimeout(() => {
-      setIsLoading(current => {
-        if (current) {
-          console.warn('[AppContext] Safety timeout reached. Forcing isLoading to false.');
-          return false;
-        }
-        return current;
-      });
-    }, 10000); // 10 seconds
+    return () => unsubscribers.forEach(unsub => unsub());
+  }, [isAuthReady, currentUser?.id, currentUser?.role, resolvedTenantId]);
 
-    return () => {
-      unsubscribers.forEach(unsub => unsub());
-      clearTimeout(safetyTimeout);
-    };
-  }, [isAuthReady, currentUser?.id, currentUser?.tenantId, currentTenantId, resolvedTenantId]);
-   // Sync currentUser with allUsers in real-time to reflect role/permission changes
+  // Sync currentUser with allUsers in real-time to reflect role/permission changes
   useEffect(() => {
     if (currentUser) {
       const updatedUser = allUsers.find(u => u.id === currentUser.id);
