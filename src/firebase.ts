@@ -15,6 +15,8 @@ export const secondaryAuth = getAuth(secondaryApp);
 // Google Auth Provider
 export const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
+googleProvider.addScope('email');
+googleProvider.addScope('profile');
 
 // Firestore helpers with error handling
 export enum OperationType {

@@ -603,7 +603,13 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         return true;
       } else {
         // Special case for Super Admin: Auto-create profile if email matches
-        const userEmail = user.email?.toLowerCase().trim();
+        let userEmail = user.email?.toLowerCase().trim();
+        
+        // If email is missing from the top-level user object, check providerData
+        if (!userEmail && user.providerData.length > 0) {
+          userEmail = user.providerData.find(p => p.email)?.email?.toLowerCase().trim();
+        }
+
         const saEmail = 'asitzonebd@gmail.com';
         
         if (userEmail === saEmail) {
@@ -622,7 +628,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
           const newUser = { 
             ...saUser, 
             id: user.uid, 
-            email: userEmail, 
+            email: userEmail || saEmail, 
             name: user.displayName || saUser.name,
             avatar: user.photoURL || saUser.avatar
           };
@@ -643,7 +649,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         }
 
         // If it's a new user via Google, we might want to create a profile or deny access
-        toast.error('No account found with this Google profile. Please register first.');
+        toast.error(`No account found for ${userEmail || 'unknown email'}. Please register first.`);
         await signOut(auth);
         return false;
       }
