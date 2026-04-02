@@ -2,7 +2,7 @@
 import React, { useEffect } from 'react';
 import { useParams, useNavigate, Navigate, Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { Utensils, ShieldCheck, User, ArrowRight, Store, Globe, MapPin, Phone, ShoppingBag } from 'lucide-react';
+import { Utensils, ShieldCheck, User, ArrowRight, Store, Globe, MapPin, Phone, ShoppingBag, AlertTriangle } from 'lucide-react';
 
 export const TenantLanding = () => {
   const { tenantId } = useParams<{ tenantId: string }>();
@@ -49,6 +49,45 @@ export const TenantLanding = () => {
           className="bg-slate-900 text-white px-8 py-3 rounded-xl font-bold hover:bg-slate-800 transition shadow-lg"
         >
           Return Home
+        </button>
+      </div>
+    );
+  }
+
+  if (tenant.isMaintenanceMode) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center">
+        <div className="w-full max-w-lg bg-white rounded-[3rem] p-12 shadow-2xl border-4 border-amber-500 relative overflow-hidden">
+          <div className="absolute -top-24 -right-24 w-48 h-48 bg-amber-100 rounded-full blur-3xl opacity-50" />
+          <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-indigo-100 rounded-full blur-3xl opacity-50" />
+          
+          <div className="relative z-10 flex flex-col items-center">
+            <div className="w-24 h-24 bg-amber-50 rounded-full flex items-center justify-center mb-8 border-4 border-amber-100 shadow-inner">
+              <AlertTriangle size={48} className="text-amber-600" />
+            </div>
+            
+            <h2 className="text-4xl font-black text-slate-900 uppercase tracking-tighter mb-4 leading-none">
+              Under <span className="text-amber-600">Maintenance</span>
+            </h2>
+            
+            <div className="w-12 h-1.5 bg-amber-500 rounded-full mb-8" />
+            
+            <p className="text-slate-600 font-bold text-lg leading-relaxed mb-8">
+              {tenant.maintenanceMessage || "We are currently performing some updates to improve your experience. We'll be back online very soon!"}
+            </p>
+            
+            <div className="bg-slate-50 p-6 rounded-[2rem] border-2 border-slate-100 w-full">
+              <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-2">Estimated Time</p>
+              <p className="text-xl font-black text-slate-900 uppercase">Coming Back Soon</p>
+            </div>
+          </div>
+        </div>
+        
+        <button 
+          onClick={() => navigate('/')}
+          className="mt-8 text-slate-400 hover:text-slate-600 font-bold uppercase tracking-widest text-[10px] flex items-center gap-2"
+        >
+          <ArrowRight size={14} className="rotate-180" /> Back to Portal
         </button>
       </div>
     );

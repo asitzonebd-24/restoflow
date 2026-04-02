@@ -46,6 +46,8 @@ export const SuperAdmin = () => {
     timezone: 'UTC',
     customerTokenPrefix: 'ORD',
     customerAppEnabled: true,
+    isMaintenanceMode: false,
+    maintenanceMessage: '',
   });
 
   const [newOwner, setNewOwner] = useState({
@@ -159,7 +161,7 @@ export const SuperAdmin = () => {
     setShowModal(false);
     setEditingTenant(null);
     setDuplicateSourceId(null);
-    setNewBusiness({ id: '', name: '', address: '', phone: '', currency: '৳', themeColor: '#0f172a', monthlyBill: 500, logo: '', vatRate: 0, includeVat: false, timezone: 'UTC', customerTokenPrefix: 'ORD', customerAppEnabled: true });
+    setNewBusiness({ id: '', name: '', address: '', phone: '', currency: '৳', themeColor: '#0f172a', monthlyBill: 500, logo: '', vatRate: 0, includeVat: false, timezone: 'UTC', customerTokenPrefix: 'ORD', customerAppEnabled: true, isMaintenanceMode: false, maintenanceMessage: '' });
     setNewOwner({ name: '', email: '', password: '', mobile: '' });
   };
 
@@ -239,6 +241,7 @@ export const SuperAdmin = () => {
                     <th className="px-6 py-4 font-semibold">Tenant Link</th>
                     <th className="px-6 py-4 font-semibold">Contact</th>
                     <th className="px-6 py-4 font-semibold">Status</th>
+                    <th className="px-6 py-4 font-semibold">Maintenance</th>
                     <th className="px-6 py-4 font-semibold">Monthly Bill</th>
                     <th className="px-6 py-4 font-semibold text-right">Actions</th>
                   </tr>
@@ -308,6 +311,18 @@ export const SuperAdmin = () => {
                         }`}>
                           {tenant.isActive ? 'Active' : 'Deactivated'}
                         </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <button 
+                          onClick={() => updateTenant(tenant.id, { isMaintenanceMode: !tenant.isMaintenanceMode })}
+                          className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${
+                            tenant.isMaintenanceMode 
+                              ? 'bg-amber-100 text-amber-700 border-2 border-amber-200' 
+                              : 'bg-slate-100 text-slate-500 border-2 border-transparent hover:border-slate-200'
+                          }`}
+                        >
+                          {tenant.isMaintenanceMode ? 'Maintenance ON' : 'Maintenance OFF'}
+                        </button>
                       </td>
                       <td className="px-6 py-4">
                         {editingBill === tenant.id ? (
@@ -573,6 +588,33 @@ export const SuperAdmin = () => {
                         onChange={(e) => setNewBusiness({...newBusiness, customerAppEnabled: e.target.checked})}
                       />
                       <label htmlFor="customerAppEnabled" className="text-xs font-black uppercase text-slate-500 tracking-wider cursor-pointer">Customer App Enabled</label>
+                    </div>
+
+                    <div className="sm:col-span-2 space-y-4 pt-4 border-t border-slate-100">
+                      <div className="flex items-center gap-3">
+                        <input 
+                          type="checkbox" 
+                          id="isMaintenanceMode"
+                          className="w-5 h-5 rounded border-2 border-amber-200 text-amber-600 focus:ring-amber-500"
+                          checked={newBusiness.isMaintenanceMode || false}
+                          onChange={(e) => setNewBusiness({...newBusiness, isMaintenanceMode: e.target.checked})}
+                        />
+                        <label htmlFor="isMaintenanceMode" className="text-xs font-black uppercase text-amber-600 tracking-wider cursor-pointer flex items-center gap-2">
+                          <AlertTriangle size={14} /> Enable Maintenance Mode
+                        </label>
+                      </div>
+                      
+                      {newBusiness.isMaintenanceMode && (
+                        <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+                          <label className="block text-xs font-black uppercase text-slate-500 mb-1 tracking-wider">Maintenance Message</label>
+                          <textarea 
+                            className="w-full px-4 py-3 rounded-xl border-2 border-amber-100 focus:border-amber-500 outline-none transition-all font-bold text-sm h-24 resize-none bg-amber-50/30"
+                            placeholder="e.g. We are currently updating our system. We will be back shortly!"
+                            value={newBusiness.maintenanceMessage || ''}
+                            onChange={(e) => setNewBusiness({...newBusiness, maintenanceMessage: e.target.value})}
+                          />
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

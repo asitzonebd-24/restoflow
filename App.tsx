@@ -28,7 +28,7 @@ import { PendingBills } from './pages/PendingBills';
 import { ApprovedBills } from './pages/ApprovedBills';
 import { PlatformExpenses } from './pages/PlatformExpenses';
 import { Role, OrderStatus } from './types';
-import { LayoutDashboard, UtensilsCrossed, ChefHat, Receipt, Package, LogOut, Settings, Users as UsersIcon, History, Wallet, PieChart, Menu as MenuIcon, User as UserCircle, ShieldCheck, PowerOff, FileText, CheckCircle, Menu, X, Utensils, ShoppingBag, Timer } from 'lucide-react';
+import { LayoutDashboard, UtensilsCrossed, ChefHat, Receipt, Package, LogOut, Settings, Users as UsersIcon, History, Wallet, PieChart, Menu as MenuIcon, User as UserCircle, ShieldCheck, PowerOff, FileText, CheckCircle, Menu, X, Utensils, ShoppingBag, Timer, AlertTriangle } from 'lucide-react';
 
 import { collection, addDoc } from "firebase/firestore";
 
@@ -284,7 +284,7 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
 };
 
 const ProtectedLayout = ({ children, allowedRoles }: { children?: React.ReactNode, allowedRoles?: Role[] }) => {
-  const { currentUser, business, setCurrentTenantId } = useApp();
+  const { currentUser, business, setCurrentTenantId, logout } = useApp();
   const { tenantId } = useParams();
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -372,6 +372,59 @@ const ProtectedLayout = ({ children, allowedRoles }: { children?: React.ReactNod
         >
           Sign Out
         </button>
+      </div>
+    );
+  }
+
+  // Check if business is in maintenance mode (Super Admin can always access)
+  if (business.isMaintenanceMode && currentUser.role !== Role.SUPER_ADMIN) {
+    return (
+      <div className="h-screen w-screen flex items-center justify-center bg-slate-900/40 backdrop-blur-md p-6 z-[200]">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          className="bg-white rounded-[3rem] p-8 md:p-12 max-w-lg w-full shadow-2xl border-4 border-amber-500 relative overflow-hidden"
+        >
+          {/* Decorative background elements */}
+          <div className="absolute -top-24 -right-24 w-48 h-48 bg-amber-100 rounded-full blur-3xl opacity-50" />
+          <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-indigo-100 rounded-full blur-3xl opacity-50" />
+          
+          <div className="relative z-10 flex flex-col items-center text-center">
+            <div className="w-24 h-24 bg-amber-50 rounded-full flex items-center justify-center mb-8 border-4 border-amber-100 shadow-inner">
+              <motion.div
+                animate={{ rotate: [0, 10, -10, 10, 0] }}
+                transition={{ repeat: Infinity, duration: 2 }}
+              >
+                <AlertTriangle size={48} className="text-amber-600" />
+              </motion.div>
+            </div>
+            
+            <h2 className="text-4xl font-black text-slate-900 uppercase tracking-tighter mb-4 leading-none">
+              Under <span className="text-amber-600">Maintenance</span>
+            </h2>
+            
+            <div className="w-12 h-1.5 bg-amber-500 rounded-full mb-8" />
+            
+            <p className="text-slate-600 font-bold text-lg leading-relaxed mb-8">
+              {business.maintenanceMessage || "We are currently performing some updates to improve your experience. We'll be back online very soon!"}
+            </p>
+            
+            <div className="bg-slate-50 p-6 rounded-[2rem] border-2 border-slate-100 w-full mb-8">
+              <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-2">Estimated Time</p>
+              <p className="text-xl font-black text-slate-900 uppercase">Coming Back Soon</p>
+            </div>
+            
+            <button 
+              onClick={() => {
+                logout();
+                window.location.href = '/login';
+              }}
+              className="w-full bg-slate-900 text-white py-5 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl shadow-slate-200 hover:bg-black transition-all active:scale-95"
+            >
+              Sign Out
+            </button>
+          </div>
+        </motion.div>
       </div>
     );
   }

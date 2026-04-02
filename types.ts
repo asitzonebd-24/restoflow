@@ -52,6 +52,8 @@ export interface Business {
   nextCustomerToken: number;
   customerAppEnabled: boolean;
   isActive: boolean;
+  isMaintenanceMode?: boolean;
+  maintenanceMessage?: string;
   monthlyBill: number;
   createdAt: string;
   printerSettings?: PrinterSettings;
