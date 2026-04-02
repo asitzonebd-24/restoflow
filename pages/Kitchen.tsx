@@ -52,20 +52,20 @@ export const Kitchen = () => {
     switch(status) {
       case OrderStatus.PENDING: 
         return { 
-          bg: 'bg-rose-500', 
-          text: 'text-rose-600', 
-          lightBg: 'bg-rose-50',
-          border: 'border-rose-500',
-          lightBorder: 'border-rose-200',
+          bg: 'bg-pink-500', 
+          text: 'text-pink-600', 
+          lightBg: 'bg-pink-50',
+          border: 'border-pink-500',
+          lightBorder: 'border-pink-200',
           cardBorder: 'border-black',
         };
       case OrderStatus.PREPARING: 
         return { 
-          bg: 'bg-amber-500', 
-          text: 'text-amber-600', 
-          lightBg: 'bg-amber-50',
-          border: 'border-amber-500',
-          lightBorder: 'border-amber-200',
+          bg: 'bg-blue-500', 
+          text: 'text-blue-600', 
+          lightBg: 'bg-blue-50',
+          border: 'border-blue-500',
+          lightBorder: 'border-blue-200',
           cardBorder: 'border-black',
         };
       case OrderStatus.READY: 
@@ -77,6 +77,15 @@ export const Kitchen = () => {
           border: 'border-emerald-500',
           lightBorder: 'border-emerald-200',
           cardBorder: 'border-black',
+        };
+      case OrderStatus.CANCELLED:
+        return {
+          bg: 'bg-red-500',
+          text: 'text-red-600',
+          lightBg: 'bg-red-50',
+          border: 'border-red-500',
+          lightBorder: 'border-red-200',
+          cardBorder: 'border-red-200',
         };
       default: 
         return { 
@@ -171,7 +180,7 @@ export const Kitchen = () => {
           <div className="flex items-center gap-3 bg-white p-1.5 rounded-2xl border-2 border-slate-100 shadow-sm w-full md:w-64">
             <button 
               onClick={() => setFilter('pending')}
-              className={`flex-1 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'pending' ? 'bg-[#1a1a37] text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
+              className={`flex-1 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'pending' ? 'bg-pink-500 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
             >
               Pending
             </button>
@@ -202,7 +211,15 @@ export const Kitchen = () => {
           const isKitchen = currentUser?.role === Role.KITCHEN;
           const isAllowedToUpdate = isAdmin || isKitchen;
           const creatorName = getCreatorName(order.createdBy);
-          const statusColors = getStatusColors(order.status);
+          
+          const hasPending = order.items.some(i => i.status === OrderStatus.PENDING);
+          const hasPreparing = order.items.some(i => i.status === OrderStatus.PREPARING);
+          
+          const derivedStatus = hasPending 
+            ? OrderStatus.PENDING 
+            : (hasPreparing ? OrderStatus.PREPARING : order.status);
+            
+          const statusColors = getStatusColors(derivedStatus);
           
           return (
           <div key={order.id} className="group relative rounded-[2.5rem] shadow-xl bg-white flex flex-col h-full transition-all border-4 border-black min-h-[400px] overflow-hidden">
@@ -217,7 +234,7 @@ export const Kitchen = () => {
 
               {/* Centered Token Number Pill with Table Number Badge */}
                 <div className="flex justify-center mb-6 relative">
-                <div className={`min-w-[4.5rem] px-5 h-16 rounded-[2rem] border-4 border-black flex items-center justify-center font-black text-3xl text-white shadow-2xl ${statusColors.bg}`}>
+                <div className={`w-fit min-w-[3rem] px-4 h-12 rounded-full border-4 border-black flex items-center justify-center font-black text-2xl text-white shadow-xl ${statusColors.bg}`}>
                   {order.tokenNumber}
                 </div>
                 {(order.tableNumber || order.deliveryStaffName) && (
@@ -289,11 +306,11 @@ export const Kitchen = () => {
                   return (
                     <div 
                       key={key} 
-                      className={`flex items-center justify-between p-4 transition-colors ${itemStatusColors.lightBg} border-2 ${itemStatusColors.border} rounded-xl mb-2`}
+                      className={`flex items-center justify-between px-3 py-1.5 transition-colors ${itemStatusColors.lightBg} border-2 ${itemStatusColors.border} rounded-lg mb-2`}
                     >
                       <div className="flex items-center gap-3">
                         <span className={`text-sm font-black ${itemStatusColors.text}`}>{group.quantity}x</span>
-                        <h4 className={`text-xs font-black uppercase tracking-tight ${group.status === OrderStatus.READY ? 'text-slate-300 line-through' : itemStatusColors.text}`}>
+                        <h4 className={`text-xs font-black capitalize tracking-tight ${group.status === OrderStatus.CANCELLED ? 'text-red-600 line-through' : group.status === OrderStatus.READY ? 'text-slate-300 line-through' : itemStatusColors.text}`}>
                           {group.name}
                         </h4>
                       </div>
@@ -308,6 +325,7 @@ export const Kitchen = () => {
                               <option value={OrderStatus.PENDING}>New</option>
                               <option value={OrderStatus.PREPARING}>READY</option>
                               <option value={OrderStatus.READY}>Done</option>
+                              <option value={OrderStatus.CANCELLED} disabled={!isAdmin}>Cancel</option>
                           </select>
                           <ChevronDown className={`absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none ${itemStatusColors.text}`} size={12} />
                       </div>
@@ -459,7 +477,7 @@ export const Kitchen = () => {
                     className="flex items-center justify-between p-4 bg-white border-2 border-slate-100 rounded-2xl hover:border-indigo-500 hover:bg-indigo-50 transition-all group"
                   >
                     <div className="text-left">
-                      <p className="text-sm font-black text-slate-900 uppercase tracking-tight group-hover:text-indigo-600">{item.name}</p>
+                      <p className="text-sm font-black text-slate-900 capitalize tracking-tight group-hover:text-indigo-600">{item.name}</p>
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{item.category}</p>
                     </div>
                     <div className="text-right">

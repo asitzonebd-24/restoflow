@@ -32,11 +32,13 @@ export const CustomerPanel = ({ setIsSidebarOpen }: { setIsSidebarOpen?: (open: 
   const getStatusDisplay = (status: OrderStatus) => {
     switch(status) {
       case OrderStatus.PENDING: 
-        return { label: 'Online Order', color: 'bg-red-500', border: 'border-t-red-500', lightBg: 'bg-red-50', text: 'text-red-600', borderLight: 'border-red-200' };
+        return { label: 'Online Order', color: 'bg-pink-500', border: 'border-t-pink-500', lightBg: 'bg-pink-50', text: 'text-pink-600', borderLight: 'border-pink-200' };
       case OrderStatus.PREPARING: 
-        return { label: 'Ready', color: 'bg-amber-500', border: 'border-t-amber-500', lightBg: 'bg-amber-50', text: 'text-amber-600', borderLight: 'border-amber-200' };
+        return { label: 'Ready', color: 'bg-blue-500', border: 'border-t-blue-500', lightBg: 'bg-blue-50', text: 'text-blue-600', borderLight: 'border-blue-200' };
       case OrderStatus.READY: 
         return { label: 'Done!', color: 'bg-emerald-500', border: 'border-t-emerald-500', lightBg: 'bg-emerald-50', text: 'text-emerald-600', borderLight: 'border-emerald-200' };
+      case OrderStatus.CANCELLED:
+        return { label: 'Cancelled', color: 'bg-red-500', border: 'border-t-red-500', lightBg: 'bg-red-50', text: 'text-red-600', borderLight: 'border-red-200' };
       default: 
         return { label: status, color: 'bg-slate-500', border: 'border-t-slate-500', lightBg: 'bg-slate-50', text: 'text-slate-600', borderLight: 'border-slate-200' };
     }
@@ -94,7 +96,15 @@ export const CustomerPanel = ({ setIsSidebarOpen }: { setIsSidebarOpen?: (open: 
                     const pendingCount = order.items.filter(i => i.status === OrderStatus.PENDING).reduce((acc, i) => acc + i.quantity, 0);
                     const preparingCount = order.items.filter(i => i.status === OrderStatus.PREPARING).reduce((acc, i) => acc + i.quantity, 0);
                     const readyCount = order.items.filter(i => i.status === OrderStatus.READY).reduce((acc, i) => acc + i.quantity, 0);
-                    const status = getStatusDisplay(order.status);
+                    
+                    const hasPending = order.items.some(i => i.status === OrderStatus.PENDING);
+                    const hasPreparing = order.items.some(i => i.status === OrderStatus.PREPARING);
+                    
+                    const derivedStatus = hasPending 
+                      ? OrderStatus.PENDING 
+                      : (hasPreparing ? OrderStatus.PREPARING : order.status);
+                      
+                    const status = getStatusDisplay(derivedStatus);
                     
                     // Fixed labeling to avoid hardcoded placeholders
                     const prefix = business.customerTokenPrefix || 'WEB';
@@ -108,8 +118,8 @@ export const CustomerPanel = ({ setIsSidebarOpen }: { setIsSidebarOpen?: (open: 
                             key={order.id}
                             onClick={() => setSelectedOrder(order)}
                             className={`group relative bg-white rounded-[2rem] md:rounded-[2.5rem] p-5 shadow-xl border-t-8 border-x-4 border-b-4 transition-all duration-300 transform hover:-translate-y-2 text-left w-full ${
-                                order.status === OrderStatus.PENDING ? 'border-rose-500 shadow-rose-100' :
-                                order.status === OrderStatus.PREPARING ? 'border-amber-500 shadow-amber-100' :
+                                order.status === OrderStatus.PENDING ? 'border-pink-500 shadow-pink-100' :
+                                order.status === OrderStatus.PREPARING ? 'border-blue-500 shadow-blue-100' :
                                 'border-emerald-500 shadow-emerald-100'
                             }`}
                         >
@@ -120,8 +130,7 @@ export const CustomerPanel = ({ setIsSidebarOpen }: { setIsSidebarOpen?: (open: 
                                 </div>
 
                                 <div className="flex justify-center items-center my-4">
-                                    {/* Using a pill shape (px-6) instead of a fixed circle ensures longer tokens fit perfectly */}
-                                    <div className={`px-6 py-2.5 min-w-[80px] ${status.color} border-4 border-black rounded-[2rem] flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform`}>
+                                    <div className={`w-fit min-w-[3rem] px-4 h-12 rounded-full border-4 border-black flex items-center justify-center font-black text-2xl text-white shadow-xl ${status.color}`}>
                                         <span className="text-white text-xl md:text-2xl font-black leading-none">{order.tokenNumber}</span>
                                     </div>
                                 </div>
@@ -142,8 +151,8 @@ export const CustomerPanel = ({ setIsSidebarOpen }: { setIsSidebarOpen?: (open: 
                             
                             <div className="w-full">
                                 <div className="grid grid-cols-3 gap-2 mb-4">
-                                    <StatusBox label="Pending" count={pendingCount} colorClass="bg-slate-50 border-slate-100 text-slate-300" activeColor="bg-red-50 border-red-200 text-red-600 shadow-sm" />
-                                    <StatusBox label="Ready" count={preparingCount} colorClass="bg-slate-50 border-slate-100 text-slate-300" activeColor="bg-amber-50 border-amber-200 text-amber-600 shadow-sm" />
+                                    <StatusBox label="Pending" count={pendingCount} colorClass="bg-slate-50 border-slate-100 text-slate-300" activeColor="bg-pink-50 border-pink-200 text-pink-600 shadow-sm" />
+                                    <StatusBox label="Ready" count={preparingCount} colorClass="bg-slate-50 border-slate-100 text-slate-300" activeColor="bg-blue-50 border-blue-200 text-blue-600 shadow-sm" />
                                     <StatusBox label="Done" count={readyCount} colorClass="bg-slate-50 border-slate-100 text-slate-300" activeColor="bg-emerald-50 border-emerald-200 text-emerald-600 shadow-sm" />
                                 </div>
 

@@ -152,7 +152,7 @@ export const Login = () => {
               <div className="mt-6 pt-6 border-t border-slate-100">
                 <button 
                   onClick={() => navigate(`/${tenantId}`)}
-                  className="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-3.5 rounded-xl transition-all duration-300 shadow-lg shadow-purple-200 border-2 border-purple-800 flex items-center justify-center gap-3 uppercase text-[10px] tracking-widest group"
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 rounded-xl transition-all duration-300 shadow-lg shadow-indigo-200 border-2 border-indigo-800 flex items-center justify-center gap-3 uppercase text-[10px] tracking-widest group"
                 >
                   <ArrowRight size={16} className="rotate-180 group-hover:-translate-x-1 transition-transform" /> Back to Restaurant
                 </button>

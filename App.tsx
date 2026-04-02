@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { auth, db } from './src/firebase';
 import { BrowserRouter as Router, Routes, Route, Navigate, NavLink, useLocation, useParams, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { AppProvider, useApp } from './context/AppContext';
 import { Login } from './pages/Login';
 import { Landing } from './pages/Landing';
@@ -34,7 +34,7 @@ import { collection, addDoc } from "firebase/firestore";
 
 // Run test on load
 // testFirestore();
-const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) => {
+const Sidebar = React.memo(({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) => {
   const { business, currentUser, logout, orders, categories, setActiveCategory, activeCategory } = useApp();
   const location = useLocation();
   const { tenantId: urlTenantId } = useParams();
@@ -265,7 +265,7 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
         </div>
       </div>
     );
-};
+});
 
 const ProtectedLayout = ({ children, allowedRoles }: { children?: React.ReactNode, allowedRoles?: Role[] }) => {
   const { currentUser, business, setCurrentTenantId } = useApp();
@@ -282,6 +282,8 @@ const ProtectedLayout = ({ children, allowedRoles }: { children?: React.ReactNod
   if (!currentUser) {
     // Redirect to the tenant landing page if tenantId is present
     if (tenantId) {
+      // Special case for 'demo' alias
+      if (tenantId === 'demo') return <Navigate to="/demo" replace />;
       return <Navigate to={`/${tenantId}`} replace />;
     }
     return <Navigate to="/login" replace />;
@@ -294,8 +296,11 @@ const ProtectedLayout = ({ children, allowedRoles }: { children?: React.ReactNod
   }
   
   // If tenantId is in URL, ensure it matches user's tenant (unless Super Admin)
-  if (tenantId && currentUser.role !== Role.SUPER_ADMIN && currentUser.tenantId !== tenantId) {
-    return <Navigate to={`/${currentUser.tenantId}/dashboard`} replace />;
+  const normalizedTenantId = tenantId === 'demo' ? '01' : tenantId;
+  if (normalizedTenantId && currentUser.role !== Role.SUPER_ADMIN && currentUser.tenantId && currentUser.tenantId !== normalizedTenantId) {
+    // Instead of forcing back to original tenant dashboard, redirect to the landing page of the requested tenant
+    // This allows the user to see the "Switch Account" option if they try to login
+    return <Navigate to={`/${tenantId}`} replace />;
   }
   
   if (allowedRoles && !allowedRoles.includes(currentUser.role)) {
@@ -325,11 +330,13 @@ const ProtectedLayout = ({ children, allowedRoles }: { children?: React.ReactNod
 
     if (requiredPermission && !permissions.includes(requiredPermission)) {
       // Redirect to the first available permission or login
-      if (permissions.length > 0) {
-        const firstPermission = permissions[0].toLowerCase();
-        return <Navigate to={`/${currentUser.tenantId}/${firstPermission}`} replace />;
+      const validRoutes = ['dashboard', 'pos', 'kitchen', 'menu', 'billing', 'transactions', 'inventory', 'reports', 'users', 'expenses', 'settings'];
+      const validPermission = permissions.find(p => validRoutes.includes(p.toLowerCase()));
+      
+      if (validPermission) {
+        return <Navigate to={`/${currentUser.tenantId}/${validPermission.toLowerCase()}`} replace />;
       }
-      return <Navigate to="/login" replace />;
+      return <Navigate to="/no-access" replace />;
     }
   }
 
@@ -472,7 +479,8 @@ const AppContent = () => {
   const getDefaultRedirect = () => {
     if (!currentUser) return "/";
     
-    const targetId = business?.slug || business?.id || currentUser.tenantId;
+    // Use resolved tenant ID from business or user
+    const targetId = business?.slug || business?.id || currentUser.tenantId || '01';
 
     // If Super Admin is in a tenant context, go to that tenant's dashboard
     if (currentUser.role === Role.SUPER_ADMIN) {
@@ -487,9 +495,14 @@ const AppContent = () => {
     const permissions = currentUser.permissions || [];
     if (permissions.includes('Dashboard')) return `/${targetId}/dashboard`;
     if (permissions.includes('POS')) return `/${targetId}/pos`;
-    if (permissions.length > 0) return `/${targetId}/${permissions[0].toLowerCase()}`;
     
-    return "/login";
+    const validRoutes = ['dashboard', 'pos', 'kitchen', 'menu', 'billing', 'transactions', 'inventory', 'reports', 'users', 'expenses', 'settings'];
+    const validPermission = permissions.find(p => validRoutes.includes(p.toLowerCase()));
+    
+    if (validPermission) return `/${targetId}/${validPermission.toLowerCase()}`;
+    
+    // Fallback if no specific permission matches but user is authenticated
+    return `/no-access`;
   };
 
   return (
@@ -553,6 +566,15 @@ const AppContent = () => {
       <Route path="/pending-bills" element={<ProtectedLayout allowedRoles={[Role.SUPER_ADMIN]}><PendingBills /></ProtectedLayout>} />
       <Route path="/approved-bills" element={<ProtectedLayout allowedRoles={[Role.SUPER_ADMIN]}><ApprovedBills /></ProtectedLayout>} />
       <Route path="/platform-expenses" element={<ProtectedLayout allowedRoles={[Role.SUPER_ADMIN]}><PlatformExpenses /></ProtectedLayout>} />
+      <Route path="/no-access" element={
+        <div className="min-h-screen flex items-center justify-center bg-slate-50">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-slate-900 mb-2">Access Denied</h1>
+            <p className="text-slate-500 mb-4">You don't have any permissions assigned. Please contact your administrator.</p>
+            <a href="/login" className="px-4 py-2 bg-indigo-600 text-white rounded-lg inline-block">Go to Login</a>
+          </div>
+        </div>
+      } />
       <Route path="/:tenantId" element={<TenantLanding />} />
     </Routes>
   );

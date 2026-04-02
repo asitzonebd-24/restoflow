@@ -2,12 +2,13 @@
 import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
 import { Role, Business, User, Order, InventoryItem, MenuItem, OrderStatus, ItemStatus, Transaction, Expense, OrderItem, MonthlyBill, BillStatus, Recipe, Table } from '../types';
 import { BUSINESS_DETAILS, MOCK_USERS, INITIAL_ORDERS, MOCK_INVENTORY, MOCK_MENU, MOCK_EXPENSES, DEFAULT_MENU_IMAGE, DEFAULT_AVATAR, DEFAULT_BUSINESS_LOGO } from '../constants';
-import { auth, secondaryAuth, db } from '../src/firebase';
+import { auth, secondaryAuth, db, googleProvider } from '../src/firebase';
 import { 
   signOut,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  onAuthStateChanged
+  onAuthStateChanged,
+  signInWithPopup
 } from 'firebase/auth';
 import { toast } from 'sonner';
 import { 
@@ -212,9 +213,11 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             setCurrentUser(userData);
             localStorage.setItem('resto_keep_user', JSON.stringify(userData));
           } else {
-            // If no user doc exists, clear local state
+            // If no user doc exists, clear local state and sign out
+            console.warn('User authenticated but no profile found in Firestore. Signing out...');
             setCurrentUser(null);
             localStorage.removeItem('resto_keep_user');
+            await signOut(auth);
           }
         } catch (error) {
           console.error('Error fetching user profile:', error);
@@ -230,11 +233,23 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     const bootstrapSuperAdmin = async () => {
       try {
         const saEmail = 'asitzonebd@gmail.com';
-        const saPassword = 'admin123'; // Default password
+        const saPassword = 'admin123'; // Match MOCK_USERS password
         
         // Try to sign in to see if the user exists in Firebase Auth
         try {
-          await signInWithEmailAndPassword(secondaryAuth, saEmail, saPassword);
+          const userCredential = await signInWithEmailAndPassword(secondaryAuth, saEmail, saPassword);
+          
+          // Check if Firestore doc exists
+          const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
+          if (!userDoc.exists()) {
+            console.log('Super Admin exists in Auth but missing in Firestore. Creating doc...');
+            const saUser = MOCK_USERS.find(u => u.email === saEmail);
+            if (saUser) {
+              const newUser = { ...saUser, id: userCredential.user.uid };
+              await setDoc(doc(db, 'users', newUser.id), newUser);
+              console.log('Super Admin doc created successfully.');
+            }
+          }
           await signOut(secondaryAuth);
         } catch (e: any) {
           // If user doesn't exist or invalid credentials, try to create them
@@ -578,7 +593,33 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
 
   const loginWithGoogle = async () => {
-    toast.error('Google Login is currently disabled.');
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const user = result.user;
+      
+      // Check if user exists in Firestore
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      if (userDoc.exists()) {
+        const userData = { id: userDoc.id, ...convertFirestoreData(userDoc.data()) } as User;
+        setCurrentUser(userData);
+        localStorage.setItem('resto_keep_user', JSON.stringify(userData));
+        toast.success(`Welcome back, ${userData.name}!`);
+        return true;
+      } else {
+        // If it's a new user via Google, we might want to create a profile or deny access
+        // For now, we'll deny access if they aren't already in the system
+        // unless they are a customer (we could auto-create customer profiles)
+        toast.error('No account found with this Google profile. Please register first.');
+        await signOut(auth);
+        return false;
+      }
+    } catch (error: any) {
+      console.error('Google login error:', error);
+      if (error.code !== 'auth/popup-closed-by-user') {
+        toast.error('Google login failed: ' + error.message);
+      }
+      return false;
+    }
   };
 
   const login = async (emailOrMobile: string, password: string, tenantId?: string | null): Promise<boolean> => {
@@ -915,8 +956,15 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
     const rowIds = Array.isArray(rowId) ? rowId : [rowId];
     const newItems = order.items.map(i => rowIds.includes(i.rowId) ? { ...i, status } : i);
+    
+    // Recalculate total amount excluding cancelled items
+    const newTotalAmount = newItems.reduce((sum, item) => {
+      if (item.status === OrderStatus.CANCELLED) return sum;
+      return sum + (item.price * item.quantity);
+    }, 0);
+
     let newOrderStatus = order.status;
-    const allReady = newItems.every(i => i.status === OrderStatus.READY);
+    const allReady = newItems.every(i => i.status === OrderStatus.READY || i.status === OrderStatus.CANCELLED);
     const anyPreparing = newItems.some(i => i.status === OrderStatus.PREPARING);
     const allCancelled = newItems.every(i => i.status === OrderStatus.CANCELLED);
 
@@ -931,7 +979,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       
       batch.update(orderRef, {
         items: newItems,
-        status: newOrderStatus
+        status: newOrderStatus,
+        totalAmount: newTotalAmount
       });
 
       // If items are cancelled, return to stock

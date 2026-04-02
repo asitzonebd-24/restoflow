@@ -61,6 +61,7 @@ export const Billing = () => {
 
   const groupItems = (items: OrderItem[]) => {
     const grouped = items.reduce((acc, item) => {
+      if (item.status === OrderStatus.CANCELLED) return acc;
       const existing = acc.find(i => i.itemId === item.itemId);
       if (existing) {
         existing.quantity += item.quantity;
@@ -680,15 +681,15 @@ export const Billing = () => {
       {showConfirmCollect && (
         <div className="fixed inset-0 z-[110] flex items-center justify-center p-6">
           <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowConfirmCollect(false)}></div>
-          <div className="relative bg-white w-full max-w-sm rounded-[2rem] shadow-2xl overflow-hidden border-2 border-purple-600 p-8 animate-in fade-in zoom-in duration-200">
+          <div className="relative bg-white w-full max-w-sm rounded-[2rem] shadow-2xl overflow-hidden border-2 border-indigo-600 p-8 animate-in fade-in zoom-in duration-200">
             <div className="text-center space-y-4">
-              <div className="w-16 h-16 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Receipt size={32} />
               </div>
-              <h3 className="text-xl font-black text-purple-600 uppercase tracking-tight">Confirm Collection?</h3>
-              <div className="bg-purple-50 p-5 rounded-2xl border-2 border-purple-100 text-left space-y-3">
+              <h3 className="text-xl font-black text-indigo-600 uppercase tracking-tight">Confirm Collection?</h3>
+              <div className="bg-indigo-50 p-5 rounded-2xl border-2 border-indigo-100 text-left space-y-3">
                 <div className="flex justify-between items-center">
-                  <p className="text-[9px] font-black text-purple-400 uppercase tracking-widest">Staff Name</p>
+                  <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">Staff Name</p>
                   <p className="text-xs font-black text-emerald-600 uppercase tracking-tight">
                     {(() => {
                       if (selectedStaffId !== 'all') return users.find(u => u.id === selectedStaffId)?.name || 'Unknown';
@@ -699,12 +700,12 @@ export const Billing = () => {
                     })()}
                   </p>
                 </div>
-                <div className="flex justify-between items-center border-t border-purple-100 pt-3">
-                  <p className="text-[9px] font-black text-purple-400 uppercase tracking-widest">Selected Orders</p>
+                <div className="flex justify-between items-center border-t border-indigo-100 pt-3">
+                  <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">Selected Orders</p>
                   <span className="text-xs font-black text-emerald-600">{selectedOrderIds.length}</span>
                 </div>
-                <div className="flex justify-between items-center border-t border-purple-100 pt-3">
-                  <p className="text-[9px] font-black text-purple-400 uppercase tracking-widest">Total Amount</p>
+                <div className="flex justify-between items-center border-t border-indigo-100 pt-3">
+                  <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">Total Amount</p>
                   <span className="text-sm font-black text-emerald-600">{currentTenant?.currency}{selectedTotalAmount.toFixed(2)}</span>
                 </div>
               </div>

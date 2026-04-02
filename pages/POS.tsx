@@ -24,7 +24,8 @@ import {
   ChevronRight,
   Printer,
   Utensils,
-  Bluetooth
+  Bluetooth,
+  Trash2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BluetoothPrinterService } from '../services/printerService';
@@ -33,11 +34,12 @@ import { BluetoothPrinterService } from '../services/printerService';
 const ItemSummary = ({ cart, cartTotal, currency }: { cart: OrderItem[], cartTotal: number, currency: string }) => {
   const groupItems = (items: OrderItem[]) => {
     const grouped = items.reduce((acc, item) => {
-      const existing = acc.find(i => i.itemId === item.itemId);
+      const status = item.status || OrderStatus.PENDING;
+      const existing = acc.find(i => i.itemId === item.itemId && i.status === status);
       if (existing) {
         existing.quantity += item.quantity;
       } else {
-        acc.push({ ...item });
+        acc.push({ ...item, status });
       }
       return acc;
     }, [] as OrderItem[]);
@@ -50,7 +52,7 @@ const ItemSummary = ({ cart, cartTotal, currency }: { cart: OrderItem[], cartTot
       <div className="space-y-1.5">
         {groupItems(cart).map((item, i) => (
           <div key={i} className="flex justify-between text-[10px] gap-2 leading-tight">
-            <span className="font-medium text-slate-700 break-words flex-1 line-clamp-2 uppercase tracking-tight">{item.quantity} x {item.name}</span>
+            <span className="font-medium text-slate-700 break-words flex-1 line-clamp-2 capitalize tracking-tight">{item.quantity} x {item.name}</span>
             <span className="font-bold text-slate-900 shrink-0">{currency}{(item.price * item.quantity).toFixed(2)}</span>
           </div>
         ))}
@@ -256,7 +258,7 @@ const POSCartContent = ({
                     className="bg-white p-4 rounded-2xl border border-slate-100 flex justify-between items-center hover:border-slate-200 transition-all group shadow-sm"
                   >
                     <div className="min-w-0 pr-2 flex-1">
-                        <h4 className="font-bold text-slate-900 text-[11px] leading-tight break-words line-clamp-2 uppercase tracking-tight">{item.name}</h4>
+                        <h4 className="font-bold text-slate-900 text-[11px] leading-tight break-words line-clamp-2 capitalize tracking-tight">{item.name}</h4>
                         <div className="flex items-center gap-2">
                           <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{currentTenant.currency}{item.price.toFixed(2)}</p>
                           {isExisting && (
@@ -328,7 +330,7 @@ const POSCartContent = ({
 );
 
 export const POS = () => {
-  const { menu, currentTenant, currentUser, addOrder, updateOrderItems, orders, users, isLoading, categories, tables, addTable } = useApp();
+  const { menu, currentTenant, currentUser, addOrder, updateOrderItems, orders, users, isLoading, categories, tables, addTable, deleteTable } = useApp();
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [cart, setCart] = useState<OrderItem[]>([]);
   const [activeCategory, setActiveCategory] = useState<string>('');
@@ -367,11 +369,12 @@ export const POS = () => {
 
   const groupItems = (items: OrderItem[]) => {
     const grouped = items.reduce((acc, item) => {
-      const existing = acc.find(i => i.itemId === item.itemId);
+      const status = item.status || OrderStatus.PENDING;
+      const existing = acc.find(i => i.itemId === item.itemId && i.status === status);
       if (existing) {
         existing.quantity += item.quantity;
       } else {
-        acc.push({ ...item });
+        acc.push({ ...item, status });
       }
       return acc;
     }, [] as OrderItem[]);
@@ -426,12 +429,14 @@ export const POS = () => {
   const getStatusStyles = (status: OrderStatus) => {
     switch(status) {
       case OrderStatus.PENDING: 
-        return { bg: 'bg-rose-50', text: 'text-rose-600', border: 'border-rose-200', dot: 'bg-rose-500', topBorder: 'bg-rose-500' };
+        return { bg: 'bg-pink-50', text: 'text-pink-600', border: 'border-pink-200', dot: 'bg-pink-500', topBorder: 'bg-pink-500' };
       case OrderStatus.PREPARING: 
-        return { bg: 'bg-amber-50', text: 'text-amber-600', border: 'border-amber-200', dot: 'bg-amber-500', topBorder: 'bg-amber-500' };
+        return { bg: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-200', dot: 'bg-blue-500', topBorder: 'bg-blue-500' };
       case OrderStatus.READY: 
       case OrderStatus.COMPLETED:
         return { bg: 'bg-emerald-50', text: 'text-emerald-600', border: 'border-emerald-200', dot: 'bg-emerald-500', topBorder: 'bg-emerald-500' };
+      case OrderStatus.CANCELLED:
+        return { bg: 'bg-red-50', text: 'text-red-600', border: 'border-red-200', dot: 'bg-red-500', topBorder: 'bg-red-500' };
       default: 
         return { bg: 'bg-slate-50', text: 'text-slate-600', border: 'border-slate-200', dot: 'bg-slate-500', topBorder: 'bg-slate-500' };
     }
@@ -699,7 +704,7 @@ export const POS = () => {
             <div className="flex items-center gap-2 bg-white p-1.5 rounded-2xl border-2 border-slate-100 shadow-sm w-full sm:w-auto">
               <button 
                 onClick={() => setFilter('pending')}
-                className={`flex-1 sm:flex-none px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'pending' ? 'bg-[#1a1a37] text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
+                className={`flex-1 sm:flex-none px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'pending' ? 'bg-pink-500 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
               >
                 Pending
               </button>
@@ -735,7 +740,13 @@ export const POS = () => {
           <AnimatePresence mode="popLayout">
             {paginatedOrders.map(order => {
               const hasPending = order.items.some(i => i.status === OrderStatus.PENDING);
-              const statusStyles = getStatusStyles(hasPending ? OrderStatus.PENDING : order.status);
+              const hasPreparing = order.items.some(i => i.status === OrderStatus.PREPARING);
+              
+              const derivedStatus = hasPending 
+                ? OrderStatus.PENDING 
+                : (hasPreparing ? OrderStatus.PREPARING : order.status);
+                
+              const statusStyles = getStatusStyles(derivedStatus);
 
               return (
                 <motion.button
@@ -753,7 +764,7 @@ export const POS = () => {
                   <div className="relative z-10 flex flex-col h-full p-6 pt-10">
                     {/* Token Number Pill */}
                     <div className="flex justify-center mb-6 relative">
-                      <div className={`min-w-[4.5rem] px-5 h-16 rounded-[2rem] border-4 border-black flex items-center justify-center font-black text-3xl text-white shadow-2xl ${statusStyles.topBorder}`}>
+                      <div className={`w-fit min-w-[3rem] px-4 h-12 rounded-full border-4 border-black flex items-center justify-center font-black text-2xl text-white shadow-xl ${statusStyles.topBorder}`}>
                         {order.tokenNumber}
                       </div>
                       {(order.tableNumber || order.deliveryStaffName) && (
@@ -772,15 +783,26 @@ export const POS = () => {
 
                     {/* Items Summary List */}
                     <div className="mb-4 space-y-1">
-                      {order.items.map((item, index) => {
-                        const itemStyles = getStatusStyles(item.status as OrderStatus);
-                        return (
-                          <div key={index} className={`flex justify-between text-[10px] font-bold uppercase tracking-widest p-2 rounded-lg border-2 ${itemStyles.border} ${itemStyles.topBorder.replace('bg-', 'shadow-')}`}>
-                            <span className={itemStyles.text}>{item.name}</span>
-                            <span className={itemStyles.text}>x{item.quantity}</span>
-                          </div>
-                        );
-                      })}
+                      {(() => {
+                        const groupedItems: { [key: string]: { name: string, quantity: number, status: OrderStatus } } = {};
+                        order.items.forEach(item => {
+                          const status = item.status || OrderStatus.PENDING;
+                          const key = `${item.itemId}-${status}`;
+                          if (!groupedItems[key]) {
+                            groupedItems[key] = { name: item.name, quantity: 0, status: status as OrderStatus };
+                          }
+                          groupedItems[key].quantity += item.quantity;
+                        });
+                        return Object.entries(groupedItems).map(([key, group]) => {
+                          const itemStyles = getStatusStyles(group.status);
+                          return (
+                            <div key={key} className={`flex justify-between items-center text-[10px] font-bold capitalize tracking-widest px-2 py-0.5 rounded-md border-2 ${itemStyles.bg} ${itemStyles.topBorder.replace('bg-', 'border-')}`}>
+                              <span className={`${itemStyles.text} ${group.status === OrderStatus.READY || group.status === OrderStatus.COMPLETED || group.status === OrderStatus.CANCELLED ? 'line-through opacity-50' : ''}`}>{group.name}</span>
+                              <span className={itemStyles.text}>x{group.quantity}</span>
+                            </div>
+                          );
+                        });
+                      })()}
                     </div>
 
                     {/* Dashed Divider */}
@@ -966,7 +988,7 @@ export const POS = () => {
                       <option key={t.id} value={t.name}>{t.name}</option>
                     ))}
                     {(currentUser?.role === Role.OWNER || currentUser?.role === Role.MANAGER || currentUser?.role === Role.SUPER_ADMIN) && (
-                      <option value="__ADD_NEW__" className="font-bold text-indigo-600">+ Create New Table</option>
+                      <option value="__ADD_NEW__" className="font-bold text-indigo-600">⚙ Manage Tables</option>
                     )}
                   </select>
                 </div>
@@ -1019,7 +1041,7 @@ export const POS = () => {
                 >
                   <div className="text-center flex flex-col items-center justify-center h-full">
                     <div className="mb-2">
-                      <h4 className="font-black text-slate-900 text-[11px] uppercase tracking-tight group-hover:text-indigo-600 transition-colors mb-1">{item.name}</h4>
+                      <h4 className="font-black text-slate-900 text-[11px] capitalize tracking-tight group-hover:text-indigo-600 transition-colors mb-1">{item.name}</h4>
                       <span className="text-[14px] font-black text-indigo-600">{currentTenant.currency}{item.price.toFixed(0)}</span>
                     </div>
                     
@@ -1214,26 +1236,66 @@ export const POS = () => {
             >
               <div className="p-6 sm:p-8">
                 <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto mb-6 sm:hidden"></div>
-                <h3 className="text-xl font-black text-slate-900 mb-2">Create New Table</h3>
-                <p className="text-sm text-slate-500 mb-6">Enter a name or number for the new table.</p>
-                <input
-                  type="text"
-                  placeholder="e.g., T1, VIP-1"
-                  value={newTableNameInput}
-                  onChange={(e) => setNewTableNameInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && newTableNameInput.trim()) {
-                      const tableName = newTableNameInput.trim();
-                      addTable({ id: `tbl-${Date.now()}`, name: tableName, isActive: true });
-                      setNewTableNum(tableName);
-                      setIsAddingTableModalOpen(false);
-                      setNewTableNameInput('');
-                    }
-                  }}
-                  className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-200 rounded-xl text-base font-bold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all"
-                  autoFocus
-                />
-                <div className="flex flex-col-reverse sm:flex-row gap-3 mt-8">
+                <h3 className="text-xl font-black text-slate-900 mb-2">Manage Tables</h3>
+                <p className="text-sm text-slate-500 mb-6">Add or remove restaurant tables.</p>
+                
+                <div className="flex gap-2 mb-6">
+                  <input
+                    type="text"
+                    placeholder="e.g., T1, VIP-1"
+                    value={newTableNameInput}
+                    onChange={(e) => setNewTableNameInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && newTableNameInput.trim()) {
+                        const tableName = newTableNameInput.trim();
+                        addTable({ id: `tbl-${Date.now()}`, name: tableName, isActive: true });
+                        setNewTableNum(tableName);
+                        setNewTableNameInput('');
+                      }
+                    }}
+                    className="flex-1 px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl text-sm font-bold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all"
+                    autoFocus
+                  />
+                  <button
+                    onClick={() => {
+                      if (newTableNameInput.trim()) {
+                        const tableName = newTableNameInput.trim();
+                        addTable({ id: `tbl-${Date.now()}`, name: tableName, isActive: true });
+                        setNewTableNum(tableName);
+                        setNewTableNameInput('');
+                      }
+                    }}
+                    disabled={!newTableNameInput.trim()}
+                    className="px-4 py-3 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-indigo-200"
+                  >
+                    Add
+                  </button>
+                </div>
+
+                <div className="max-h-48 overflow-y-auto pr-2 space-y-2 mb-6 custom-scrollbar">
+                  {tables.length === 0 ? (
+                    <p className="text-center text-xs text-slate-400 py-4">No tables created yet.</p>
+                  ) : (
+                    tables.map(table => (
+                      <div key={table.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100 group">
+                        <span className="text-sm font-bold text-slate-700">{table.name}</span>
+                        <button 
+                          onClick={() => {
+                            if (window.confirm(`Are you sure you want to delete table "${table.name}"?`)) {
+                              deleteTable(table.id);
+                              if (newTableNum === table.name) setNewTableNum('');
+                            }
+                          }}
+                          className="p-2 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                <div className="flex flex-col-reverse sm:flex-row gap-3">
                   <button
                     onClick={() => {
                       setIsAddingTableModalOpen(false);
@@ -1241,22 +1303,7 @@ export const POS = () => {
                     }}
                     className="flex-1 px-4 py-4 sm:py-3 bg-slate-100 text-slate-700 rounded-xl text-sm font-bold hover:bg-slate-200 transition-colors"
                   >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (newTableNameInput.trim()) {
-                        const tableName = newTableNameInput.trim();
-                        addTable({ id: `tbl-${Date.now()}`, name: tableName, isActive: true });
-                        setNewTableNum(tableName);
-                        setIsAddingTableModalOpen(false);
-                        setNewTableNameInput('');
-                      }
-                    }}
-                    disabled={!newTableNameInput.trim()}
-                    className="flex-1 px-4 py-4 sm:py-3 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-indigo-200"
-                  >
-                    Create Table
+                    Close
                   </button>
                 </div>
               </div>

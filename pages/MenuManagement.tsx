@@ -293,8 +293,8 @@ export const MenuManagement = () => {
                       <div className="mt-auto pt-6 flex flex-col gap-4 border-t border-slate-50">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <div className={`w-2 h-2 rounded-full ${item.isAvailable ? 'bg-emerald-500' : 'bg-red-500'} shadow-sm`}></div>
-                            <span className={`text-[10px] font-bold uppercase tracking-widest ${item.isAvailable ? 'text-emerald-600' : 'text-red-600'}`}>
+                            <div className={`w-2 h-2 rounded-full ${item.isAvailable ? 'bg-pink-500' : 'bg-red-500'} shadow-sm`}></div>
+                            <span className={`text-[10px] font-bold uppercase tracking-widest ${item.isAvailable ? 'text-pink-600' : 'text-red-600'}`}>
                               {item.isAvailable ? 'Available' : 'Sold Out'}
                             </span>
                           </div>
