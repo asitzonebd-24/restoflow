@@ -572,9 +572,9 @@ export const SuperAdmin = () => {
                     </a>
                   </div>
 
-                  <div className="space-y-3 p-3 bg-slate-50/50 rounded-xl border-2 border-black">
+                  <div className="space-y-2 p-3 bg-slate-50/50 rounded-xl border-2 border-black">
                     <div className="flex items-center justify-between">
-                      <p className="text-[9px] font-black text-black uppercase tracking-widest">Maintenance</p>
+                      <p className="text-[9px] font-black text-black uppercase tracking-widest">Maintenance Mode</p>
                       <button 
                         onClick={() => updateTenant(tenant.id, { isMaintenanceMode: !tenant.isMaintenanceMode })}
                         className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${
@@ -586,20 +586,22 @@ export const SuperAdmin = () => {
                         {tenant.isMaintenanceMode ? 'ON' : 'OFF'}
                       </button>
                     </div>
-                    <input 
-                      type="text" 
-                      placeholder="Write maintenance message..."
-                      className="w-full bg-white border-2 border-black rounded-lg px-3 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-black transition-all"
-                      value={tenant.maintenanceMessage || ''}
-                      onChange={(e) => updateTenant(tenant.id, { maintenanceMessage: e.target.value })}
-                    />
-                    <input 
-                      type="text" 
-                      placeholder="Estimated Time (e.g. 2:00 PM)"
-                      className="w-full bg-white border-2 border-black rounded-lg px-3 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-black transition-all"
-                      value={tenant.maintenanceTime || ''}
-                      onChange={(e) => updateTenant(tenant.id, { maintenanceTime: e.target.value })}
-                    />
+                    <div className="space-y-1.5">
+                      <input 
+                        type="text" 
+                        placeholder="Maintenance message..."
+                        className="w-full bg-white border-2 border-black rounded-lg px-3 py-1.5 text-[10px] font-bold outline-none focus:ring-2 focus:ring-black transition-all"
+                        value={tenant.maintenanceMessage || ''}
+                        onChange={(e) => updateTenant(tenant.id, { maintenanceMessage: e.target.value })}
+                      />
+                      <input 
+                        type="text" 
+                        placeholder="Estimated time (e.g. 2:00 PM)"
+                        className="w-full bg-white border-2 border-black rounded-lg px-3 py-1.5 text-[10px] font-bold outline-none focus:ring-2 focus:ring-black transition-all"
+                        value={tenant.maintenanceTime || ''}
+                        onChange={(e) => updateTenant(tenant.id, { maintenanceTime: e.target.value })}
+                      />
+                    </div>
                   </div>
 
                   <div className="flex items-center justify-between pt-2 border-t-2 border-black">

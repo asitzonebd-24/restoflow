@@ -379,42 +379,36 @@ const ProtectedLayout = ({ children, allowedRoles }: { children?: React.ReactNod
   // Check if business is in maintenance mode (Super Admin can always access)
   if (business.isMaintenanceMode && currentUser.role !== Role.SUPER_ADMIN) {
     return (
-      <div className="h-screen w-screen flex items-center justify-center bg-slate-900/60 backdrop-blur-md p-4 md:p-6 z-[200]">
+      <div className="fixed inset-0 flex items-center justify-center bg-slate-900/80 backdrop-blur-md p-4 z-[999]">
         <motion.div 
           initial={{ opacity: 0, scale: 0.9, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          className="bg-white rounded-3xl md:rounded-[3rem] p-6 md:p-12 max-w-lg w-full shadow-2xl border-4 border-amber-500 relative overflow-hidden max-h-[95vh] overflow-y-auto no-scrollbar"
+          className="bg-white rounded-[2.5rem] p-6 md:p-10 max-w-md w-full shadow-2xl border-4 border-amber-500 relative overflow-hidden flex flex-col max-h-[90vh]"
         >
-          {/* Decorative background elements */}
           <div className="absolute -top-24 -right-24 w-48 h-48 bg-amber-100 rounded-full blur-3xl opacity-50" />
-          <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-indigo-100 rounded-full blur-3xl opacity-50" />
           
-          <div className="relative z-10 flex flex-col items-center text-center">
-            <div className="w-16 h-16 md:w-24 md:h-24 bg-amber-50 rounded-full flex items-center justify-center mb-6 md:mb-8 border-4 border-amber-100 shadow-inner">
-              <motion.div
-                animate={{ rotate: [0, 10, -10, 10, 0] }}
-                transition={{ repeat: Infinity, duration: 2 }}
-              >
-                <AlertTriangle size={32} className="text-amber-600 md:hidden" />
-                <AlertTriangle size={48} className="text-amber-600 hidden md:block" />
-              </motion.div>
+          <div className="relative z-10 flex flex-col items-center text-center overflow-y-auto no-scrollbar">
+            <div className="w-16 h-16 md:w-20 md:h-20 bg-amber-50 rounded-full flex items-center justify-center mb-6 border-4 border-amber-100 shrink-0">
+              <AlertTriangle size={32} className="text-amber-600" />
             </div>
             
-            <h2 className="text-2xl md:text-4xl font-black text-slate-900 uppercase tracking-tighter mb-3 md:mb-4 leading-none">
+            <h2 className="text-2xl md:text-3xl font-black text-slate-900 uppercase tracking-tighter mb-2 leading-none shrink-0">
               Under <span className="text-amber-600">Maintenance</span>
             </h2>
             
-            <div className="w-12 h-1.5 bg-amber-500 rounded-full mb-6 md:mb-8" />
+            <div className="w-10 h-1 bg-amber-500 rounded-full mb-6 shrink-0" />
             
-            <p className="text-slate-600 font-bold text-sm md:text-lg leading-relaxed mb-6 md:mb-8">
-              {business.maintenanceMessage || "We are currently performing some updates to improve your experience. We'll be back online very soon!"}
-            </p>
-            
-            <div className="bg-slate-50 p-4 md:p-6 rounded-2xl md:rounded-[2rem] border-2 border-slate-100 w-full mb-6 md:mb-8">
-              <p className="text-[9px] md:text-[10px] font-black uppercase text-slate-400 tracking-[0.2em] mb-1 md:mb-2">Estimated Time</p>
-              <p className="text-lg md:text-xl font-black text-slate-900 uppercase">
-                {business.maintenanceTime || "Coming Back Soon"}
+            <div className="space-y-4 mb-8">
+              <p className="text-slate-600 font-bold text-sm md:text-base leading-relaxed">
+                {business.maintenanceMessage || "We are currently performing some updates to improve your experience."}
               </p>
+              
+              <div className="bg-amber-50 p-4 rounded-2xl border-2 border-amber-100 inline-block w-full">
+                <p className="text-[10px] font-black uppercase text-amber-600 tracking-widest mb-1">Estimated Back Online</p>
+                <p className="text-lg font-black text-slate-900 uppercase">
+                  {business.maintenanceTime || "Coming Back Soon"}
+                </p>
+              </div>
             </div>
             
             <button 
@@ -422,7 +416,7 @@ const ProtectedLayout = ({ children, allowedRoles }: { children?: React.ReactNod
                 logout();
                 window.location.href = '/login';
               }}
-              className="w-full bg-slate-900 text-white py-4 md:py-5 rounded-2xl font-black uppercase tracking-widest text-[10px] md:text-xs shadow-xl shadow-slate-200 hover:bg-black transition-all active:scale-95"
+              className="w-full bg-slate-900 text-white py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg hover:bg-black transition-all active:scale-95 shrink-0"
             >
               Sign Out
             </button>
