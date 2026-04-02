@@ -32,15 +32,15 @@ export const CustomerPanel = ({ setIsSidebarOpen }: { setIsSidebarOpen?: (open: 
   const getStatusDisplay = (status: OrderStatus) => {
     switch(status) {
       case OrderStatus.PENDING: 
-        return { label: 'Online Order', color: 'bg-pink-500', border: 'border-t-pink-500', lightBg: 'bg-pink-50', text: 'text-pink-600', borderLight: 'border-pink-200' };
+        return { label: 'Online Order', color: 'bg-pink-500', topBorder: 'bg-pink-500', lightBg: 'bg-pink-50', text: 'text-pink-600', borderLight: 'border-pink-200' };
       case OrderStatus.PREPARING: 
-        return { label: 'Ready', color: 'bg-blue-500', border: 'border-t-blue-500', lightBg: 'bg-blue-50', text: 'text-blue-600', borderLight: 'border-blue-200' };
+        return { label: 'Ready', color: 'bg-blue-500', topBorder: 'bg-blue-500', lightBg: 'bg-blue-50', text: 'text-blue-600', borderLight: 'border-blue-200' };
       case OrderStatus.READY: 
-        return { label: 'Done!', color: 'bg-emerald-500', border: 'border-t-emerald-500', lightBg: 'bg-emerald-50', text: 'text-emerald-600', borderLight: 'border-emerald-200' };
+        return { label: 'Done!', color: 'bg-emerald-500', topBorder: 'bg-emerald-500', lightBg: 'bg-emerald-50', text: 'text-emerald-600', borderLight: 'border-emerald-200' };
       case OrderStatus.CANCELLED:
-        return { label: 'Cancelled', color: 'bg-red-500', border: 'border-t-red-500', lightBg: 'bg-red-50', text: 'text-red-600', borderLight: 'border-red-200' };
+        return { label: 'Cancelled', color: 'bg-red-500', topBorder: 'bg-red-500', lightBg: 'bg-red-50', text: 'text-red-600', borderLight: 'border-red-200' };
       default: 
-        return { label: status, color: 'bg-slate-500', border: 'border-t-slate-500', lightBg: 'bg-slate-50', text: 'text-slate-600', borderLight: 'border-slate-200' };
+        return { label: status, color: 'bg-slate-500', topBorder: 'bg-slate-500', lightBg: 'bg-slate-50', text: 'text-slate-600', borderLight: 'border-slate-200' };
     }
   };
 
@@ -49,13 +49,6 @@ export const CustomerPanel = ({ setIsSidebarOpen }: { setIsSidebarOpen?: (open: 
   if (!business.customerAppEnabled) {
     return <Navigate to={`/${tenantId}/order/auth`} replace />;
   }
-
-  const StatusBox = ({ label, count, colorClass, activeColor }: { label: string, count: number, colorClass: string, activeColor: string }) => (
-    <div className={`flex flex-col items-center justify-center py-1.5 px-1 rounded-xl border-2 transition-all ${count > 0 ? activeColor : colorClass}`}>
-      <span className="text-[7px] font-black uppercase tracking-widest opacity-80 mb-0.5">{label}</span>
-      <span className="text-sm font-black leading-none">{count}</span>
-    </div>
-  );
 
   return (
     <div className="flex h-screen bg-[#f1f5f9] overflow-hidden">
@@ -117,19 +110,18 @@ export const CustomerPanel = ({ setIsSidebarOpen }: { setIsSidebarOpen?: (open: 
                             animate={{ opacity: 1, scale: 1 }}
                             key={order.id}
                             onClick={() => setSelectedOrder(order)}
-                            className={`group relative bg-white rounded-[2rem] md:rounded-[2.5rem] p-5 shadow-xl border-t-8 border-x-4 border-b-4 transition-all duration-300 transform hover:-translate-y-2 text-left w-full ${
-                                order.status === OrderStatus.PENDING ? 'border-pink-500 shadow-pink-100' :
-                                order.status === OrderStatus.PREPARING ? 'border-blue-500 shadow-blue-100' :
-                                'border-emerald-500 shadow-emerald-100'
-                            }`}
+                            className="group relative bg-white rounded-[2.5rem] shadow-2xl border-4 border-black transition-all duration-300 text-left flex flex-col min-h-[280px] hover:scale-[1.02] overflow-hidden"
                         >
-                            <div className="w-full">
-                                <div className="flex flex-col items-center">
+                            {/* Top Border Bar */}
+                            <div className={`absolute top-0 left-0 right-0 h-4 ${status.topBorder}`}></div>
+
+                            <div className="relative z-10 flex flex-col h-full p-6 pt-10">
+                                <div className="flex flex-col items-center mb-4">
                                     <div className="text-[10px] font-black text-black uppercase tracking-[0.2em] mb-1">{headerLabel}</div>
                                     <div className={`h-1.5 w-12 ${status.color} rounded-full`}></div>
                                 </div>
 
-                                <div className="flex justify-center items-center my-4">
+                                <div className="flex justify-center items-center mb-6">
                                     <div className={`w-fit min-w-[3rem] px-4 h-12 rounded-full border-4 border-black flex items-center justify-center font-black text-2xl text-white shadow-xl ${status.color}`}>
                                         <span className="text-white text-xl md:text-2xl font-black leading-none">{order.tokenNumber}</span>
                                     </div>
@@ -147,26 +139,30 @@ export const CustomerPanel = ({ setIsSidebarOpen }: { setIsSidebarOpen?: (open: 
                                         </div>
                                     </div>
                                 )}
-                            </div>
-                            
-                            <div className="w-full">
-                                <div className="grid grid-cols-3 gap-2 mb-4">
-                                    <StatusBox label="Pending" count={pendingCount} colorClass="bg-slate-50 border-slate-100 text-slate-300" activeColor="bg-pink-50 border-pink-200 text-pink-600 shadow-sm" />
-                                    <StatusBox label="Ready" count={preparingCount} colorClass="bg-slate-50 border-slate-100 text-slate-300" activeColor="bg-blue-50 border-blue-200 text-blue-600 shadow-sm" />
-                                    <StatusBox label="Done" count={readyCount} colorClass="bg-slate-50 border-slate-100 text-slate-300" activeColor="bg-emerald-50 border-emerald-200 text-emerald-600 shadow-sm" />
-                                </div>
 
-                                {/* Ready Items List */}
-                                {preparingCount > 0 && (
-                                    <div className="mb-4 space-y-1 max-h-24 overflow-y-auto no-scrollbar">
-                                        {order.items.filter((i: any) => i.status === OrderStatus.PREPARING).map((item: any, idx: number) => (
-                                            <div key={idx} className="flex justify-between items-center text-[10px] font-black text-amber-600 uppercase tracking-tight bg-amber-50 px-3 py-1.5 rounded-xl border border-amber-100">
-                                                <span className="truncate pr-2">{item.name}</span>
-                                                <span className="shrink-0">x{item.quantity}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
+                                {/* Items Summary List */}
+                                <div className="mb-4 space-y-1 flex-1">
+                                    {(() => {
+                                        const groupedItems: { [key: string]: { name: string, quantity: number, status: OrderStatus } } = {};
+                                        order.items.forEach(item => {
+                                            const itemStatus = item.status || OrderStatus.PENDING;
+                                            const key = `${item.itemId}-${itemStatus}`;
+                                            if (!groupedItems[key]) {
+                                                groupedItems[key] = { name: item.name, quantity: 0, status: itemStatus as OrderStatus };
+                                            }
+                                            groupedItems[key].quantity += item.quantity;
+                                        });
+                                        return Object.entries(groupedItems).map(([key, group]) => {
+                                            const itemStyles = getStatusDisplay(group.status);
+                                            return (
+                                                <div key={key} className={`flex justify-between items-center text-[10px] font-bold capitalize tracking-widest px-2 py-1 rounded-md border-2 ${itemStyles.lightBg} ${itemStyles.color.replace('bg-', 'border-')}`}>
+                                                    <span className={`${itemStyles.text} ${group.status === OrderStatus.READY || group.status === OrderStatus.COMPLETED || group.status === OrderStatus.CANCELLED ? 'line-through opacity-50' : ''}`}>{group.name}</span>
+                                                    <span className={`${itemStyles.text}`}>x{group.quantity}</span>
+                                                </div>
+                                            );
+                                        });
+                                    })()}
+                                </div>
 
                                 <div className="pt-4 border-t-2 border-slate-200 border-dashed flex items-center justify-between">
                                     <div className="flex items-center gap-2">
@@ -184,7 +180,7 @@ export const CustomerPanel = ({ setIsSidebarOpen }: { setIsSidebarOpen?: (open: 
                                 </div>
                             </div>
                         </motion.button>
-                   );
+                    );
                  })}
             </div>
 
