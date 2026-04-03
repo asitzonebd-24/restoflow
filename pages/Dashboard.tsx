@@ -27,7 +27,7 @@ export const Dashboard = () => {
           </p>
         </div>
 
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full flex-wrap">
           <button 
             onClick={() => navigate(`/${currentTenant?.id}/reports`)}
             className="w-full sm:w-48 px-4 py-4 bg-white border-2 border-emerald-500 text-slate-900 rounded-2xl font-black text-xs shadow-lg shadow-emerald-100 hover:bg-emerald-50 hover:-translate-y-1 transition-all flex items-center justify-center gap-3 uppercase tracking-widest group"

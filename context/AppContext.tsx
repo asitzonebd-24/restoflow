@@ -1650,8 +1650,26 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       createdAt: new Date().toISOString()
     };
 
+    let ownerUid = `u-${Date.now()}`;
+    try {
+      // Create owner in Firebase Auth using secondary app to avoid signing out current user
+      if (ownerData.email && ownerData.password) {
+        const userCredential = await createUserWithEmailAndPassword(secondaryAuth, ownerData.email, ownerData.password);
+        ownerUid = userCredential.user.uid;
+        await signOut(secondaryAuth);
+      }
+    } catch (authError: any) {
+      console.error('Error creating owner auth:', authError);
+      if (authError.code === 'auth/email-already-in-use') {
+        toast.error('The email address is already in use by another account. Please use a different email.');
+        return '';
+      }
+      toast.error('Failed to create owner account: ' + authError.message);
+      return '';
+    }
+
     const newOwner: User = {
-      id: `u-${Date.now()}`,
+      id: ownerUid,
       tenantId: newTenantId,
       name: ownerData.name || 'Owner',
       email: ownerData.email || '',

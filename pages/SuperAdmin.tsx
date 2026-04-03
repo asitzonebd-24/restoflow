@@ -891,6 +891,7 @@ export const SuperAdmin = () => {
                       <label className="block text-xs font-black uppercase text-slate-500 mb-1 tracking-wider">Password</label>
                       <input 
                         required
+                        minLength={6}
                         type="password" 
                         className="w-full px-4 py-3 rounded-xl border-2 border-slate-100 focus:border-indigo-500 outline-none transition-all font-bold text-sm"
                         value={newOwner.password || ''}

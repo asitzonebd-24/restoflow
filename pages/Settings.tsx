@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { Settings as SettingsIcon, Save, Store, Globe, Percent, Upload, Image as ImageIcon, User as UserIcon, Lock, Mail, Phone, Printer } from 'lucide-react';
+import { Settings as SettingsIcon, Save, Store, Globe, Percent, Upload, Image as ImageIcon, User as UserIcon, Lock, Mail, Phone, Printer, QrCode } from 'lucide-react';
 import { Role, InventoryMode } from '../types';
 import { BluetoothPrinterService } from '../services/printerService';
+import { QRCodeModal } from '../components/QRCodeModal';
 
 export const Settings = () => {
     const { business, updateBusiness, currentUser, updateUser } = useApp();
@@ -21,6 +22,7 @@ export const Settings = () => {
     const [customerTokenPrefix, setCustomerTokenPrefix] = useState('ORD');
     const [nextCustomerToken, setNextCustomerToken] = useState(1);
     const [inventoryMode, setInventoryMode] = useState<InventoryMode>(InventoryMode.SIMPLE);
+    const [isQRModalOpen, setIsQRModalOpen] = useState(false);
 
     // Printer Settings state
     const [receiptHeader, setReceiptHeader] = useState('');
@@ -324,20 +326,29 @@ export const Settings = () => {
                     <>
                         {/* Business Profile Section */}
                         <div className="bg-white p-8 rounded-[2rem] border-2 border-indigo-500 shadow-xl shadow-indigo-100 hover:scale-[1.01] transition-all duration-300">
-                            <div className="flex items-center justify-between mb-8">
+                            <div className="flex items-center justify-between mb-8 flex-wrap gap-4">
                                 <div className="flex items-center gap-3">
                                     <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center border border-indigo-100">
                                         <Store size={20} />
                                     </div>
                                     <h2 className="text-lg font-bold text-slate-900 tracking-tight">Restaurant Profile</h2>
                                 </div>
-                                <button 
-                                    onClick={handleBusinessSubmit}
-                                    className="bg-indigo-600 text-white px-6 py-2 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-indigo-700 transition-all flex items-center gap-2"
-                                >
-                                    <Save size={16} />
-                                    Save Business
-                                </button>
+                                <div className="flex items-center gap-3">
+                                    <button 
+                                        onClick={() => setIsQRModalOpen(true)}
+                                        className="bg-white text-indigo-600 border-2 border-indigo-100 px-4 py-2 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-indigo-50 transition-all flex items-center gap-2"
+                                    >
+                                        <QrCode size={16} />
+                                        Store QR Code
+                                    </button>
+                                    <button 
+                                        onClick={handleBusinessSubmit}
+                                        className="bg-indigo-600 text-white px-6 py-2 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-indigo-700 transition-all flex items-center gap-2"
+                                    >
+                                        <Save size={16} />
+                                        Save Business
+                                    </button>
+                                </div>
                             </div>
                             
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -726,6 +737,16 @@ export const Settings = () => {
                     </>
                 )}
             </div>
+
+            <QRCodeModal 
+                isOpen={isQRModalOpen}
+                onClose={() => setIsQRModalOpen(false)}
+                url={`https://restokeep.vercel.app/${business?.id}/order/auth`}
+                businessName={business?.name || 'Restaurant'}
+                logo={business?.logo}
+                address={business?.address}
+                phone={business?.phone}
+            />
         </div>
     );
 };
