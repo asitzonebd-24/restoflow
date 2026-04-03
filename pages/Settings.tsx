@@ -220,6 +220,13 @@ export const Settings = () => {
                     <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Settings</h1>
                     <p className="text-slate-500 text-sm font-medium mt-1">Manage your profile and business preferences</p>
                 </div>
+                <button 
+                    onClick={() => setIsQRModalOpen(true)}
+                    className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold text-sm uppercase tracking-widest hover:bg-indigo-700 transition-all flex items-center gap-2 shadow-lg shadow-indigo-200"
+                >
+                    <QrCode size={18} />
+                    Store QR Code
+                </button>
             </div>
 
             <div className="space-y-8 pb-12">
@@ -334,13 +341,6 @@ export const Settings = () => {
                                     <h2 className="text-lg font-bold text-slate-900 tracking-tight">Restaurant Profile</h2>
                                 </div>
                                 <div className="flex items-center gap-3">
-                                    <button 
-                                        onClick={() => setIsQRModalOpen(true)}
-                                        className="bg-white text-indigo-600 border-2 border-indigo-100 px-4 py-2 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-indigo-50 transition-all flex items-center gap-2"
-                                    >
-                                        <QrCode size={16} />
-                                        Store QR Code
-                                    </button>
                                     <button 
                                         onClick={handleBusinessSubmit}
                                         className="bg-indigo-600 text-white px-6 py-2 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-indigo-700 transition-all flex items-center gap-2"
