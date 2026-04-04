@@ -1,12 +1,19 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
-import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
+import { getFirestore, doc, getDocFromServer, enableMultiTabIndexedDbPersistence } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
+
+// Initialize Firestore
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId || "(default)");
+
+// Enable offline persistence
+enableMultiTabIndexedDbPersistence(db).catch((err) => {
+  console.warn('Offline persistence could not be enabled:', err);
+});
 
 // Secondary app for user creation (so admin doesn't get logged out)
 export const secondaryApp = initializeApp(firebaseConfig, "Secondary");
