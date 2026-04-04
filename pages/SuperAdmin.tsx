@@ -80,7 +80,10 @@ export const SuperAdmin = () => {
 
     if (editingTenant) {
       await updateTenant(editingTenant.id, newBusiness);
-      const owner = allUsers.find(u => String(u.tenantId || '01') === String(editingTenant.id) && u.role === Role.OWNER);
+      const owner = allUsers.find(u => 
+        (String(u.tenantId || '01') === String(editingTenant.id) || (u.tenantIds && u.tenantIds.includes(String(editingTenant.id)))) 
+        && u.role === Role.OWNER
+      );
       if (owner) {
         await updateUser(owner.id, newOwner);
       }
@@ -89,9 +92,9 @@ export const SuperAdmin = () => {
     }
 
     // Check for global email uniqueness
-    const isDuplicate = allUsers.some(u => u.email.toLowerCase() === newOwner.email.toLowerCase());
-    if (isDuplicate) {
-      setError('This email is already registered in the system.');
+    const existingUser = allUsers.find(u => u.email.toLowerCase() === newOwner.email.toLowerCase());
+    if (existingUser && existingUser.role !== Role.OWNER) {
+      setError('This email is already registered for a non-owner account.');
       return;
     }
 
@@ -134,7 +137,10 @@ export const SuperAdmin = () => {
     setEditingTenant(tenant);
     setNewBusiness({ ...tenant });
     
-    const owner = allUsers.find(u => String(u.tenantId || '01') === String(tenant.id) && u.role === Role.OWNER);
+    const owner = allUsers.find(u => 
+      (String(u.tenantId || '01') === String(tenant.id) || (u.tenantIds && u.tenantIds.includes(String(tenant.id)))) 
+      && u.role === Role.OWNER
+    );
     if (owner) {
       setNewOwner({
         name: owner.name,

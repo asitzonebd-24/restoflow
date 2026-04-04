@@ -22,9 +22,13 @@ service cloud.firestore {
     }
     
     function hasTenantAccess(tenantId) {
+      let userData = getUserData();
       return isAuthenticated() && (
         isSuperAdmin() || 
-        (getUserData() != null && getUserData().tenantId == tenantId)
+        (userData != null && (
+          userData.tenantId == tenantId || 
+          ('tenantIds' in userData && userData.tenantIds != null && tenantId in userData.tenantIds)
+        ))
       );
     }
 
@@ -38,18 +42,27 @@ service cloud.firestore {
       allow read: if isAuthenticated() && (
         request.auth.uid == userId || 
         isSuperAdmin() || 
-        (getUserData() != null && getUserData().tenantId == resource.data.tenantId)
+        (getUserData() != null && (
+          getUserData().tenantId == resource.data.tenantId ||
+          ('tenantIds' in getUserData() && getUserData().tenantIds != null && resource.data.tenantId in getUserData().tenantIds)
+        ))
       );
       
       // Only super admins or users with OWNER/MANAGER role in the same tenant can create/update users
       allow create: if isAuthenticated() && (
         isSuperAdmin() || 
-        (getUserData() != null && getUserData().tenantId == request.resource.data.tenantId && (getUserData().role == 'OWNER' || getUserData().role == 'MANAGER'))
+        (getUserData() != null && (getUserData().role == 'OWNER' || getUserData().role == 'MANAGER') && (
+          getUserData().tenantId == request.resource.data.tenantId ||
+          ('tenantIds' in getUserData() && getUserData().tenantIds != null && request.resource.data.tenantId in getUserData().tenantIds)
+        ))
       );
       
       allow update, delete: if isAuthenticated() && (
         isSuperAdmin() || 
-        (getUserData() != null && getUserData().tenantId == resource.data.tenantId && (getUserData().role == 'OWNER' || getUserData().role == 'MANAGER'))
+        (getUserData() != null && (getUserData().role == 'OWNER' || getUserData().role == 'MANAGER') && (
+          getUserData().tenantId == resource.data.tenantId ||
+          ('tenantIds' in getUserData() && getUserData().tenantIds != null && resource.data.tenantId in getUserData().tenantIds)
+        ))
       );
     }
 

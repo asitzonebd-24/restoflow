@@ -27,10 +27,12 @@ import { TenantLanding } from './pages/TenantLanding';
 import { PendingBills } from './pages/PendingBills';
 import { ApprovedBills } from './pages/ApprovedBills';
 import { PlatformExpenses } from './pages/PlatformExpenses';
+import { GlobalReports } from './pages/GlobalReports';
 import { Role, OrderStatus } from './types';
-import { LayoutDashboard, UtensilsCrossed, ChefHat, Receipt, Package, LogOut, Settings, Users as UsersIcon, History, Wallet, PieChart, Menu as MenuIcon, User as UserCircle, ShieldCheck, PowerOff, FileText, CheckCircle, Menu, X, Utensils, ShoppingBag, Timer, AlertTriangle } from 'lucide-react';
+import { LayoutDashboard, UtensilsCrossed, ChefHat, Receipt, Package, LogOut, Settings, Users as UsersIcon, History, Wallet, PieChart, Menu as MenuIcon, User as UserCircle, ShieldCheck, PowerOff, FileText, CheckCircle, Menu, X, Utensils, ShoppingBag, Timer, AlertTriangle, Globe } from 'lucide-react';
 
 import { collection, addDoc } from "firebase/firestore";
+import { RestaurantSwitcher } from './components/RestaurantSwitcher';
 
 // Run test on load
 // testFirestore();
@@ -96,7 +98,10 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
       className="sticky top-0 left-0 h-screen flex flex-col items-center py-4 text-white transition-all duration-500 shrink-0 z-[70] shadow-2xl w-20 print:hidden"
       style={{ background: '#11112b' }}
     >
-      <div className="mb-4 shrink-0 cursor-pointer" onClick={() => { logout(); navigate('/login'); }}>
+      <div className="mb-4 shrink-0">
+        {(currentUser.tenantIds && currentUser.tenantIds.length > 1) || currentUser.role === Role.SUPER_ADMIN ? (
+          <RestaurantSwitcher />
+        ) : (
           <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center border-2 border-white/20">
             {business.logo ? (
               <img src={business.logo} alt="Logo" className="w-8 h-8 object-contain rounded-full" />
@@ -104,6 +109,7 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
               <UtensilsCrossed size={24} className="text-white/20" />
             )}
           </div>
+        )}
       </div>
 
       <nav className="flex-1 flex flex-col items-center overflow-y-auto w-full px-2 no-scrollbar">
@@ -120,6 +126,9 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
                 </NavLink>
                 <NavLink to="/platform-expenses" onClick={() => onClose()} className={navItemClass('/platform-expenses')} title="Platform Expenses">
                   <Wallet size={22} />
+                </NavLink>
+                <NavLink to="/global-reports" onClick={() => onClose()} className={navItemClass('/global-reports')} title="Global Reports">
+                  <Globe size={22} />
                 </NavLink>
               </>
             ) : currentUser.role === Role.CUSTOMER ? (
@@ -197,6 +206,12 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
                 {permissions.includes('Reports') && (
                   <NavLink to={`/${tId}/reports`} onClick={() => onClose()} className={navItemClass('/reports')} title="Reports">
                     <PieChart size={22} />
+                  </NavLink>
+                )}
+
+                {currentUser.role === Role.OWNER && currentUser.tenantIds && currentUser.tenantIds.length > 1 && (
+                  <NavLink to="/global-reports" onClick={() => onClose()} className={navItemClass('/global-reports')} title="Global Reports">
+                    <Globe size={22} />
                   </NavLink>
                 )}
 
@@ -332,6 +347,7 @@ const ProtectedLayout = ({ children, allowedRoles }: { children?: React.ReactNod
       'transactions': 'Transactions',
       'inventory': 'Inventory',
       'reports': 'Reports',
+      'global-reports': 'Reports',
       'users': 'Users',
       'expenses': 'Expenses'
     };
@@ -637,6 +653,7 @@ const AppContent = () => {
       <Route path="/pending-bills" element={<ProtectedLayout allowedRoles={[Role.SUPER_ADMIN]}><PendingBills /></ProtectedLayout>} />
       <Route path="/approved-bills" element={<ProtectedLayout allowedRoles={[Role.SUPER_ADMIN]}><ApprovedBills /></ProtectedLayout>} />
       <Route path="/platform-expenses" element={<ProtectedLayout allowedRoles={[Role.SUPER_ADMIN]}><PlatformExpenses /></ProtectedLayout>} />
+      <Route path="/global-reports" element={<ProtectedLayout allowedRoles={[Role.SUPER_ADMIN, Role.OWNER]}><GlobalReports /></ProtectedLayout>} />
       <Route path="/:tenantId" element={<TenantLanding />} />
     </Routes>
   );

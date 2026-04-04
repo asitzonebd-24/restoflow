@@ -104,6 +104,7 @@ interface AppContextType {
   ) => Promise<void>;
   updateOrderStatus: (orderId: string, status: OrderStatus, discount?: number) => Promise<void>;
   updateOrderItemStatus: (orderId: string, rowId: string | string[], status: ItemStatus) => Promise<void>;
+  updateOrderPaymentStatus: (orderId: string, isPaid: boolean) => Promise<void>;
   updateInventory: (itemId: string, quantityChange: number) => Promise<void>;
   addInventoryItem: (item: Omit<InventoryItem, 'tenantId'>) => Promise<void>;
   editInventoryItem: (id: string, updates: Partial<InventoryItem>) => Promise<void>;
@@ -127,6 +128,8 @@ interface AppContextType {
   currentTenant: Business;
   currentTenantId: string | null;
   setCurrentTenantId: (id: string | null) => void;
+  activeTenantId: string | null;
+  setActiveTenantId: (id: string | null) => void;
   createBusiness: (businessData: Partial<Business>, ownerData: Partial<User>, sourceTenantId?: string) => Promise<string>;
   loginWithGoogle: () => Promise<void>;
   toggleBusinessStatus: (tenantId: string) => Promise<void>;
@@ -179,6 +182,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     return savedUser ? JSON.parse(savedUser) : null;
   });
   const [currentTenantId, setCurrentTenantId] = useState<string | null>(null);
+  const [activeTenantId, setActiveTenantId] = useState<string | null>(null);
 
   useEffect(() => {
     if (currentTenantId) {
@@ -341,12 +345,22 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   const resolvedTenantId = useMemo(() => {
-    const rawId = currentUser?.tenantId || currentTenantId;
+    let rawId = activeTenantId;
+    if (!rawId) {
+      if (currentUser?.tenantIds && currentTenantId && currentUser.tenantIds.includes(currentTenantId)) {
+        rawId = currentTenantId;
+      } else if (currentUser?.role === Role.SUPER_ADMIN && currentTenantId && currentTenantId !== '00' && currentTenantId !== '01') {
+        rawId = currentTenantId;
+      } else {
+        rawId = currentUser?.tenantId || currentTenantId;
+      }
+    }
+    
     if (!rawId) return null;
     const tenantBySlug = tenants.find(t => t.slug === rawId || t.id === rawId);
     if (tenantBySlug) return tenantBySlug.id;
     return rawId;
-  }, [currentUser?.tenantId, currentTenantId, tenants]);
+  }, [activeTenantId, currentUser, currentTenantId, tenants]);
 
   // 1. Tenants Listener (Global or Tenant-specific)
   useEffect(() => {
@@ -370,10 +384,16 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     const rawTenantId = currentUser?.tenantId || currentTenantId;
 
     let tenantsQuery = query(collection(db, 'tenants'), limit(100));
-    if (!isSuperAdmin && rawTenantId) {
-      tenantsQuery = query(collection(db, 'tenants'), or(where('id', '==', rawTenantId), where('slug', '==', rawTenantId)), limit(1));
-    } else if (!isSuperAdmin && !rawTenantId) {
-      tenantsQuery = query(collection(db, 'tenants'), limit(10));
+    if (!isSuperAdmin) {
+      if (currentUser?.tenantIds && currentUser.tenantIds.length > 0) {
+        // Fetch up to 10 tenants if they have multiple
+        const idsToFetch = currentUser.tenantIds.slice(0, 10);
+        tenantsQuery = query(collection(db, 'tenants'), where('id', 'in', idsToFetch));
+      } else if (rawTenantId) {
+        tenantsQuery = query(collection(db, 'tenants'), or(where('id', '==', rawTenantId), where('slug', '==', rawTenantId)), limit(1));
+      } else {
+        tenantsQuery = query(collection(db, 'tenants'), limit(10));
+      }
     }
 
     const unsubTenants = onSnapshot(tenantsQuery, (snapshot) => {
@@ -541,7 +561,11 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const users = useMemo(() => {
     if (currentUser?.role === Role.SUPER_ADMIN) return allUsers;
     const targetId = business.id;
-    return allUsers.filter(u => String(u.tenantId || '01') === String(targetId) || u.role === Role.SUPER_ADMIN);
+    return allUsers.filter(u => 
+      String(u.tenantId || '01') === String(targetId) || 
+      (u.tenantIds && u.tenantIds.includes(String(targetId))) || 
+      u.role === Role.SUPER_ADMIN
+    );
   }, [allUsers, currentUser, business.id]);
 
   const transactions = useMemo(() => {
@@ -1161,6 +1185,15 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     }
   };
 
+  const updateOrderPaymentStatus = async (orderId: string, isPaid: boolean) => {
+    try {
+      await updateDoc(doc(db, 'orders', orderId), { isPaid });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `orders/${orderId}`);
+      throw error;
+    }
+  };
+
   const updateInventory = async (itemId: string, quantityChange: number) => {
     try {
       const item = allInventory.find(i => i.id === itemId);
@@ -1651,39 +1684,61 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     };
 
     let ownerUid = `u-${Date.now()}`;
-    try {
-      // Create owner in Firebase Auth using secondary app to avoid signing out current user
-      if (ownerData.email && ownerData.password) {
-        const userCredential = await createUserWithEmailAndPassword(secondaryAuth, ownerData.email, ownerData.password);
-        ownerUid = userCredential.user.uid;
-        await signOut(secondaryAuth);
-      }
-    } catch (authError: any) {
-      console.error('Error creating owner auth:', authError);
-      if (authError.code === 'auth/email-already-in-use') {
-        toast.error('The email address is already in use by another account. Please use a different email.');
+    let existingOwner: User | null = null;
+    
+    const existingUser = allUsers.find(u => u.email.toLowerCase() === ownerData.email?.toLowerCase());
+    if (existingUser) {
+      if (existingUser.role !== Role.OWNER) {
+        toast.error('This email is already registered for a non-owner account.');
         return '';
       }
-      toast.error('Failed to create owner account: ' + authError.message);
-      return '';
+      existingOwner = existingUser;
+      ownerUid = existingUser.id;
+    } else {
+      try {
+        // Create owner in Firebase Auth using secondary app to avoid signing out current user
+        if (ownerData.email && ownerData.password) {
+          const userCredential = await createUserWithEmailAndPassword(secondaryAuth, ownerData.email, ownerData.password);
+          ownerUid = userCredential.user.uid;
+          await signOut(secondaryAuth);
+        }
+      } catch (authError: any) {
+        console.error('Error creating owner auth:', authError);
+        if (authError.code === 'auth/email-already-in-use') {
+          toast.error('The email address is already in use by another account. Please use a different email.');
+          return '';
+        }
+        toast.error('Failed to create owner account: ' + authError.message);
+        return '';
+      }
     }
 
-    const newOwner: User = {
-      id: ownerUid,
-      tenantId: newTenantId,
-      name: ownerData.name || 'Owner',
-      email: ownerData.email || '',
-      password: ownerData.password || '',
-      mobile: ownerData.mobile || '',
-      role: Role.OWNER,
-      avatar: '',
-      permissions: ['Dashboard', 'POS', 'Kitchen', 'Menu', 'Billing', 'Transactions', 'Expenses', 'Reports', 'Inventory', 'Users', 'Settings']
-    };
+    let ownerToSave: User;
+    if (existingOwner) {
+      const updatedTenantIds = existingOwner.tenantIds ? [...existingOwner.tenantIds, newTenantId] : [existingOwner.tenantId || '', newTenantId].filter(Boolean);
+      ownerToSave = { 
+        ...existingOwner, 
+        tenantIds: Array.from(new Set(updatedTenantIds)) 
+      };
+    } else {
+      ownerToSave = {
+        id: ownerUid,
+        tenantId: newTenantId,
+        tenantIds: [newTenantId],
+        name: ownerData.name || 'Owner',
+        email: ownerData.email || '',
+        password: ownerData.password || '',
+        mobile: ownerData.mobile || '',
+        role: Role.OWNER,
+        avatar: '',
+        permissions: ['Dashboard', 'POS', 'Kitchen', 'Menu', 'Billing', 'Transactions', 'Expenses', 'Reports', 'Inventory', 'Users', 'Settings']
+      };
+    }
 
     try {
       const batch = writeBatch(db);
       batch.set(doc(db, 'tenants', newBusiness.id), newBusiness);
-      batch.set(doc(db, 'users', newOwner.id), newOwner);
+      batch.set(doc(db, 'users', ownerToSave.id), ownerToSave);
 
       if (sourceTenantId) {
         const sourceMenuItems = allMenu.filter(m => m.tenantId === sourceTenantId);
@@ -1706,8 +1761,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         return [...prev, newBusiness];
       });
       setAllUsers(prev => {
-        if (prev.some(u => u.id === newOwner.id)) return prev;
-        return [...prev, newOwner];
+        if (prev.some(u => u.id === ownerToSave.id)) return prev;
+        return [...prev, ownerToSave];
       });
       
       toast.success(`Business "${newBusiness.name}" created successfully!`);
@@ -1722,6 +1777,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     const tenantId = resolvedTenantId || '';
     const newTransaction = { ...transaction, tenantId } as Transaction;
     
+    console.log('[AppContext] Adding transaction:', newTransaction);
     try {
       const transRef = doc(db, 'transactions', newTransaction.id);
       await setDoc(transRef, cleanObject(newTransaction));
@@ -1834,6 +1890,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       updateOrderItems,
       updateOrderStatus,
       updateOrderItemStatus,
+      updateOrderPaymentStatus,
       updateInventory,
       addInventoryItem,
       editInventoryItem,
@@ -1861,6 +1918,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       currentTenant: business,
       currentTenantId,
       setCurrentTenantId,
+      activeTenantId,
+      setActiveTenantId,
       createBusiness,
       loginWithGoogle,
       toggleBusinessStatus,

@@ -7,7 +7,7 @@ import { BluetoothPrinterService } from '../services/printerService';
 import { Pagination } from '../components/Pagination';
 
 export const Billing = () => {
-  const { orders, currentTenant, currentUser, updateOrderStatus, updateOrderItems, addTransaction, users } = useApp();
+  const { orders, currentTenant, currentUser, updateOrderStatus, updateOrderItems, updateOrderPaymentStatus, addTransaction, users } = useApp();
   const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
   const [discounts, setDiscounts] = useState<{ [key: string]: number }>({});
   const [searchTerm, setSearchTerm] = useState('');
@@ -18,6 +18,7 @@ export const Billing = () => {
   const [showConfirmCollect, setShowConfirmCollect] = useState(false);
   
   const getCreator = (userId: string) => {
+    if (userId === currentUser?.id) return currentUser;
     return users.find(u => u.id === userId);
   };
 
@@ -34,12 +35,13 @@ export const Billing = () => {
 
     return orders
       .filter(o => {
-        const isReady = o.status === OrderStatus.READY;
+        // Include READY orders and COMPLETED orders that are not yet paid (if any)
+        const isDoneOrPaid = o.status === OrderStatus.READY || (o.status === OrderStatus.COMPLETED && !o.isPaid);
         const matchesSearch = o.tokenNumber.toLowerCase().includes(searchTerm.toLowerCase()) || 
                               (o.deliveryStaffName && o.deliveryStaffName.toLowerCase().includes(searchTerm.toLowerCase()));
         const matchesStaff = selectedStaffId === 'all' || o.createdBy === selectedStaffId || o.deliveryStaffId === selectedStaffId;
         const isOwnOrder = canSeeAll || (currentUser && o.createdBy === currentUser.id);
-        return isReady && matchesSearch && matchesStaff && isOwnOrder;
+        return isDoneOrPaid && matchesSearch && matchesStaff && isOwnOrder;
       })
       .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
   }, [orders, searchTerm, selectedStaffId, currentUser]);
@@ -87,14 +89,14 @@ export const Billing = () => {
     return grouped;
   };
 
-  const handlePayment = (order: Order) => {
+  const handlePayment = async (order: Order) => {
     const discount = discounts[order.id] || 0;
     const { total } = calculateTotal(order, discount);
     const groupedItems = groupItems(order.items);
     const creator = getCreator(order.createdBy);
     
     const transaction = {
-        id: `txn-${Date.now()}`,
+        id: `txn-${Date.now()}-${order.id}`,
         tenantId: currentTenant.id,
         orderId: order.id,
         amount: total,
@@ -105,8 +107,9 @@ export const Billing = () => {
         creatorName: creator?.name || 'Unknown'
     };
     
-    addTransaction(transaction);
-    updateOrderStatus(order.id, OrderStatus.COMPLETED, discount);
+    await addTransaction(transaction);
+    await updateOrderStatus(order.id, OrderStatus.COMPLETED, discount);
+    await updateOrderPaymentStatus(order.id, true);
     
     // Auto-print invoice if enabled
     if (currentTenant?.printerSettings?.autoPrintInvoice) {
@@ -126,11 +129,11 @@ export const Billing = () => {
     setShowConfirmCollect(true);
   };
 
-  const confirmBulkPayment = () => {
+  const confirmBulkPayment = async () => {
     const selectedOrders = filteredOrders.filter(o => selectedOrderIds.includes(o.id));
     if (selectedOrders.length === 0) return;
 
-    selectedOrders.forEach(order => {
+    for (const order of selectedOrders) {
       const discount = discounts[order.id] || 0;
       const { total } = calculateTotal(order, discount);
       const groupedItems = groupItems(order.items);
@@ -148,9 +151,10 @@ export const Billing = () => {
           creatorName: creator?.name || 'Unknown'
       };
       
-      addTransaction(transaction);
-      updateOrderStatus(order.id, OrderStatus.COMPLETED, discount);
-    });
+      await addTransaction(transaction);
+      await updateOrderStatus(order.id, OrderStatus.COMPLETED, discount);
+      await updateOrderPaymentStatus(order.id, true);
+    }
 
     setSelectedOrderIds([]);
     setShowConfirmCollect(false);
@@ -191,7 +195,7 @@ export const Billing = () => {
       return;
     }
 
-    const staff = users.find(u => u.id === staffId);
+    const staff = staffId === currentUser?.id ? currentUser : users.find(u => u.id === staffId);
     if (staff) {
       await updateOrderItems(
         orderId,
@@ -680,8 +684,8 @@ export const Billing = () => {
 
             <div className="p-8 border-t border-slate-50 bg-slate-50 flex flex-col md:flex-row gap-4 print:hidden shrink-0">
               <button 
-                onClick={() => {
-                  handlePayment(invoiceOrder);
+                onClick={async () => {
+                  await handlePayment(invoiceOrder);
                   setInvoiceOrder(null);
                 }} 
                 className="flex-1 flex items-center justify-center gap-3 bg-emerald-500 text-white py-4 rounded-2xl hover:bg-emerald-600 transition-all font-bold uppercase tracking-widest text-[10px] shadow-lg active:scale-95 border-2 border-black"
@@ -714,11 +718,18 @@ export const Billing = () => {
                   <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">Staff Name</p>
                   <p className="text-xs font-black text-emerald-600 uppercase tracking-tight">
                     {(() => {
-                      if (selectedStaffId !== 'all') return users.find(u => u.id === selectedStaffId)?.name || 'Unknown';
+                      if (selectedStaffId !== 'all') {
+                        if (selectedStaffId === currentUser?.id) return currentUser?.name || 'Unknown';
+                        return users.find(u => u.id === selectedStaffId)?.name || 'Unknown';
+                      }
                       if (selectedOrderIds.length === 0) return 'All Staff';
                       const firstOrderCreator = orders.find(o => o.id === selectedOrderIds[0])?.createdBy;
                       const allSame = selectedOrderIds.every(id => orders.find(o => o.id === id)?.createdBy === firstOrderCreator);
-                      return allSame ? (users.find(u => u.id === firstOrderCreator)?.name || 'All Staff') : 'All Staff';
+                      if (allSame) {
+                        if (firstOrderCreator === currentUser?.id) return currentUser?.name || 'All Staff';
+                        return users.find(u => u.id === firstOrderCreator)?.name || 'All Staff';
+                      }
+                      return 'All Staff';
                     })()}
                   </p>
                 </div>
