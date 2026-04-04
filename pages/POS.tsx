@@ -647,11 +647,17 @@ export const POS = () => {
         const result = await BluetoothPrinterService.connect(currentTenant.printerSettings.pairedPrinterId);
         if (result.success) {
           const token = isCreatingNew ? newTokenNum : orders.find(o => o.id === selectedOrderId)?.tokenNumber;
+          const table = isCreatingNew ? (isDelivery ? 'Delivery' : newTableNum) : orders.find(o => o.id === selectedOrderId)?.tableNumber;
+          const creatorId = isCreatingNew ? currentUser?.id : orders.find(o => o.id === selectedOrderId)?.createdBy;
+          const creatorName = creatorId ? getWaiterName(creatorId) : 'Staff';
+          
           const orderData = {
             tokenNumber: token || '000',
+            tableNumber: table,
             items: cart,
             note: orderNote,
-            createdAt: new Date().toISOString()
+            createdAt: new Date().toISOString(),
+            creatorName: creatorName
           };
           await BluetoothPrinterService.printKOT(currentTenant, orderData as any);
           return; // Skip system print if bluetooth worked
@@ -1156,6 +1162,7 @@ export const POS = () => {
           <h2 className="text-3xl font-bold uppercase tracking-widest">KITCHEN TICKET</h2>
           <p className="text-lg font-bold">Token: #{isCreatingNew ? newTokenNum : orders.find(o => o.id === selectedOrderId)?.tokenNumber}</p>
           <p className="text-lg font-bold">Table: {isCreatingNew ? (isDelivery ? 'Delivery' : newTableNum) : orders.find(o => o.id === selectedOrderId)?.tableNumber}</p>
+          <p className="text-lg font-bold">Waiter: {isCreatingNew ? currentUser?.name : getWaiterName(orders.find(o => o.id === selectedOrderId)?.createdBy || '')}</p>
           <p className="text-base mt-1 font-bold">{new Date().toLocaleString()}</p>
         </div>
         

@@ -451,6 +451,9 @@ export class BluetoothPrinterService {
     await this.printTextLine('KITCHEN TICKET', pixelWidth, { align: 'center', doubleSize: true, bold: true });
     await this.printTextLine(`Token: #${order.tokenNumber}`, pixelWidth, { align: 'center' });
     await this.printTextLine(`Table: ${order.tableNumber || 'Delivery'}`, pixelWidth, { align: 'center' });
+    if (order.creatorName) {
+      await this.printTextLine(`Waiter: ${order.creatorName}`, pixelWidth, { align: 'center' });
+    }
     await this.printTextLine(new Date().toLocaleString(), pixelWidth, { align: 'center' });
     await this.printRaw(new Uint8Array(new TextEncoder().encode('-'.repeat(width) + '\n')));
 
