@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { Order, MenuItem } from '../types';
+import { Order, MenuItem, OrderStatus } from '../types';
 import { Search, Calendar, Filter, ShoppingBag } from 'lucide-react';
 import { Pagination } from '../components/Pagination';
 

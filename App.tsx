@@ -33,6 +33,37 @@ import { LayoutDashboard, UtensilsCrossed, ChefHat, Receipt, Package, LogOut, Se
 
 import { collection, addDoc } from "firebase/firestore";
 import { RestaurantSwitcher } from './components/RestaurantSwitcher';
+import { WifiOff, Wifi } from 'lucide-react';
+
+const OfflineIndicator = () => {
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  React.useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  if (isOnline) return null;
+
+  return (
+    <motion.div 
+      initial={{ y: -50, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      className="fixed top-4 left-1/2 -translate-x-1/2 z-[9999] bg-rose-500 text-white px-6 py-2 rounded-full shadow-2xl flex items-center gap-3 border-2 border-white/20 backdrop-blur-md"
+    >
+      <WifiOff size={18} className="animate-pulse" />
+      <span className="text-[10px] font-black uppercase tracking-widest">Offline Mode - Data will sync when online</span>
+    </motion.div>
+  );
+};
 
 // Run test on load
 // testFirestore();
@@ -593,7 +624,9 @@ const AppContent = () => {
   };
 
   return (
-    <Routes>
+    <>
+      <OfflineIndicator />
+      <Routes>
       <Route path="/" element={currentUser ? <Navigate to={getDefaultRedirect()} /> : <Landing />} />
       <Route path="/login" element={currentUser ? <Navigate to={getDefaultRedirect()} /> : <Login />} />
       <Route path="/order/auth" element={currentUser ? <Navigate to={currentUser.role === Role.CUSTOMER ? `/${currentUser.tenantId}/order` : "/"} /> : <CustomerAuth />} />
@@ -656,6 +689,7 @@ const AppContent = () => {
       <Route path="/global-reports" element={<ProtectedLayout allowedRoles={[Role.SUPER_ADMIN, Role.OWNER]}><GlobalReports /></ProtectedLayout>} />
       <Route path="/:tenantId" element={<TenantLanding />} />
     </Routes>
+    </>
   );
 }
 
