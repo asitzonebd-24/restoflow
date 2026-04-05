@@ -27,9 +27,14 @@ export const RestaurantSwitcher = () => {
   };
 
   // Determine which tenants to show
+  const accessibleTenantIds = Array.from(new Set([
+    ...(currentUser?.tenantIds || []),
+    currentUser?.tenantId
+  ].filter(Boolean) as string[]));
+
   const availableTenants = currentUser?.role === Role.SUPER_ADMIN 
     ? tenants 
-    : tenants.filter(t => currentUser?.tenantIds?.includes(t.id));
+    : tenants.filter(t => accessibleTenantIds.includes(t.id));
 
   if (availableTenants.length <= 1 && currentUser?.role !== Role.SUPER_ADMIN) {
     return (

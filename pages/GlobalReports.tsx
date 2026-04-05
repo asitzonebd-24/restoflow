@@ -29,7 +29,10 @@ export const GlobalReports = () => {
         if (currentUser.role === Role.SUPER_ADMIN) {
           allowedTenantIds = tenants.map(t => t.id);
         } else {
-          allowedTenantIds = currentUser.tenantIds || [currentUser.tenantId].filter(Boolean) as string[];
+          allowedTenantIds = Array.from(new Set([
+            ...(currentUser.tenantIds || []),
+            currentUser.tenantId
+          ].filter(Boolean) as string[]));
         }
 
         if (allowedTenantIds.length === 0) {

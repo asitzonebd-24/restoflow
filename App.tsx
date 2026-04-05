@@ -123,6 +123,10 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
   };
 
   const permissions = currentUser.permissions || [];
+  const accessibleTenantsCount = Array.from(new Set([
+    ...(currentUser.tenantIds || []),
+    currentUser.tenantId
+  ].filter(Boolean))).length;
 
   return (
     <div 
@@ -130,7 +134,7 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
       style={{ background: '#11112b' }}
     >
       <div className="mb-4 shrink-0">
-        {(currentUser.tenantIds && currentUser.tenantIds.length > 1) || currentUser.role === Role.SUPER_ADMIN ? (
+        {accessibleTenantsCount > 1 || currentUser.role === Role.SUPER_ADMIN ? (
           <RestaurantSwitcher />
         ) : (
           <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center border-2 border-white/20">
@@ -240,7 +244,7 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
                   </NavLink>
                 )}
 
-                {currentUser.role === Role.OWNER && currentUser.tenantIds && currentUser.tenantIds.length > 1 && (
+                {currentUser.role === Role.OWNER && accessibleTenantsCount > 1 && (
                   <NavLink to="/global-reports" onClick={() => onClose()} className={navItemClass('/global-reports')} title="Global Reports">
                     <Globe size={22} />
                   </NavLink>

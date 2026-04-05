@@ -450,8 +450,8 @@ export const SuperAdmin = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y-2 divide-black">
-                  {filteredTenants.map((tenant) => (
-                    <tr key={tenant.id} className={`hover:bg-slate-50/50 transition ${!tenant.isActive ? 'opacity-60' : ''} ${selectedTenants.includes(tenant.id) ? 'bg-indigo-50/30' : ''}`}>
+                  {filteredTenants.map((tenant, index) => (
+                    <tr key={`${tenant.id}-${index}`} className={`hover:bg-slate-50/50 transition ${!tenant.isActive ? 'opacity-60' : ''} ${selectedTenants.includes(tenant.id) ? 'bg-indigo-50/30' : ''}`}>
                       <td className="px-2 py-2 border-r border-black">
                         <input 
                           type="checkbox" 
@@ -598,9 +598,9 @@ export const SuperAdmin = () => {
 
             {/* Mobile Card View */}
             <div className="md:hidden divide-y-2 divide-black">
-              {filteredTenants.map((tenant) => (
+              {filteredTenants.map((tenant, index) => (
                 <div 
-                  key={tenant.id} 
+                  key={`${tenant.id}-${index}`} 
                   className={`p-4 space-y-4 transition-all border-2 m-2 rounded-2xl ${
                     selectedTenants.includes(tenant.id) 
                       ? 'bg-indigo-50/50 border-black shadow-lg' 
@@ -738,8 +738,8 @@ export const SuperAdmin = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y-2 divide-black">
-                  {filteredUsers.map((user) => (
-                    <tr key={user.id} className="hover:bg-slate-50/50 transition">
+                  {filteredUsers.map((user, index) => (
+                    <tr key={`${user.id}-${index}`} className="hover:bg-slate-50/50 transition">
                       <td className="px-4 py-3 border-r border-black">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-full border-2 border-black bg-slate-100 flex items-center justify-center overflow-hidden shrink-0">
@@ -766,7 +766,7 @@ export const SuperAdmin = () => {
                       </td>
                       <td className="px-4 py-3 border-r border-black">
                         <div className="flex flex-wrap gap-1">
-                          {(user.tenantIds || [user.tenantId].filter(Boolean)).map((tid: string) => {
+                          {Array.from(new Set([...(user.tenantIds || []), user.tenantId].filter(Boolean))).map((tid: string) => {
                             const t = tenants.find(ten => ten.id === tid);
                             return (
                               <span key={tid} className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded text-[8px] font-bold border border-slate-200">
@@ -774,7 +774,7 @@ export const SuperAdmin = () => {
                               </span>
                             );
                           })}
-                          {(user.tenantIds || [user.tenantId].filter(Boolean)).length === 0 && (
+                          {Array.from(new Set([...(user.tenantIds || []), user.tenantId].filter(Boolean))).length === 0 && (
                             <span className="text-[10px] text-slate-400 italic">No restaurants linked</span>
                           )}
                         </div>

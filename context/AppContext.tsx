@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect, useRef } from 'react';
 import { Role, Business, User, Order, InventoryItem, MenuItem, OrderStatus, ItemStatus, Transaction, Expense, OrderItem, MonthlyBill, BillStatus, Recipe, Table, InventoryMode } from '../types';
 import { BUSINESS_DETAILS, MOCK_USERS, INITIAL_ORDERS, MOCK_INVENTORY, MOCK_MENU, MOCK_EXPENSES, DEFAULT_MENU_IMAGE, DEFAULT_AVATAR, DEFAULT_BUSINESS_LOGO } from '../constants';
 import { auth, secondaryAuth, db, googleProvider } from '../src/firebase';
@@ -237,24 +237,27 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     missingTables: []
   });
 
+  const profileUnsubRef = useRef<(() => void) | null>(null);
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       try {
         if (user) {
-          // Fetch user profile from Firestore
-          const userDoc = await getDoc(doc(db, 'users', user.uid));
-          if (userDoc.exists()) {
-            const userData = { id: userDoc.id, ...convertFirestoreData(userDoc.data()) } as User;
-            setCurrentUser(userData);
-            localStorage.setItem('resto_keep_user', JSON.stringify(userData));
-          } else {
-            // If no user doc exists, clear local state and sign out
-            console.warn('User authenticated but no profile found in Firestore. Signing out...');
-            setCurrentUser(null);
-            localStorage.removeItem('resto_keep_user');
-            await signOut(auth);
-          }
+          // Real-time listener for current user profile
+          const userRef = doc(db, 'users', user.uid);
+          profileUnsubRef.current = onSnapshot(userRef, (doc) => {
+            if (doc.exists()) {
+              const userData = { id: doc.id, ...convertFirestoreData(doc.data()) } as User;
+              setCurrentUser(userData);
+              localStorage.setItem('resto_keep_user', JSON.stringify(userData));
+            } else {
+              console.warn('User profile not found in Firestore');
+            }
+          });
         } else {
+          if (profileUnsubRef.current) {
+            profileUnsubRef.current();
+            profileUnsubRef.current = null;
+          }
           setCurrentUser(null);
           localStorage.removeItem('resto_keep_user');
         }
@@ -265,69 +268,74 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       }
     });
 
-    // Bootstrap Super Admin into Firestore if it doesn't exist
-    const bootstrapSuperAdmin = async () => {
-      // Only run once per browser to avoid "too many login attempts" from Firebase Auth
-      if (localStorage.getItem('sa_bootstrapped')) return;
+    bootstrapSuperAdmin();
 
+    return () => {
+      unsubscribe();
+      if (profileUnsubRef.current) {
+        profileUnsubRef.current();
+      }
+    };
+  }, []);
+
+  // Bootstrap Super Admin into Firestore if it doesn't exist
+  const bootstrapSuperAdmin = async () => {
+    // Only run once per browser to avoid "too many login attempts" from Firebase Auth
+    if (localStorage.getItem('sa_bootstrapped')) return;
+
+    try {
+      const saEmail = 'asitzonebd@gmail.com';
+      const saPassword = 'admin123'; // Match MOCK_USERS password
+      
+      // Try to sign in to see if the user exists in Firebase Auth
       try {
-        const saEmail = 'asitzonebd@gmail.com';
-        const saPassword = 'admin123'; // Match MOCK_USERS password
+        const userCredential = await signInWithEmailAndPassword(secondaryAuth, saEmail, saPassword);
         
-        // Try to sign in to see if the user exists in Firebase Auth
-        try {
-          const userCredential = await signInWithEmailAndPassword(secondaryAuth, saEmail, saPassword);
-          
-          // Check if Firestore doc exists
-          const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
-          if (!userDoc.exists()) {
-            console.log('Super Admin exists in Auth but missing in Firestore. Creating doc...');
+        // Check if Firestore doc exists
+        const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
+        if (!userDoc.exists()) {
+          console.log('Super Admin exists in Auth but missing in Firestore. Creating doc...');
+          const saUser = MOCK_USERS.find(u => u.email === saEmail);
+          if (saUser) {
+            const newUser = { ...saUser, id: userCredential.user.uid };
+            await setDoc(doc(db, 'users', newUser.id), newUser);
+            console.log('Super Admin doc created successfully.');
+          }
+        }
+        await signOut(secondaryAuth);
+        localStorage.setItem('sa_bootstrapped', 'true');
+      } catch (e: any) {
+        // If user doesn't exist or invalid credentials, try to create them
+        if (e.code === 'auth/user-not-found' || e.code === 'auth/invalid-credential' || e.message.includes('invalid-credential')) {
+          console.log('Bootstrapping Super Admin into Firebase Auth...');
+          try {
+            const userCredential = await createUserWithEmailAndPassword(secondaryAuth, saEmail, saPassword);
+            
             const saUser = MOCK_USERS.find(u => u.email === saEmail);
             if (saUser) {
               const newUser = { ...saUser, id: userCredential.user.uid };
               await setDoc(doc(db, 'users', newUser.id), newUser);
-              console.log('Super Admin doc created successfully.');
+              console.log('Super Admin bootstrapped successfully.');
             }
-          }
-          await signOut(secondaryAuth);
-          localStorage.setItem('sa_bootstrapped', 'true');
-        } catch (e: any) {
-          // If user doesn't exist or invalid credentials, try to create them
-          if (e.code === 'auth/user-not-found' || e.code === 'auth/invalid-credential' || e.message.includes('invalid-credential')) {
-            console.log('Bootstrapping Super Admin into Firebase Auth...');
-            try {
-              const userCredential = await createUserWithEmailAndPassword(secondaryAuth, saEmail, saPassword);
-              
-              const saUser = MOCK_USERS.find(u => u.email === saEmail);
-              if (saUser) {
-                const newUser = { ...saUser, id: userCredential.user.uid };
-                await setDoc(doc(db, 'users', newUser.id), newUser);
-                console.log('Super Admin bootstrapped successfully.');
-              }
-              await signOut(secondaryAuth);
+            await signOut(secondaryAuth);
+            localStorage.setItem('sa_bootstrapped', 'true');
+          } catch (createError: any) {
+            if (createError.code === 'auth/email-already-in-use') {
               localStorage.setItem('sa_bootstrapped', 'true');
-            } catch (createError: any) {
-              if (createError.code === 'auth/email-already-in-use') {
-                localStorage.setItem('sa_bootstrapped', 'true');
-              } else if (createError.code === 'auth/too-many-requests') {
-                console.warn('Too many login attempts. Skipping bootstrap for now.');
-              } else {
-                console.error('Failed to create Super Admin:', createError);
-              }
+            } else if (createError.code === 'auth/too-many-requests') {
+              console.warn('Too many login attempts. Skipping bootstrap for now.');
+            } else {
+              console.error('Failed to create Super Admin:', createError);
             }
-          } else if (e.code === 'auth/too-many-requests') {
-            console.warn('Too many login attempts. Skipping bootstrap for now.');
           }
+        } else if (e.code === 'auth/too-many-requests') {
+          console.warn('Too many login attempts. Skipping bootstrap for now.');
         }
-      } catch (error) {
-        console.error('Error bootstrapping Super Admin:', error);
       }
-    };
-
-    bootstrapSuperAdmin();
-
-    return () => unsubscribe();
-  }, []);
+    } catch (error) {
+      console.error('Error bootstrapping Super Admin:', error);
+    }
+  };
   const convertFirestoreData = (data: any) => {
     const cleaned = { ...data };
     Object.keys(cleaned).forEach(key => {
@@ -382,16 +390,53 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
     const isSuperAdmin = currentUser?.role === Role.SUPER_ADMIN;
     const rawTenantId = currentUser?.tenantId || currentTenantId;
+    
+    // All IDs we definitely want to fetch
+    const accessibleTenantIds = Array.from(new Set([
+      ...(currentUser?.tenantIds || []),
+      currentUser?.tenantId
+    ].filter(Boolean) as string[]));
 
-    let tenantsQuery = query(collection(db, 'tenants'), limit(100));
-    if (!isSuperAdmin) {
-      if (currentUser?.tenantIds && currentUser.tenantIds.length > 0) {
-        // Fetch up to 10 tenants if they have multiple
-        const idsToFetch = currentUser.tenantIds.slice(0, 10);
-        tenantsQuery = query(collection(db, 'tenants'), where('id', 'in', idsToFetch));
-      } else if (rawTenantId) {
-        tenantsQuery = query(collection(db, 'tenants'), or(where('id', '==', rawTenantId), where('slug', '==', rawTenantId)), limit(1));
+    let tenantsQuery;
+    
+    if (isSuperAdmin) {
+      // Super admins get a lot, but if they are looking for a specific one, we should prioritize it
+      if (currentTenantId && currentTenantId !== '00' && currentTenantId !== '01') {
+        tenantsQuery = query(
+          collection(db, 'tenants'), 
+          or(
+            where('id', '==', currentTenantId),
+            where('slug', '==', currentTenantId),
+            where('id', 'in', ['01', '02', '03', '04', '05']) // Fetch a few others too
+          ),
+          limit(20)
+        );
       } else {
+        tenantsQuery = query(collection(db, 'tenants'), limit(100));
+      }
+    } else {
+      if (accessibleTenantIds.length > 0) {
+        // Fetch the user's tenants. 
+        // If currentTenantId is not in their list, we should still try to fetch it 
+        // so the app can show "Access Denied" or "Business Not Found" correctly
+        const idsToFetch = accessibleTenantIds.slice(0, 10);
+        if (currentTenantId && !idsToFetch.includes(currentTenantId)) {
+          tenantsQuery = query(
+            collection(db, 'tenants'), 
+            or(
+              where('id', 'in', idsToFetch),
+              where('id', '==', currentTenantId),
+              where('slug', '==', currentTenantId)
+            )
+          );
+        } else {
+          tenantsQuery = query(collection(db, 'tenants'), where('id', 'in', idsToFetch));
+        }
+      } else if (currentTenantId) {
+        // Unauthenticated or no tenants, but we have a URL param
+        tenantsQuery = query(collection(db, 'tenants'), or(where('id', '==', currentTenantId), where('slug', '==', currentTenantId)), limit(1));
+      } else {
+        // Default fallback
         tenantsQuery = query(collection(db, 'tenants'), limit(10));
       }
     }
@@ -425,7 +470,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       if (timer) clearTimeout(timer);
       unsubTenants();
     };
-  }, [isAuthReady, currentUser?.role, currentTenantId]);
+  }, [isAuthReady, currentUser?.role, currentUser?.tenantId, JSON.stringify(currentUser?.tenantIds), currentTenantId]);
 
   // 2. Data Listeners (Dependent on resolvedTenantId)
   useEffect(() => {
@@ -514,6 +559,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         const hasChanged = 
           updatedUser.role !== currentUser.role || 
           JSON.stringify(updatedUser.permissions) !== JSON.stringify(currentUser.permissions) ||
+          JSON.stringify(updatedUser.tenantIds) !== JSON.stringify(currentUser.tenantIds) ||
           updatedUser.name !== currentUser.name ||
           updatedUser.avatar !== currentUser.avatar ||
           updatedUser.tenantId !== currentUser.tenantId;
