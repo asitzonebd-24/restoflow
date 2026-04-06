@@ -354,7 +354,9 @@ const ProtectedLayout = ({ children, allowedRoles }: { children?: React.ReactNod
   }
 
   // If no tenantId in URL, redirect non-Super Admins to their tenant-specific route
-  if (!tenantId && currentUser.role !== Role.SUPER_ADMIN && currentUser.tenantId) {
+  // Exempt global routes like /global-reports
+  const globalRoutes = ['/global-reports', '/portal', '/pending-bills', '/approved-bills', '/platform-expenses', '/settings'];
+  if (!tenantId && currentUser.role !== Role.SUPER_ADMIN && currentUser.tenantId && !globalRoutes.includes(location.pathname)) {
     const currentPath = location.pathname === '/' ? '/dashboard' : location.pathname;
     return <Navigate to={`/${currentUser.tenantId}${currentPath}`} replace />;
   }
@@ -691,6 +693,7 @@ const AppContent = () => {
       <Route path="/approved-bills" element={<ProtectedLayout allowedRoles={[Role.SUPER_ADMIN]}><ApprovedBills /></ProtectedLayout>} />
       <Route path="/platform-expenses" element={<ProtectedLayout allowedRoles={[Role.SUPER_ADMIN]}><PlatformExpenses /></ProtectedLayout>} />
       <Route path="/global-reports" element={<ProtectedLayout allowedRoles={[Role.SUPER_ADMIN, Role.OWNER]}><GlobalReports /></ProtectedLayout>} />
+      <Route path="/:tenantId/global-reports" element={<ProtectedLayout allowedRoles={[Role.SUPER_ADMIN, Role.OWNER]}><GlobalReports /></ProtectedLayout>} />
       <Route path="/:tenantId" element={<TenantLanding />} />
     </Routes>
     </>

@@ -15,7 +15,10 @@ export const TenantLanding = () => {
     }
   }, [tenantId, setCurrentTenantId]);
 
-  const tenant = tenants.find(t => t.id === tenantId || t.slug === tenantId);
+  const tenant = tenants.find(t => 
+    t.id?.toLowerCase() === tenantId?.toLowerCase() || 
+    t.slug?.toLowerCase() === tenantId?.toLowerCase()
+  );
   const actualTenantId = tenant?.id || tenantId;
 
   useEffect(() => {

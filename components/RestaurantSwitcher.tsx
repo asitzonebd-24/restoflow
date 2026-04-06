@@ -36,7 +36,9 @@ export const RestaurantSwitcher = () => {
     ? tenants 
     : tenants.filter(t => accessibleTenantIds.includes(t.id));
 
-  if (availableTenants.length <= 1 && currentUser?.role !== Role.SUPER_ADMIN) {
+  const hasMultipleTenants = accessibleTenantIds.length > 1 || currentUser?.role === Role.SUPER_ADMIN;
+
+  if (!hasMultipleTenants) {
     return (
       <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center border-2 border-white/20">
         {business.logo ? (
@@ -73,6 +75,12 @@ export const RestaurantSwitcher = () => {
             <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Switch Restaurant</h3>
           </div>
           <div className="max-h-[60vh] overflow-y-auto no-scrollbar">
+            {availableTenants.length === 0 && (
+              <div className="p-8 text-center">
+                <div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Loading Restaurants...</p>
+              </div>
+            )}
             {availableTenants.map(tenant => (
               <button
                 key={tenant.id}
