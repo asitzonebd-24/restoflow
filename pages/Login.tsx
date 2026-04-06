@@ -7,7 +7,7 @@ import { LogIn, ChefHat, Mail, Lock, AlertCircle, Utensils, ArrowRight, User as 
 import { toast } from 'sonner';
 
 export const Login = () => {
-  const { login, loginWithGoogle, business, dbStatus, setCurrentTenantId, isLoading, getDefaultRedirect } = useApp();
+  const { login, loginWithGoogle, business, dbStatus, setCurrentTenantId, isLoading } = useApp();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [staffError, setStaffError] = useState('');
@@ -28,16 +28,9 @@ export const Login = () => {
     setStaffError('');
     const success = await login(email, password, tenantId);
     if (success) {
-      navigate(getDefaultRedirect());
+      navigate('/');
     } else {
       setStaffError('Access denied. Please check your credentials.');
-    }
-  };
-
-  const handleGoogleLogin = async () => {
-    const success = await loginWithGoogle();
-    if (success) {
-      navigate(getDefaultRedirect());
     }
   };
 
@@ -149,7 +142,7 @@ export const Login = () => {
 
             <button 
               type="button"
-              onClick={handleGoogleLogin}
+              onClick={() => loginWithGoogle(tenantId)}
               disabled={isLoading}
               className="w-full bg-white hover:bg-slate-50 text-slate-900 font-bold py-3.5 rounded-xl transition-all duration-300 border border-slate-200 flex items-center justify-center gap-3 uppercase text-[10px] tracking-widest group"
             >

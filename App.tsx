@@ -334,7 +334,7 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
 };
 
 const ProtectedLayout = ({ children, allowedRoles }: { children?: React.ReactNode, allowedRoles?: Role[] }) => {
-  const { currentUser, business, setCurrentTenantId, logout } = useApp();
+  const { currentUser, business, setCurrentTenantId, resolvedTenantId, logout } = useApp();
   const { tenantId } = useParams();
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -362,8 +362,15 @@ const ProtectedLayout = ({ children, allowedRoles }: { children?: React.ReactNod
   }
   
   // If tenantId is in URL, ensure it matches user's tenant (unless Super Admin)
-  if (tenantId && currentUser.role !== Role.SUPER_ADMIN && currentUser.tenantId !== tenantId) {
-    return <Navigate to={`/${currentUser.tenantId}/dashboard`} replace />;
+  if (tenantId && currentUser.role !== Role.SUPER_ADMIN && currentUser.tenantId !== resolvedTenantId) {
+    // Check if user has multiple tenantIds (for owners)
+    const hasAccess = currentUser.tenantId === resolvedTenantId || 
+                     currentUser.tenantIds?.includes(resolvedTenantId || '');
+    
+    if (!hasAccess) {
+      console.warn('[ProtectedLayout] Access denied: tenant mismatch', { userTenant: currentUser.tenantId, targetTenant: resolvedTenantId });
+      return <Navigate to={`/${currentUser.tenantId}/dashboard`} replace />;
+    }
   }
   
   if (allowedRoles && !allowedRoles.includes(currentUser.role)) {
