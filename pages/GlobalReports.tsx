@@ -37,13 +37,29 @@ export const GlobalReports = () => {
       try {
         let allowedTenantIds: string[] = [];
         if (currentUser.role === Role.SUPER_ADMIN) {
-          allowedTenantIds = tenants.map(t => t.id);
+          // Include both IDs and Slugs for Super Admin
+          tenants.forEach(t => {
+            if (t.id) allowedTenantIds.push(t.id);
+            if (t.slug) allowedTenantIds.push(t.slug);
+          });
         } else {
-          allowedTenantIds = Array.from(new Set([
+          const baseIds = Array.from(new Set([
             ...(currentUser.tenantIds || []),
             currentUser.tenantId
           ].filter(Boolean) as string[]));
+          
+          // Find corresponding slugs for these IDs
+          baseIds.forEach(id => {
+            allowedTenantIds.push(id);
+            const tenant = tenants.find(t => t.id === id || t.slug === id);
+            if (tenant) {
+              if (tenant.id && !allowedTenantIds.includes(tenant.id)) allowedTenantIds.push(tenant.id);
+              if (tenant.slug && !allowedTenantIds.includes(tenant.slug)) allowedTenantIds.push(tenant.slug);
+            }
+          });
         }
+        
+        allowedTenantIds = Array.from(new Set(allowedTenantIds));
 
         if (allowedTenantIds.length === 0) {
           setTransactions([]);
@@ -111,7 +127,11 @@ export const GlobalReports = () => {
           itemDate <= new Date(customRange.end + 'T23:59:59')
         ) : dateFilter === 'all' ? true : false;
       
-      const matchesTenant = selectedTenantId === 'all' || item.tenantId === selectedTenantId;
+      // Resolve item.tenantId to its canonical ID if it's a slug
+      const tenant = tenants.find(t => t.id === item.tenantId || t.slug === item.tenantId);
+      const canonicalId = tenant ? tenant.id : item.tenantId;
+      
+      const matchesTenant = selectedTenantId === 'all' || canonicalId === selectedTenantId;
       
       return matchesDate && matchesTenant;
     };
@@ -130,13 +150,17 @@ export const GlobalReports = () => {
     });
 
     filteredData.transactions.forEach(t => {
-      if (!stats[t.tenantId]) stats[t.tenantId] = { income: 0, expense: 0, name: 'Unknown' };
-      stats[t.tenantId].income += t.amount;
+      const tenant = tenants.find(ten => ten.id === t.tenantId || ten.slug === t.tenantId);
+      const canonicalId = tenant ? tenant.id : t.tenantId;
+      if (!stats[canonicalId]) stats[canonicalId] = { income: 0, expense: 0, name: tenant?.name || 'Unknown' };
+      stats[canonicalId].income += t.amount;
     });
 
     filteredData.expenses.forEach(e => {
-      if (!stats[e.tenantId]) stats[e.tenantId] = { income: 0, expense: 0, name: 'Unknown' };
-      stats[e.tenantId].expense += e.amount;
+      const tenant = tenants.find(ten => ten.id === e.tenantId || ten.slug === e.tenantId);
+      const canonicalId = tenant ? tenant.id : e.tenantId;
+      if (!stats[canonicalId]) stats[canonicalId] = { income: 0, expense: 0, name: tenant?.name || 'Unknown' };
+      stats[canonicalId].expense += e.amount;
     });
 
     return Object.entries(stats)

@@ -38,8 +38,8 @@ export default defineConfig(({ mode }) => {
             ]
           },
           workbox: {
+            maximumFileSizeToCacheInBytes: 5000000,
             globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
-            maximumFileSizeToCacheInBytes: 5 * 1024 * 1024, // 5MB
             runtimeCaching: [
               {
                 urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
