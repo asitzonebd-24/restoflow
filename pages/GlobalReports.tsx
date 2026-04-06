@@ -5,7 +5,7 @@ import { db } from '../src/firebase';
 import { Transaction, Expense, Role } from '../types';
 import { PieChart, Building2, TrendingUp, TrendingDown, DollarSign, Calendar, ChevronDown } from 'lucide-react';
 
-type DateFilter = 'today' | 'week' | 'month' | 'custom' | 'all';
+type DateFilter = 'today' | 'week' | 'month' | 'custom' | 'all' | '';
 
 export const GlobalReports = () => {
   const { currentUser, tenants } = useApp();
@@ -13,8 +13,8 @@ export const GlobalReports = () => {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
-  const [dateFilter, setDateFilter] = useState<DateFilter>('today');
-  const [selectedTenantId, setSelectedTenantId] = useState<string>('all');
+  const [dateFilter, setDateFilter] = useState<DateFilter | ''>('');
+  const [selectedTenantId, setSelectedTenantId] = useState<string>('');
   const [customRange, setCustomRange] = useState({
     start: new Date().toISOString().split('T')[0],
     end: new Date().toISOString().split('T')[0]
@@ -98,7 +98,7 @@ export const GlobalReports = () => {
     const startOfMonth = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
     const filterFn = (item: { date: string, tenantId: string }) => {
-      if (!item.date) return false;
+      if (!item.date || !dateFilter || !selectedTenantId) return false;
       const itemDate = new Date(item.date);
       if (isNaN(itemDate.getTime())) return false;
       
@@ -109,7 +109,7 @@ export const GlobalReports = () => {
         dateFilter === 'custom' ? (
           itemDate >= new Date(customRange.start + 'T00:00:00') && 
           itemDate <= new Date(customRange.end + 'T23:59:59')
-        ) : true;
+        ) : dateFilter === 'all' ? true : false;
       
       const matchesTenant = selectedTenantId === 'all' || item.tenantId === selectedTenantId;
       
@@ -180,6 +180,7 @@ export const GlobalReports = () => {
               onChange={(e) => setSelectedTenantId(e.target.value)}
               className="appearance-none w-full sm:w-48 pl-4 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest outline-none focus:border-indigo-500 cursor-pointer"
             >
+              <option value="">Select Restaurant</option>
               <option value="all">All Restaurants</option>
               {tenants.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
@@ -192,6 +193,7 @@ export const GlobalReports = () => {
               onChange={(e) => setDateFilter(e.target.value as DateFilter)}
               className="appearance-none w-full sm:w-40 pl-4 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest outline-none focus:border-indigo-500 cursor-pointer"
             >
+              <option value="">Select Date</option>
               {filterOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
             <Calendar className="absolute right-3 top-3 text-slate-400" size={16} />
