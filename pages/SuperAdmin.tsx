@@ -80,10 +80,7 @@ export const SuperAdmin = () => {
 
     if (editingTenant) {
       await updateTenant(editingTenant.id, newBusiness);
-      const owner = allUsers.find(u => 
-        (String(u.tenantId || '01') === String(editingTenant.id) || (u.tenantIds && u.tenantIds.includes(String(editingTenant.id)))) 
-        && u.role === Role.OWNER
-      );
+      const owner = allUsers.find(u => String(u.tenantId || '01') === String(editingTenant.id) && u.role === Role.OWNER);
       if (owner) {
         await updateUser(owner.id, newOwner);
       }
@@ -92,9 +89,9 @@ export const SuperAdmin = () => {
     }
 
     // Check for global email uniqueness
-    const existingUser = allUsers.find(u => u.email.toLowerCase() === newOwner.email.toLowerCase());
-    if (existingUser && existingUser.role !== Role.OWNER) {
-      setError('This email is already registered for a non-owner account.');
+    const isDuplicate = allUsers.some(u => u.email.toLowerCase() === newOwner.email.toLowerCase());
+    if (isDuplicate) {
+      setError('This email is already registered in the system.');
       return;
     }
 
@@ -137,10 +134,7 @@ export const SuperAdmin = () => {
     setEditingTenant(tenant);
     setNewBusiness({ ...tenant });
     
-    const owner = allUsers.find(u => 
-      (String(u.tenantId || '01') === String(tenant.id) || (u.tenantIds && u.tenantIds.includes(String(tenant.id)))) 
-      && u.role === Role.OWNER
-    );
+    const owner = allUsers.find(u => String(u.tenantId || '01') === String(tenant.id) && u.role === Role.OWNER);
     if (owner) {
       setNewOwner({
         name: owner.name,
@@ -229,107 +223,26 @@ export const SuperAdmin = () => {
     }
   };
 
-  const [activeTab, setActiveTab] = useState<'restaurants' | 'users' | 'billing'>('restaurants');
-  const [showUserModal, setShowUserModal] = useState(false);
-  const [editingUser, setEditingUser] = useState<any>(null);
-  const [userForm, setUserForm] = useState({
-    name: '',
-    email: '',
-    password: '',
-    mobile: '',
-    role: Role.OWNER,
-    tenantIds: [] as string[]
-  });
-
-  const resetUserForm = () => {
-    setShowUserModal(false);
-    setEditingUser(null);
-    setUserForm({
-      name: '',
-      email: '',
-      password: '',
-      mobile: '',
-      role: Role.OWNER,
-      tenantIds: []
-    });
-  };
-
-  const handleEditUser = (user: any) => {
-    setEditingUser(user);
-    setUserForm({
-      name: user.name,
-      email: user.email,
-      password: user.password || '',
-      mobile: user.mobile || '',
-      role: user.role,
-      tenantIds: user.tenantIds || [user.tenantId].filter(Boolean)
-    });
-    setShowUserModal(true);
-  };
-
-  const handleSaveUser = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      if (editingUser) {
-        await updateUser(editingUser.id, userForm);
-        toast.success('User updated successfully');
-      }
-      resetUserForm();
-    } catch (err: any) {
-      toast.error('Failed to save user: ' + err.message);
-    }
-  };
-
-  const filteredUsers = allUsers.filter(u => 
-    u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    u.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8">
       
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Portal Administration</h1>
-          <p className="text-slate-500">Manage all restaurant businesses, users and billing</p>
+          <p className="text-slate-500">Manage all restaurant businesses and billing</p>
         </div>
         <div className="flex items-center gap-3">
-          {activeTab === 'restaurants' && (
-            <button 
-              onClick={() => setShowModal(true)}
-              className="flex items-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 transition shadow-lg shadow-indigo-200"
-            >
-              <Plus size={20} />
-              Add New Restaurant
-            </button>
-          )}
+          <button 
+            onClick={() => setShowModal(true)}
+            className="flex items-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 transition shadow-lg shadow-indigo-200"
+          >
+            <Plus size={20} />
+            Add New Restaurant
+          </button>
         </div>
       </div>
 
-      <div className="flex items-center gap-2 border-b-2 border-slate-100 mb-8 overflow-x-auto no-scrollbar">
-        <button 
-          onClick={() => setActiveTab('restaurants')}
-          className={`px-6 py-3 font-bold text-sm transition-all border-b-2 -mb-[2px] whitespace-nowrap ${activeTab === 'restaurants' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
-        >
-          Restaurants
-        </button>
-        <button 
-          onClick={() => setActiveTab('users')}
-          className={`px-6 py-3 font-bold text-sm transition-all border-b-2 -mb-[2px] whitespace-nowrap ${activeTab === 'users' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
-        >
-          Users & Owners
-        </button>
-        <button 
-          onClick={() => setActiveTab('billing')}
-          className={`px-6 py-3 font-bold text-sm transition-all border-b-2 -mb-[2px] whitespace-nowrap ${activeTab === 'billing' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
-        >
-          Billing History
-        </button>
-      </div>
-
-      {activeTab === 'restaurants' && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <div className="bg-white p-6 rounded-2xl border-2 border-indigo-500 shadow-lg shadow-indigo-100 transition-all hover:scale-105">
           <p className="text-slate-500 text-sm font-medium mb-1">Total Restaurants</p>
           <h3 className="text-3xl font-bold text-slate-900">{tenants.length}</h3>
@@ -710,185 +623,6 @@ export const SuperAdmin = () => {
             </div>
           </div>
         </div>
-        </div>
-      )}
-
-      {activeTab === 'users' && (
-        <div className="space-y-6">
-          <div className="bg-white rounded-2xl border-2 border-black shadow-xl overflow-hidden">
-            <div className="p-3 border-b-2 border-black bg-slate-50/50 flex items-center gap-3 group">
-              <Search size={20} className="text-slate-400 group-focus-within:text-black transition-colors" />
-              <input 
-                type="text" 
-                placeholder="Search users by name or email..."
-                className="bg-transparent border-none focus:ring-0 flex-1 text-sm font-medium"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-            
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse table-auto">
-                <thead>
-                  <tr className="bg-slate-100 text-slate-900 text-[9px] uppercase tracking-wider border-b-2 border-black">
-                    <th className="px-4 py-3 font-black border-r border-black">User</th>
-                    <th className="px-4 py-3 font-black border-r border-black">Role</th>
-                    <th className="px-4 py-3 font-black border-r border-black">Linked Restaurants</th>
-                    <th className="px-4 py-3 font-black text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y-2 divide-black">
-                  {filteredUsers.map((user) => (
-                    <tr key={user.id} className="hover:bg-slate-50/50 transition">
-                      <td className="px-4 py-3 border-r border-black">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full border-2 border-black bg-slate-100 flex items-center justify-center overflow-hidden shrink-0">
-                            {user.avatar ? (
-                              <img src={user.avatar} className="w-full h-full object-cover" alt="Avatar" />
-                            ) : (
-                              <User size={20} className="text-slate-300" />
-                            )}
-                          </div>
-                          <div>
-                            <p className="font-bold text-slate-900 text-sm">{user.name}</p>
-                            <p className="text-xs text-slate-500">{user.email}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 border-r border-black">
-                        <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest border border-black ${
-                          user.role === Role.SUPER_ADMIN ? 'bg-purple-100 text-purple-700' :
-                          user.role === Role.OWNER ? 'bg-indigo-100 text-indigo-700' :
-                          'bg-slate-100 text-slate-700'
-                        }`}>
-                          {user.role}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 border-r border-black">
-                        <div className="flex flex-wrap gap-1">
-                          {(user.tenantIds || [user.tenantId].filter(Boolean)).map((tid: string) => {
-                            const t = tenants.find(ten => ten.id === tid);
-                            return (
-                              <span key={tid} className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded text-[8px] font-bold border border-slate-200">
-                                {t?.name || tid}
-                              </span>
-                            );
-                          })}
-                          {(user.tenantIds || [user.tenantId].filter(Boolean)).length === 0 && (
-                            <span className="text-[10px] text-slate-400 italic">No restaurants linked</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <button 
-                          onClick={() => handleEditUser(user)}
-                          className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-                          title="Edit User & Links"
-                        >
-                          <Edit3 size={18} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'billing' && (
-        <div className="bg-white rounded-2xl border-2 border-black shadow-xl p-8 text-center">
-          <Wallet size={48} className="mx-auto text-slate-300 mb-4" />
-          <h3 className="text-xl font-bold text-slate-900">Billing History</h3>
-          <p className="text-slate-500">Billing history and reports will be displayed here.</p>
-        </div>
-      )}
-
-      {showUserModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[120]">
-          <div className="bg-white rounded-[2rem] border-2 border-black shadow-2xl w-full max-w-lg overflow-hidden">
-            <div className="p-6 border-b-2 border-black bg-slate-50 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                <User className="text-indigo-600" />
-                Edit User & Restaurant Access
-              </h2>
-              <button onClick={resetUserForm} className="p-2 hover:bg-slate-200 rounded-xl transition-colors">✕</button>
-            </div>
-            
-            <form onSubmit={handleSaveUser} className="p-6 space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
-                  <label className="block text-[10px] font-black uppercase text-slate-500 mb-1 tracking-widest">Full Name</label>
-                  <input 
-                    required
-                    type="text" 
-                    className="w-full px-4 py-3 rounded-xl border-2 border-slate-100 focus:border-indigo-500 outline-none font-bold text-sm"
-                    value={userForm.name}
-                    onChange={(e) => setUserForm({...userForm, name: e.target.value})}
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black uppercase text-slate-500 mb-1 tracking-widest">Email</label>
-                  <input 
-                    disabled
-                    type="email" 
-                    className="w-full px-4 py-3 rounded-xl border-2 border-slate-100 bg-slate-50 text-slate-400 font-bold text-sm"
-                    value={userForm.email}
-                  />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-black uppercase text-slate-500 mb-1 tracking-widest">Mobile</label>
-                  <input 
-                    type="text" 
-                    className="w-full px-4 py-3 rounded-xl border-2 border-slate-100 focus:border-indigo-500 outline-none font-bold text-sm"
-                    value={userForm.mobile}
-                    onChange={(e) => setUserForm({...userForm, mobile: e.target.value})}
-                  />
-                </div>
-                <div className="col-span-2">
-                  <label className="block text-[10px] font-black uppercase text-slate-500 mb-2 tracking-widest">Linked Restaurants</label>
-                  <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto p-2 border-2 border-slate-100 rounded-xl">
-                    {tenants.map(tenant => (
-                      <label key={tenant.id} className="flex items-center gap-2 p-2 hover:bg-slate-50 rounded-lg cursor-pointer transition-colors">
-                        <input 
-                          type="checkbox"
-                          className="w-4 h-4 rounded border-2 border-slate-200 text-indigo-600 focus:ring-indigo-500"
-                          checked={userForm.tenantIds.includes(tenant.id)}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setUserForm({...userForm, tenantIds: [...userForm.tenantIds, tenant.id]});
-                            } else {
-                              setUserForm({...userForm, tenantIds: userForm.tenantIds.filter(id => id !== tenant.id)});
-                            }
-                          }}
-                        />
-                        <span className="text-xs font-bold text-slate-700 truncate">{tenant.name}</span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <div className="pt-6 border-t-2 border-slate-100 flex gap-3">
-                <button 
-                  type="button"
-                  onClick={resetUserForm}
-                  className="flex-1 px-6 py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] text-slate-500 hover:bg-slate-100 transition-all"
-                >
-                  Cancel
-                </button>
-                <button 
-                  type="submit"
-                  className="flex-1 bg-indigo-600 text-white px-6 py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-200"
-                >
-                  Save Changes
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {showModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-0 md:p-4 z-[100] overflow-y-auto">
@@ -1171,7 +905,7 @@ export const SuperAdmin = () => {
                     <p className="text-[10px] font-bold text-indigo-900 leading-relaxed">
                       {editingTenant 
                         ? "Editing owner details here will update the primary owner account for this restaurant. Be careful with email/password changes."
-                        : "This account will be created as the primary owner for the new restaurant. If you use an existing owner's email, the new restaurant will be automatically linked to their existing account."}
+                        : "This account will be created as the primary owner for the new restaurant with full administrative permissions."}
                     </p>
                   </div>
                 </div>

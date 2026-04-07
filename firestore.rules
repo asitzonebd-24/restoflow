@@ -16,19 +16,15 @@ service cloud.firestore {
     
     function isSuperAdmin() {
       return isAuthenticated() && (
-        (getUserData() != null && (getUserData().role == 'SUPER_ADMIN' || getUserData().role == 'super_admin')) || 
-        request.auth.token.email == 'asitzonebd@gmail.com'
+        (getUserData() != null && getUserData().role == 'SUPER_ADMIN') || 
+        (request.auth.token.email == 'asitzonebd@gmail.com' && request.auth.token.email_verified == true)
       );
     }
     
     function hasTenantAccess(tenantId) {
-      let userData = getUserData();
       return isAuthenticated() && (
         isSuperAdmin() || 
-        (userData != null && (
-          userData.tenantId == tenantId || 
-          ('tenantIds' in userData && userData.tenantIds != null && tenantId in userData.tenantIds)
-        ))
+        (getUserData() != null && getUserData().tenantId == tenantId)
       );
     }
 
@@ -42,28 +38,18 @@ service cloud.firestore {
       allow read: if isAuthenticated() && (
         request.auth.uid == userId || 
         isSuperAdmin() || 
-        (getUserData() != null && (
-          getUserData().tenantId == resource.data.tenantId ||
-          (getUserData().role == 'super_admin' || getUserData().role == 'SUPER_ADMIN') ||
-          ('tenantIds' in getUserData() && getUserData().tenantIds != null && resource.data.tenantId in getUserData().tenantIds)
-        ))
+        (getUserData() != null && getUserData().tenantId == resource.data.tenantId)
       );
       
       // Only super admins or users with OWNER/MANAGER role in the same tenant can create/update users
       allow create: if isAuthenticated() && (
         isSuperAdmin() || 
-        (getUserData() != null && (getUserData().role == 'OWNER' || getUserData().role == 'MANAGER') && (
-          getUserData().tenantId == request.resource.data.tenantId ||
-          ('tenantIds' in getUserData() && getUserData().tenantIds != null && request.resource.data.tenantId in getUserData().tenantIds)
-        ))
+        (getUserData() != null && getUserData().tenantId == request.resource.data.tenantId && (getUserData().role == 'OWNER' || getUserData().role == 'MANAGER'))
       );
       
       allow update, delete: if isAuthenticated() && (
         isSuperAdmin() || 
-        (getUserData() != null && (getUserData().role == 'OWNER' || getUserData().role == 'MANAGER') && (
-          getUserData().tenantId == resource.data.tenantId ||
-          ('tenantIds' in getUserData() && getUserData().tenantIds != null && resource.data.tenantId in getUserData().tenantIds)
-        ))
+        (getUserData() != null && getUserData().tenantId == resource.data.tenantId && (getUserData().role == 'OWNER' || getUserData().role == 'MANAGER'))
       );
     }
 
@@ -71,8 +57,8 @@ service cloud.firestore {
     // Tenants Collection
     // ===============================================================
     match /tenants/{tenantId} {
-      // Anyone can read tenants (needed for landing pages and routing)
-      allow read: if true;
+      // Anyone authenticated can read tenants (needed for login and routing)
+      allow read: if isAuthenticated();
       // Only super admins can write tenants
       allow write: if isSuperAdmin();
     }

@@ -7,7 +7,7 @@ import { BluetoothPrinterService } from '../services/printerService';
 import { Pagination } from '../components/Pagination';
 
 export const Billing = () => {
-  const { orders, currentTenant, currentUser, updateOrderStatus, updateOrderItems, updateOrderPaymentStatus, addTransaction, users } = useApp();
+  const { orders, currentTenant, currentUser, updateOrderStatus, updateOrderItems, addTransaction, users } = useApp();
   const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
   const [discounts, setDiscounts] = useState<{ [key: string]: number }>({});
   const [searchTerm, setSearchTerm] = useState('');
@@ -16,10 +16,8 @@ export const Billing = () => {
   const itemsPerPage = 20;
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [showConfirmCollect, setShowConfirmCollect] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false);
   
   const getCreator = (userId: string) => {
-    if (userId === currentUser?.id) return currentUser;
     return users.find(u => u.id === userId);
   };
 
@@ -36,13 +34,12 @@ export const Billing = () => {
 
     return orders
       .filter(o => {
-        // Include READY orders and COMPLETED orders that are not yet paid (if any)
-        const isDoneOrPaid = o.status === OrderStatus.READY || (o.status === OrderStatus.COMPLETED && !o.isPaid);
+        const isReady = o.status === OrderStatus.READY;
         const matchesSearch = o.tokenNumber.toLowerCase().includes(searchTerm.toLowerCase()) || 
                               (o.deliveryStaffName && o.deliveryStaffName.toLowerCase().includes(searchTerm.toLowerCase()));
         const matchesStaff = selectedStaffId === 'all' || o.createdBy === selectedStaffId || o.deliveryStaffId === selectedStaffId;
         const isOwnOrder = canSeeAll || (currentUser && o.createdBy === currentUser.id);
-        return isDoneOrPaid && matchesSearch && matchesStaff && isOwnOrder;
+        return isReady && matchesSearch && matchesStaff && isOwnOrder;
       })
       .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
   }, [orders, searchTerm, selectedStaffId, currentUser]);
@@ -90,17 +87,57 @@ export const Billing = () => {
     return grouped;
   };
 
-  const handlePayment = async (order: Order) => {
-    if (isProcessing) return;
-    setIsProcessing(true);
-    try {
+  const handlePayment = (order: Order) => {
+    const discount = discounts[order.id] || 0;
+    const { total } = calculateTotal(order, discount);
+    const groupedItems = groupItems(order.items);
+    const creator = getCreator(order.createdBy);
+    
+    const transaction = {
+        id: `txn-${Date.now()}`,
+        tenantId: currentTenant.id,
+        orderId: order.id,
+        amount: total,
+        discount: discount,
+        date: new Date().toISOString(),
+        paymentMethod: 'CASH',
+        itemsSummary: groupedItems.map(i => `${i.quantity}x ${i.name}`).join(', '),
+        creatorName: creator?.name || 'Unknown'
+    };
+    
+    addTransaction(transaction);
+    updateOrderStatus(order.id, OrderStatus.COMPLETED, discount);
+    
+    // Auto-print invoice if enabled
+    if (currentTenant?.printerSettings?.autoPrintInvoice) {
+      setInvoiceOrder({ ...order, discount } as any);
+      setTimeout(() => {
+        const printBtn = document.getElementById('print-invoice-btn');
+        if (printBtn) printBtn.click();
+      }, 500);
+    }
+
+    // Invoice preview not required
+    setSelectedOrderIds(prev => prev.filter(id => id !== order.id));
+  };
+
+  const handleBulkPayment = () => {
+    if (selectedOrderIds.length === 0) return;
+    setShowConfirmCollect(true);
+  };
+
+  const confirmBulkPayment = () => {
+    const selectedOrders = filteredOrders.filter(o => selectedOrderIds.includes(o.id));
+    if (selectedOrders.length === 0) return;
+
+    selectedOrders.forEach(order => {
       const discount = discounts[order.id] || 0;
       const { total } = calculateTotal(order, discount);
       const groupedItems = groupItems(order.items);
       const creator = getCreator(order.createdBy);
       
       const transaction = {
-          id: `txn-${order.id}`,
+          id: `txn-${Date.now()}-${order.id}`,
           tenantId: currentTenant.id,
           orderId: order.id,
           amount: total,
@@ -111,66 +148,12 @@ export const Billing = () => {
           creatorName: creator?.name || 'Unknown'
       };
       
-      await addTransaction(transaction);
-      await updateOrderStatus(order.id, OrderStatus.COMPLETED, discount);
-      await updateOrderPaymentStatus(order.id, true);
-      
-      // Auto-print invoice if enabled
-      if (currentTenant?.printerSettings?.autoPrintInvoice) {
-        setInvoiceOrder({ ...order, discount } as any);
-        setTimeout(() => {
-          const printBtn = document.getElementById('print-invoice-btn');
-          if (printBtn) printBtn.click();
-        }, 500);
-      }
+      addTransaction(transaction);
+      updateOrderStatus(order.id, OrderStatus.COMPLETED, discount);
+    });
 
-      // Invoice preview not required
-      setSelectedOrderIds(prev => prev.filter(id => id !== order.id));
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const handleBulkPayment = () => {
-    if (selectedOrderIds.length === 0) return;
-    setShowConfirmCollect(true);
-  };
-
-  const confirmBulkPayment = async () => {
-    if (isProcessing) return;
-    setIsProcessing(true);
-    try {
-      const selectedOrders = filteredOrders.filter(o => selectedOrderIds.includes(o.id));
-      if (selectedOrders.length === 0) return;
-
-      for (const order of selectedOrders) {
-        const discount = discounts[order.id] || 0;
-        const { total } = calculateTotal(order, discount);
-        const groupedItems = groupItems(order.items);
-        const creator = getCreator(order.createdBy);
-        
-        const transaction = {
-            id: `txn-${order.id}`,
-            tenantId: currentTenant.id,
-            orderId: order.id,
-            amount: total,
-            discount: discount,
-            date: new Date().toISOString(),
-            paymentMethod: 'CASH',
-            itemsSummary: groupedItems.map(i => `${i.quantity}x ${i.name}`).join(', '),
-            creatorName: creator?.name || 'Unknown'
-        };
-        
-        await addTransaction(transaction);
-        await updateOrderStatus(order.id, OrderStatus.COMPLETED, discount);
-        await updateOrderPaymentStatus(order.id, true);
-      }
-
-      setSelectedOrderIds([]);
-      setShowConfirmCollect(false);
-    } finally {
-      setIsProcessing(false);
-    }
+    setSelectedOrderIds([]);
+    setShowConfirmCollect(false);
   };
 
   const toggleSelectAll = () => {
@@ -208,7 +191,7 @@ export const Billing = () => {
       return;
     }
 
-    const staff = staffId === currentUser?.id ? currentUser : users.find(u => u.id === staffId);
+    const staff = users.find(u => u.id === staffId);
     if (staff) {
       await updateOrderItems(
         orderId,
@@ -270,7 +253,7 @@ export const Billing = () => {
   };
 
   return (
-    <div className="p-4 md:p-10 h-full overflow-y-auto bg-slate-50/50 no-scrollbar border-2 border-black rounded-[2rem]">
+    <div className="p-4 md:p-10 h-full overflow-y-auto bg-slate-50/50 no-scrollbar">
       <div className="mb-6 md:mb-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-6">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-3 md:gap-4">
@@ -483,7 +466,7 @@ export const Billing = () => {
               const creator = getCreator(order.createdBy);
 
               return (
-                <div key={order.id} className={`p-5 flex flex-col gap-4 border-b-2 border-black ${selectedOrderIds.includes(order.id) ? 'bg-indigo-50/30' : ''}`}>
+                <div key={order.id} className={`p-5 flex flex-col gap-4 border-b border-black ${selectedOrderIds.includes(order.id) ? 'bg-indigo-50/30' : ''}`}>
                   <div className="flex justify-between items-start">
                     <div className="flex items-center gap-3">
                       <input 
@@ -697,14 +680,13 @@ export const Billing = () => {
 
             <div className="p-8 border-t border-slate-50 bg-slate-50 flex flex-col md:flex-row gap-4 print:hidden shrink-0">
               <button 
-                onClick={async () => {
-                  await handlePayment(invoiceOrder);
+                onClick={() => {
+                  handlePayment(invoiceOrder);
                   setInvoiceOrder(null);
                 }} 
-                disabled={isProcessing}
-                className="flex-1 flex items-center justify-center gap-3 bg-emerald-500 text-white py-4 rounded-2xl hover:bg-emerald-600 transition-all font-bold uppercase tracking-widest text-[10px] shadow-lg active:scale-95 border-2 border-black disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 flex items-center justify-center gap-3 bg-emerald-500 text-white py-4 rounded-2xl hover:bg-emerald-600 transition-all font-bold uppercase tracking-widest text-[10px] shadow-lg active:scale-95 border-2 border-black"
               >
-                {isProcessing ? 'Processing...' : <><CheckCheck size={18} /> Collect Amount</>}
+                <CheckCheck size={18} /> Collect Amount
               </button>
               <button 
                 id="print-invoice-btn"
@@ -732,18 +714,11 @@ export const Billing = () => {
                   <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">Staff Name</p>
                   <p className="text-xs font-black text-emerald-600 uppercase tracking-tight">
                     {(() => {
-                      if (selectedStaffId !== 'all') {
-                        if (selectedStaffId === currentUser?.id) return currentUser?.name || 'Unknown';
-                        return users.find(u => u.id === selectedStaffId)?.name || 'Unknown';
-                      }
+                      if (selectedStaffId !== 'all') return users.find(u => u.id === selectedStaffId)?.name || 'Unknown';
                       if (selectedOrderIds.length === 0) return 'All Staff';
                       const firstOrderCreator = orders.find(o => o.id === selectedOrderIds[0])?.createdBy;
                       const allSame = selectedOrderIds.every(id => orders.find(o => o.id === id)?.createdBy === firstOrderCreator);
-                      if (allSame) {
-                        if (firstOrderCreator === currentUser?.id) return currentUser?.name || 'All Staff';
-                        return users.find(u => u.id === firstOrderCreator)?.name || 'All Staff';
-                      }
-                      return 'All Staff';
+                      return allSame ? (users.find(u => u.id === firstOrderCreator)?.name || 'All Staff') : 'All Staff';
                     })()}
                   </p>
                 </div>
@@ -765,10 +740,9 @@ export const Billing = () => {
                 </button>
                 <button 
                   onClick={confirmBulkPayment}
-                  disabled={isProcessing}
-                  className="flex-1 py-3 bg-emerald-500 text-white rounded-xl font-black uppercase tracking-widest text-[10px] border-2 border-black shadow-lg shadow-emerald-100 hover:scale-105 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-1 py-3 bg-emerald-500 text-white rounded-xl font-black uppercase tracking-widest text-[10px] border-2 border-black shadow-lg shadow-emerald-100 hover:scale-105 transition-all"
                 >
-                  {isProcessing ? 'Processing...' : 'Collect Amount'}
+                  Collect Amount
                 </button>
               </div>
             </div>

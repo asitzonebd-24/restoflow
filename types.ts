@@ -68,8 +68,7 @@ export interface Business {
 
 export interface User {
   id: string;
-  tenantId?: string; // Legacy/Primary tenant ID
-  tenantIds?: string[]; // Multiple tenant IDs for owners
+  tenantId?: string; // Optional for Super Admin
   name: string;
   email: string;
   password?: string;
@@ -118,7 +117,6 @@ export interface Order {
   deliveryStaffName?: string | null;
   deliveryStaffMobile?: string | null;
   discount?: number;
-  isPaid?: boolean;
 }
 
 export interface Transaction {

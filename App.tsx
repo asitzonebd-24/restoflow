@@ -27,43 +27,10 @@ import { TenantLanding } from './pages/TenantLanding';
 import { PendingBills } from './pages/PendingBills';
 import { ApprovedBills } from './pages/ApprovedBills';
 import { PlatformExpenses } from './pages/PlatformExpenses';
-import { GlobalReports } from './pages/GlobalReports';
 import { Role, OrderStatus } from './types';
-import { LayoutDashboard, UtensilsCrossed, ChefHat, Receipt, Package, LogOut, Settings, Users as UsersIcon, History, Wallet, PieChart, Menu as MenuIcon, User as UserCircle, ShieldCheck, PowerOff, FileText, CheckCircle, Menu, X, Utensils, ShoppingBag, Timer, AlertTriangle, Globe } from 'lucide-react';
+import { LayoutDashboard, UtensilsCrossed, ChefHat, Receipt, Package, LogOut, Settings, Users as UsersIcon, History, Wallet, PieChart, Menu as MenuIcon, User as UserCircle, ShieldCheck, PowerOff, FileText, CheckCircle, Menu, X, Utensils, ShoppingBag, Timer, AlertTriangle } from 'lucide-react';
 
 import { collection, addDoc } from "firebase/firestore";
-import { RestaurantSwitcher } from './components/RestaurantSwitcher';
-import { WifiOff, Wifi } from 'lucide-react';
-
-const OfflineIndicator = () => {
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
-
-  React.useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
-
-    return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
-    };
-  }, []);
-
-  if (isOnline) return null;
-
-  return (
-    <motion.div 
-      initial={{ y: -50, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      className="fixed top-4 left-1/2 -translate-x-1/2 z-[9999] bg-rose-500 text-white px-6 py-2 rounded-full shadow-2xl flex items-center gap-3 border-2 border-white/20 backdrop-blur-md"
-    >
-      <WifiOff size={18} className="animate-pulse" />
-      <span className="text-[10px] font-black uppercase tracking-widest">Offline Mode - Data will sync when online</span>
-    </motion.div>
-  );
-};
 
 // Run test on load
 // testFirestore();
@@ -122,23 +89,14 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
     `;
   };
 
-  const permissions = currentUser.role === Role.OWNER || currentUser.role === Role.MANAGER 
-    ? ['Dashboard', 'POS', 'Kitchen', 'Menu', 'Billing', 'Transactions', 'Inventory', 'Reports', 'Users', 'Expenses']
-    : currentUser.permissions || [];
-  const accessibleTenantsCount = Array.from(new Set([
-    ...(currentUser.tenantIds || []),
-    currentUser.tenantId
-  ].filter(Boolean))).length;
+  const permissions = currentUser.permissions || [];
 
   return (
     <div 
       className="sticky top-0 left-0 h-screen flex flex-col items-center py-4 text-white transition-all duration-500 shrink-0 z-[70] shadow-2xl w-20 print:hidden"
       style={{ background: '#11112b' }}
     >
-      <div className="mb-4 shrink-0">
-        {accessibleTenantsCount > 1 || currentUser.role === Role.SUPER_ADMIN ? (
-          <RestaurantSwitcher />
-        ) : (
+      <div className="mb-4 shrink-0 cursor-pointer" onClick={() => { logout(); navigate('/login'); }}>
           <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center border-2 border-white/20">
             {business.logo ? (
               <img src={business.logo} alt="Logo" className="w-8 h-8 object-contain rounded-full" />
@@ -146,7 +104,6 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
               <UtensilsCrossed size={24} className="text-white/20" />
             )}
           </div>
-        )}
       </div>
 
       <nav className="flex-1 flex flex-col items-center overflow-y-auto w-full px-2 no-scrollbar">
@@ -163,9 +120,6 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
                 </NavLink>
                 <NavLink to="/platform-expenses" onClick={() => onClose()} className={navItemClass('/platform-expenses')} title="Platform Expenses">
                   <Wallet size={22} />
-                </NavLink>
-                <NavLink to="/global-reports" onClick={() => onClose()} className={navItemClass('/global-reports')} title="Global Reports">
-                  <Globe size={22} />
                 </NavLink>
               </>
             ) : currentUser.role === Role.CUSTOMER ? (
@@ -243,12 +197,6 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
                 {permissions.includes('Reports') && (
                   <NavLink to={`/${tId}/reports`} onClick={() => onClose()} className={navItemClass('/reports')} title="Reports">
                     <PieChart size={22} />
-                  </NavLink>
-                )}
-
-                {currentUser.role === Role.OWNER && accessibleTenantsCount > 1 && (
-                  <NavLink to="/global-reports" onClick={() => onClose()} className={navItemClass('/global-reports')} title="Global Reports">
-                    <Globe size={22} />
                   </NavLink>
                 )}
 
@@ -355,34 +303,23 @@ const ProtectedLayout = ({ children, allowedRoles }: { children?: React.ReactNod
     return <Navigate to="/login" replace />;
   }
 
-  const userPrimaryTenant = currentUser.tenantId || (currentUser.tenantIds && currentUser.tenantIds[0]);
-
   // If no tenantId in URL, redirect non-Super Admins to their tenant-specific route
-  // Exempt global routes like /global-reports
-  const globalRoutes = ['/global-reports', '/portal', '/pending-bills', '/approved-bills', '/platform-expenses', '/settings'];
-  if (!tenantId && currentUser.role !== Role.SUPER_ADMIN && userPrimaryTenant && !globalRoutes.includes(location.pathname)) {
+  if (!tenantId && currentUser.role !== Role.SUPER_ADMIN && currentUser.tenantId) {
     const currentPath = location.pathname === '/' ? '/dashboard' : location.pathname;
-    return <Navigate to={`/${userPrimaryTenant}${currentPath}`} replace />;
+    return <Navigate to={`/${currentUser.tenantId}${currentPath}`} replace />;
   }
   
   // If tenantId is in URL, ensure it matches user's tenant (unless Super Admin)
-  if (tenantId && currentUser.role !== Role.SUPER_ADMIN) {
-    const hasAccess = business.id === currentUser.tenantId || business.slug === currentUser.tenantId || 
-      (currentUser.tenantIds && (currentUser.tenantIds.includes(business.id) || currentUser.tenantIds.includes(business.slug)));
-    if (!hasAccess) {
-      if (userPrimaryTenant) {
-        return <Navigate to={`/${userPrimaryTenant}/dashboard`} replace />;
-      }
-      return <Navigate to="/login" replace />;
-    }
+  if (tenantId && currentUser.role !== Role.SUPER_ADMIN && currentUser.tenantId !== tenantId) {
+    return <Navigate to={`/${currentUser.tenantId}/dashboard`} replace />;
   }
   
   if (allowedRoles && !allowedRoles.includes(currentUser.role)) {
     return <Navigate to="/" replace />;
   }
 
-  // Check permissions for business users (Super Admin, Owner, Manager bypasses)
-  if (currentUser.role !== Role.SUPER_ADMIN && currentUser.role !== Role.CUSTOMER && currentUser.role !== Role.OWNER && currentUser.role !== Role.MANAGER) {
+  // Check permissions for business users (Super Admin bypasses)
+  if (currentUser.role !== Role.SUPER_ADMIN && currentUser.role !== Role.CUSTOMER) {
     const path = location.pathname;
     const permissions = currentUser.permissions || [];
     
@@ -395,7 +332,6 @@ const ProtectedLayout = ({ children, allowedRoles }: { children?: React.ReactNod
       'transactions': 'Transactions',
       'inventory': 'Inventory',
       'reports': 'Reports',
-      'global-reports': 'Reports',
       'users': 'Users',
       'expenses': 'Expenses'
     };
@@ -407,7 +343,7 @@ const ProtectedLayout = ({ children, allowedRoles }: { children?: React.ReactNod
       // Redirect to the first available permission or login
       if (permissions.length > 0) {
         const firstPermission = permissions[0].toLowerCase();
-        return <Navigate to={`/${business?.slug || currentUser.tenantId}/${firstPermission}`} replace />;
+        return <Navigate to={`/${currentUser.tenantId}/${firstPermission}`} replace />;
       }
       return <Navigate to="/login" replace />;
     }
@@ -502,23 +438,6 @@ const ProtectedLayout = ({ children, allowedRoles }: { children?: React.ReactNod
             : child
         )}
       </main>
-    </div>
-  );
-};
-
-const LogoutRoute = () => {
-  const { logout } = useApp();
-  React.useEffect(() => {
-    logout().then(() => {
-      window.location.href = '/login';
-    });
-  }, [logout]);
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50">
-      <div className="text-center">
-        <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-        <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">Logging out...</p>
-      </div>
     </div>
   );
 };
@@ -635,10 +554,8 @@ const AppContent = () => {
   const getDefaultRedirect = () => {
     if (!currentUser) return "/";
     
-    const userPrimaryTenant = currentUser.tenantId || (currentUser.tenantIds && currentUser.tenantIds[0]);
-    
     // Prioritize explicit tenant context or user's assigned tenant
-    const targetId = currentTenantId || userPrimaryTenant || business?.slug || business?.id;
+    const targetId = currentTenantId || currentUser.tenantId || business?.slug || business?.id;
 
     // If Super Admin is in a tenant context, go to that tenant's dashboard
     if (currentUser.role === Role.SUPER_ADMIN) {
@@ -649,7 +566,6 @@ const AppContent = () => {
     }
     
     if (currentUser.role === Role.CUSTOMER) return `/${targetId}/order`;
-    if (currentUser.role === Role.OWNER || currentUser.role === Role.MANAGER) return `/${targetId}/dashboard`;
     
     const permissions = currentUser.permissions || [];
     if (permissions.includes('Dashboard')) return `/${targetId}/dashboard`;
@@ -661,16 +577,13 @@ const AppContent = () => {
   };
 
   return (
-    <>
-      <OfflineIndicator />
-      <Routes>
-      <Route path="/logout" element={<LogoutRoute />} />
+    <Routes>
       <Route path="/" element={currentUser ? <Navigate to={getDefaultRedirect()} /> : <Landing />} />
       <Route path="/login" element={currentUser ? <Navigate to={getDefaultRedirect()} /> : <Login />} />
-      <Route path="/order/auth" element={currentUser ? <Navigate to={currentUser.role === Role.CUSTOMER ? `/${business?.slug || currentUser.tenantId}/order` : "/"} /> : <CustomerAuth />} />
+      <Route path="/order/auth" element={currentUser ? <Navigate to={currentUser.role === Role.CUSTOMER ? `/${currentUser.tenantId}/order` : "/"} /> : <CustomerAuth />} />
       
       {/* Tenant-specific customer routes */}
-      <Route path="/:tenantId/order/auth" element={currentUser ? <Navigate to={`/${currentTenantId || business?.slug || currentUser.tenantId}/order`} /> : <CustomerAuth />} />
+      <Route path="/:tenantId/order/auth" element={currentUser ? <Navigate to={`/${currentUser.tenantId}/order`} /> : <CustomerAuth />} />
       <Route path="/:tenantId/order" element={
         <ProtectedLayout allowedRoles={[Role.CUSTOMER]}>
           <CustomerOrder />
@@ -689,7 +602,7 @@ const AppContent = () => {
 
       <Route path="/order" element={
         currentUser && currentUser.role === Role.CUSTOMER 
-          ? <Navigate to={`/${business?.slug || currentUser.tenantId}/order`} />
+          ? <Navigate to={`/${currentUser.tenantId}/order`} />
           : <Navigate to="/order/auth" />
       } />
 
@@ -724,11 +637,8 @@ const AppContent = () => {
       <Route path="/pending-bills" element={<ProtectedLayout allowedRoles={[Role.SUPER_ADMIN]}><PendingBills /></ProtectedLayout>} />
       <Route path="/approved-bills" element={<ProtectedLayout allowedRoles={[Role.SUPER_ADMIN]}><ApprovedBills /></ProtectedLayout>} />
       <Route path="/platform-expenses" element={<ProtectedLayout allowedRoles={[Role.SUPER_ADMIN]}><PlatformExpenses /></ProtectedLayout>} />
-      <Route path="/global-reports" element={<ProtectedLayout allowedRoles={[Role.SUPER_ADMIN, Role.OWNER]}><GlobalReports /></ProtectedLayout>} />
-      <Route path="/:tenantId/global-reports" element={<ProtectedLayout allowedRoles={[Role.SUPER_ADMIN, Role.OWNER]}><GlobalReports /></ProtectedLayout>} />
       <Route path="/:tenantId" element={<TenantLanding />} />
     </Routes>
-    </>
   );
 }
 

@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect, useRef, useCallback } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
 import { Role, Business, User, Order, InventoryItem, MenuItem, OrderStatus, ItemStatus, Transaction, Expense, OrderItem, MonthlyBill, BillStatus, Recipe, Table, InventoryMode } from '../types';
 import { BUSINESS_DETAILS, MOCK_USERS, INITIAL_ORDERS, MOCK_INVENTORY, MOCK_MENU, MOCK_EXPENSES, DEFAULT_MENU_IMAGE, DEFAULT_AVATAR, DEFAULT_BUSINESS_LOGO } from '../constants';
 import { auth, secondaryAuth, db, googleProvider } from '../src/firebase';
@@ -27,10 +27,7 @@ import {
   getDoc,
   writeBatch,
   serverTimestamp,
-  Timestamp,
-  documentId,
-  getDocFromServer,
-  documentId as docId
+  Timestamp
 } from 'firebase/firestore';
 
 enum OperationType {
@@ -107,7 +104,6 @@ interface AppContextType {
   ) => Promise<void>;
   updateOrderStatus: (orderId: string, status: OrderStatus, discount?: number) => Promise<void>;
   updateOrderItemStatus: (orderId: string, rowId: string | string[], status: ItemStatus) => Promise<void>;
-  updateOrderPaymentStatus: (orderId: string, isPaid: boolean) => Promise<void>;
   updateInventory: (itemId: string, quantityChange: number) => Promise<void>;
   addInventoryItem: (item: Omit<InventoryItem, 'tenantId'>) => Promise<void>;
   editInventoryItem: (id: string, updates: Partial<InventoryItem>) => Promise<void>;
@@ -131,8 +127,6 @@ interface AppContextType {
   currentTenant: Business;
   currentTenantId: string | null;
   setCurrentTenantId: (id: string | null) => void;
-  activeTenantId: string | null;
-  setActiveTenantId: (id: string | null) => void;
   createBusiness: (businessData: Partial<Business>, ownerData: Partial<User>, sourceTenantId?: string) => Promise<string>;
   loginWithGoogle: () => Promise<void>;
   toggleBusinessStatus: (tenantId: string) => Promise<void>;
@@ -161,7 +155,6 @@ interface AppContextType {
     hasTables: boolean;
     missingTables: string[];
   };
-  getDefaultRedirect: () => string;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -186,25 +179,6 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     return savedUser ? JSON.parse(savedUser) : null;
   });
   const [currentTenantId, setCurrentTenantId] = useState<string | null>(null);
-  const [activeTenantId, setActiveTenantId] = useState<string | null>(null);
-  const loadedCollectionsRef = useRef<Set<string>>(new Set());
-  
-  const getCriticalCollections = useCallback(() => {
-    const isSuperAdmin = currentUser && (String(currentUser.role).toUpperCase() === Role.SUPER_ADMIN || currentUser.email === 'asitzonebd@gmail.com');
-    const collections = ['users', 'tenants'];
-    if (!isSuperAdmin || currentTenantId) {
-      collections.push('transactions', 'expenses', 'orders', 'menu_items', 'inventory_items', 'tables');
-    }
-    return collections;
-  }, [currentUser, currentTenantId]);
-
-  const checkLoadingState = useCallback((name: string) => {
-    loadedCollectionsRef.current.add(name);
-    const critical = getCriticalCollections();
-    if (critical.every(c => loadedCollectionsRef.current.has(c))) {
-      setIsLoading(false);
-    }
-  }, [getCriticalCollections]);
 
   useEffect(() => {
     if (currentTenantId) {
@@ -223,38 +197,6 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [monthlyBills, setMonthlyBills] = useState<MonthlyBill[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthReady, setIsAuthReady] = useState(false);
-
-  const getDefaultRedirect = useCallback(() => {
-    if (!currentUser) return "/";
-    
-    // Prioritize explicit tenant context or user's assigned tenant
-    const targetId = currentTenantId || currentUser.tenantId;
-
-    // If Super Admin is in a tenant context, go to that tenant's dashboard
-    const isSuperAdmin = currentUser.role === Role.SUPER_ADMIN || currentUser.email === 'asitzonebd@gmail.com';
-    if (isSuperAdmin) {
-      if (currentTenantId && currentTenantId !== '00' && currentTenantId !== '01') {
-        return `/${targetId}/dashboard`;
-      }
-      return "/portal";
-    }
-    
-    if (currentUser.role === Role.CUSTOMER) return `/${targetId}/order`;
-    
-    // Owners and Managers get dashboard by default
-    if (currentUser.role === Role.OWNER || currentUser.role === Role.MANAGER) {
-      return `/${targetId}/dashboard`;
-    }
-    
-    const permissions = currentUser.permissions || [];
-    if (permissions.includes('Dashboard')) return `/${targetId}/dashboard`;
-    if (permissions.includes('POS')) return `/${targetId}/pos`;
-    if (permissions.includes('Kitchen')) return `/${targetId}/kitchen`;
-    if (permissions.length > 0) return `/${targetId}/${permissions[0].toLowerCase()}`;
-    
-    // Final fallback to avoid redirect loops
-    return isSuperAdmin ? "/portal" : "/";
-  }, [currentUser, currentTenantId]);
 
   // Global safety timeout to ensure the app always loads
   useEffect(() => {
@@ -291,37 +233,24 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     missingTables: []
   });
 
-  const profileUnsubRef = useRef<(() => void) | null>(null);
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       try {
         if (user) {
-          // Real-time listener for current user profile
-          const userRef = doc(db, 'users', user.uid);
-          
-          // Fetch profile once first to ensure isAuthReady is set correctly
-          const userDoc = await getDoc(userRef);
+          // Fetch user profile from Firestore
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
           if (userDoc.exists()) {
             const userData = { id: userDoc.id, ...convertFirestoreData(userDoc.data()) } as User;
             setCurrentUser(userData);
             localStorage.setItem('resto_keep_user', JSON.stringify(userData));
           } else {
-            console.warn('[AppContext] User profile not found in Firestore for UID:', user.uid);
+            // If no user doc exists, clear local state and sign out
+            console.warn('User authenticated but no profile found in Firestore. Signing out...');
+            setCurrentUser(null);
+            localStorage.removeItem('resto_keep_user');
+            await signOut(auth);
           }
-
-          if (profileUnsubRef.current) profileUnsubRef.current();
-          profileUnsubRef.current = onSnapshot(userRef, (doc) => {
-            if (doc.exists()) {
-              const userData = { id: doc.id, ...convertFirestoreData(doc.data()) } as User;
-              setCurrentUser(userData);
-              localStorage.setItem('resto_keep_user', JSON.stringify(userData));
-            }
-          });
         } else {
-          if (profileUnsubRef.current) {
-            profileUnsubRef.current();
-            profileUnsubRef.current = null;
-          }
           setCurrentUser(null);
           localStorage.removeItem('resto_keep_user');
         }
@@ -332,64 +261,69 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       }
     });
 
-    bootstrapSuperAdmin();
+    // Bootstrap Super Admin into Firestore if it doesn't exist
+    const bootstrapSuperAdmin = async () => {
+      // Only run once per browser to avoid "too many login attempts" from Firebase Auth
+      if (localStorage.getItem('sa_bootstrapped')) return;
 
-    return () => {
-      unsubscribe();
-      if (profileUnsubRef.current) {
-        profileUnsubRef.current();
-      }
-    };
-  }, []);
-
-  // Bootstrap Super Admin into Firestore if it doesn't exist
-  const bootstrapSuperAdmin = async () => {
-    // Only run once per browser to avoid "too many login attempts" from Firebase Auth
-    if (localStorage.getItem('sa_bootstrapped')) return;
-
-    try {
-      const saEmail = 'asitzonebd@gmail.com';
-      const saPassword = 'admin123'; // Match MOCK_USERS password
-      
-      // Try to sign in to see if the user exists in Firebase Auth
       try {
-        await signInWithEmailAndPassword(secondaryAuth, saEmail, saPassword);
-        console.log('Super Admin already exists in Firebase Auth.');
-      } catch (e: any) {
-        // If user doesn't exist or invalid credentials, try to create them
-        if (e.code === 'auth/user-not-found' || e.code === 'auth/invalid-credential' || e.message.includes('invalid-credential')) {
-          console.log('Bootstrapping Super Admin into Firebase Auth...');
-          try {
-            const userCredential = await createUserWithEmailAndPassword(secondaryAuth, saEmail, saPassword);
-            
+        const saEmail = 'asitzonebd@gmail.com';
+        const saPassword = 'admin123'; // Match MOCK_USERS password
+        
+        // Try to sign in to see if the user exists in Firebase Auth
+        try {
+          const userCredential = await signInWithEmailAndPassword(secondaryAuth, saEmail, saPassword);
+          
+          // Check if Firestore doc exists
+          const userDoc = await getDoc(doc(db, 'users', userCredential.user.uid));
+          if (!userDoc.exists()) {
+            console.log('Super Admin exists in Auth but missing in Firestore. Creating doc...');
             const saUser = MOCK_USERS.find(u => u.email === saEmail);
             if (saUser) {
               const newUser = { ...saUser, id: userCredential.user.uid };
               await setDoc(doc(db, 'users', newUser.id), newUser);
-              console.log('Super Admin bootstrapped successfully.');
-            }
-            await signOut(secondaryAuth);
-            localStorage.setItem('sa_bootstrapped', 'true');
-          } catch (createError: any) {
-            if (createError.code === 'auth/email-already-in-use') {
-              console.log('Super Admin email already in use in Firebase Auth. Skipping creation.');
-              // If it already exists but we couldn't sign in, it means the password is different.
-              // We'll mark it as bootstrapped to avoid constant failures, but the user will need to use Google Login or reset password.
-              localStorage.setItem('sa_bootstrapped', 'true');
-            } else if (createError.code === 'auth/too-many-requests') {
-              console.warn('Too many login attempts. Skipping bootstrap for now.');
-            } else {
-              console.error('Failed to create Super Admin:', createError);
+              console.log('Super Admin doc created successfully.');
             }
           }
-        } else if (e.code === 'auth/too-many-requests') {
-          console.warn('Too many login attempts. Skipping bootstrap for now.');
+          await signOut(secondaryAuth);
+          localStorage.setItem('sa_bootstrapped', 'true');
+        } catch (e: any) {
+          // If user doesn't exist or invalid credentials, try to create them
+          if (e.code === 'auth/user-not-found' || e.code === 'auth/invalid-credential' || e.message.includes('invalid-credential')) {
+            console.log('Bootstrapping Super Admin into Firebase Auth...');
+            try {
+              const userCredential = await createUserWithEmailAndPassword(secondaryAuth, saEmail, saPassword);
+              
+              const saUser = MOCK_USERS.find(u => u.email === saEmail);
+              if (saUser) {
+                const newUser = { ...saUser, id: userCredential.user.uid };
+                await setDoc(doc(db, 'users', newUser.id), newUser);
+                console.log('Super Admin bootstrapped successfully.');
+              }
+              await signOut(secondaryAuth);
+              localStorage.setItem('sa_bootstrapped', 'true');
+            } catch (createError: any) {
+              if (createError.code === 'auth/email-already-in-use') {
+                localStorage.setItem('sa_bootstrapped', 'true');
+              } else if (createError.code === 'auth/too-many-requests') {
+                console.warn('Too many login attempts. Skipping bootstrap for now.');
+              } else {
+                console.error('Failed to create Super Admin:', createError);
+              }
+            }
+          } else if (e.code === 'auth/too-many-requests') {
+            console.warn('Too many login attempts. Skipping bootstrap for now.');
+          }
         }
+      } catch (error) {
+        console.error('Error bootstrapping Super Admin:', error);
       }
-    } catch (error) {
-      console.error('Error bootstrapping Super Admin:', error);
-    }
-  };
+    };
+
+    bootstrapSuperAdmin();
+
+    return () => unsubscribe();
+  }, []);
   const convertFirestoreData = (data: any) => {
     const cleaned = { ...data };
     Object.keys(cleaned).forEach(key => {
@@ -407,49 +341,12 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   const resolvedTenantId = useMemo(() => {
-    // Prioritize activeTenantId (set via switcher) or currentTenantId (set via URL params)
-    let rawId = activeTenantId || currentTenantId;
-    
-    // If no ID from URL/switcher, we don't automatically fall back to stored IDs for routing
-    // to ensure URL remains the single source of truth.
+    const rawId = currentUser?.tenantId || currentTenantId;
     if (!rawId) return null;
-    
-    const tenantBySlug = tenants.find(t => 
-      t.slug?.toLowerCase() === rawId.toLowerCase() || 
-      t.id?.toLowerCase() === rawId.toLowerCase()
-    );
+    const tenantBySlug = tenants.find(t => t.slug === rawId || t.id === rawId);
     if (tenantBySlug) return tenantBySlug.id;
     return rawId;
-  }, [activeTenantId, currentTenantId, tenants]);
-
-  // Sync resolvedTenantId with localStorage and clear state on change
-  useEffect(() => {
-    const prevTenantId = localStorage.getItem('resto_keep_tenant_id');
-    
-    if (prevTenantId !== resolvedTenantId) {
-      console.log(`[AppContext] Switching tenant from ${prevTenantId} to ${resolvedTenantId}`);
-      
-      if (resolvedTenantId) {
-        localStorage.setItem('resto_keep_tenant_id', resolvedTenantId);
-      } else {
-        localStorage.removeItem('resto_keep_tenant_id');
-      }
-      
-      // Clear previous tenant data to prevent leakage and "previous restaurant" flash
-      setAllOrders([]);
-      setAllInventory([]);
-      setAllMenu([]);
-      setAllTransactions([]);
-      setAllExpenses([]);
-      setAllRecipes([]);
-      setAllTables([]);
-      setMonthlyBills([]);
-      
-      // Reset loading state for new tenant
-      loadedCollectionsRef.current.clear();
-      setIsLoading(true);
-    }
-  }, [resolvedTenantId]);
+  }, [currentUser?.tenantId, currentTenantId, tenants]);
 
   // 1. Tenants Listener (Global or Tenant-specific)
   useEffect(() => {
@@ -469,57 +366,14 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       }, 3000);
     }
 
-    const isSuperAdmin = currentUser?.role === Role.SUPER_ADMIN || currentUser?.email === 'asitzonebd@gmail.com';
+    const isSuperAdmin = currentUser?.role === Role.SUPER_ADMIN;
     const rawTenantId = currentUser?.tenantId || currentTenantId;
-    
-    // All IDs we definitely want to fetch
-    const accessibleTenantIds = Array.from(new Set([
-      ...(currentUser?.tenantIds || []),
-      currentUser?.tenantId
-    ].filter(Boolean) as string[]));
 
-    let tenantsQuery;
-    
-    if (isSuperAdmin) {
-      // Super admins get a lot, but if they are looking for a specific one, we should prioritize it
-      if (currentTenantId && currentTenantId !== '00' && currentTenantId !== '01') {
-        tenantsQuery = query(
-          collection(db, 'tenants'), 
-          or(
-            where('id', '==', currentTenantId),
-            where('slug', '==', currentTenantId),
-            where('id', 'in', ['01', '02', '03', '04', '05']) // Fetch a few others too
-          ),
-          limit(20)
-        );
-      } else {
-        tenantsQuery = query(collection(db, 'tenants'), limit(100));
-      }
-    } else {
-      if (accessibleTenantIds.length > 0) {
-        // Fetch the user's tenants. 
-        // If currentTenantId is not in their list, we should still try to fetch it 
-        // so the app can show "Access Denied" or "Business Not Found" correctly
-        const idsToFetch = accessibleTenantIds.slice(0, 10);
-        if (currentTenantId && !idsToFetch.includes(currentTenantId)) {
-          tenantsQuery = query(
-            collection(db, 'tenants'), 
-            or(
-              where(documentId(), 'in', idsToFetch),
-              where(documentId(), '==', currentTenantId),
-              where('slug', '==', currentTenantId)
-            )
-          );
-        } else {
-          tenantsQuery = query(collection(db, 'tenants'), where(documentId(), 'in', idsToFetch));
-        }
-      } else if (currentTenantId) {
-        // Unauthenticated or no tenants, but we have a URL param
-        tenantsQuery = query(collection(db, 'tenants'), or(where('id', '==', currentTenantId), where('slug', '==', currentTenantId)), limit(1));
-      } else {
-        // Default fallback
-        tenantsQuery = query(collection(db, 'tenants'), limit(10));
-      }
+    let tenantsQuery = query(collection(db, 'tenants'), limit(100));
+    if (!isSuperAdmin && rawTenantId) {
+      tenantsQuery = query(collection(db, 'tenants'), or(where('id', '==', rawTenantId), where('slug', '==', rawTenantId)), limit(1));
+    } else if (!isSuperAdmin && !rawTenantId) {
+      tenantsQuery = query(collection(db, 'tenants'), limit(10));
     }
 
     const unsubTenants = onSnapshot(tenantsQuery, (snapshot) => {
@@ -538,14 +392,11 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       }
       setTenants(tenantsData);
       
-      checkLoadingState('tenants');
-      
       if (!currentUser) {
         setIsLoading(false);
       }
     }, (error) => {
       console.error('Error fetching tenants:', error);
-      checkLoadingState('tenants');
       if (!currentUser) setIsLoading(false);
       setTenants([BUSINESS_DETAILS]);
     });
@@ -554,16 +405,33 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       if (timer) clearTimeout(timer);
       unsubTenants();
     };
-  }, [isAuthReady, currentUser?.role, currentUser?.tenantId, JSON.stringify(currentUser?.tenantIds), currentTenantId]);
+  }, [isAuthReady, currentUser?.role, currentTenantId]);
 
   // 2. Data Listeners (Dependent on resolvedTenantId)
   useEffect(() => {
     if (!isAuthReady || !currentUser) return;
 
     const unsubscribers: (() => void)[] = [];
-    const isSuperAdmin = currentUser?.role === Role.SUPER_ADMIN || currentUser?.email === 'asitzonebd@gmail.com';
+    const isSuperAdmin = currentUser?.role === Role.SUPER_ADMIN;
     const effectiveTenantId = resolvedTenantId;
-    const criticalCollections = getCriticalCollections();
+
+    const criticalCollections = ['users'];
+    if (!isSuperAdmin || currentTenantId) {
+      criticalCollections.push('transactions', 'expenses', 'orders', 'menu_items', 'inventory_items', 'tables');
+    }
+    
+    const loadedCollections = new Set<string>();
+
+    const checkLoadingState = (name: string) => {
+      loadedCollections.add(name);
+      if (criticalCollections.every(c => loadedCollections.has(c))) {
+        setIsLoading(false);
+      }
+    };
+
+    if (criticalCollections.length === 0) {
+      setIsLoading(false);
+    }
 
     const collections: { name: string, setter: (data: any) => void }[] = [
       { name: 'users', setter: setAllUsers },
@@ -616,7 +484,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     });
 
     return () => unsubscribers.forEach(unsub => unsub());
-  }, [isAuthReady, currentUser?.id, currentUser?.role, resolvedTenantId, getCriticalCollections, checkLoadingState]);
+  }, [isAuthReady, currentUser?.id, currentUser?.role, resolvedTenantId]);
 
   // Sync currentUser with allUsers in real-time to reflect role/permission changes
   useEffect(() => {
@@ -626,7 +494,6 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         const hasChanged = 
           updatedUser.role !== currentUser.role || 
           JSON.stringify(updatedUser.permissions) !== JSON.stringify(currentUser.permissions) ||
-          JSON.stringify(updatedUser.tenantIds) !== JSON.stringify(currentUser.tenantIds) ||
           updatedUser.name !== currentUser.name ||
           updatedUser.avatar !== currentUser.avatar ||
           updatedUser.tenantId !== currentUser.tenantId;
@@ -672,15 +539,9 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const categories = useMemo(() => ['All', ...Array.from(new Set(menu.map(m => m.category)))], [menu]);
 
   const users = useMemo(() => {
-    const isSuperAdmin = currentUser?.role === Role.SUPER_ADMIN || currentUser?.email === 'asitzonebd@gmail.com';
-    if (isSuperAdmin) return allUsers;
+    if (currentUser?.role === Role.SUPER_ADMIN) return allUsers;
     const targetId = business.id;
-    return allUsers.filter(u => 
-      String(u.tenantId || '01') === String(targetId) || 
-      (u.tenantIds && u.tenantIds.includes(String(targetId))) || 
-      u.role === Role.SUPER_ADMIN ||
-      u.email === 'asitzonebd@gmail.com'
-    );
+    return allUsers.filter(u => String(u.tenantId || '01') === String(targetId) || u.role === Role.SUPER_ADMIN);
   }, [allUsers, currentUser, business.id]);
 
   const transactions = useMemo(() => {
@@ -736,58 +597,6 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       const userDoc = await getDoc(doc(db, 'users', user.uid));
       if (userDoc.exists()) {
         const userData = { id: userDoc.id, ...convertFirestoreData(userDoc.data()) } as User;
-        
-        // Resolve target tenant ID if it's a slug
-        let targetTenantId = null;
-        if (resolvedTenantId) {
-          targetTenantId = resolvedTenantId;
-        }
-
-        const isSuperAdmin = String(userData.role).toUpperCase() === Role.SUPER_ADMIN || userData.email === 'asitzonebd@gmail.com';
-        console.log('[AppContext] Google Login - User Role:', userData.role, 'isSuperAdmin:', isSuperAdmin);
-        
-        if (targetTenantId && !isSuperAdmin) {
-          const accessibleTenantIds = Array.from(new Set([
-            ...(userData.tenantIds || []),
-            userData.tenantId
-          ].filter(Boolean))).map(id => String(id).trim().toLowerCase());
-
-          const normalizedTargetId = String(targetTenantId).trim().toLowerCase();
-          console.log('[AppContext] Google Login - Checking access:', { normalizedTargetId, accessibleTenantIds });
-          let hasAccess = accessibleTenantIds.includes(normalizedTargetId);
-          
-          if (!hasAccess) {
-            // Check if it's a slug
-            const accessibleTenantSlugs = tenants
-              .filter(t => accessibleTenantIds.includes(String(t.id).trim().toLowerCase()))
-              .map(t => t.slug?.trim().toLowerCase())
-              .filter(Boolean);
-            hasAccess = accessibleTenantSlugs.includes(normalizedTargetId);
-          }
-
-          if (!hasAccess) {
-            // Check Firestore directly if tenants haven't loaded yet
-            try {
-              const tenantsRef = collection(db, 'tenants');
-              const slugQuery = query(tenantsRef, where('slug', '==', targetTenantId), limit(1));
-              const slugSnap = await getDocs(slugQuery);
-              if (!slugSnap.empty) {
-                const tenantIdFromSlug = slugSnap.docs[0].id.toLowerCase();
-                if (accessibleTenantIds.includes(tenantIdFromSlug)) {
-                  hasAccess = true;
-                }
-              }
-            } catch (err) {
-              console.error('Error checking slug access:', err);
-            }
-          }
-          
-          if (!hasAccess) {
-            console.warn('[AppContext] Google Login - Access denied: tenant mismatch, falling back to default tenant');
-            targetTenantId = null;
-          }
-        }
-
         setCurrentUser(userData);
         localStorage.setItem('resto_keep_user', JSON.stringify(userData));
         toast.success(`Welcome back, ${userData.name}!`);
@@ -882,92 +691,19 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       }
 
       const user = { id: userDoc.id, ...convertFirestoreData(userDoc.data()) } as User;
-      console.log('[AppContext] Profile loaded:', user.name, 'Role:', user.role, 'UserTenant:', user.tenantId, 'UserTenants:', user.tenantIds);
+      console.log('[AppContext] Profile loaded:', user.name, 'Role:', user.role);
       
       if (user) {
-        // Resolve target tenant ID if it's a slug
-        let targetTenantId = null;
-        if (tenantId) {
-          const normalizedTenantId = String(tenantId).trim().toLowerCase();
-          const found = tenants.find(t => 
-            t.id?.toLowerCase() === normalizedTenantId || 
-            t.slug?.toLowerCase() === normalizedTenantId
-          );
-          
-          if (found) {
-            targetTenantId = found.id;
-            console.log('[AppContext] Resolved targetTenantId from state:', targetTenantId);
-          } else {
-            // Try fetching from Firestore if not in state
-            try {
-              console.log('[AppContext] Resolving targetTenantId from Firestore for:', normalizedTenantId);
-              const snap = await getDocFromServer(doc(db, 'tenants', normalizedTenantId)); // Try direct ID first
-              if (snap.exists()) {
-                targetTenantId = snap.id;
-                console.log('[AppContext] Resolved targetTenantId from Firestore (direct ID):', targetTenantId);
-              } else {
-                // Try slug query
-                const qSlug = query(collection(db, 'tenants'), where('slug', '==', normalizedTenantId), limit(1));
-                const snapSlug = await getDocs(qSlug);
-                if (!snapSlug.empty) {
-                  targetTenantId = snapSlug.docs[0].id;
-                  console.log('[AppContext] Resolved targetTenantId from Firestore (slug query):', targetTenantId);
-                } else {
-                  targetTenantId = tenantId; // Fallback to raw ID
-                  console.log('[AppContext] Fallback targetTenantId to raw ID:', targetTenantId);
-                }
-              }
-            } catch (e) {
-              console.error('[AppContext] Error resolving tenant from Firestore:', e);
-              targetTenantId = tenantId;
-            }
-          }
-        }
-
         // If a specific tenantId is provided in the URL, verify the user belongs to it
-        const isSuperAdmin = String(user.role).toUpperCase() === Role.SUPER_ADMIN || user.email === 'asitzonebd@gmail.com';
-        console.log('[AppContext] Login - User Role:', user.role, 'isSuperAdmin:', isSuperAdmin);
-
-        if (targetTenantId && !isSuperAdmin) {
-          const accessibleTenantIds = Array.from(new Set([
-            ...(user.tenantIds || []),
-            user.tenantId
-          ].filter(Boolean))).map(id => String(id).trim().toLowerCase());
-
-          const normalizedTargetId = String(targetTenantId).trim().toLowerCase();
-          let hasAccess = accessibleTenantIds.includes(normalizedTargetId);
-          
-          if (!hasAccess) {
-            const accessibleTenantSlugs = tenants
-              .filter(t => accessibleTenantIds.includes(String(t.id).trim().toLowerCase()))
-              .map(t => t.slug?.trim().toLowerCase())
-              .filter(Boolean);
-            hasAccess = accessibleTenantSlugs.includes(normalizedTargetId);
-          }
-
-          if (!hasAccess) {
-            try {
-              const tenantsRef = collection(db, 'tenants');
-              const slugQuery = query(tenantsRef, where('slug', '==', targetTenantId), limit(1));
-              const slugSnap = await getDocs(slugQuery);
-              if (!slugSnap.empty) {
-                const tenantIdFromSlug = slugSnap.docs[0].id.toLowerCase();
-                if (accessibleTenantIds.includes(tenantIdFromSlug)) {
-                  hasAccess = true;
-                }
-              }
-            } catch (err) {
-              console.error('Error checking slug access:', err);
-            }
-          }
-          
-          if (!hasAccess) {
-            console.warn('[AppContext] Access denied: tenant mismatch, falling back to default tenant');
-            targetTenantId = null;
-          }
+        if (tenantId && user.tenantId && String(user.tenantId) !== String(tenantId) && user.role !== Role.SUPER_ADMIN) {
+          console.warn('[AppContext] Access denied: tenant mismatch', { userTenant: user.tenantId, targetTenant: tenantId });
+          await signOut(auth);
+          setIsLoading(false);
+          toast.error('Access denied for this restaurant.');
+          return false;
         }
         
-        if (!targetTenantId && !isSuperAdmin && !user.tenantId && (!user.tenantIds || user.tenantIds.length === 0)) {
+        if (!tenantId && user.role !== Role.SUPER_ADMIN && !user.tenantId) {
           console.warn('[AppContext] Access denied: no tenant for non-superadmin');
           await signOut(auth);
           setIsLoading(false);
@@ -976,15 +712,10 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         }
 
         // Set tenant context if provided or if user has one
-        if (targetTenantId) {
-          setCurrentTenantId(targetTenantId);
-          setActiveTenantId(targetTenantId);
-        } else if (user.tenantId && !isSuperAdmin) {
+        if (tenantId) {
+          setCurrentTenantId(tenantId);
+        } else if (user.tenantId && user.role !== Role.SUPER_ADMIN) {
           setCurrentTenantId(user.tenantId);
-          setActiveTenantId(user.tenantId);
-        } else if (user.tenantIds && user.tenantIds.length > 0 && !isSuperAdmin) {
-          setCurrentTenantId(user.tenantIds[0]);
-          setActiveTenantId(user.tenantIds[0]);
         }
 
         setCurrentUser(user);
@@ -999,16 +730,10 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     } catch (error: any) {
       console.error('[AppContext] Login error:', error.code, error.message);
       setIsLoading(false);
-      
       if (error.code === 'auth/too-many-requests') {
         toast.error('Too many failed login attempts. Please wait a few minutes and try again.');
       } else if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
-        // If it's the Super Admin email, suggest Google Login
-        if (emailOrMobile.trim().toLowerCase() === 'asitzonebd@gmail.com') {
-          toast.error('Invalid credentials. If you are the Super Admin, try logging in with Google.');
-        } else {
-          toast.error('Invalid email/mobile or password. Please try again.');
-        }
+        toast.error('Invalid email/mobile or password. Please try again.');
       } else {
         toast.error('Login failed: ' + (error.message || 'Invalid credentials'));
       }
@@ -1436,15 +1161,6 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     }
   };
 
-  const updateOrderPaymentStatus = async (orderId: string, isPaid: boolean) => {
-    try {
-      await updateDoc(doc(db, 'orders', orderId), { isPaid });
-    } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `orders/${orderId}`);
-      throw error;
-    }
-  };
-
   const updateInventory = async (itemId: string, quantityChange: number) => {
     try {
       const item = allInventory.find(i => i.id === itemId);
@@ -1782,7 +1498,6 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         ...user, 
         id: userCredential.user.uid,
         tenantId,
-        tenantIds: (user as User).tenantIds || [tenantId].filter(Boolean),
         avatar: (user as User).avatar || DEFAULT_AVATAR
       } as User;
       
@@ -1812,8 +1527,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
   const deleteUser = async (userId: string) => {
     const userToDelete = allUsers.find(u => u.id === userId);
-    const isSuperAdmin = userToDelete?.role === Role.SUPER_ADMIN || userToDelete?.email === 'asitzonebd@gmail.com';
-    if (isSuperAdmin) {
+    if (userToDelete?.role === Role.SUPER_ADMIN) {
       console.error('Cannot delete Super Admin account.');
       return;
     }
@@ -1937,61 +1651,39 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     };
 
     let ownerUid = `u-${Date.now()}`;
-    let existingOwner: User | null = null;
-    
-    const existingUser = allUsers.find(u => u.email.toLowerCase() === ownerData.email?.toLowerCase());
-    if (existingUser) {
-      if (existingUser.role !== Role.OWNER) {
-        toast.error('This email is already registered for a non-owner account.');
+    try {
+      // Create owner in Firebase Auth using secondary app to avoid signing out current user
+      if (ownerData.email && ownerData.password) {
+        const userCredential = await createUserWithEmailAndPassword(secondaryAuth, ownerData.email, ownerData.password);
+        ownerUid = userCredential.user.uid;
+        await signOut(secondaryAuth);
+      }
+    } catch (authError: any) {
+      console.error('Error creating owner auth:', authError);
+      if (authError.code === 'auth/email-already-in-use') {
+        toast.error('The email address is already in use by another account. Please use a different email.');
         return '';
       }
-      existingOwner = existingUser;
-      ownerUid = existingUser.id;
-    } else {
-      try {
-        // Create owner in Firebase Auth using secondary app to avoid signing out current user
-        if (ownerData.email && ownerData.password) {
-          const userCredential = await createUserWithEmailAndPassword(secondaryAuth, ownerData.email, ownerData.password);
-          ownerUid = userCredential.user.uid;
-          await signOut(secondaryAuth);
-        }
-      } catch (authError: any) {
-        console.error('Error creating owner auth:', authError);
-        if (authError.code === 'auth/email-already-in-use') {
-          toast.error('The email address is already in use by another account. Please use a different email.');
-          return '';
-        }
-        toast.error('Failed to create owner account: ' + authError.message);
-        return '';
-      }
+      toast.error('Failed to create owner account: ' + authError.message);
+      return '';
     }
 
-    let ownerToSave: User;
-    if (existingOwner) {
-      const updatedTenantIds = existingOwner.tenantIds ? [...existingOwner.tenantIds, newTenantId] : [existingOwner.tenantId || '', newTenantId].filter(Boolean);
-      ownerToSave = { 
-        ...existingOwner, 
-        tenantIds: Array.from(new Set(updatedTenantIds)) 
-      };
-    } else {
-      ownerToSave = {
-        id: ownerUid,
-        tenantId: newTenantId,
-        tenantIds: [newTenantId],
-        name: ownerData.name || 'Owner',
-        email: ownerData.email || '',
-        password: ownerData.password || '',
-        mobile: ownerData.mobile || '',
-        role: Role.OWNER,
-        avatar: '',
-        permissions: ['Dashboard', 'POS', 'Kitchen', 'Menu', 'Billing', 'Transactions', 'Expenses', 'Reports', 'Inventory', 'Users', 'Settings']
-      };
-    }
+    const newOwner: User = {
+      id: ownerUid,
+      tenantId: newTenantId,
+      name: ownerData.name || 'Owner',
+      email: ownerData.email || '',
+      password: ownerData.password || '',
+      mobile: ownerData.mobile || '',
+      role: Role.OWNER,
+      avatar: '',
+      permissions: ['Dashboard', 'POS', 'Kitchen', 'Menu', 'Billing', 'Transactions', 'Expenses', 'Reports', 'Inventory', 'Users', 'Settings']
+    };
 
     try {
       const batch = writeBatch(db);
       batch.set(doc(db, 'tenants', newBusiness.id), newBusiness);
-      batch.set(doc(db, 'users', ownerToSave.id), ownerToSave);
+      batch.set(doc(db, 'users', newOwner.id), newOwner);
 
       if (sourceTenantId) {
         const sourceMenuItems = allMenu.filter(m => m.tenantId === sourceTenantId);
@@ -2014,8 +1706,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         return [...prev, newBusiness];
       });
       setAllUsers(prev => {
-        if (prev.some(u => u.id === ownerToSave.id)) return prev;
-        return [...prev, ownerToSave];
+        if (prev.some(u => u.id === newOwner.id)) return prev;
+        return [...prev, newOwner];
       });
       
       toast.success(`Business "${newBusiness.name}" created successfully!`);
@@ -2030,7 +1722,6 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     const tenantId = resolvedTenantId || '';
     const newTransaction = { ...transaction, tenantId } as Transaction;
     
-    console.log('[AppContext] Adding transaction:', newTransaction);
     try {
       const transRef = doc(db, 'transactions', newTransaction.id);
       await setDoc(transRef, cleanObject(newTransaction));
@@ -2143,7 +1834,6 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       updateOrderItems,
       updateOrderStatus,
       updateOrderItemStatus,
-      updateOrderPaymentStatus,
       updateInventory,
       addInventoryItem,
       editInventoryItem,
@@ -2171,8 +1861,6 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       currentTenant: business,
       currentTenantId,
       setCurrentTenantId,
-      activeTenantId,
-      setActiveTenantId,
       createBusiness,
       loginWithGoogle,
       toggleBusinessStatus,
@@ -2192,8 +1880,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       dbStatus,
       tables,
       addTable,
-      deleteTable,
-      getDefaultRedirect
+      deleteTable
     }}>
       {children}
     </AppContext.Provider>

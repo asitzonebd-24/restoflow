@@ -148,7 +148,6 @@ export const Kitchen = () => {
   };
 
   const getCreatorName = (userId: string) => {
-    if (userId === currentUser?.id) return currentUser?.name || 'Staff';
     const user = users.find(u => u.id === userId);
     return user ? user.name : 'Unknown';
   };

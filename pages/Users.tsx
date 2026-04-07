@@ -124,8 +124,6 @@ export const Users = () => {
                 password: formData.password,
                 mobile: formData.mobile,
                 role: formData.role,
-                tenantId: currentTenant.id,
-                tenantIds: [currentTenant.id],
                 permissions: formData.permissions,
                 avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.name)}&background=random`
             };
