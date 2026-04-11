@@ -3,17 +3,33 @@ import React, { useEffect } from 'react';
 import { useParams, useNavigate, Navigate, Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { Utensils, ShieldCheck, User, ArrowRight, Store, Globe, MapPin, Phone, ShoppingBag, AlertTriangle } from 'lucide-react';
+import { Role } from '../types';
 
 export const TenantLanding = () => {
   const { tenantId } = useParams<{ tenantId: string }>();
-  const { tenants, setCurrentTenantId, isLoading } = useApp();
+  const { tenants, setCurrentTenantId, isLoading, currentUser, logout } = useApp();
   const navigate = useNavigate();
 
   useEffect(() => {
     if (tenantId) {
       setCurrentTenantId(tenantId);
+      
+      // Auto-logout if user is logged into a different restaurant
+      if (currentUser && currentUser.role !== Role.SUPER_ADMIN) {
+        const targetTenant = tenants.find(t => t.id === tenantId || t.slug === tenantId);
+        const targetId = targetTenant?.id || tenantId;
+        
+        if (targetId !== currentUser.tenantId) {
+          console.log('[TenantLanding] Tenant mismatch. Logging out previous session.', {
+            urlTenant: tenantId,
+            targetId,
+            currentUserTenant: currentUser.tenantId
+          });
+          logout();
+        }
+      }
     }
-  }, [tenantId, setCurrentTenantId]);
+  }, [tenantId, setCurrentTenantId, currentUser, logout, tenants]);
 
   const tenant = tenants.find(t => t.id === tenantId || t.slug === tenantId);
   const actualTenantId = tenant?.id || tenantId;

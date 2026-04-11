@@ -299,7 +299,7 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
 };
 
 const ProtectedLayout = ({ children, allowedRoles }: { children?: React.ReactNode, allowedRoles?: Role[] }) => {
-  const { currentUser, business, setCurrentTenantId, logout } = useApp();
+  const { currentUser, business, setCurrentTenantId, logout, getDefaultRedirect } = useApp();
   const { tenantId } = useParams();
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -325,12 +325,25 @@ const ProtectedLayout = ({ children, allowedRoles }: { children?: React.ReactNod
   }
   
   // If tenantId is in URL, ensure it matches user's tenant (unless Super Admin)
-  if (tenantId && currentUser.role !== Role.SUPER_ADMIN && currentUser.tenantId !== tenantId) {
+  // We check against both ID and Slug to support flexible URLs
+  const isCorrectTenant = tenantId && (
+    tenantId === currentUser.tenantId || 
+    tenantId === business.id || 
+    tenantId === business.slug
+  );
+
+  if (tenantId && currentUser.role !== Role.SUPER_ADMIN && !isCorrectTenant) {
+    console.log('[ProtectedLayout] Tenant mismatch. URL:', tenantId, 'User Tenant:', currentUser.tenantId);
     return <Navigate to={`/${currentUser.tenantId}/dashboard`} replace />;
   }
   
   if (allowedRoles && !allowedRoles.includes(currentUser.role)) {
-    return <Navigate to="/" replace />;
+    const redirectPath = getDefaultRedirect();
+    // Avoid infinite redirect loop if redirectPath is the same as current path
+    if (redirectPath === location.pathname) {
+      return <Navigate to="/" replace />;
+    }
+    return <Navigate to={redirectPath} replace />;
   }
 
   // Check permissions for business users (Super Admin bypasses)
@@ -459,12 +472,28 @@ const ProtectedLayout = ({ children, allowedRoles }: { children?: React.ReactNod
 };
 
 const AppContent = () => {
-  const { currentUser, isLoading, business, currentTenantId, setCurrentTenantId } = useApp();
+  const { currentUser, isLoading, business, currentTenantId, setCurrentTenantId, getDefaultRedirect, logout, tenants } = useApp();
   const location = useLocation();
 
   React.useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
     const tenantId = searchParams.get('tenantId');
+    
+    // Auto-logout if user is logged into a different restaurant and tries to access login page
+    if (tenantId && currentUser && currentUser.role !== Role.SUPER_ADMIN && location.pathname === '/login') {
+      const targetTenant = tenants.find(t => t.id === tenantId || t.slug === tenantId);
+      const targetId = targetTenant?.id || tenantId;
+      
+      if (targetId !== currentUser.tenantId) {
+        console.log('[AppContent] Tenant mismatch on login page. Logging out previous session.', {
+          urlTenant: tenantId,
+          targetId,
+          currentUserTenant: currentUser.tenantId
+        });
+        logout();
+        return;
+      }
+    }
     
     if (tenantId && tenantId !== currentTenantId) {
       console.log('[AppContent] Found tenantId in URL, updating currentTenantId:', tenantId);
@@ -566,31 +595,6 @@ const AppContent = () => {
       </div>
     );
   }
-
-  const getDefaultRedirect = () => {
-    if (!currentUser) return "/";
-    
-    // Prioritize explicit tenant context or user's assigned tenant
-    const targetId = currentTenantId || currentUser.tenantId || business?.slug || business?.id;
-
-    // If Super Admin is in a tenant context, go to that tenant's dashboard
-    if (currentUser.role === Role.SUPER_ADMIN) {
-      if (currentTenantId && currentTenantId !== '00' && currentTenantId !== '01') {
-        return `/${targetId}/dashboard`;
-      }
-      return "/portal";
-    }
-    
-    if (currentUser.role === Role.CUSTOMER) return `/${targetId}/order`;
-    
-    const permissions = currentUser.permissions || [];
-    if (permissions.includes('Dashboard')) return `/${targetId}/dashboard`;
-    if (permissions.includes('POS')) return `/${targetId}/pos`;
-    if (permissions.length > 0) return `/${targetId}/${permissions[0].toLowerCase()}`;
-    
-    // Final fallback to avoid redirect loops
-    return currentUser.role === Role.SUPER_ADMIN ? "/portal" : "/";
-  };
 
   return (
     <Routes>

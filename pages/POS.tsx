@@ -358,6 +358,18 @@ export const POS = () => {
     setCurrentPage(1);
   }, [filter]);
 
+  useEffect(() => {
+    console.log('[POS] Component Mounted/Updated', { 
+      isLoading, 
+      hasTenant: !!currentTenant, 
+      hasUser: !!currentUser,
+      tenantId: currentTenant?.id,
+      userId: currentUser?.id,
+      menuLength: menu.length,
+      ordersLength: orders.length
+    });
+  }, [isLoading, currentTenant, currentUser, menu.length, orders.length]);
+
   if (isLoading || !currentTenant || !currentUser) {
     return (
       <div className="h-screen flex items-center justify-center bg-slate-50">

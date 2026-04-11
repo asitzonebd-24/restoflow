@@ -150,6 +150,7 @@ interface AppContextType {
   approveBill: (billId: string) => Promise<void>;
   allUsers: User[];
   isLoading: boolean;
+  getDefaultRedirect: () => string;
   activeCategory: string;
   setActiveCategory: (category: string) => void;
   categories: string[];
@@ -361,6 +362,14 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     if (tenantBySlug) return tenantBySlug.id;
     return rawId;
   }, [activeTenantId, currentUser, currentTenantId, tenants]);
+
+  // Reset loading state when tenant context changes to ensure fresh data fetch
+  useEffect(() => {
+    if (resolvedTenantId) {
+      console.log('[AppContext] Tenant context changed, resetting loading state:', resolvedTenantId);
+      setIsLoading(true);
+    }
+  }, [resolvedTenantId]);
 
   // 1. Tenants Listener (Global or Tenant-specific)
   useEffect(() => {
@@ -1875,6 +1884,33 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     }
   };
 
+  const getDefaultRedirect = () => {
+    if (!currentUser) return "/";
+    
+    // Prioritize user's assigned tenant ID for internal redirects to avoid slug/ID mismatch loops
+    const targetId = currentUser.tenantId || currentTenantId || business?.id || business?.slug;
+
+    if (!targetId) return currentUser.role === Role.SUPER_ADMIN ? "/portal" : "/";
+
+    // If Super Admin is in a tenant context, go to that tenant's dashboard
+    if (currentUser.role === Role.SUPER_ADMIN) {
+      if (currentTenantId && currentTenantId !== '00' && currentTenantId !== '01') {
+        return `/${targetId}/dashboard`;
+      }
+      return "/portal";
+    }
+    
+    if (currentUser.role === Role.CUSTOMER) return `/${targetId}/order`;
+    
+    const permissions = currentUser.permissions || [];
+    if (permissions.includes('Dashboard')) return `/${targetId}/dashboard`;
+    if (permissions.includes('POS')) return `/${targetId}/pos`;
+    if (permissions.length > 0) return `/${targetId}/${permissions[0].toLowerCase()}`;
+    
+    // Final fallback to avoid redirect loops
+    return currentUser.role === Role.SUPER_ADMIN ? "/portal" : "/";
+  };
+
   return (
     <AppContext.Provider value={{
       currentUser,
@@ -1933,6 +1969,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       approveBill,
       allUsers,
       isLoading,
+      getDefaultRedirect,
       activeCategory,
       setActiveCategory,
       categories,
