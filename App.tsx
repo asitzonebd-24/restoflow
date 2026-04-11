@@ -696,11 +696,11 @@ const OfflineAlert = () => {
           initial={{ y: -100, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: -100, opacity: 0 }}
-          className="fixed top-0 left-0 right-0 z-[9999] bg-rose-500 text-white px-4 py-3 flex items-center justify-center gap-3 shadow-lg"
+          className="fixed top-4 left-1/2 -translate-x-1/2 z-[9999] bg-rose-500 text-white px-6 py-3 rounded-full flex items-center justify-center gap-3 shadow-lg w-fit whitespace-nowrap"
         >
-          <AlertTriangle size={20} className="animate-pulse" />
-          <p className="text-sm font-bold tracking-wide">
-            You are currently offline. Please check your internet connection.
+          <AlertTriangle size={16} className="animate-pulse" />
+          <p className="text-xs font-bold tracking-wide">
+            Offline! Data will update when online.
           </p>
         </motion.div>
       )}
