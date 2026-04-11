@@ -837,15 +837,15 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         } else {
           // Simple Mode Inventory Sync
           const linkedInvItem = allInventory.find(inv => 
-            inv.menuItemId === item.itemId || 
-            (inv.menuCategory === menuItem.category && !inv.menuItemId)
+            inv.menuItemIds?.includes(item.itemId) || 
+            (inv.menuCategory === menuItem.category && (!inv.menuItemIds || inv.menuItemIds.length === 0))
           );
           if (linkedInvItem) {
             const currentInvQty = inventoryUpdates[linkedInvItem.id] !== undefined ? inventoryUpdates[linkedInvItem.id] : linkedInvItem.quantity;
             const newInvQty = Math.max(0, currentInvQty - item.quantity);
             inventoryUpdates[linkedInvItem.id] = newInvQty;
 
-            if (linkedInvItem.menuCategory && !linkedInvItem.menuItemId) {
+            if (linkedInvItem.menuCategory && (!linkedInvItem.menuItemIds || linkedInvItem.menuItemIds.length === 0)) {
               const categoryItems = allMenu.filter(m => m.category === linkedInvItem.menuCategory);
               categoryItems.forEach(m => {
                 menuUpdates[m.id] = newInvQty;
@@ -1069,15 +1069,15 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             } else {
               // Simple Mode Inventory Sync
               const linkedInvItem = allInventory.find(inv => 
-                inv.menuItemId === item.itemId || 
-                (inv.menuCategory === menuItem.category && !inv.menuItemId)
+                inv.menuItemIds?.includes(item.itemId) || 
+                (inv.menuCategory === menuItem.category && (!inv.menuItemIds || inv.menuItemIds.length === 0))
               );
               if (linkedInvItem) {
                 const currentInvQty = inventoryUpdates[linkedInvItem.id] !== undefined ? inventoryUpdates[linkedInvItem.id] : linkedInvItem.quantity;
                 const newInvQty = currentInvQty + item.quantity;
                 inventoryUpdates[linkedInvItem.id] = newInvQty;
 
-                if (linkedInvItem.menuCategory && !linkedInvItem.menuItemId) {
+                if (linkedInvItem.menuCategory && (!linkedInvItem.menuItemIds || linkedInvItem.menuItemIds.length === 0)) {
                   const categoryItems = allMenu.filter(m => m.category === linkedInvItem.menuCategory);
                   categoryItems.forEach(m => {
                     menuUpdates[m.id] = newInvQty;
@@ -1164,8 +1164,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
               }
             } else {
               const linkedInvItem = allInventory.find(inv => 
-                inv.menuItemId === itemToUpdate.itemId || 
-                (inv.menuCategory === menuItem.category && !inv.menuItemId)
+                inv.menuItemIds?.includes(itemToUpdate.itemId) || 
+                (inv.menuCategory === menuItem.category && (!inv.menuItemIds || inv.menuItemIds.length === 0))
               );
               if (linkedInvItem) {
                 const newInvQty = linkedInvItem.quantity + (itemToUpdate.quantity * multiplier);
@@ -1175,7 +1175,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
                   lastUpdated: serverTimestamp()
                 });
 
-                if (linkedInvItem.menuCategory && !linkedInvItem.menuItemId) {
+                if (linkedInvItem.menuCategory && (!linkedInvItem.menuItemIds || linkedInvItem.menuItemIds.length === 0)) {
                   const categoryItems = allMenu.filter(m => m.category === linkedInvItem.menuCategory);
                   categoryItems.forEach(m => {
                     const mRef = doc(db, 'menu_items', m.id);
@@ -1216,9 +1216,11 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         });
 
         // Sync with menu item if linked (Direct link or Category link)
-        if (item.menuItemId) {
-          const menuRef = doc(db, 'menu_items', item.menuItemId);
-          batch.update(menuRef, { stock: newQuantity });
+        if (item.menuItemIds && item.menuItemIds.length > 0) {
+          item.menuItemIds.forEach(id => {
+            const menuRef = doc(db, 'menu_items', id);
+            batch.update(menuRef, { stock: newQuantity });
+          });
         } else if (item.menuCategory) {
           const categoryItems = allMenu.filter(m => m.category === item.menuCategory);
           categoryItems.forEach(m => {
@@ -1247,9 +1249,11 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       }));
 
       // If linked to a menu item or category, sync initial quantity
-      if (newItem.menuItemId) {
-        const menuRef = doc(db, 'menu_items', newItem.menuItemId);
-        batch.update(menuRef, { stock: newItem.quantity });
+      if (newItem.menuItemIds && newItem.menuItemIds.length > 0) {
+        newItem.menuItemIds.forEach(id => {
+          const menuRef = doc(db, 'menu_items', id);
+          batch.update(menuRef, { stock: newItem.quantity });
+        });
       } else if (newItem.menuCategory) {
         const categoryItems = allMenu.filter(m => m.category === newItem.menuCategory);
         categoryItems.forEach(m => {
@@ -1276,12 +1280,14 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       // If quantity is updated and linked to a menu item or category, sync it
       if (updates.quantity !== undefined) {
         const item = allInventory.find(i => i.id === id);
-        const menuItemId = updates.menuItemId !== undefined ? updates.menuItemId : item?.menuItemId;
+        const menuItemIds = updates.menuItemIds !== undefined ? updates.menuItemIds : item?.menuItemIds;
         const menuCategory = updates.menuCategory !== undefined ? updates.menuCategory : item?.menuCategory;
         
-        if (menuItemId) {
-          const menuRef = doc(db, 'menu_items', menuItemId);
-          batch.update(menuRef, { stock: updates.quantity });
+        if (menuItemIds && menuItemIds.length > 0) {
+          menuItemIds.forEach(mId => {
+            const menuRef = doc(db, 'menu_items', mId);
+            batch.update(menuRef, { stock: updates.quantity });
+          });
         } else if (menuCategory) {
           const categoryItems = allMenu.filter(m => m.category === menuCategory);
           categoryItems.forEach(m => {
@@ -1289,16 +1295,18 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             batch.update(menuRef, { stock: updates.quantity });
           });
         }
-      } else if (updates.menuItemId !== undefined || updates.menuCategory !== undefined) {
+      } else if (updates.menuItemIds !== undefined || updates.menuCategory !== undefined) {
         // If only link is updated, sync current quantity to menu item(s)
         const item = allInventory.find(i => i.id === id);
         if (item) {
-          const menuItemId = updates.menuItemId !== undefined ? updates.menuItemId : item.menuItemId;
+          const menuItemIds = updates.menuItemIds !== undefined ? updates.menuItemIds : item.menuItemIds;
           const menuCategory = updates.menuCategory !== undefined ? updates.menuCategory : item.menuCategory;
           
-          if (menuItemId) {
-            const menuRef = doc(db, 'menu_items', menuItemId);
-            batch.update(menuRef, { stock: item.quantity });
+          if (menuItemIds && menuItemIds.length > 0) {
+            menuItemIds.forEach(mId => {
+              const menuRef = doc(db, 'menu_items', mId);
+              batch.update(menuRef, { stock: item.quantity });
+            });
           } else if (menuCategory) {
             const categoryItems = allMenu.filter(m => m.category === menuCategory);
             categoryItems.forEach(m => {
@@ -1333,7 +1341,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       const itemRef = doc(db, 'menu_items', newItem.id);
 
       // Check if there's a category-linked inventory item
-      const linkedInvItem = allInventory.find(inv => inv.menuCategory === newItem.category && !inv.menuItemId);
+      const linkedInvItem = allInventory.find(inv => inv.menuCategory === newItem.category && (!inv.menuItemIds || inv.menuItemIds.length === 0));
       if (linkedInvItem && newItem.stock === undefined) {
         newItem.stock = linkedInvItem.quantity;
       }
@@ -1351,7 +1359,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       const itemRef = doc(db, 'menu_items', itemId);
 
       if (updates.category) {
-        const linkedInvItem = allInventory.find(inv => inv.menuCategory === updates.category && !inv.menuItemId);
+        const linkedInvItem = allInventory.find(inv => inv.menuCategory === updates.category && (!inv.menuItemIds || inv.menuItemIds.length === 0));
         if (linkedInvItem && updates.stock === undefined) {
           updates.stock = linkedInvItem.quantity;
         }

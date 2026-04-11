@@ -53,6 +53,7 @@ export interface Business {
   menuCategories: string[];
   materialNames?: string[];
   suppliers?: string[];
+  supplierDues?: Record<string, number>;
   customerTokenPrefix: string;
   nextCustomerToken: number;
   customerAppEnabled: boolean;
@@ -152,10 +153,8 @@ export interface InventoryItem {
   quantity: number;
   minThreshold: number;
   supplier: string;
-  materialDetails?: string;
   pricePerUnit: number;
-  menuItemId?: string; // Link to menu item for auto-sync
-  menuCategory?: string; // Link to menu category for auto-sync
+  menuItemIds?: string[]; // Link to multiple menu items for auto-sync
 }
 
 export interface Recipe {

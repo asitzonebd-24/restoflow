@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { InventoryItem, InventoryMode, Recipe } from '../types';
-import { Package, AlertTriangle, RefreshCw, Plus, Edit2, X, Save, Search, ChevronRight, CheckCircle, MoreHorizontal, ArrowUpRight, ArrowDownRight, Trash2, Truck, List } from 'lucide-react';
+import { Package, AlertTriangle, RefreshCw, Plus, Edit2, X, Save, Search, ChevronRight, CheckCircle, MoreHorizontal, ArrowUpRight, ArrowDownRight, Trash2, Truck, List, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Pagination } from '../components/Pagination';
 
@@ -107,19 +107,39 @@ const ListManagerModal = ({
 };
 
 export const Inventory = () => {
-  const { inventory, updateInventory, addInventoryItem, editInventoryItem, deleteInventoryItem, currentTenant, menu, updateTenant, business, recipes, addRecipe, updateRecipe, deleteRecipe } = useApp();
+  const { inventory, updateInventory, addInventoryItem, editInventoryItem, deleteInventoryItem, currentTenant, menu, updateTenant, business, recipes, addRecipe, updateRecipe, deleteRecipe, addExpense } = useApp();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isRecipeModalOpen, setIsRecipeModalOpen] = useState(false);
   const [isMaterialManagerOpen, setIsMaterialManagerOpen] = useState(false);
   const [isSupplierManagerOpen, setIsSupplierManagerOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'inventory' | 'menu' | 'recipes'>('inventory');
+  const [activeTab, setActiveTab] = useState<'inventory' | 'menu' | 'recipes' | 'suppliers'>('inventory');
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [filterSupplier, setFilterSupplier] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 20;
 
+  const [isDueModalOpen, setIsDueModalOpen] = useState(false);
+  const [selectedSupplier, setSelectedSupplier] = useState<string | null>(null);
+  const [dueAmountChange, setDueAmountChange] = useState<number | ''>('');
+  const [dueAction, setDueAction] = useState<'add' | 'pay'>('pay');
+
   const isRecipeMode = business?.inventoryMode === InventoryMode.RECIPE;
+
+  const uniqueMaterialNames = Array.from(new Set([
+    ...(currentTenant?.materialNames || []),
+    ...inventory.map(i => i.name)
+  ])).filter(Boolean);
+
+  const uniqueSuppliers = Array.from(new Set([
+    ...(currentTenant?.suppliers || []),
+    ...inventory.map(i => i.supplier)
+  ])).filter(Boolean);
+
+  const [menuFilterCategory, setMenuFilterCategory] = useState<string>('');
+  const [isCustomMaterial, setIsCustomMaterial] = useState(false);
+  const [isCustomSupplier, setIsCustomSupplier] = useState(false);
 
   const [recipeFormData, setRecipeFormData] = useState<{
     menuItemId: string;
@@ -129,43 +149,61 @@ export const Inventory = () => {
     ingredients: [{ inventoryItemId: '', quantity: 0 }]
   });
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    name: string;
+    supplier: string;
+    unit: string;
+    quantity: number;
+    minThreshold: number;
+    pricePerUnit: number;
+    menuItemIds: string[];
+  }>({
     name: '',
     supplier: '',
-    materialDetails: '',
     unit: 'kg',
     quantity: 0,
     minThreshold: 5,
     pricePerUnit: 0,
-    menuItemId: '',
-    menuCategory: ''
+    menuItemIds: []
   });
 
   const [restockItem, setRestockItem] = useState<InventoryItem | null>(null);
   const [restockQuantity, setRestockQuantity] = useState<number>(1);
+  const [restockPaidAmount, setRestockPaidAmount] = useState<number | ''>('');
   const [newStock, setNewStock] = useState<number | ''>('');
+  const [paidAmount, setPaidAmount] = useState<number | ''>('');
+
+  const existingItemForForm = editingItem || (!isCustomMaterial ? inventory.find(item => item.name === formData.name) : null);
+  const finalQuantityUI = formData.quantity + (Number(newStock) || 0);
+  const expenseQuantityUI = Math.max(0, finalQuantityUI - (existingItemForForm ? existingItemForForm.quantity : 0));
+  const totalAmountUI = expenseQuantityUI * formData.pricePerUnit;
 
   const openAddModal = () => {
     setEditingItem(null);
     setNewStock('');
-    setFormData({ name: '', supplier: '', materialDetails: '', unit: 'kg', quantity: 0, minThreshold: 5, pricePerUnit: 0, menuItemId: '', menuCategory: '' });
+    setPaidAmount('');
+    setMenuFilterCategory('');
+    setIsCustomMaterial(false);
+    setIsCustomSupplier(false);
+    setFormData({ name: '', supplier: '', unit: 'kg', quantity: 0, minThreshold: 5, pricePerUnit: 0, menuItemIds: [] });
     setIsModalOpen(true);
   };
 
   const openEditModal = (item: InventoryItem) => {
     setEditingItem(item);
     setNewStock('');
-    const linkedMenu = menu.find(m => m.id === item.menuItemId);
+    setPaidAmount('');
+    setMenuFilterCategory('');
+    setIsCustomMaterial(!uniqueMaterialNames.includes(item.name));
+    setIsCustomSupplier(!uniqueSuppliers.includes(item.supplier));
     setFormData({ 
       name: item.name, 
       supplier: item.supplier, 
-      materialDetails: item.materialDetails || '',
       unit: item.unit, 
       quantity: item.quantity, 
       minThreshold: item.minThreshold, 
       pricePerUnit: item.pricePerUnit,
-      menuItemId: item.menuItemId || '',
-      menuCategory: item.menuCategory || linkedMenu?.category || ''
+      menuItemIds: item.menuItemIds || []
     });
     setIsModalOpen(true);
   };
@@ -180,20 +218,46 @@ export const Inventory = () => {
     e.preventDefault();
     if (!currentTenant) return;
 
-    const finalQuantity = formData.quantity + (Number(newStock) || 0);
+    const paid = Number(paidAmount) || 0;
+    const due = totalAmountUI - paid;
 
     const data = {
       ...formData,
-      quantity: finalQuantity,
-      menuItemId: formData.menuItemId || null,
-      menuCategory: formData.menuCategory || null
+      quantity: finalQuantityUI,
+      menuItemIds: formData.menuItemIds.length > 0 ? formData.menuItemIds : undefined
     };
 
-    if (editingItem) {
-      editInventoryItem(editingItem.id, data);
+    if (existingItemForForm) {
+      editInventoryItem(existingItemForForm.id, data);
     } else {
       const newItem: InventoryItem = { id: `inv-${Date.now()}`, ...data, tenantId: currentTenant.id };
       addInventoryItem(newItem);
+    }
+
+    // Handle Expense and Supplier Due
+    if (expenseQuantityUI > 0 && formData.supplier.trim()) {
+      if (paid > 0) {
+        await addExpense({
+          id: `exp-${Date.now()}`,
+          title: `Stock Purchase: ${formData.name}`,
+          amount: paid,
+          category: 'Inventory',
+          date: new Date().toISOString(),
+          recordedBy: 'System',
+          note: `Purchased ${expenseQuantityUI} ${formData.unit} from ${formData.supplier}`
+        });
+      }
+
+      if (due > 0) {
+        const currentDues = currentTenant.supplierDues || {};
+        const currentDue = currentDues[formData.supplier.trim()] || 0;
+        await updateTenant(currentTenant.id, {
+          supplierDues: {
+            ...currentDues,
+            [formData.supplier.trim()]: currentDue + due
+          }
+        });
+      }
     }
 
     // Auto-save new material names and suppliers
@@ -215,13 +279,45 @@ export const Inventory = () => {
     setIsModalOpen(false);
   };
 
-  const handleRestockSubmit = (e: React.FormEvent) => {
+  const handleRestockSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (restockItem) {
-      updateInventory(restockItem.id, restockQuantity);
-      setRestockItem(null);
-      setRestockQuantity(1);
+    if (!currentTenant || !restockItem) return;
+
+    const totalAmount = restockQuantity * restockItem.pricePerUnit;
+    const paid = Number(restockPaidAmount) || 0;
+    const due = totalAmount - paid;
+
+    updateInventory(restockItem.id, restockQuantity);
+
+    // Handle Expense and Supplier Due
+    if (restockQuantity > 0 && restockItem.supplier.trim()) {
+      if (paid > 0) {
+        await addExpense({
+          id: `exp-${Date.now()}`,
+          title: `Stock Purchase: ${restockItem.name}`,
+          amount: paid,
+          category: 'Inventory',
+          date: new Date().toISOString(),
+          recordedBy: 'System',
+          note: `Purchased ${restockQuantity} ${restockItem.unit} from ${restockItem.supplier}`
+        });
+      }
+
+      if (due > 0) {
+        const currentDues = currentTenant.supplierDues || {};
+        const currentDue = currentDues[restockItem.supplier.trim()] || 0;
+        await updateTenant(currentTenant.id, {
+          supplierDues: {
+            ...currentDues,
+            [restockItem.supplier.trim()]: currentDue + due
+          }
+        });
+      }
     }
+
+    setRestockItem(null);
+    setRestockQuantity(1);
+    setRestockPaidAmount('');
   };
 
   const handleAddMaterial = async (name: string) => {
@@ -260,10 +356,12 @@ export const Inventory = () => {
     });
   };
 
-  const filteredInventory = inventory.filter(i => 
-    i.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    i.supplier.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredInventory = inventory.filter(i => {
+    const matchesSupplier = filterSupplier === 'all' || i.supplier === filterSupplier;
+    const isLowStock = i.quantity <= i.minThreshold;
+    const matchesStatus = filterStatus === 'all' || (filterStatus === 'low' && isLowStock) || (filterStatus === 'healthy' && !isLowStock);
+    return matchesSupplier && matchesStatus;
+  });
 
   const handleRecipeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -319,6 +417,37 @@ export const Inventory = () => {
     setRecipeFormData({ ...recipeFormData, ingredients: newIngredients });
   };
 
+  const handleDueSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentTenant || !selectedSupplier || dueAmountChange === '') return;
+
+    try {
+      const currentDues = currentTenant.supplierDues || {};
+      const currentDue = currentDues[selectedSupplier] || 0;
+      
+      let newDue = currentDue;
+      if (dueAction === 'add') {
+        newDue += Number(dueAmountChange);
+      } else {
+        newDue -= Number(dueAmountChange);
+      }
+
+      await updateTenant(currentTenant.id, {
+        supplierDues: {
+          ...currentDues,
+          [selectedSupplier]: newDue
+        }
+      });
+
+      setIsDueModalOpen(false);
+      setSelectedSupplier(null);
+      setDueAmountChange('');
+    } catch (error) {
+      console.error('Error updating supplier due:', error);
+      alert('Failed to update supplier due amount');
+    }
+  };
+
   const totalPages = Math.ceil(filteredInventory.length / itemsPerPage);
   const paginatedInventory = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
@@ -328,19 +457,9 @@ export const Inventory = () => {
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm]);
+  }, [filterSupplier, filterStatus]);
 
   const lowStockCount = inventory.filter(i => i.quantity <= i.minThreshold).length;
-
-  const uniqueMaterialNames = Array.from(new Set([
-    ...(currentTenant?.materialNames || []),
-    ...inventory.map(i => i.name)
-  ])).filter(Boolean);
-
-  const uniqueSuppliers = Array.from(new Set([
-    ...(currentTenant?.suppliers || []),
-    ...inventory.map(i => i.supplier)
-  ])).filter(Boolean);
 
   return (
     <div className="p-6 md:p-10 h-full overflow-y-auto bg-slate-50/50 no-scrollbar">
@@ -433,16 +552,27 @@ export const Inventory = () => {
         </div>
       </div>
 
-      {/* Search & Filter */}
-      <div className="mb-8 relative group">
-        <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={18} />
-        <input 
-          type="text" 
-          placeholder="Search materials, suppliers or ID..." 
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full pl-14 pr-6 py-4 bg-white border-2 border-indigo-500 rounded-2xl text-sm font-medium focus:outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all shadow-xl shadow-indigo-100"
-        />
+      {/* Filters */}
+      <div className="mb-8 flex flex-col md:flex-row gap-4">
+        <select 
+          value={filterSupplier}
+          onChange={(e) => setFilterSupplier(e.target.value)}
+          className="flex-1 px-6 py-4 bg-white border-2 border-indigo-500 rounded-2xl text-sm font-medium focus:outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all shadow-xl shadow-indigo-100 appearance-none"
+        >
+          <option value="all">All Suppliers</option>
+          {uniqueSuppliers.map(supplier => (
+            <option key={supplier} value={supplier}>{supplier}</option>
+          ))}
+        </select>
+        <select 
+          value={filterStatus}
+          onChange={(e) => setFilterStatus(e.target.value)}
+          className="flex-1 px-6 py-4 bg-white border-2 border-indigo-500 rounded-2xl text-sm font-medium focus:outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all shadow-xl shadow-indigo-100 appearance-none"
+        >
+          <option value="all">All Status</option>
+          <option value="healthy">Healthy Stock</option>
+          <option value="low">Low Stock</option>
+        </select>
       </div>
 
       {/* Tabs */}
@@ -468,31 +598,37 @@ export const Inventory = () => {
             Recipes
           </button>
         )}
+        <button 
+          onClick={() => setActiveTab('suppliers')}
+          className={`px-6 py-3 rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === 'suppliers' ? 'bg-slate-900 text-white shadow-lg' : 'bg-white text-slate-400 hover:bg-slate-50'}`}
+        >
+          Suppliers
+        </button>
       </div>
 
       {activeTab === 'inventory' ? (
         <>
           {/* Inventory Table */}
-          <div className="bg-white rounded-[2rem] border-2 border-indigo-500 shadow-xl shadow-indigo-100 overflow-hidden mb-10">
+          <div className="bg-white rounded-[2rem] border border-black shadow-xl shadow-indigo-100 overflow-hidden mb-10">
             {/* Desktop Table View */}
             <div className="hidden md:block overflow-x-auto no-scrollbar">
               <table className="w-full text-left border-collapse min-w-[900px]">
                 <thead>
-                  <tr className="bg-slate-50/80 border-b-2 border-slate-100">
-                    <th className="px-8 py-6 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Material Details</th>
-                    <th className="px-8 py-6 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Supplier</th>
-                    <th className="px-8 py-6 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Unit Price</th>
-                    <th className="px-8 py-6 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Current Stock</th>
-                    <th className="px-8 py-6 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Linked Menu Item</th>
-                    <th className="px-8 py-6 text-[10px] font-bold text-slate-500 uppercase tracking-widest">Status</th>
+                  <tr className="bg-slate-50/80 border-b border-black">
+                    <th className="px-8 py-6 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-r border-black">Material Details</th>
+                    <th className="px-8 py-6 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-r border-black">Supplier</th>
+                    <th className="px-8 py-6 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-r border-black">Unit Price</th>
+                    <th className="px-8 py-6 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-r border-black">Current Stock</th>
+                    <th className="px-8 py-6 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-r border-black">Linked Menu Item</th>
+                    <th className="px-8 py-6 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-r border-black">Status</th>
                     <th className="px-8 py-6 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y-2 divide-slate-50">
+                <tbody className="divide-y divide-black">
                   <AnimatePresence mode="popLayout">
                     {paginatedInventory.map(item => {
                       const isLow = item.quantity <= item.minThreshold;
-                      const linkedMenu = menu.find(m => m.id === item.menuItemId);
+                      const linkedMenus = item.menuItemIds ? menu.filter(m => item.menuItemIds!.includes(m.id)) : [];
                       return (
                         <motion.tr 
                           layout
@@ -502,7 +638,7 @@ export const Inventory = () => {
                           key={item.id} 
                           className="hover:bg-slate-50/30 transition-colors group"
                         >
-                          <td className="px-8 py-6">
+                          <td className="px-8 py-6 border-r border-black">
                             <div className="flex items-center gap-4">
                               <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs ${isLow ? 'bg-rose-50 text-rose-600' : 'bg-slate-50 text-slate-400'}`}>
                                 {item.name.charAt(0).toUpperCase()}
@@ -510,49 +646,41 @@ export const Inventory = () => {
                               <div>
                                 <p className="font-bold text-slate-900 text-sm">{item.name}</p>
                                 <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">ID: {item.id.slice(-6).toUpperCase()}</p>
-                                {item.materialDetails && (
-                                  <p className="text-[10px] text-slate-500 mt-1 max-w-[150px] truncate" title={item.materialDetails}>
-                                    {item.materialDetails}
-                                  </p>
-                                )}
                               </div>
                             </div>
                           </td>
-                          <td className="px-8 py-6">
+                          <td className="px-8 py-6 border-r border-black">
                             <span className="text-xs font-bold text-slate-600">{item.supplier}</span>
                           </td>
-                          <td className="px-8 py-6">
+                          <td className="px-8 py-6 border-r border-black">
                             <div className="flex flex-col">
                               <span className="text-sm font-bold text-slate-900">{currentTenant?.currency}{item.pricePerUnit.toFixed(2)}</span>
                               <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Per {item.unit}</span>
                             </div>
                           </td>
-                          <td className="px-8 py-6">
+                          <td className="px-8 py-6 border-r border-black">
                             <div className="flex items-center gap-3">
                               <span className={`text-lg font-bold ${isLow ? 'text-rose-600' : 'text-slate-900'}`}>{item.quantity}</span>
                               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{item.unit}</span>
                             </div>
                           </td>
-                          <td className="px-8 py-6">
-                            {linkedMenu ? (
-                              <div className="flex items-center gap-2">
-                                <div className="w-6 h-6 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600">
-                                  <ChevronRight size={14} />
-                                </div>
-                                <span className="text-xs font-bold text-slate-600">{linkedMenu.name}</span>
-                              </div>
-                            ) : item.menuCategory ? (
-                              <div className="flex items-center gap-2">
-                                <div className="w-6 h-6 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600">
-                                  <RefreshCw size={12} />
-                                </div>
-                                <span className="text-xs font-bold text-slate-600">Category: {item.menuCategory}</span>
+                          <td className="px-8 py-6 border-r border-black">
+                            {linkedMenus.length > 0 ? (
+                              <div className="flex flex-col gap-1">
+                                {linkedMenus.map(lm => (
+                                  <div key={lm.id} className="flex items-center gap-2">
+                                    <div className="w-6 h-6 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 shrink-0">
+                                      <ChevronRight size={14} />
+                                    </div>
+                                    <span className="text-xs font-bold text-slate-600">{lm.name}</span>
+                                  </div>
+                                ))}
                               </div>
                             ) : (
                               <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest italic">Not Linked</span>
                             )}
                           </td>
-                          <td className="px-8 py-6">
+                          <td className="px-8 py-6 border-r border-black">
                             {isLow ? (
                               <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-rose-50 text-rose-600 rounded-xl border border-rose-100">
                                 <AlertTriangle size={12} />
@@ -602,10 +730,10 @@ export const Inventory = () => {
             </div>
 
             {/* Mobile Card View */}
-            <div className="md:hidden divide-y-2 divide-slate-50">
+            <div className="md:hidden divide-y divide-black">
               {paginatedInventory.map(item => {
                 const isLow = item.quantity <= item.minThreshold;
-                const linkedMenu = menu.find(m => m.id === item.menuItemId);
+                const linkedMenus = item.menuItemIds ? menu.filter(m => item.menuItemIds!.includes(m.id)) : [];
                 return (
                   <div key={item.id} className="p-6 hover:bg-slate-50/30 transition-colors group">
                     <div className="flex justify-between items-start mb-4">
@@ -709,8 +837,7 @@ export const Inventory = () => {
                 <div className="divide-y-2 divide-slate-50">
                   {categoryItems.map(item => {
                     const linkedInv = inventory.find(inv => 
-                      inv.menuItemId === item.id || 
-                      (inv.menuCategory === item.category && !inv.menuItemId)
+                      inv.menuItemIds?.includes(item.id)
                     );
                     const isOutOfStock = item.stock === 0;
                     return (
@@ -732,8 +859,7 @@ export const Inventory = () => {
                                 <div className="flex items-center gap-1 text-emerald-600">
                                   <RefreshCw size={10} />
                                   <span className="text-[9px] font-bold uppercase tracking-widest">
-                                    Synced with {linkedInv.name} 
-                                    {linkedInv.menuCategory === item.category && !linkedInv.menuItemId ? ' (Category)' : ''}
+                                    Synced with {linkedInv.name}
                                   </span>
                                 </div>
                               ) : (
@@ -761,7 +887,7 @@ export const Inventory = () => {
             );
           })}
         </div>
-      ) : (
+      ) : activeTab === 'recipes' ? (
         <div className="space-y-6 mb-10">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-bold text-slate-900">Menu Recipes</h2>
@@ -824,7 +950,142 @@ export const Inventory = () => {
             )}
           </div>
         </div>
+      ) : (
+        <div className="space-y-6 mb-10">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-bold text-slate-900">Supplier Dues</h2>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            {(!currentTenant?.suppliers || currentTenant.suppliers.length === 0) ? (
+              <div className="md:col-span-3 py-20 bg-white rounded-[2rem] border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-400">
+                <Users size={48} className="mb-4 opacity-20" />
+                <p className="text-sm font-bold uppercase tracking-widest">No suppliers added yet</p>
+                <p className="mt-2 text-[10px] text-slate-400">Add suppliers when creating inventory items</p>
+              </div>
+            ) : (
+              currentTenant.suppliers.map(supplier => {
+                const dueAmount = currentTenant.supplierDues?.[supplier] || 0;
+                return (
+                  <div key={supplier} className="bg-white p-6 rounded-[2rem] border-2 border-slate-100 shadow-sm hover:border-indigo-500 transition-all group">
+                    <div className="flex justify-between items-start mb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400">
+                          <Users size={24} />
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-slate-900">{supplier}</h3>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="pt-4 border-t-2 border-slate-50">
+                      <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Due Amount</p>
+                      <div className="flex items-center justify-between">
+                        <span className={`text-2xl font-bold ${dueAmount > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                          {currentTenant.currency}{dueAmount.toFixed(2)}
+                        </span>
+                        <button
+                          onClick={() => {
+                            setSelectedSupplier(supplier);
+                            setDueAction('pay');
+                            setIsDueModalOpen(true);
+                          }}
+                          className="px-4 py-2 bg-slate-900 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-slate-800 transition-all"
+                        >
+                          Manage Due
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
       )}
+
+      {/* Supplier Due Modal */}
+      <AnimatePresence>
+        {isDueModalOpen && selectedSupplier && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden"
+            >
+              <div className="px-8 py-6 bg-slate-50/50 border-b-2 border-slate-100 flex justify-between items-center">
+                <div>
+                  <h2 className="text-xl font-bold text-slate-900">Manage Due</h2>
+                  <p className="text-sm text-slate-500 font-medium mt-1">{selectedSupplier}</p>
+                </div>
+                <button 
+                  onClick={() => {
+                    setIsDueModalOpen(false);
+                    setSelectedSupplier(null);
+                    setDueAmountChange('');
+                  }}
+                  className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 hover:text-rose-500 shadow-sm border border-slate-100 transition-all"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <form onSubmit={handleDueSubmit} className="p-8">
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Action</label>
+                    <div className="flex gap-4">
+                      <button
+                        type="button"
+                        onClick={() => setDueAction('pay')}
+                        className={`flex-1 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${dueAction === 'pay' ? 'bg-emerald-50 text-emerald-600 border-2 border-emerald-200' : 'bg-slate-50 text-slate-400 border-2 border-transparent hover:bg-slate-100'}`}
+                      >
+                        Pay Due
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDueAction('add')}
+                        className={`flex-1 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${dueAction === 'add' ? 'bg-rose-50 text-rose-600 border-2 border-rose-200' : 'bg-slate-50 text-slate-400 border-2 border-transparent hover:bg-slate-100'}`}
+                      >
+                        Add Due
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Amount ({currentTenant?.currency})</label>
+                    <input 
+                      type="number" 
+                      min="0"
+                      step="0.01"
+                      required
+                      value={dueAmountChange}
+                      onChange={(e) => setDueAmountChange(e.target.value ? Number(e.target.value) : '')}
+                      className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl text-sm font-bold focus:outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all"
+                      placeholder="Enter amount"
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-8">
+                  <button 
+                    type="submit"
+                    className="w-full py-4 bg-slate-900 text-white rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-slate-800 transition-all active:scale-95"
+                  >
+                    Confirm {dueAction === 'pay' ? 'Payment' : 'Addition'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Inventory Modal */}
       <AnimatePresence>
@@ -840,7 +1101,7 @@ export const Inventory = () => {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative bg-white w-full max-w-xl md:rounded-[2.5rem] rounded-t-[2rem] shadow-2xl overflow-hidden border-2 border-indigo-500 shadow-indigo-100 self-end md:self-center max-h-[90vh] flex flex-col"
+              className="relative bg-white w-full max-w-2xl md:rounded-[2.5rem] rounded-t-[2rem] shadow-2xl overflow-hidden border-2 border-indigo-500 shadow-indigo-100 self-end md:self-center max-h-[90vh] flex flex-col"
             >
               <div className="p-8 md:p-10 overflow-y-auto no-scrollbar flex-1">
                 <div className="flex justify-between items-center mb-8 shrink-0">
@@ -854,161 +1115,300 @@ export const Inventory = () => {
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Basic Details */}
+                  <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100 space-y-5">
+                    <h3 className="text-xs font-bold text-slate-800 uppercase tracking-widest flex items-center gap-2">
+                      <Package size={14} className="text-indigo-500" /> Item Details
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      <div className="md:col-span-2">
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Material Name</label>
+                        {!isCustomMaterial ? (
+                          <>
+                            <select 
+                              required
+                              value={formData.name}
+                              onChange={(e) => {
+                                if (e.target.value === '__NEW__') {
+                                  setIsCustomMaterial(true);
+                                  setFormData({...formData, name: '', quantity: 0});
+                                } else {
+                                  const selectedName = e.target.value;
+                                  const existing = inventory.find(item => item.name === selectedName);
+                                  if (existing && !editingItem) {
+                                    setFormData({
+                                      name: existing.name,
+                                      quantity: existing.quantity,
+                                      unit: existing.unit,
+                                      supplier: existing.supplier,
+                                      pricePerUnit: existing.pricePerUnit,
+                                      minThreshold: existing.minThreshold,
+                                      menuItemIds: existing.menuItemIds || []
+                                    });
+                                  } else {
+                                    setFormData({...formData, name: selectedName});
+                                  }
+                                }
+                              }}
+                              className="w-full px-5 py-3.5 bg-white border-[0.5px] border-black rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-black transition-all appearance-none shadow-sm"
+                            >
+                              <option value="" disabled>Select Material...</option>
+                              {uniqueMaterialNames.map((name, idx) => (
+                                <option key={idx} value={name}>{name}</option>
+                              ))}
+                              <option value="__NEW__" className="font-bold text-indigo-600">+ Add New Material</option>
+                            </select>
+                            {(() => {
+                              if (formData.name && !isCustomMaterial) {
+                                const existingItems = inventory.filter(item => item.name === formData.name);
+                                if (existingItems.length > 0) {
+                                  const totalStock = existingItems.reduce((sum, item) => sum + item.quantity, 0);
+                                  return (
+                                    <p className="text-[10px] font-bold text-indigo-600 mt-2 ml-1">
+                                      Current Total Stock: {totalStock} {existingItems[0].unit}
+                                    </p>
+                                  );
+                                }
+                              }
+                              return null;
+                            })()}
+                          </>
+                        ) : (
+                          <div className="flex gap-2">
+                            <input 
+                              type="text" 
+                              required
+                              value={formData.name}
+                              onChange={(e) => setFormData({...formData, name: e.target.value})}
+                              className="flex-1 px-5 py-3.5 bg-white border-[0.5px] border-black rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-black transition-all shadow-sm"
+                              placeholder="Enter new material name"
+                              autoFocus
+                            />
+                            <button 
+                              type="button"
+                              onClick={() => {
+                                setIsCustomMaterial(false);
+                                setFormData({...formData, name: ''});
+                              }}
+                              className="px-4 py-3.5 bg-slate-200 text-slate-600 rounded-2xl text-sm font-bold hover:bg-slate-300 transition-all"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Supplier</label>
+                        {!isCustomSupplier ? (
+                          <select 
+                            required
+                            value={formData.supplier}
+                            onChange={(e) => {
+                              if (e.target.value === '__NEW__') {
+                                setIsCustomSupplier(true);
+                                setFormData({...formData, supplier: ''});
+                              } else {
+                                setFormData({...formData, supplier: e.target.value});
+                              }
+                            }}
+                            className="w-full px-5 py-3.5 bg-white border-[0.5px] border-black rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-black transition-all appearance-none shadow-sm"
+                          >
+                            <option value="" disabled>Select Supplier...</option>
+                            {uniqueSuppliers.map((supplier, idx) => (
+                              <option key={idx} value={supplier}>{supplier}</option>
+                            ))}
+                            <option value="__NEW__" className="font-bold text-indigo-600">+ Add New Supplier</option>
+                          </select>
+                        ) : (
+                          <div className="flex gap-2">
+                            <input 
+                              type="text" 
+                              required
+                              value={formData.supplier}
+                              onChange={(e) => setFormData({...formData, supplier: e.target.value})}
+                              className="flex-1 px-5 py-3.5 bg-white border-[0.5px] border-black rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-black transition-all shadow-sm"
+                              placeholder="Enter new supplier name"
+                              autoFocus
+                            />
+                            <button 
+                              type="button"
+                              onClick={() => {
+                                setIsCustomSupplier(false);
+                                setFormData({...formData, supplier: ''});
+                              }}
+                              className="px-4 py-3.5 bg-slate-200 text-slate-600 rounded-2xl text-sm font-bold hover:bg-slate-300 transition-all"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        )}
+                      </div>
                       <div>
-                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Menu Category (Sync All)</label>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Unit</label>
                         <select 
-                          value={formData.menuCategory}
+                          value={formData.unit}
+                          onChange={(e) => setFormData({...formData, unit: e.target.value})}
+                          className="w-full px-5 py-3.5 bg-white border-[0.5px] border-black rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-black transition-all appearance-none shadow-sm"
+                        >
+                          <option value="kg">Kilograms (kg)</option>
+                          <option value="ltr">Liters (ltr)</option>
+                          <option value="pcs">Pieces (pcs)</option>
+                          <option value="box">Boxes (box)</option>
+                          <option value="pkt">Packets (pkt)</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Min Threshold (Alert)</label>
+                        <input 
+                          type="number" 
+                          required
+                          value={formData.minThreshold}
+                          onChange={(e) => setFormData({...formData, minThreshold: parseFloat(e.target.value)})}
+                          className="w-full px-5 py-3.5 bg-white border-[0.5px] border-black rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-black transition-all shadow-sm"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Stock & Pricing */}
+                  <div className="bg-indigo-50/30 p-6 rounded-3xl border border-indigo-50 space-y-5">
+                    <h3 className="text-xs font-bold text-indigo-900 uppercase tracking-widest flex items-center gap-2">
+                      <Plus size={14} className="text-indigo-500" /> Stock & Pricing
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Price per Unit</label>
+                        <input 
+                          type="number" 
+                          step="0.01"
+                          required
+                          value={formData.pricePerUnit}
+                          onChange={(e) => setFormData({...formData, pricePerUnit: parseFloat(e.target.value)})}
+                          className="w-full px-5 py-3.5 bg-white border-[0.5px] border-black rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-black transition-all shadow-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Current Quantity</label>
+                        <input 
+                          type="number" 
+                          required
+                          value={formData.quantity + (Number(newStock) || 0)}
                           onChange={(e) => {
-                            const selectedCategory = e.target.value;
-                            const firstItemInCategory = menu.find(m => m.category === selectedCategory);
-                            setFormData({
-                              ...formData, 
-                              menuCategory: selectedCategory, 
-                              menuItemId: '',
-                              quantity: firstItemInCategory ? (firstItemInCategory.stock || 0) : formData.quantity
-                            });
+                            setFormData({...formData, quantity: parseFloat(e.target.value) || 0});
                             setNewStock('');
                           }}
-                          className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all appearance-none"
+                          className="w-full px-5 py-3.5 bg-white border-[0.5px] border-black rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-black transition-all shadow-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-2 ml-1">Add New Stock</label>
+                        <input 
+                          type="number" 
+                          value={newStock}
+                          onChange={(e) => setNewStock(e.target.value ? parseFloat(e.target.value) : '')}
+                          className="w-full px-5 py-3.5 bg-emerald-50 border-[0.5px] border-black rounded-2xl text-sm font-bold text-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-black transition-all placeholder:text-emerald-300 shadow-sm"
+                          placeholder="+0"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="pt-5 border-t border-indigo-100/50 grid grid-cols-1 md:grid-cols-2 gap-5">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Total Amount</label>
+                        <div className="w-full px-5 py-3.5 bg-slate-100 border-[0.5px] border-black rounded-2xl text-sm font-bold text-slate-600 shadow-inner">
+                          {currentTenant?.currency}{totalAmountUI.toFixed(2)}
+                        </div>
+                        <p className="text-[9px] text-slate-400 mt-2 ml-1 italic">Calculated from Add New Stock (or Current Qty if new) × Price</p>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Paid Amount (Expense)</label>
+                        <input 
+                          type="number" 
+                          min="0"
+                          step="0.01"
+                          value={paidAmount}
+                          onChange={(e) => setPaidAmount(e.target.value ? parseFloat(e.target.value) : '')}
+                          className="w-full px-5 py-3.5 bg-white border-[0.5px] border-black rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-black transition-all shadow-sm"
+                          placeholder="Enter amount paid now"
+                        />
+                        {totalAmountUI - (Number(paidAmount) || 0) > 0 && (
+                          <p className="text-[10px] font-bold text-rose-500 mt-2 ml-1">
+                            Due: {currentTenant?.currency}{(totalAmountUI - (Number(paidAmount) || 0)).toFixed(2)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Menu Sync */}
+                  <div className="bg-amber-50/30 p-6 rounded-3xl border border-amber-50 space-y-5">
+                    <h3 className="text-xs font-bold text-amber-900 uppercase tracking-widest flex items-center gap-2">
+                      <RefreshCw size={14} className="text-amber-500" /> Menu Sync (Optional)
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Menu Category (Filter)</label>
+                        <select 
+                          value={menuFilterCategory}
+                          onChange={(e) => setMenuFilterCategory(e.target.value)}
+                          className="w-full px-5 py-3.5 bg-white border-[0.5px] border-black rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-black transition-all appearance-none shadow-sm"
                         >
-                          <option value="">No Category Link</option>
+                          <option value="">All Categories</option>
                           {currentTenant?.menuCategories.map(cat => (
                             <option key={cat} value={cat}>{cat}</option>
                           ))}
                         </select>
                       </div>
                       <div>
-                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Specific Menu Item (Optional)</label>
-                        <select 
-                          value={formData.menuItemId}
-                          onChange={(e) => {
-                            const selectedId = e.target.value;
-                            const selectedItem = menu.find(m => m.id === selectedId);
-                            setFormData({
-                              ...formData, 
-                              menuItemId: selectedId,
-                              quantity: selectedItem ? (selectedItem.stock || 0) : formData.quantity
-                            });
-                            setNewStock('');
-                          }}
-                          className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all appearance-none"
-                        >
-                          <option value="">No Specific Item Link</option>
-                          {menu
-                            .filter(m => !formData.menuCategory || m.category === formData.menuCategory)
-                            .map(m => (
-                              <option key={m.id} value={m.id}>{m.name} (Stock: {m.stock || 0})</option>
-                            ))}
-                        </select>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Linked Menu Items</label>
+                        <div className="space-y-3">
+                          <select 
+                            value=""
+                            onChange={(e) => {
+                              const selectedId = e.target.value;
+                              if (!selectedId) return;
+                              if (!formData.menuItemIds.includes(selectedId)) {
+                                setFormData({
+                                  ...formData, 
+                                  menuItemIds: [...formData.menuItemIds, selectedId]
+                                });
+                              }
+                            }}
+                            className="w-full px-5 py-3.5 bg-white border-[0.5px] border-black rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-black transition-all appearance-none shadow-sm"
+                          >
+                            <option value="">Add Menu Item...</option>
+                            {menu
+                              .filter(m => !menuFilterCategory || m.category === menuFilterCategory)
+                              .filter(m => !formData.menuItemIds.includes(m.id))
+                              .map(m => (
+                                <option key={m.id} value={m.id}>{m.name} (Stock: {m.stock || 0})</option>
+                              ))}
+                          </select>
+                          
+                          {formData.menuItemIds.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                              {formData.menuItemIds.map(id => {
+                                const menuItem = menu.find(m => m.id === id);
+                                return menuItem ? (
+                                  <div key={id} className="flex items-center gap-2 bg-amber-100 text-amber-800 px-3 py-1.5 rounded-xl text-xs font-bold border border-amber-200">
+                                    <span>{menuItem.name}</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => setFormData({
+                                        ...formData,
+                                        menuItemIds: formData.menuItemIds.filter(mId => mId !== id)
+                                      })}
+                                      className="hover:text-amber-900 transition-colors"
+                                    >
+                                      <X size={14} />
+                                    </button>
+                                  </div>
+                                ) : null;
+                              })}
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <p className="md:col-span-2 text-[9px] text-slate-400 mt-2 ml-1 italic">
-                        Linking to a category will sync stock for ALL items in that category. 
-                        Linking to a specific item overrides category sync for that item.
-                      </p>
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Material Name</label>
-                      <input 
-                        type="text" 
-                        required
-                        list="material-names"
-                        value={formData.name}
-                        onChange={(e) => setFormData({...formData, name: e.target.value})}
-                        className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                        placeholder="e.g. Basmati Rice"
-                      />
-                      <datalist id="material-names">
-                        {uniqueMaterialNames.map((name, idx) => (
-                          <option key={idx} value={name} />
-                        ))}
-                      </datalist>
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Supplier</label>
-                      <input 
-                        type="text" 
-                        required
-                        list="supplier-names"
-                        value={formData.supplier}
-                        onChange={(e) => setFormData({...formData, supplier: e.target.value})}
-                        className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                        placeholder="e.g. Metro Wholesale"
-                      />
-                      <datalist id="supplier-names">
-                        {uniqueSuppliers.map((supplier, idx) => (
-                          <option key={idx} value={supplier} />
-                        ))}
-                      </datalist>
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Material Details</label>
-                      <textarea 
-                        value={formData.materialDetails}
-                        onChange={(e) => setFormData({...formData, materialDetails: e.target.value})}
-                        className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none"
-                        placeholder="e.g. Grade A, Organic, etc."
-                        rows={2}
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Unit</label>
-                      <select 
-                        value={formData.unit}
-                        onChange={(e) => setFormData({...formData, unit: e.target.value})}
-                        className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all appearance-none"
-                      >
-                        <option value="kg">Kilograms (kg)</option>
-                        <option value="ltr">Liters (ltr)</option>
-                        <option value="pcs">Pieces (pcs)</option>
-                        <option value="box">Boxes (box)</option>
-                        <option value="pkt">Packets (pkt)</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Price per Unit</label>
-                      <input 
-                        type="number" 
-                        step="0.01"
-                        required
-                        value={formData.pricePerUnit}
-                        onChange={(e) => setFormData({...formData, pricePerUnit: parseFloat(e.target.value)})}
-                        className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Current Quantity</label>
-                      <input 
-                        type="number" 
-                        required
-                        value={formData.quantity + (Number(newStock) || 0)}
-                        onChange={(e) => {
-                          setFormData({...formData, quantity: parseFloat(e.target.value) || 0});
-                          setNewStock('');
-                        }}
-                        className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Add New Stock</label>
-                      <input 
-                        type="number" 
-                        value={newStock}
-                        onChange={(e) => setNewStock(e.target.value ? parseFloat(e.target.value) : '')}
-                        className="w-full px-6 py-4 bg-emerald-50 border border-emerald-100 rounded-2xl text-sm font-medium text-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all placeholder:text-emerald-300"
-                        placeholder="+0"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Min Threshold (Alert)</label>
-                      <input 
-                        type="number" 
-                        required
-                        value={formData.minThreshold}
-                        onChange={(e) => setFormData({...formData, minThreshold: parseFloat(e.target.value)})}
-                        className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                      />
                     </div>
                   </div>
 
@@ -1070,17 +1470,11 @@ export const Inventory = () => {
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Supplier</p>
                       <p className="text-sm font-medium text-slate-900">{restockItem.supplier || 'N/A'}</p>
                     </div>
-                    {restockItem.materialDetails && (
-                      <div>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Material Details</p>
-                        <p className="text-sm text-slate-600 whitespace-pre-wrap">{restockItem.materialDetails}</p>
-                      </div>
-                    )}
                   </div>
                 </div>
 
                 <form onSubmit={handleRestockSubmit}>
-                  <div className="mb-8">
+                  <div className="mb-6">
                     <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Quantity to Add ({restockItem.unit})</label>
                     <input 
                       type="number" 
@@ -1091,6 +1485,32 @@ export const Inventory = () => {
                       onChange={(e) => setRestockQuantity(parseFloat(e.target.value))}
                       className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                     />
+                  </div>
+
+                  <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Total Amount</label>
+                      <div className="w-full px-5 py-3.5 bg-slate-100 border-[0.5px] border-black rounded-2xl text-sm font-bold text-slate-600 shadow-inner">
+                        {currentTenant?.currency}{(restockQuantity * restockItem.pricePerUnit).toFixed(2)}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Paid Amount</label>
+                      <input 
+                        type="number" 
+                        min="0"
+                        step="0.01"
+                        value={restockPaidAmount}
+                        onChange={(e) => setRestockPaidAmount(e.target.value ? parseFloat(e.target.value) : '')}
+                        className="w-full px-5 py-3.5 bg-white border-[0.5px] border-black rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-black transition-all shadow-sm"
+                        placeholder="Amount paid"
+                      />
+                      {(restockQuantity * restockItem.pricePerUnit) - (Number(restockPaidAmount) || 0) > 0 && (
+                        <p className="text-[10px] font-bold text-rose-500 mt-2 ml-1">
+                          Due: {currentTenant?.currency}{((restockQuantity * restockItem.pricePerUnit) - (Number(restockPaidAmount) || 0)).toFixed(2)}
+                        </p>
+                      )}
+                    </div>
                   </div>
 
                   <div className="flex gap-4">
