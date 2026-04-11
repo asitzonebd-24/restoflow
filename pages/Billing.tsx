@@ -7,7 +7,7 @@ import { BluetoothPrinterService } from '../services/printerService';
 import { Pagination } from '../components/Pagination';
 
 export const Billing = () => {
-  const { orders, currentTenant, currentUser, updateOrderStatus, updateOrderItems, addTransaction, users } = useApp();
+  const { orders, currentTenant, currentUser, updateOrderStatus, updateOrderItems, updateOrderPaymentStatus, addTransaction, users } = useApp();
   const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
   const [discounts, setDiscounts] = useState<{ [key: string]: number }>({});
   const [searchTerm, setSearchTerm] = useState('');
@@ -35,12 +35,13 @@ export const Billing = () => {
 
     return orders
       .filter(o => {
-        const isReady = o.status === OrderStatus.READY;
+        // Include READY orders and COMPLETED orders that are not yet paid (if any)
+        const isDoneOrPaid = o.status === OrderStatus.READY || (o.status === OrderStatus.COMPLETED && !o.isPaid);
         const matchesSearch = o.tokenNumber.toLowerCase().includes(searchTerm.toLowerCase()) || 
                               (o.deliveryStaffName && o.deliveryStaffName.toLowerCase().includes(searchTerm.toLowerCase()));
         const matchesStaff = selectedStaffId === 'all' || o.createdBy === selectedStaffId || o.deliveryStaffId === selectedStaffId;
         const isOwnOrder = canSeeAll || (currentUser && o.createdBy === currentUser.id);
-        return isReady && matchesSearch && matchesStaff && isOwnOrder;
+        return isDoneOrPaid && matchesSearch && matchesStaff && isOwnOrder;
       })
       .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
   }, [orders, searchTerm, selectedStaffId, currentUser]);
@@ -88,14 +89,14 @@ export const Billing = () => {
     return grouped;
   };
 
-  const handlePayment = (order: Order) => {
+  const handlePayment = async (order: Order) => {
     const discount = discounts[order.id] || 0;
     const { total } = calculateTotal(order, discount);
     const groupedItems = groupItems(order.items);
     const creator = getCreator(order.createdBy);
     
     const transaction = {
-        id: `txn-${Date.now()}`,
+        id: `txn-${Date.now()}-${order.id}`,
         tenantId: currentTenant.id,
         orderId: order.id,
         amount: total,
@@ -106,8 +107,9 @@ export const Billing = () => {
         creatorName: creator?.name || 'Unknown'
     };
     
-    addTransaction(transaction);
-    updateOrderStatus(order.id, OrderStatus.COMPLETED, discount);
+    await addTransaction(transaction);
+    await updateOrderStatus(order.id, OrderStatus.COMPLETED, discount);
+    await updateOrderPaymentStatus(order.id, true);
     
     // Auto-print invoice if enabled
     if (currentTenant?.printerSettings?.autoPrintInvoice) {
@@ -127,11 +129,11 @@ export const Billing = () => {
     setShowConfirmCollect(true);
   };
 
-  const confirmBulkPayment = () => {
+  const confirmBulkPayment = async () => {
     const selectedOrders = filteredOrders.filter(o => selectedOrderIds.includes(o.id));
     if (selectedOrders.length === 0) return;
 
-    selectedOrders.forEach(order => {
+    for (const order of selectedOrders) {
       const discount = discounts[order.id] || 0;
       const { total } = calculateTotal(order, discount);
       const groupedItems = groupItems(order.items);
@@ -149,9 +151,10 @@ export const Billing = () => {
           creatorName: creator?.name || 'Unknown'
       };
       
-      addTransaction(transaction);
-      updateOrderStatus(order.id, OrderStatus.COMPLETED, discount);
-    });
+      await addTransaction(transaction);
+      await updateOrderStatus(order.id, OrderStatus.COMPLETED, discount);
+      await updateOrderPaymentStatus(order.id, true);
+    }
 
     setSelectedOrderIds([]);
     setShowConfirmCollect(false);
@@ -681,8 +684,8 @@ export const Billing = () => {
 
             <div className="p-8 border-t border-slate-50 bg-slate-50 flex flex-col md:flex-row gap-4 print:hidden shrink-0">
               <button 
-                onClick={() => {
-                  handlePayment(invoiceOrder);
+                onClick={async () => {
+                  await handlePayment(invoiceOrder);
                   setInvoiceOrder(null);
                 }} 
                 className="flex-1 flex items-center justify-center gap-3 bg-emerald-500 text-white py-4 rounded-2xl hover:bg-emerald-600 transition-all font-bold uppercase tracking-widest text-[10px] shadow-lg active:scale-95 border-2 border-black"

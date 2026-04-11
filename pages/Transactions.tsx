@@ -32,7 +32,7 @@ export const Transactions = () => {
         const startOfWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
         const startOfMonth = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-        return transactions.filter(txn => {
+        const filtered = transactions.filter(txn => {
             // Role-based visibility
             const canSeeAll = currentUser && [Role.OWNER, Role.MANAGER, Role.KITCHEN, Role.SUPER_ADMIN].includes(currentUser.role);
             const isOwnTxn = canSeeAll || (currentUser && txn.creatorName === currentUser.name);
@@ -66,6 +66,8 @@ export const Transactions = () => {
 
             return matchesSearch && matchesDate && matchesStaff && isOwnTxn;
         });
+        console.log('[Transactions] All transactions:', transactions.length, 'Filtered:', filtered.length);
+        return filtered;
     }, [transactions, searchTerm, dateFilter, customRange, selectedStaffId, staffList, currentUser]);
 
     const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);

@@ -104,6 +104,7 @@ interface AppContextType {
   ) => Promise<void>;
   updateOrderStatus: (orderId: string, status: OrderStatus, discount?: number) => Promise<void>;
   updateOrderItemStatus: (orderId: string, rowId: string | string[], status: ItemStatus) => Promise<void>;
+  updateOrderPaymentStatus: (orderId: string, isPaid: boolean) => Promise<void>;
   updateInventory: (itemId: string, quantityChange: number) => Promise<void>;
   addInventoryItem: (item: Omit<InventoryItem, 'tenantId'>) => Promise<void>;
   editInventoryItem: (id: string, updates: Partial<InventoryItem>) => Promise<void>;
@@ -1184,6 +1185,15 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     }
   };
 
+  const updateOrderPaymentStatus = async (orderId: string, isPaid: boolean) => {
+    try {
+      await updateDoc(doc(db, 'orders', orderId), { isPaid });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `orders/${orderId}`);
+      throw error;
+    }
+  };
+
   const updateInventory = async (itemId: string, quantityChange: number) => {
     try {
       const item = allInventory.find(i => i.id === itemId);
@@ -1767,6 +1777,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     const tenantId = resolvedTenantId || '';
     const newTransaction = { ...transaction, tenantId } as Transaction;
     
+    console.log('[AppContext] Adding transaction:', newTransaction);
     try {
       const transRef = doc(db, 'transactions', newTransaction.id);
       await setDoc(transRef, cleanObject(newTransaction));
@@ -1879,6 +1890,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       updateOrderItems,
       updateOrderStatus,
       updateOrderItemStatus,
+      updateOrderPaymentStatus,
       updateInventory,
       addInventoryItem,
       editInventoryItem,

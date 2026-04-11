@@ -332,7 +332,7 @@ const POSCartContent = ({
 );
 
 export const POS = () => {
-  const { menu, currentTenant, currentUser, addOrder, updateOrderItems, orders, users, isLoading, categories, tables, addTable, deleteTable } = useApp();
+  const { menu, currentTenant, currentUser, addOrder, updateOrderItems, updateOrderPaymentStatus, orders, users, isLoading, categories, tables, addTable, deleteTable } = useApp();
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [cart, setCart] = useState<OrderItem[]>([]);
   const [activeCategory, setActiveCategory] = useState<string>('Select Categories');
@@ -347,7 +347,7 @@ export const POS = () => {
   const [selectedDeliveryStaffId, setSelectedDeliveryStaffId] = useState<string>('');
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [filter, setFilter] = useState<'pending' | 'done'>('pending');
+  const [filter, setFilter] = useState<'pending' | 'done' | 'paid'>('pending');
   const [currentPage, setCurrentPage] = useState(1);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isAddingTableModalOpen, setIsAddingTableModalOpen] = useState(false);
@@ -400,8 +400,10 @@ export const POS = () => {
     
     if (filter === 'pending') {
       filtered = filtered.filter(o => o.status === OrderStatus.PENDING || o.status === OrderStatus.PREPARING);
-    } else {
-      filtered = filtered.filter(o => o.status === OrderStatus.READY);
+    } else if (filter === 'done') {
+      filtered = filtered.filter(o => o.status === OrderStatus.READY && !o.isPaid);
+    } else if (filter === 'paid') {
+      filtered = filtered.filter(o => o.isPaid === true);
     }
     
     return filtered.sort((a, b) => {
@@ -726,18 +728,24 @@ export const POS = () => {
           </div>
 
           <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
-            <div className="flex items-center gap-2 bg-white p-1.5 rounded-2xl border-2 border-slate-100 shadow-sm w-full sm:w-auto">
+            <div className="flex flex-wrap items-center gap-2 bg-white p-1.5 rounded-2xl border-2 border-slate-100 shadow-sm w-full sm:w-auto">
               <button 
                 onClick={() => setFilter('pending')}
-                className={`flex-1 sm:flex-none px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'pending' ? 'bg-pink-500 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
+                className={`flex-1 sm:flex-none px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${filter === 'pending' ? 'bg-pink-500 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
               >
                 Pending
               </button>
               <button 
                 onClick={() => setFilter('done')}
-                className={`flex-1 sm:flex-none px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'done' ? 'bg-emerald-500 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
+                className={`flex-1 sm:flex-none px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${filter === 'done' ? 'bg-emerald-500 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
               >
                 Done
+              </button>
+              <button 
+                onClick={() => setFilter('paid')}
+                className={`flex-1 sm:flex-none px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${filter === 'paid' ? 'bg-indigo-500 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
+              >
+                Paid
               </button>
             </div>
             
@@ -774,14 +782,14 @@ export const POS = () => {
               const statusStyles = getStatusStyles(derivedStatus);
 
               return (
-                <motion.button
+                <motion.div
                   layout
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
                   key={order.id}
                   onClick={() => handleSelectOrder(order)}
-                  className="group relative bg-white rounded-[2.5rem] shadow-2xl border-4 border-black transition-all duration-300 text-left flex flex-col min-h-[280px] hover:scale-[1.02] overflow-hidden"
+                  className="group relative bg-white rounded-[2.5rem] shadow-2xl border-4 border-black transition-all duration-300 text-left flex flex-col min-h-[280px] hover:scale-[1.02] overflow-hidden cursor-pointer"
                 >
                   {/* Top Border Bar */}
                   <div className={`absolute top-0 left-0 right-0 h-4 ${statusStyles.topBorder}`}></div>
@@ -797,6 +805,22 @@ export const POS = () => {
                           {order.deliveryStaffName ? `D-${order.deliveryStaffName.split(' ')[0]}` : order.tableNumber}
                         </div>
                       )}
+                      {/* Paid/Unpaid Status Dropdown */}
+                      <div className="absolute -top-2 -left-2 bg-white rounded-full border-2 border-black shadow-lg uppercase">
+                        <select
+                          value={order.isPaid ? 'paid' : 'unpaid'}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            updateOrderPaymentStatus(order.id, e.target.value === 'paid');
+                            console.log('Toggle payment status to:', e.target.value);
+                          }}
+                          className="text-[9px] font-black px-2 py-0.5 rounded-full bg-transparent outline-none cursor-pointer"
+                        >
+                          <option value="unpaid">Unpaid</option>
+                          <option value="paid">Paid</option>
+                        </select>
+                      </div>
                     </div>
 
                     {order.deliveryStaffName && (
@@ -875,7 +899,7 @@ export const POS = () => {
                       </div>
                     </div>
                   </div>
-                </motion.button>
+                </motion.div>
               );
             })}
           </AnimatePresence>
