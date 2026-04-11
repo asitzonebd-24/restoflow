@@ -310,17 +310,12 @@ export const CustomerOrder = () => {
 
         <div className="flex-1 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden min-h-0 no-scrollbar">
           <div className="flex-none lg:flex-1 p-4 md:p-8 lg:overflow-y-auto no-scrollbar pb-12 lg:pb-32 min-h-0">
-            {activeCategory === 'Select Categories' ? (
-              <div className="flex flex-col items-center justify-center py-20 text-slate-300 bg-white rounded-[2.5rem] border-2 border-dashed border-slate-200">
-                <ListTree size={64} strokeWidth={1} className="mb-4 opacity-20" />
-                <p className="font-black uppercase text-[10px] tracking-[0.3em] opacity-40">Please select a category to view items</p>
-              </div>
-            ) : filteredMenu.length === 0 ? (
+            {activeCategory !== 'Select Categories' && filteredMenu.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-20 text-slate-400">
                 <MenuIcon size={48} className="mb-4 opacity-20" />
                 <p className="font-black uppercase text-[10px] tracking-[0.3em]">No items found</p>
               </div>
-            ) : (
+            ) : activeCategory !== 'Select Categories' ? (
               <div className="grid grid-cols-2 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 md:gap-8">
                 {filteredMenu.map(item => (
                   <button 
@@ -359,11 +354,11 @@ export const CustomerOrder = () => {
                   </button>
                 ))}
               </div>
-            )}
+            ) : null}
 
             {/* Mobile Embedded Basket - Visible below menu items */}
             {cart.length > 0 && (
-              <div className="lg:hidden mt-12 mb-20">
+              <div className={`lg:hidden ${activeCategory !== 'Select Categories' ? 'mt-12' : 'mt-4'} mb-20`}>
                 <CartContent isEmbedded />
               </div>
             )}

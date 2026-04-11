@@ -76,13 +76,7 @@ const POSCartContent = ({
   orders,
   cartCount,
   currentUser,
-  isDelivery,
-  setIsDelivery,
-  deliveryStaff,
-  selectedDeliveryStaffId,
-  setSelectedDeliveryStaffId,
-  deliveryAddress,
-  setDeliveryAddress,
+  orderType,
   cart,
   updateQuantity,
   orderNote,
@@ -105,13 +99,7 @@ const POSCartContent = ({
   orders: Order[],
   cartCount: number,
   currentUser: any,
-  isDelivery: boolean,
-  setIsDelivery: (val: boolean) => void,
-  deliveryStaff: any[],
-  selectedDeliveryStaffId: string,
-  setSelectedDeliveryStaffId: (val: string) => void,
-  deliveryAddress: string,
-  setDeliveryAddress: (val: string) => void,
+  orderType: string,
   cart: OrderItem[],
   updateQuantity: (rowId: string, delta: number) => void,
   orderNote: string,
@@ -185,55 +173,6 @@ const POSCartContent = ({
     </div>
 
     <div className={`${isEmbedded ? 'h-auto' : 'flex-1 overflow-y-auto'} p-6 md:p-8 space-y-4 no-scrollbar`}>
-      {/* Delivery Options */}
-      {(currentUser?.role === Role.OWNER || currentUser?.role === Role.MANAGER || currentUser?.role === Role.SUPER_ADMIN) && (
-        <div className="bg-indigo-50/50 p-4 rounded-2xl border-2 border-indigo-100 mb-4">
-          <div className="flex items-center justify-between mb-3">
-            <label className="text-[10px] font-black uppercase text-indigo-600 tracking-widest flex items-center gap-2">
-              <ShoppingBag size={14} /> Online / Delivery Order
-            </label>
-            <button 
-              onClick={() => setIsDelivery(!isDelivery)}
-              className={`w-10 h-5 rounded-full transition-all relative ${isDelivery ? 'bg-indigo-600' : 'bg-slate-200'}`}
-            >
-              <div className={`absolute top-1 w-3 h-3 rounded-full bg-white transition-all ${isDelivery ? 'left-6' : 'left-1'}`} />
-            </button>
-          </div>
-          
-          {isDelivery && (
-            <motion.div 
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              className="space-y-3 overflow-hidden"
-            >
-              <div className="space-y-1.5">
-                <label className="text-[9px] font-bold uppercase text-slate-400 tracking-widest ml-1">Assign Delivery Staff</label>
-                <select 
-                  value={selectedDeliveryStaffId}
-                  onChange={(e) => setSelectedDeliveryStaffId(e.target.value)}
-                  className="w-full p-3 bg-white border-2 border-indigo-200 rounded-xl text-xs font-bold outline-none focus:border-indigo-500 transition-all"
-                >
-                  <option value="">Select Staff...</option>
-                  {deliveryStaff.map(staff => (
-                    <option key={staff.id} value={staff.id}>{staff.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[9px] font-bold uppercase text-slate-400 tracking-widest ml-1">Delivery Address</label>
-                <input 
-                  type="text"
-                  value={deliveryAddress}
-                  onChange={(e) => setDeliveryAddress(e.target.value)}
-                  placeholder="Enter full address..."
-                  className="w-full p-3 bg-white border-2 border-indigo-200 rounded-xl text-xs font-medium outline-none focus:border-indigo-500 transition-all"
-                />
-              </div>
-            </motion.div>
-          )}
-        </div>
-      )}
-
       <AnimatePresence mode="popLayout">
         {cart.length === 0 ? (
           <motion.div 
@@ -313,10 +252,10 @@ const POSCartContent = ({
 
         <button 
           onClick={createAndSubmitOrder}
-          disabled={cart.length === 0 || isTokenDuplicate || (isCreatingNew && !newTokenNum.trim()) || (isCreatingNew && !newTableNum.trim() && !isDelivery) || (isDelivery && !selectedDeliveryStaffId) || isSubmitting}
+          disabled={cart.length === 0 || isTokenDuplicate || (isCreatingNew && !newTokenNum.trim()) || (isCreatingNew && orderType === 'Dine In' && !newTableNum.trim()) || isSubmitting}
           className={`flex-1 py-4 rounded-2xl font-bold uppercase tracking-widest text-[10px] shadow-xl flex items-center justify-center gap-3 active:scale-95 transition-all disabled:opacity-30 border-2 ${isTokenDuplicate ? 'bg-rose-500 text-white border-rose-600 shadow-rose-100' : 'bg-slate-900 text-white hover:bg-slate-800 border-indigo-500 shadow-indigo-100'}`}
         >
-          {isSubmitting ? 'Processing...' : (isCreatingNew ? (isTokenDuplicate ? 'Duplicate Token' : (!newTokenNum.trim() ? 'Token Required' : (!newTableNum.trim() && !isDelivery ? 'Table Required' : (isDelivery && !selectedDeliveryStaffId ? 'Select Staff' : 'Send to Kitchen')))) : 'Update Order')} <ArrowRight size={18} />
+          {isSubmitting ? 'Processing...' : (isCreatingNew ? (isTokenDuplicate ? 'Duplicate Token' : (!newTokenNum.trim() ? 'Token Required' : (orderType === 'Dine In' && !newTableNum.trim() ? 'Table Required' : 'Send to Kitchen'))) : 'Update Order')} <ArrowRight size={18} />
         </button>
         <button 
           onClick={() => printKOT()}
@@ -343,7 +282,9 @@ export const POS = () => {
   const [newTableNum, setNewTableNum] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [isDelivery, setIsDelivery] = useState(false);
+  const [orderType, setOrderType] = useState('Dine In');
+  const isDelivery = orderType === 'Online Delivery';
+  const isTakeAway = orderType === 'Take Away';
   const [selectedDeliveryStaffId, setSelectedDeliveryStaffId] = useState<string>('');
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -400,6 +341,15 @@ export const POS = () => {
     return users.filter(u => u.role === Role.DELIVERY);
   }, [users]);
 
+  const totalActiveOrdersCount = useMemo(() => {
+    let filtered = orders.filter(o => o.status !== OrderStatus.COMPLETED && o.status !== OrderStatus.CANCELLED);
+    const canSeeAll = currentUser && [Role.OWNER, Role.MANAGER, Role.KITCHEN, Role.SUPER_ADMIN].includes(currentUser.role);
+    if (!canSeeAll && currentUser) {
+      filtered = filtered.filter(o => o.createdBy === currentUser.id);
+    }
+    return filtered.length;
+  }, [orders, currentUser]);
+
   const activeOrders = useMemo(() => {
     let filtered = orders.filter(o => o.status !== OrderStatus.COMPLETED && o.status !== OrderStatus.CANCELLED);
     
@@ -411,7 +361,7 @@ export const POS = () => {
     }
     
     if (filter === 'pending') {
-      filtered = filtered.filter(o => o.status === OrderStatus.PENDING || o.status === OrderStatus.PREPARING);
+      filtered = filtered.filter(o => (o.status === OrderStatus.PENDING || o.status === OrderStatus.PREPARING) && !o.isPaid);
     } else if (filter === 'done') {
       filtered = filtered.filter(o => o.status === OrderStatus.READY && !o.isPaid);
     } else if (filter === 'paid') {
@@ -465,7 +415,7 @@ export const POS = () => {
     // Mark existing items so we don't merge new additions into them
     setCart(order.items.map(item => ({ ...item, isExisting: true } as any)));
     setOrderNote(order.note || '');
-    setIsDelivery(!!order.deliveryStaffId);
+    setOrderType(order.deliveryStaffId ? 'Online Delivery' : (order.tableNumber === 'Take Away' ? 'Take Away' : 'Dine In'));
     setSelectedDeliveryStaffId(order.deliveryStaffId || '');
     setDeliveryAddress(order.deliveryAddress || '');
     setIsCreatingNew(false);
@@ -481,7 +431,7 @@ export const POS = () => {
     setSelectedOrderId(null);
     setCart([]);
     setOrderNote('');
-    setIsDelivery(false);
+    setOrderType('Dine In');
     setSelectedDeliveryStaffId('');
     setDeliveryAddress('');
   };
@@ -573,7 +523,7 @@ export const POS = () => {
         const newOrder = {
           id: `ord-${Date.now()}`,
           tokenNumber: newTokenNum,
-          tableNumber: isDelivery ? 'Delivery' : newTableNum,
+          tableNumber: isDelivery ? 'Delivery' : (isTakeAway ? 'Take Away' : newTableNum),
           items: cleanedItems,
           status: OrderStatus.PENDING,
           createdAt: new Date().toISOString(),
@@ -590,7 +540,7 @@ export const POS = () => {
         // Auto-print KOT if enabled
         if (currentTenant?.printerSettings?.autoPrintKOT) {
           const printToken = newTokenNum;
-          const printTable = isDelivery ? 'Delivery' : newTableNum;
+          const printTable = isDelivery ? 'Delivery' : (isTakeAway ? 'Take Away' : newTableNum);
           const printCreator = currentUser?.name;
           setTimeout(() => {
             printKOT(printToken, printTable, printCreator).catch(err => {
@@ -628,7 +578,7 @@ export const POS = () => {
       setCart([]);
       setOrderNote('');
       setNewTableNum('');
-      setIsDelivery(false);
+      setOrderType('Dine In');
       setSelectedDeliveryStaffId('');
       setDeliveryAddress('');
     } catch (error: any) {
@@ -660,7 +610,7 @@ export const POS = () => {
 
   const printKOT = async (overrideToken?: string, overrideTable?: string, overrideCreatorName?: string) => {
     const token = overrideToken || (isCreatingNew ? newTokenNum : orders.find(o => o.id === selectedOrderId)?.tokenNumber);
-    const table = overrideTable || (isCreatingNew ? (isDelivery ? 'Delivery' : newTableNum) : orders.find(o => o.id === selectedOrderId)?.tableNumber);
+    const table = overrideTable || (isCreatingNew ? (isDelivery ? 'Delivery' : (isTakeAway ? 'Take Away' : newTableNum)) : orders.find(o => o.id === selectedOrderId)?.tableNumber);
     const creatorId = isCreatingNew ? currentUser?.id : orders.find(o => o.id === selectedOrderId)?.createdBy;
     const creatorName = overrideCreatorName || (creatorId ? getWaiterName(creatorId) : 'Staff');
 
@@ -999,7 +949,7 @@ export const POS = () => {
                 <h2 className="text-base md:text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2 md:gap-4 flex-wrap">
                   {isCreatingNew ? 'New Order Terminal' : `Token #${activeOrders.find(o => o.id === selectedOrderId)?.tokenNumber}`}
                   <span className="text-[9px] md:text-xs font-medium text-slate-400 bg-slate-100 px-2 md:px-3 py-1 rounded-full whitespace-nowrap">
-                    Active: {activeOrders.length}
+                    Active: {totalActiveOrdersCount}
                   </span>
                 </h2>
               </div>
@@ -1020,39 +970,43 @@ export const POS = () => {
                   {isTokenDuplicate && <AlertCircle className="text-rose-500 shrink-0" size={14} />}
                 </div>
                 
-                <div className="relative group w-full">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={14} />
-                    <input 
-                        type="text" 
-                        placeholder="Search menu..." 
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-11 pr-4 py-2.5 md:py-3 bg-white border-2 border-indigo-500 rounded-xl md:rounded-2xl text-xs font-medium focus:outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all shadow-xl shadow-indigo-100"
-                    />
+                <div className="relative w-full">
+                  <select 
+                    value={orderType}
+                    onChange={(e) => setOrderType(e.target.value)}
+                    className="w-full pl-4 pr-8 py-2.5 md:py-3 bg-white border-2 border-indigo-500 rounded-xl md:rounded-2xl text-xs font-black uppercase tracking-widest outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all shadow-xl shadow-indigo-100 appearance-none cursor-pointer"
+                  >
+                    <option value="Dine In">Dine In</option>
+                    <option value="Take Away">Take Away</option>
+                    <option value="Online Delivery">Online Delivery</option>
+                  </select>
+                  <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 text-indigo-500 rotate-90 pointer-events-none" size={16} />
                 </div>
 
-                <div className="flex items-center gap-2 md:gap-3 bg-slate-50 px-3 md:px-4 py-2 md:py-2.5 rounded-xl md:rounded-2xl border-2 border-slate-900 w-full">
-                  <select 
-                    value={newTableNum}
-                    onChange={(e) => {
-                      if (e.target.value === '__ADD_NEW__') {
-                        setIsAddingTableModalOpen(true);
-                        setNewTableNum(''); // Reset temporarily while modal is open
-                      } else {
-                        setNewTableNum(e.target.value);
-                      }
-                    }}
-                    className="flex-1 min-w-0 w-full text-left bg-transparent font-black text-xs md:text-sm outline-none transition-all text-slate-900"
-                  >
-                    <option value="" disabled>Select Table</option>
-                    {tables.map(t => (
-                      <option key={t.id} value={t.name}>{t.name}</option>
-                    ))}
-                    {(currentUser?.role === Role.OWNER || currentUser?.role === Role.MANAGER || currentUser?.role === Role.SUPER_ADMIN) && (
-                      <option value="__ADD_NEW__" className="font-bold text-indigo-600">⚙ Manage Tables</option>
-                    )}
-                  </select>
-                </div>
+                {orderType === 'Dine In' && (
+                  <div className="flex items-center gap-2 md:gap-3 bg-slate-50 px-3 md:px-4 py-2 md:py-2.5 rounded-xl md:rounded-2xl border-2 border-slate-900 w-full">
+                    <select 
+                      value={newTableNum}
+                      onChange={(e) => {
+                        if (e.target.value === '__ADD_NEW__') {
+                          setIsAddingTableModalOpen(true);
+                          setNewTableNum(''); // Reset temporarily while modal is open
+                        } else {
+                          setNewTableNum(e.target.value);
+                        }
+                      }}
+                      className="flex-1 min-w-0 w-full text-left bg-transparent font-black text-xs md:text-sm outline-none transition-all text-slate-900"
+                    >
+                      <option value="" disabled>Select Table</option>
+                      {tables.map(t => (
+                        <option key={t.id} value={t.name}>{t.name}</option>
+                      ))}
+                      {(currentUser?.role === Role.OWNER || currentUser?.role === Role.MANAGER || currentUser?.role === Role.SUPER_ADMIN) && (
+                        <option value="__ADD_NEW__" className="font-bold text-indigo-600">⚙ Manage Tables</option>
+                      )}
+                    </select>
+                  </div>
+                )}
               </>
             )}
             
@@ -1088,14 +1042,7 @@ export const POS = () => {
 
         {/* Menu Grid */}
         <div className="flex-1 overflow-y-auto p-4 md:p-8 no-scrollbar pb-12 lg:pb-32">
-          {activeCategory === 'Select Categories' ? (
-            <div className="h-full flex flex-col items-center justify-center text-slate-300 py-20 bg-white rounded-[2rem] border-2 border-dashed border-slate-200">
-                <ListTree size={64} strokeWidth={1} className="mb-4 opacity-20" />
-                <p className="text-sm font-medium uppercase tracking-widest opacity-40">
-                  Please select a category to view items
-                </p>
-            </div>
-          ) : (
+          {activeCategory !== 'Select Categories' && (
             <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-6">
               <AnimatePresence mode="popLayout">
                 {filteredMenu.map(item => (
@@ -1142,7 +1089,7 @@ export const POS = () => {
           )}
 
           {/* Mobile Embedded Basket - Visible below menu items */}
-          <div className={`lg:hidden ${activeCategory ? 'mt-12' : 'mt-4'} mb-20`}>
+          <div className={`lg:hidden ${activeCategory !== 'Select Categories' ? 'mt-12' : 'mt-4'} mb-20`}>
             <POSCartContent 
               isEmbedded 
               isCreatingNew={isCreatingNew}
@@ -1151,13 +1098,7 @@ export const POS = () => {
               orders={orders}
               cartCount={cartCount}
               currentUser={currentUser}
-              isDelivery={isDelivery}
-              setIsDelivery={setIsDelivery}
-              deliveryStaff={deliveryStaff}
-              selectedDeliveryStaffId={selectedDeliveryStaffId}
-              setSelectedDeliveryStaffId={setSelectedDeliveryStaffId}
-              deliveryAddress={deliveryAddress}
-              setDeliveryAddress={setDeliveryAddress}
+              orderType={orderType}
               cart={cart}
               updateQuantity={updateQuantity}
               orderNote={orderNote}
@@ -1185,13 +1126,7 @@ export const POS = () => {
             orders={orders}
             cartCount={cartCount}
             currentUser={currentUser}
-            isDelivery={isDelivery}
-            setIsDelivery={setIsDelivery}
-            deliveryStaff={deliveryStaff}
-            selectedDeliveryStaffId={selectedDeliveryStaffId}
-            setSelectedDeliveryStaffId={setSelectedDeliveryStaffId}
-            deliveryAddress={deliveryAddress}
-            setDeliveryAddress={setDeliveryAddress}
+            orderType={orderType}
             cart={cart}
             updateQuantity={updateQuantity}
             orderNote={orderNote}
@@ -1213,7 +1148,7 @@ export const POS = () => {
         <div className="text-center border-b-2 border-black pb-4 mb-4">
           <h2 className="text-3xl font-bold uppercase tracking-widest">KITCHEN TICKET</h2>
           <p className="text-lg font-bold kot-token">Token: #{isCreatingNew ? newTokenNum : orders.find(o => o.id === selectedOrderId)?.tokenNumber}</p>
-          <p className="text-lg font-bold kot-table">Table: {isCreatingNew ? (isDelivery ? 'Delivery' : newTableNum) : orders.find(o => o.id === selectedOrderId)?.tableNumber}</p>
+          <p className="text-lg font-bold kot-table">Table: {isCreatingNew ? (isDelivery ? 'Delivery' : (isTakeAway ? 'Take Away' : newTableNum)) : orders.find(o => o.id === selectedOrderId)?.tableNumber}</p>
           <p className="text-lg font-bold kot-waiter">Waiter: {isCreatingNew ? currentUser?.name : getWaiterName(orders.find(o => o.id === selectedOrderId)?.createdBy || '')}</p>
           <p className="text-base mt-1 font-bold">{new Date().toLocaleString()}</p>
         </div>
@@ -1264,13 +1199,7 @@ export const POS = () => {
                 orders={orders}
                 cartCount={cartCount}
                 currentUser={currentUser}
-                isDelivery={isDelivery}
-                setIsDelivery={setIsDelivery}
-                deliveryStaff={deliveryStaff}
-                selectedDeliveryStaffId={selectedDeliveryStaffId}
-                setSelectedDeliveryStaffId={setSelectedDeliveryStaffId}
-                deliveryAddress={deliveryAddress}
-                setDeliveryAddress={setDeliveryAddress}
+                orderType={orderType}
                 cart={cart}
                 updateQuantity={updateQuantity}
                 orderNote={orderNote}

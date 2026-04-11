@@ -9,7 +9,7 @@ export const Dashboard = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="p-6 md:p-8 bg-[#f8fafc] min-h-full font-sans flex flex-col items-center">
+    <div className="p-6 md:p-8 bg-[#f8fafc] min-h-screen font-sans flex flex-col items-center">
       <div className="flex-1 flex flex-col items-center justify-start pt-4 md:pt-8 w-full max-w-2xl">
         <div className="flex flex-col items-center text-center mb-12">
           {currentTenant?.logo ? (

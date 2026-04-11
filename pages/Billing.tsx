@@ -16,6 +16,7 @@ export const Billing = () => {
   const itemsPerPage = 20;
   const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
   const [showConfirmCollect, setShowConfirmCollect] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   
   const getCreator = (userId: string) => {
     if (userId === currentUser?.id) return currentUser;
@@ -35,8 +36,10 @@ export const Billing = () => {
 
     return orders
       .filter(o => {
-        // Include READY orders and COMPLETED orders that are not yet paid (if any)
-        const isDoneOrPaid = o.status === OrderStatus.READY || (o.status === OrderStatus.COMPLETED && !o.isPaid);
+        // Include READY orders (Done section) and Paid orders (Paid section) that are not yet completed
+        const isDoneOrPaid = (o.status === OrderStatus.READY && !o.isPaid) || 
+                             (o.isPaid && o.status !== OrderStatus.COMPLETED && o.status !== OrderStatus.CANCELLED) || 
+                             (o.status === OrderStatus.COMPLETED && !o.isPaid);
         const matchesSearch = o.tokenNumber.toLowerCase().includes(searchTerm.toLowerCase()) || 
                               (o.deliveryStaffName && o.deliveryStaffName.toLowerCase().includes(searchTerm.toLowerCase()));
         const matchesStaff = selectedStaffId === 'all' || o.createdBy === selectedStaffId || o.deliveryStaffId === selectedStaffId;
@@ -59,6 +62,7 @@ export const Billing = () => {
 
   const totalAwaitingAmount = useMemo(() => {
     return filteredOrders.reduce((acc, order) => {
+      if (order.isPaid) return acc; // Exclude already paid orders from awaiting amount
       const discount = discounts[order.id] || 0;
       const { total } = calculateTotal(order, discount);
       return acc + total;
@@ -90,57 +94,16 @@ export const Billing = () => {
   };
 
   const handlePayment = async (order: Order) => {
-    const discount = discounts[order.id] || 0;
-    const { total } = calculateTotal(order, discount);
-    const groupedItems = groupItems(order.items);
-    const creator = getCreator(order.createdBy);
-    
-    const transaction = {
-        id: `txn-${Date.now()}-${order.id}`,
-        tenantId: currentTenant.id,
-        orderId: order.id,
-        amount: total,
-        discount: discount,
-        date: new Date().toISOString(),
-        paymentMethod: 'CASH',
-        itemsSummary: groupedItems.map(i => `${i.quantity}x ${i.name}`).join(', '),
-        creatorName: creator?.name || 'Unknown'
-    };
-    
-    await addTransaction(transaction);
-    await updateOrderStatus(order.id, OrderStatus.COMPLETED, discount);
-    await updateOrderPaymentStatus(order.id, true);
-    
-    // Auto-print invoice if enabled
-    if (currentTenant?.printerSettings?.autoPrintInvoice) {
-      setInvoiceOrder({ ...order, discount } as any);
-      setTimeout(() => {
-        const printBtn = document.getElementById('print-invoice-btn');
-        if (printBtn) printBtn.click();
-      }, 500);
-    }
-
-    // Invoice preview not required
-    setSelectedOrderIds(prev => prev.filter(id => id !== order.id));
-  };
-
-  const handleBulkPayment = () => {
-    if (selectedOrderIds.length === 0) return;
-    setShowConfirmCollect(true);
-  };
-
-  const confirmBulkPayment = async () => {
-    const selectedOrders = filteredOrders.filter(o => selectedOrderIds.includes(o.id));
-    if (selectedOrders.length === 0) return;
-
-    for (const order of selectedOrders) {
+    if (isProcessing) return;
+    setIsProcessing(true);
+    try {
       const discount = discounts[order.id] || 0;
       const { total } = calculateTotal(order, discount);
       const groupedItems = groupItems(order.items);
       const creator = getCreator(order.createdBy);
       
       const transaction = {
-          id: `txn-${Date.now()}-${order.id}`,
+          id: `txn-${Date.now()}-${Math.random().toString(36).substr(2, 5)}-${order.id}`,
           tenantId: currentTenant.id,
           orderId: order.id,
           amount: total,
@@ -154,10 +117,63 @@ export const Billing = () => {
       await addTransaction(transaction);
       await updateOrderStatus(order.id, OrderStatus.COMPLETED, discount);
       await updateOrderPaymentStatus(order.id, true);
-    }
+      
+      // Auto-print invoice if enabled
+      if (currentTenant?.printerSettings?.autoPrintInvoice) {
+        setInvoiceOrder({ ...order, discount } as any);
+        setTimeout(() => {
+          const printBtn = document.getElementById('print-invoice-btn');
+          if (printBtn) printBtn.click();
+        }, 500);
+      }
 
-    setSelectedOrderIds([]);
-    setShowConfirmCollect(false);
+      // Invoice preview not required
+      setSelectedOrderIds(prev => prev.filter(id => id !== order.id));
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleBulkPayment = () => {
+    if (selectedOrderIds.length === 0) return;
+    setShowConfirmCollect(true);
+  };
+
+  const confirmBulkPayment = async () => {
+    if (isProcessing) return;
+    setIsProcessing(true);
+    try {
+      const selectedOrders = filteredOrders.filter(o => selectedOrderIds.includes(o.id));
+      if (selectedOrders.length === 0) return;
+
+      for (const order of selectedOrders) {
+        const discount = discounts[order.id] || 0;
+        const { total } = calculateTotal(order, discount);
+        const groupedItems = groupItems(order.items);
+        const creator = getCreator(order.createdBy);
+        
+        const transaction = {
+            id: `txn-${Date.now()}-${Math.random().toString(36).substr(2, 5)}-${order.id}`,
+            tenantId: currentTenant.id,
+            orderId: order.id,
+            amount: total,
+            discount: discount,
+            date: new Date().toISOString(),
+            paymentMethod: 'CASH',
+            itemsSummary: groupedItems.map(i => `${i.quantity}x ${i.name}`).join(', '),
+            creatorName: creator?.name || 'Unknown'
+        };
+        
+        await addTransaction(transaction);
+        await updateOrderStatus(order.id, OrderStatus.COMPLETED, discount);
+        await updateOrderPaymentStatus(order.id, true);
+      }
+
+      setSelectedOrderIds([]);
+      setShowConfirmCollect(false);
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const toggleSelectAll = () => {

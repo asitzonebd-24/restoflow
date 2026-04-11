@@ -57,7 +57,8 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
     if (hasAssignedCats) {
       // For kitchen staff, only count orders where at least one of THEIR items is not ready
       filtered = filtered.filter(order => {
-        const myItems = order.items.filter(item => {
+        const items = order.items || [];
+        const myItems = items.filter(item => {
           const menuItem = menu.find(m => m.id === item.itemId);
           return menuItem && currentUser.assignedCategories?.includes(menuItem.category);
         });
@@ -334,6 +335,13 @@ const ProtectedLayout = ({ children, allowedRoles }: { children?: React.ReactNod
 
   if (tenantId && currentUser.role !== Role.SUPER_ADMIN && !isCorrectTenant) {
     console.log('[ProtectedLayout] Tenant mismatch. URL:', tenantId, 'User Tenant:', currentUser.tenantId);
+    if (!currentUser.tenantId) {
+      return <Navigate to="/" replace />;
+    }
+    // Prevent infinite loop if we're already trying to go to the user's tenant
+    if (tenantId === String(currentUser.tenantId)) {
+      return <Navigate to="/" replace />;
+    }
     return <Navigate to={`/${currentUser.tenantId}/dashboard`} replace />;
   }
   
@@ -598,7 +606,7 @@ const AppContent = () => {
 
   return (
     <Routes>
-      <Route path="/" element={currentUser ? <Navigate to={getDefaultRedirect()} /> : <Landing />} />
+      <Route path="/" element={currentUser ? (location.pathname === '/' && getDefaultRedirect() === '/' ? <Landing /> : <Navigate to={getDefaultRedirect()} />) : <Landing />} />
       <Route path="/login" element={currentUser ? <Navigate to={getDefaultRedirect()} /> : <Login />} />
       <Route path="/order/auth" element={currentUser ? <Navigate to={currentUser.role === Role.CUSTOMER ? `/${currentUser.tenantId}/order` : "/"} /> : <CustomerAuth />} />
       

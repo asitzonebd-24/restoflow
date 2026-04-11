@@ -1503,7 +1503,10 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     try {
       const recipeRef = doc(db, 'recipes', newRecipe.id);
       await setDoc(recipeRef, cleanObject(newRecipe));
-      setAllRecipes(prev => [...prev, newRecipe]);
+      setAllRecipes(prev => {
+        if (prev.some(r => r.id === newRecipe.id)) return prev;
+        return [...prev, newRecipe];
+      });
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'recipes');
     }
@@ -1546,7 +1549,10 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       // Save user profile to Firestore
       const userRef = doc(db, 'users', newUser.id);
       await setDoc(userRef, cleanObject(newUser));
-      setAllUsers(prev => [...prev, newUser]);
+      setAllUsers(prev => {
+        if (prev.some(u => u.id === newUser.id)) return prev;
+        return [...prev, newUser];
+      });
       
       // Sign out the secondary auth instance
       await signOut(secondaryAuth);
@@ -1790,7 +1796,10 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     try {
       const transRef = doc(db, 'transactions', newTransaction.id);
       await setDoc(transRef, cleanObject(newTransaction));
-      setAllTransactions(prev => [newTransaction, ...prev]);
+      setAllTransactions(prev => {
+        if (prev.some(t => t.id === newTransaction.id)) return prev;
+        return [newTransaction, ...prev];
+      });
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'transactions');
     }
@@ -1803,7 +1812,10 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     try {
       const expenseRef = doc(db, 'expenses', newExpense.id);
       await setDoc(expenseRef, cleanObject(newExpense));
-      setAllExpenses(prev => [newExpense, ...prev]);
+      setAllExpenses(prev => {
+        if (prev.some(e => e.id === newExpense.id)) return prev;
+        return [newExpense, ...prev];
+      });
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'expenses');
     }
