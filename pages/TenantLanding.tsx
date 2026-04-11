@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Navigate, Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { Utensils, ShieldCheck, User, ArrowRight, Store, Globe, MapPin, Phone, ShoppingBag, AlertTriangle } from 'lucide-react';
@@ -9,6 +9,7 @@ export const TenantLanding = () => {
   const { tenantId } = useParams<{ tenantId: string }>();
   const { tenants, setCurrentTenantId, isLoading, currentUser, logout } = useApp();
   const navigate = useNavigate();
+  const [showNotFound, setShowNotFound] = useState(false);
 
   useEffect(() => {
     if (tenantId) {
@@ -40,7 +41,18 @@ export const TenantLanding = () => {
     console.log('[TenantLanding] actualTenantId for navigation:', actualTenantId);
   }, [tenantId, tenant, actualTenantId]);
 
-  if (isLoading && !tenant) {
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (!isLoading && !tenant) {
+      // Delay showing "Not Found" to allow Firestore to catch up with the new tenantId query
+      timer = setTimeout(() => setShowNotFound(true), 1500);
+    } else {
+      setShowNotFound(false);
+    }
+    return () => clearTimeout(timer);
+  }, [isLoading, tenant]);
+
+  if (isLoading || (!tenant && !showNotFound)) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6">
         <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div>
@@ -49,7 +61,7 @@ export const TenantLanding = () => {
     );
   }
 
-  if (!tenant && !isLoading) {
+  if (!tenant && showNotFound) {
     return (
       <div className="min-h-screen bg-[#f8fafc] flex flex-col items-center justify-center p-6 text-center">
         <div className="w-20 h-20 bg-rose-50 rounded-2xl flex items-center justify-center mb-6">

@@ -673,10 +673,46 @@ const AppContent = () => {
 
 import { Toaster } from 'sonner';
 
+const OfflineAlert = () => {
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+
+  React.useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  return (
+    <AnimatePresence>
+      {isOffline && (
+        <motion.div
+          initial={{ y: -100, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: -100, opacity: 0 }}
+          className="fixed top-0 left-0 right-0 z-[9999] bg-rose-500 text-white px-4 py-3 flex items-center justify-center gap-3 shadow-lg"
+        >
+          <AlertTriangle size={20} className="animate-pulse" />
+          <p className="text-sm font-bold tracking-wide">
+            You are currently offline. Please check your internet connection.
+          </p>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+};
+
 export default function App() {
   return (
     <Router>
       <AppProvider>
+        <OfflineAlert />
         <AppContent />
         <Toaster position="top-right" richColors />
       </AppProvider>
