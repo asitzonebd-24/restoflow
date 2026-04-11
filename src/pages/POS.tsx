@@ -123,7 +123,7 @@ const POSCartContent = ({
   createAndSubmitOrder: () => void,
   isTokenDuplicate: boolean,
   isSubmitting: boolean,
-  printKOT: () => void,
+  printKOT: (overrideToken?: string, overrideTable?: string, overrideCreatorName?: string) => void,
   newTokenNum: string
 }) => (
   <div className={`flex flex-col ${isEmbedded ? 'h-auto rounded-[2rem] border-2' : 'h-full border-l-2'} bg-white border-indigo-500 shadow-2xl shadow-indigo-100 overflow-hidden`}>
@@ -319,7 +319,7 @@ const POSCartContent = ({
           {isSubmitting ? 'Processing...' : (isCreatingNew ? (isTokenDuplicate ? 'Duplicate Token' : (!newTokenNum.trim() ? 'Token Required' : (!newTableNum.trim() && !isDelivery ? 'Table Required' : (isDelivery && !selectedDeliveryStaffId ? 'Select Staff' : 'Send to Kitchen')))) : 'Update Order')} <ArrowRight size={18} />
         </button>
         <button 
-          onClick={printKOT}
+          onClick={() => printKOT()}
           disabled={cart.length === 0}
           className="w-14 py-4 rounded-2xl bg-white border-2 border-slate-900 text-slate-900 flex items-center justify-center shadow-xl hover:bg-slate-50 transition-all active:scale-95 disabled:opacity-30"
           title="Print KOT"
@@ -332,7 +332,7 @@ const POSCartContent = ({
 );
 
 export const POS = () => {
-  const { menu, currentTenant, currentUser, addOrder, updateOrderItems, orders, users, isLoading, categories, tables, addTable, deleteTable } = useApp();
+  const { menu, currentTenant, currentUser, addOrder, updateOrderItems, updateOrderPaymentStatus, orders, users, isLoading, categories, tables, addTable, deleteTable } = useApp();
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [cart, setCart] = useState<OrderItem[]>([]);
   const [activeCategory, setActiveCategory] = useState<string>('Select Categories');
@@ -347,10 +347,16 @@ export const POS = () => {
   const [selectedDeliveryStaffId, setSelectedDeliveryStaffId] = useState<string>('');
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [filter, setFilter] = useState<'pending' | 'done' | 'paid'>('pending');
   const [currentPage, setCurrentPage] = useState(1);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isAddingTableModalOpen, setIsAddingTableModalOpen] = useState(false);
   const [newTableNameInput, setNewTableNameInput] = useState('');
+
+  // Reset page when filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filter]);
 
   if (isLoading || !currentTenant || !currentUser) {
     return (
@@ -383,7 +389,7 @@ export const POS = () => {
   }, [users]);
 
   const activeOrders = useMemo(() => {
-    let filtered = orders.filter(o => o.status !== OrderStatus.CANCELLED);
+    let filtered = orders.filter(o => o.status !== OrderStatus.COMPLETED && o.status !== OrderStatus.CANCELLED);
     
     // Only Owner, Manager, Kitchen, and Super Admin can see all orders
     const canSeeAll = currentUser && [Role.OWNER, Role.MANAGER, Role.KITCHEN, Role.SUPER_ADMIN].includes(currentUser.role);
@@ -392,15 +398,20 @@ export const POS = () => {
       filtered = filtered.filter(o => o.createdBy === currentUser.id);
     }
     
-    // Only show Pending and Preparing orders
-    filtered = filtered.filter(o => o.status === OrderStatus.PENDING || o.status === OrderStatus.PREPARING);
+    if (filter === 'pending') {
+      filtered = filtered.filter(o => o.status === OrderStatus.PENDING || o.status === OrderStatus.PREPARING);
+    } else if (filter === 'done') {
+      filtered = filtered.filter(o => o.status === OrderStatus.READY && !o.isPaid);
+    } else if (filter === 'paid') {
+      filtered = filtered.filter(o => o.isPaid === true);
+    }
     
     return filtered.sort((a, b) => {
       const timeA = new Date(a.createdAt).getTime();
       const timeB = new Date(b.createdAt).getTime();
-      return timeA - timeB;
+      return filter === 'pending' ? timeA - timeB : timeB - timeA;
     });
-  }, [orders, currentUser]);
+  }, [orders, currentUser, filter]);
 
   const isTokenDuplicate = useMemo(() => {
     const allActive = orders.filter(o => o.status !== OrderStatus.COMPLETED && o.status !== OrderStatus.CANCELLED);
@@ -416,6 +427,7 @@ export const POS = () => {
   const paginatedOrders = activeOrders.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const getWaiterName = (userId: string) => {
+    if (userId === currentUser?.id) return currentUser?.name || 'Staff';
     const user = users.find(u => u.id === userId);
     return user ? user.name : 'Unknown';
   };
@@ -565,8 +577,11 @@ export const POS = () => {
 
         // Auto-print KOT if enabled
         if (currentTenant?.printerSettings?.autoPrintKOT) {
+          const printToken = newTokenNum;
+          const printTable = isDelivery ? 'Delivery' : newTableNum;
+          const printCreator = currentUser?.name;
           setTimeout(() => {
-            printKOT().catch(err => {
+            printKOT(printToken, printTable, printCreator).catch(err => {
               console.error('Auto-print KOT failed:', err);
               setErrorMessage('Auto-print KOT failed. Please check printer connection.');
             });
@@ -631,17 +646,17 @@ export const POS = () => {
   const cartTotal = cart.reduce((sum, i) => sum + (i.price * i.quantity), 0);
   const cartCount = cart.reduce((acc, i) => acc + i.quantity, 0);
 
-  const printKOT = async () => {
+  const printKOT = async (overrideToken?: string, overrideTable?: string, overrideCreatorName?: string) => {
+    const token = overrideToken || (isCreatingNew ? newTokenNum : orders.find(o => o.id === selectedOrderId)?.tokenNumber);
+    const table = overrideTable || (isCreatingNew ? (isDelivery ? 'Delivery' : newTableNum) : orders.find(o => o.id === selectedOrderId)?.tableNumber);
+    const creatorId = isCreatingNew ? currentUser?.id : orders.find(o => o.id === selectedOrderId)?.createdBy;
+    const creatorName = overrideCreatorName || (creatorId ? getWaiterName(creatorId) : 'Staff');
+
     // If a bluetooth printer is paired, try to print directly
     if (currentTenant?.printerSettings?.pairedPrinterId) {
       try {
         const result = await BluetoothPrinterService.connect(currentTenant.printerSettings.pairedPrinterId);
         if (result.success) {
-          const token = isCreatingNew ? newTokenNum : orders.find(o => o.id === selectedOrderId)?.tokenNumber;
-          const table = isCreatingNew ? (isDelivery ? 'Delivery' : newTableNum) : orders.find(o => o.id === selectedOrderId)?.tableNumber;
-          const creatorId = isCreatingNew ? currentUser?.id : orders.find(o => o.id === selectedOrderId)?.createdBy;
-          const creatorName = creatorId ? getWaiterName(creatorId) : 'Staff';
-          
           const orderData = {
             tokenNumber: token || '000',
             tableNumber: table,
@@ -664,7 +679,6 @@ export const POS = () => {
     if (!printContent) return;
 
     const originalTitle = document.title;
-    const token = isCreatingNew ? newTokenNum : orders.find(o => o.id === selectedOrderId)?.tokenNumber;
     document.title = `KOT - #${token}`;
     
     // Create a temporary container for printing
@@ -676,7 +690,20 @@ export const POS = () => {
     printContainer.style.width = paperWidth;
     printContainer.style.margin = '0 auto';
     
-    printContainer.innerHTML = printContent.innerHTML;
+    // Update the DOM elements with the correct values before printing
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = printContent.innerHTML;
+    
+    const tokenEl = tempDiv.querySelector('.kot-token');
+    if (tokenEl) tokenEl.textContent = `Token: #${token}`;
+    
+    const tableEl = tempDiv.querySelector('.kot-table');
+    if (tableEl) tableEl.textContent = `Table: ${table}`;
+    
+    const waiterEl = tempDiv.querySelector('.kot-waiter');
+    if (waiterEl) waiterEl.textContent = `Waiter: ${creatorName}`;
+
+    printContainer.innerHTML = tempDiv.innerHTML;
     document.body.appendChild(printContainer);
 
     window.focus();
@@ -701,6 +728,26 @@ export const POS = () => {
           </div>
 
           <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+            <div className="flex flex-wrap items-center gap-2 bg-white p-1.5 rounded-2xl border-2 border-slate-100 shadow-sm w-full sm:w-auto">
+              <button 
+                onClick={() => setFilter('pending')}
+                className={`flex-1 sm:flex-none px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${filter === 'pending' ? 'bg-pink-500 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
+              >
+                Pending
+              </button>
+              <button 
+                onClick={() => setFilter('done')}
+                className={`flex-1 sm:flex-none px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${filter === 'done' ? 'bg-emerald-500 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
+              >
+                Done
+              </button>
+              <button 
+                onClick={() => setFilter('paid')}
+                className={`flex-1 sm:flex-none px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${filter === 'paid' ? 'bg-indigo-500 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
+              >
+                Paid
+              </button>
+            </div>
             
             <div className="flex gap-3 w-full sm:w-auto">
               <div className="flex-1 sm:flex-none bg-rose-100 px-4 py-3 rounded-2xl border-2 border-rose-200 shadow-sm flex flex-col items-center justify-center">
@@ -735,14 +782,14 @@ export const POS = () => {
               const statusStyles = getStatusStyles(derivedStatus);
 
               return (
-                <motion.button
+                <motion.div
                   layout
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
                   key={order.id}
                   onClick={() => handleSelectOrder(order)}
-                  className="group relative bg-white rounded-[2.5rem] shadow-2xl border-4 border-black transition-all duration-300 text-left flex flex-col min-h-[280px] hover:scale-[1.02] overflow-hidden"
+                  className="group relative bg-white rounded-[2.5rem] shadow-2xl border-4 border-black transition-all duration-300 text-left flex flex-col min-h-[280px] hover:scale-[1.02] overflow-hidden cursor-pointer"
                 >
                   {/* Top Border Bar */}
                   <div className={`absolute top-0 left-0 right-0 h-4 ${statusStyles.topBorder}`}></div>
@@ -758,6 +805,22 @@ export const POS = () => {
                           {order.deliveryStaffName ? `D-${order.deliveryStaffName.split(' ')[0]}` : order.tableNumber}
                         </div>
                       )}
+                      {/* Paid/Unpaid Status Dropdown */}
+                      <div className="absolute -top-2 -left-2 bg-white rounded-full border-2 border-black shadow-lg uppercase">
+                        <select
+                          value={order.isPaid ? 'paid' : 'unpaid'}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            updateOrderPaymentStatus(order.id, e.target.value === 'paid');
+                            console.log('Toggle payment status to:', e.target.value);
+                          }}
+                          className="text-[9px] font-black px-2 py-0.5 rounded-full bg-transparent outline-none cursor-pointer"
+                        >
+                          <option value="unpaid">Unpaid</option>
+                          <option value="paid">Paid</option>
+                        </select>
+                      </div>
                     </div>
 
                     {order.deliveryStaffName && (
@@ -836,7 +899,7 @@ export const POS = () => {
                       </div>
                     </div>
                   </div>
-                </motion.button>
+                </motion.div>
               );
             })}
           </AnimatePresence>
@@ -1137,9 +1200,9 @@ export const POS = () => {
       <div id="kot-content" className="hidden print:block p-4 font-mono print-visible text-black">
         <div className="text-center border-b-2 border-black pb-4 mb-4">
           <h2 className="text-3xl font-bold uppercase tracking-widest">KITCHEN TICKET</h2>
-          <p className="text-lg font-bold">Token: #{isCreatingNew ? newTokenNum : orders.find(o => o.id === selectedOrderId)?.tokenNumber}</p>
-          <p className="text-lg font-bold">Table: {isCreatingNew ? (isDelivery ? 'Delivery' : newTableNum) : orders.find(o => o.id === selectedOrderId)?.tableNumber}</p>
-          <p className="text-lg font-bold">Waiter: {isCreatingNew ? currentUser?.name : getWaiterName(orders.find(o => o.id === selectedOrderId)?.createdBy || '')}</p>
+          <p className="text-lg font-bold kot-token">Token: #{isCreatingNew ? newTokenNum : orders.find(o => o.id === selectedOrderId)?.tokenNumber}</p>
+          <p className="text-lg font-bold kot-table">Table: {isCreatingNew ? (isDelivery ? 'Delivery' : newTableNum) : orders.find(o => o.id === selectedOrderId)?.tableNumber}</p>
+          <p className="text-lg font-bold kot-waiter">Waiter: {isCreatingNew ? currentUser?.name : getWaiterName(orders.find(o => o.id === selectedOrderId)?.createdBy || '')}</p>
           <p className="text-base mt-1 font-bold">{new Date().toLocaleString()}</p>
         </div>
         

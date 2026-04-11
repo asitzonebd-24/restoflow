@@ -6,25 +6,35 @@ import { Utensils, ShieldCheck, User, ArrowRight, Store, Globe, MapPin, Phone, S
 
 export const TenantLanding = () => {
   const { tenantId } = useParams<{ tenantId: string }>();
-  const { tenants, setCurrentTenantId, isLoading } = useApp();
+  const { tenants, setCurrentTenantId, currentTenantId, isLoading } = useApp();
   const navigate = useNavigate();
+  const [isSearching, setIsSearching] = React.useState(true);
 
   useEffect(() => {
-    if (tenantId) {
+    if (tenantId && currentTenantId !== tenantId) {
       setCurrentTenantId(tenantId);
     }
-  }, [tenantId, setCurrentTenantId]);
+  }, [tenantId, currentTenantId, setCurrentTenantId]);
 
   const tenant = tenants.find(t => t.id === tenantId || t.slug === tenantId);
   const actualTenantId = tenant?.id || tenantId;
 
   useEffect(() => {
-    console.log('[TenantLanding] Params tenantId:', tenantId);
-    console.log('[TenantLanding] Resolved tenant:', tenant?.name);
-    console.log('[TenantLanding] actualTenantId for navigation:', actualTenantId);
-  }, [tenantId, tenant, actualTenantId]);
+    let timer: NodeJS.Timeout;
+    if (!tenant) {
+      setIsSearching(true);
+      timer = setTimeout(() => {
+        setIsSearching(false);
+      }, 3000); // Wait 3 seconds for the query to complete
+    } else {
+      setIsSearching(false);
+    }
+    return () => clearTimeout(timer);
+  }, [tenant, tenantId]);
 
-  if (isLoading && !tenant) {
+  const isSwitchingTenant = currentTenantId !== tenantId;
+
+  if (isLoading || isSwitchingTenant || isSearching) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6">
         <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mb-4"></div>
@@ -33,7 +43,7 @@ export const TenantLanding = () => {
     );
   }
 
-  if (!tenant && !isLoading) {
+  if (!tenant && !isLoading && !isSwitchingTenant && !isSearching) {
     return (
       <div className="min-h-screen bg-[#f8fafc] flex flex-col items-center justify-center p-6 text-center">
         <div className="w-20 h-20 bg-rose-50 rounded-2xl flex items-center justify-center mb-6">

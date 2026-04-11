@@ -10,21 +10,26 @@ service cloud.firestore {
     }
     
     function getUserData() {
-      let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
-      return userDoc == null ? null : userDoc.data;
+      let path = /databases/$(database)/documents/users/$(request.auth.uid);
+      return exists(path) ? get(path).data : null;
     }
     
     function isSuperAdmin() {
+      let userData = getUserData();
       return isAuthenticated() && (
-        (getUserData() != null && getUserData().role == 'SUPER_ADMIN') || 
-        (request.auth.token.email == 'asitzonebd@gmail.com' && request.auth.token.email_verified == true)
+        (userData != null && (userData.role == 'SUPER_ADMIN' || userData.role == 'super_admin')) || 
+        request.auth.token.email == 'asitzonebd@gmail.com'
       );
     }
     
     function hasTenantAccess(tenantId) {
+      let userData = getUserData();
       return isAuthenticated() && (
         isSuperAdmin() || 
-        (getUserData() != null && getUserData().tenantId == tenantId)
+        (userData != null && (
+          userData.tenantId == tenantId || 
+          ('tenantIds' in userData && userData.tenantIds != null && tenantId in userData.tenantIds)
+        ))
       );
     }
 
@@ -38,18 +43,28 @@ service cloud.firestore {
       allow read: if isAuthenticated() && (
         request.auth.uid == userId || 
         isSuperAdmin() || 
-        (getUserData() != null && getUserData().tenantId == resource.data.tenantId)
+        (getUserData() != null && (
+          getUserData().tenantId == resource.data.tenantId ||
+          (getUserData().role == 'super_admin' || getUserData().role == 'SUPER_ADMIN') ||
+          ('tenantIds' in getUserData() && getUserData().tenantIds != null && resource.data.tenantId in getUserData().tenantIds)
+        ))
       );
       
       // Only super admins or users with OWNER/MANAGER role in the same tenant can create/update users
       allow create: if isAuthenticated() && (
         isSuperAdmin() || 
-        (getUserData() != null && getUserData().tenantId == request.resource.data.tenantId && (getUserData().role == 'OWNER' || getUserData().role == 'MANAGER'))
+        (getUserData() != null && (getUserData().role == 'OWNER' || getUserData().role == 'MANAGER') && (
+          getUserData().tenantId == request.resource.data.tenantId ||
+          ('tenantIds' in getUserData() && getUserData().tenantIds != null && request.resource.data.tenantId in getUserData().tenantIds)
+        ))
       );
       
       allow update, delete: if isAuthenticated() && (
         isSuperAdmin() || 
-        (getUserData() != null && getUserData().tenantId == resource.data.tenantId && (getUserData().role == 'OWNER' || getUserData().role == 'MANAGER'))
+        (getUserData() != null && (getUserData().role == 'OWNER' || getUserData().role == 'MANAGER') && (
+          getUserData().tenantId == resource.data.tenantId ||
+          ('tenantIds' in getUserData() && getUserData().tenantIds != null && resource.data.tenantId in getUserData().tenantIds)
+        ))
       );
     }
 
@@ -57,8 +72,8 @@ service cloud.firestore {
     // Tenants Collection
     // ===============================================================
     match /tenants/{tenantId} {
-      // Anyone authenticated can read tenants (needed for login and routing)
-      allow read: if isAuthenticated();
+      // Anyone can read tenants (needed for landing pages and routing)
+      allow read: if true;
       // Only super admins can write tenants
       allow write: if isSuperAdmin();
     }
@@ -97,6 +112,13 @@ service cloud.firestore {
     match /tables/{document} {
       allow read, update, delete: if isAuthenticated() && hasTenantAccess(resource.data.tenantId);
       allow create: if isAuthenticated() && hasTenantAccess(request.resource.data.tenantId);
+    }
+
+    // ===============================================================
+    // Connection Test
+    // ===============================================================
+    match /test/connection {
+      allow read: if true;
     }
 
     // Default deny for anything else

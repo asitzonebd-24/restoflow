@@ -124,6 +124,8 @@ export const Users = () => {
                 password: formData.password,
                 mobile: formData.mobile,
                 role: formData.role,
+                tenantId: currentTenant.id,
+                tenantIds: [currentTenant.id],
                 permissions: formData.permissions,
                 avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.name)}&background=random`
             };
@@ -290,7 +292,7 @@ export const Users = () => {
                                             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Assigned Kitchen Categories</label>
                                             <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest ml-1 mb-2">Staff will only see items from selected categories</p>
                                             <div className="flex flex-wrap gap-2 md:gap-3">
-                                                {currentTenant.menuCategories.map(category => (
+                                                {Array.from(new Set(currentTenant.menuCategories || [])).map((category: string) => (
                                                     <button
                                                         type="button"
                                                         key={category}
@@ -366,7 +368,7 @@ export const Users = () => {
                                     </td>
                                     <td className="p-6 border-r border-black">
                                         <div className="flex flex-wrap gap-1 max-w-[240px]">
-                                            {(user.permissions || []).map(p => (
+                                            {Array.from(new Set(user.permissions || [])).map((p: string) => (
                                                 <span key={p} className="text-[8px] px-1.5 py-0.5 bg-white border border-slate-200 rounded-lg text-slate-400 font-black uppercase tracking-tighter">
                                                     {p}
                                                 </span>
@@ -374,7 +376,7 @@ export const Users = () => {
                                         </div>
                                         {user.role === Role.KITCHEN && user.assignedCategories && user.assignedCategories.length > 0 && (
                                             <div className="mt-2 flex flex-wrap gap-1 max-w-[240px]">
-                                                {user.assignedCategories.map(c => (
+                                                {Array.from(new Set(user.assignedCategories || [])).map((c: string) => (
                                                     <span key={c} className="text-[8px] px-1.5 py-0.5 bg-orange-50 border border-orange-100 rounded-lg text-orange-600 font-black uppercase tracking-tighter">
                                                         {c}
                                                     </span>
@@ -443,13 +445,25 @@ export const Users = () => {
                                 <div className="flex justify-between items-start">
                                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Access</span>
                                     <div className="flex flex-wrap justify-end gap-1 max-w-[200px]">
-                                        {(user.permissions || []).map(p => (
+                                        {Array.from(new Set(user.permissions || [])).map((p: string) => (
                                             <span key={p} className="text-[8px] px-1.5 py-0.5 bg-white border border-slate-200 rounded-lg text-slate-400 font-black uppercase tracking-tighter">
                                                 {p}
                                             </span>
                                         ))}
                                     </div>
                                 </div>
+                                {user.role === Role.KITCHEN && user.assignedCategories && user.assignedCategories.length > 0 && (
+                                    <div className="flex justify-between items-start">
+                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Categories</span>
+                                        <div className="flex flex-wrap justify-end gap-1 max-w-[200px]">
+                                            {Array.from(new Set(user.assignedCategories || [])).map((c: string) => (
+                                                <span key={c} className="text-[8px] px-1.5 py-0.5 bg-orange-50 border border-orange-100 rounded-lg text-orange-600 font-black uppercase tracking-tighter">
+                                                    {c}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
 
                                 <div className="flex justify-between items-center">
                                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Mobile</span>

@@ -32,7 +32,7 @@ export const Transactions = () => {
         const startOfWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
         const startOfMonth = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-        return transactions.filter(txn => {
+        const filtered = transactions.filter(txn => {
             // Role-based visibility
             const canSeeAll = currentUser && [Role.OWNER, Role.MANAGER, Role.KITCHEN, Role.SUPER_ADMIN].includes(currentUser.role);
             const isOwnTxn = canSeeAll || (currentUser && txn.creatorName === currentUser.name);
@@ -66,6 +66,8 @@ export const Transactions = () => {
 
             return matchesSearch && matchesDate && matchesStaff && isOwnTxn;
         });
+        console.log('[Transactions] All transactions:', transactions.length, 'Filtered:', filtered.length);
+        return filtered;
     }, [transactions, searchTerm, dateFilter, customRange, selectedStaffId, staffList, currentUser]);
 
     const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
@@ -358,8 +360,8 @@ export const Transactions = () => {
                                     </td>
                                 </tr>
                             ) : (
-                                paginatedTransactions.map(txn => (
-                                    <tr key={txn.id} className="hover:bg-indigo-50/30 transition-all group">
+                                paginatedTransactions.map((txn, index) => (
+                                    <tr key={`${txn.id}-${index}`} className="hover:bg-indigo-50/30 transition-all group">
                                         <td className="px-8 py-6 border-r border-black">
                                             <p className="text-xs font-black text-slate-900 uppercase tracking-tight">{new Date(txn.date).toLocaleDateString()}</p>
                                             <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-widest">{new Date(txn.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
@@ -421,8 +423,8 @@ export const Transactions = () => {
                             </div>
                         </div>
                     ) : (
-                        paginatedTransactions.map(txn => (
-                            <div key={txn.id} className="p-6 hover:bg-indigo-50/30 transition-all group">
+                        paginatedTransactions.map((txn, index) => (
+                            <div key={`${txn.id}-${index}`} className="p-6 hover:bg-indigo-50/30 transition-all group">
                                 <div className="flex justify-between items-start mb-4">
                                     <div>
                                         <p className="text-xs font-black text-slate-900 uppercase tracking-tight">{new Date(txn.date).toLocaleDateString()}</p>

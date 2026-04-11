@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../firebase';
-import { Role } from '../../types';
+import { Role } from '../types';
 
 interface RegistrationModalProps {
   isOpen: boolean;

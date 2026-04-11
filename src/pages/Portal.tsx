@@ -7,10 +7,12 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 
-export const SuperAdmin = () => {
+export const Portal = () => {
   const { tenants, createBusiness, currentUser, toggleBusinessStatus, updateTenant, deleteTenant, allUsers, updateUser, currentTenant, monthlyBills, setCurrentTenantId } = useApp();
   const navigate = useNavigate();
   
+  const isSuperAdmin = currentUser?.role === Role.SUPER_ADMIN || currentUser?.email?.toLowerCase() === 'asitzonebd@gmail.com';
+
   React.useEffect(() => {
     setCurrentTenantId(null);
   }, [setCurrentTenantId]);
@@ -65,7 +67,7 @@ export const SuperAdmin = () => {
     mobile: ''
   });
 
-  if (currentUser?.role !== Role.SUPER_ADMIN) {
+  if (currentUser?.role !== Role.SUPER_ADMIN && currentUser?.role !== Role.OWNER) {
     return (
       <div className="p-8 text-center">
         <h1 className="text-2xl font-bold text-red-600">Access Denied</h1>
@@ -80,7 +82,10 @@ export const SuperAdmin = () => {
 
     if (editingTenant) {
       await updateTenant(editingTenant.id, newBusiness);
-      const owner = allUsers.find(u => String(u.tenantId || '01') === String(editingTenant.id) && u.role === Role.OWNER);
+      const owner = allUsers.find(u => 
+        (String(u.tenantId || '01') === String(editingTenant.id) || (u.tenantIds && u.tenantIds.includes(String(editingTenant.id)))) 
+        && u.role === Role.OWNER
+      );
       if (owner) {
         await updateUser(owner.id, newOwner);
       }
@@ -89,9 +94,9 @@ export const SuperAdmin = () => {
     }
 
     // Check for global email uniqueness
-    const isDuplicate = allUsers.some(u => u.email.toLowerCase() === newOwner.email.toLowerCase());
-    if (isDuplicate) {
-      setError('This email is already registered in the system.');
+    const existingUser = allUsers.find(u => u.email.toLowerCase() === newOwner.email.toLowerCase());
+    if (existingUser && existingUser.role !== Role.OWNER) {
+      setError('This email is already registered for a non-owner account.');
       return;
     }
 
@@ -134,7 +139,10 @@ export const SuperAdmin = () => {
     setEditingTenant(tenant);
     setNewBusiness({ ...tenant });
     
-    const owner = allUsers.find(u => String(u.tenantId || '01') === String(tenant.id) && u.role === Role.OWNER);
+    const owner = allUsers.find(u => 
+      (String(u.tenantId || '01') === String(tenant.id) || (u.tenantIds && u.tenantIds.includes(String(tenant.id)))) 
+      && u.role === Role.OWNER
+    );
     if (owner) {
       setNewOwner({
         name: owner.name,
@@ -223,26 +231,111 @@ export const SuperAdmin = () => {
     }
   };
 
+  const [activeTab, setActiveTab] = useState<'restaurants' | 'users' | 'billing'>('restaurants');
+  const [showUserModal, setShowUserModal] = useState(false);
+  const [editingUser, setEditingUser] = useState<any>(null);
+  const [userForm, setUserForm] = useState({
+    name: '',
+    email: '',
+    password: '',
+    mobile: '',
+    role: Role.OWNER,
+    tenantIds: [] as string[]
+  });
+
+  const resetUserForm = () => {
+    setShowUserModal(false);
+    setEditingUser(null);
+    setUserForm({
+      name: '',
+      email: '',
+      password: '',
+      mobile: '',
+      role: Role.OWNER,
+      tenantIds: []
+    });
+  };
+
+  const handleEditUser = (user: any) => {
+    setEditingUser(user);
+    setUserForm({
+      name: user.name,
+      email: user.email,
+      password: user.password || '',
+      mobile: user.mobile || '',
+      role: user.role,
+      tenantIds: user.tenantIds || [user.tenantId].filter(Boolean)
+    });
+    setShowUserModal(true);
+  };
+
+  const handleSaveUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (editingUser) {
+        await updateUser(editingUser.id, userForm);
+        toast.success('User updated successfully');
+      }
+      resetUserForm();
+    } catch (err: any) {
+      toast.error('Failed to save user: ' + err.message);
+    }
+  };
+
+  const filteredUsers = allUsers.filter(u => 
+    u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    u.email.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-8">
       
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Portal Administration</h1>
-          <p className="text-slate-500">Manage all restaurant businesses and billing</p>
+          <h1 className="text-3xl font-bold text-slate-900">Restaurant Portal</h1>
+          <p className="text-slate-500">Manage and access your restaurant dashboards.</p>
         </div>
         <div className="flex items-center gap-3">
-          <button 
-            onClick={() => setShowModal(true)}
-            className="flex items-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 transition shadow-lg shadow-indigo-200"
-          >
-            <Plus size={20} />
-            Add New Restaurant
-          </button>
+          {isSuperAdmin && (
+            <button 
+              onClick={() => setShowModal(true)}
+              className="flex items-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 transition shadow-lg shadow-indigo-200"
+            >
+              <Plus size={20} />
+              Add New Restaurant
+            </button>
+          )}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      <div className="flex items-center gap-2 border-b-2 border-slate-100 mb-8 overflow-x-auto no-scrollbar">
+        <button 
+          onClick={() => setActiveTab('restaurants')}
+          className={`px-6 py-3 font-bold text-sm transition-all border-b-2 -mb-[2px] whitespace-nowrap ${activeTab === 'restaurants' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+        >
+          Restaurants
+        </button>
+        {isSuperAdmin && (
+          <>
+            <button 
+              onClick={() => setActiveTab('users')}
+              className={`px-6 py-3 font-bold text-sm transition-all border-b-2 -mb-[2px] whitespace-nowrap ${activeTab === 'users' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+            >
+              Users & Owners
+            </button>
+            <button 
+              onClick={() => setActiveTab('billing')}
+              className={`px-6 py-3 font-bold text-sm transition-all border-b-2 -mb-[2px] whitespace-nowrap ${activeTab === 'billing' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+            >
+              Billing History
+            </button>
+          </>
+        )}
+      </div>
+
+      {activeTab === 'restaurants' && (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <div className="bg-white p-6 rounded-2xl border-2 border-indigo-500 shadow-lg shadow-indigo-100 transition-all hover:scale-105">
           <p className="text-slate-500 text-sm font-medium mb-1">Total Restaurants</p>
           <h3 className="text-3xl font-bold text-slate-900">{tenants.length}</h3>
@@ -274,7 +367,7 @@ export const SuperAdmin = () => {
       </div>
 
       <div className="w-full">
-        {selectedTenants.length > 0 && (
+        {isSuperAdmin && selectedTenants.length > 0 && (
           <motion.div 
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -355,16 +448,20 @@ export const SuperAdmin = () => {
                     <th className="px-2 py-2 font-black border-r border-black w-24">Link</th>
                     <th className="px-2 py-2 font-black border-r border-black w-28">Contact</th>
                     <th className="px-2 py-2 font-black border-r border-black w-16">Status</th>
-                    <th className="px-2 py-2 font-black border-r border-black w-16">Maint.</th>
-                    <th className="px-2 py-2 font-black border-r border-black">Message</th>
-                    <th className="px-2 py-2 font-black border-r border-black w-16">Time</th>
-                    <th className="px-2 py-2 font-black border-r border-black w-16">Bill</th>
+                    {isSuperAdmin && (
+                      <>
+                        <th className="px-2 py-2 font-black border-r border-black w-16">Maint.</th>
+                        <th className="px-2 py-2 font-black border-r border-black">Message</th>
+                        <th className="px-2 py-2 font-black border-r border-black w-16">Time</th>
+                        <th className="px-2 py-2 font-black border-r border-black w-16">Bill</th>
+                      </>
+                    )}
                     <th className="px-2 py-2 font-black text-right w-24">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y-2 divide-black">
-                  {filteredTenants.map((tenant) => (
-                    <tr key={tenant.id} className={`hover:bg-slate-50/50 transition ${!tenant.isActive ? 'opacity-60' : ''} ${selectedTenants.includes(tenant.id) ? 'bg-indigo-50/30' : ''}`}>
+                  {filteredTenants.map((tenant, index) => (
+                    <tr key={`${tenant.id}-${index}`} className={`hover:bg-slate-50/50 transition ${!tenant.isActive ? 'opacity-60' : ''} ${selectedTenants.includes(tenant.id) ? 'bg-indigo-50/30' : ''}`}>
                       <td className="px-2 py-2 border-r border-black">
                         <input 
                           type="checkbox" 
@@ -436,71 +533,79 @@ export const SuperAdmin = () => {
                           {tenant.isActive ? 'Active' : 'Off'}
                         </span>
                       </td>
-                      <td className="px-2 py-2 border-r border-black">
-                        <button 
-                          onClick={() => updateTenant(tenant.id, { isMaintenanceMode: !tenant.isMaintenanceMode })}
-                          className={`px-1.5 py-0.5 rounded-full text-[7px] font-black uppercase tracking-widest transition-all border border-black ${
-                            tenant.isMaintenanceMode 
-                              ? 'bg-amber-100 text-amber-700' 
-                              : 'bg-white text-slate-400'
-                          }`}
-                        >
-                          {tenant.isMaintenanceMode ? 'ON' : 'OFF'}
-                        </button>
-                      </td>
-                      <td className="px-2 py-2 border-r border-black">
-                        <div className="min-w-[80px]">
-                          <input 
-                            type="text" 
-                            placeholder="Msg..."
-                            className="w-full bg-transparent border-b border-black hover:bg-white px-1 py-0.5 text-[8px] font-bold transition-all outline-none"
-                            value={tenant.maintenanceMessage || ''}
-                            onChange={(e) => updateTenant(tenant.id, { maintenanceMessage: e.target.value })}
-                          />
-                        </div>
-                      </td>
-                      <td className="px-2 py-2 border-r border-black">
-                        <div className="min-w-[60px]">
-                          <input 
-                            type="text" 
-                            placeholder="Time..."
-                            className="w-full bg-transparent border-b border-black hover:bg-white px-1 py-0.5 text-[8px] font-bold transition-all outline-none"
-                            value={tenant.maintenanceTime || ''}
-                            onChange={(e) => updateTenant(tenant.id, { maintenanceTime: e.target.value })}
-                          />
-                        </div>
-                      </td>
-                      <td className="px-2 py-2 border-r border-black">
-                        {editingBill === tenant.id ? (
-                          <div className="flex items-center gap-1">
-                            <input 
-                              type="number" 
-                              className="w-10 px-1 py-0.5 border border-black rounded text-[8px] font-bold outline-none"
-                              value={billAmount}
-                              onChange={(e) => setBillAmount(Number(e.target.value))}
-                            />
-                            <button onClick={() => saveBill(tenant.id)} className="text-emerald-600">
-                              <Save size={10} />
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-1 group">
-                            <span className="font-bold text-slate-900 text-[9px]">{currentTenant?.currency || '৳'}{tenant.monthlyBill}</span>
+                      {isSuperAdmin && (
+                        <>
+                          <td className="px-2 py-2 border-r border-black">
                             <button 
-                              onClick={() => handleEditBill(tenant)}
-                              className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-black"
+                              onClick={() => updateTenant(tenant.id, { isMaintenanceMode: !tenant.isMaintenanceMode })}
+                              className={`px-1.5 py-0.5 rounded-full text-[7px] font-black uppercase tracking-widest transition-all border border-black ${
+                                tenant.isMaintenanceMode 
+                                  ? 'bg-amber-100 text-amber-700' 
+                                  : 'bg-white text-slate-400'
+                              }`}
                             >
-                              <Edit3 size={8} />
+                              {tenant.isMaintenanceMode ? 'ON' : 'OFF'}
                             </button>
-                          </div>
-                        )}
-                      </td>
+                          </td>
+                          <td className="px-2 py-2 border-r border-black">
+                            <div className="min-w-[80px]">
+                              <input 
+                                type="text" 
+                                placeholder="Msg..."
+                                className="w-full bg-transparent border-b border-black hover:bg-white px-1 py-0.5 text-[8px] font-bold transition-all outline-none"
+                                value={tenant.maintenanceMessage || ''}
+                                onChange={(e) => updateTenant(tenant.id, { maintenanceMessage: e.target.value })}
+                              />
+                            </div>
+                          </td>
+                          <td className="px-2 py-2 border-r border-black">
+                            <div className="min-w-[60px]">
+                              <input 
+                                type="text" 
+                                placeholder="Time..."
+                                className="w-full bg-transparent border-b border-black hover:bg-white px-1 py-0.5 text-[8px] font-bold transition-all outline-none"
+                                value={tenant.maintenanceTime || ''}
+                                onChange={(e) => updateTenant(tenant.id, { maintenanceTime: e.target.value })}
+                              />
+                            </div>
+                          </td>
+                          <td className="px-2 py-2 border-r border-black">
+                            {editingBill === tenant.id ? (
+                              <div className="flex items-center gap-1">
+                                <input 
+                                  type="number" 
+                                  className="w-10 px-1 py-0.5 border border-black rounded text-[8px] font-bold outline-none"
+                                  value={billAmount}
+                                  onChange={(e) => setBillAmount(Number(e.target.value))}
+                                />
+                                <button onClick={() => saveBill(tenant.id)} className="text-emerald-600">
+                                  <Save size={10} />
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1 group">
+                                <span className="font-bold text-slate-900 text-[9px]">{currentTenant?.currency || '৳'}{tenant.monthlyBill}</span>
+                                <button 
+                                  onClick={() => handleEditBill(tenant)}
+                                  className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-black"
+                                >
+                                  <Edit3 size={8} />
+                                </button>
+                              </div>
+                            )}
+                          </td>
+                        </>
+                      )}
                       <td className="px-2 py-2 text-right">
                         <div className="flex items-center justify-end gap-1">
-                          <button onClick={() => handleEditTenant(tenant)} className="p-0.5 text-slate-400 hover:text-black" title="Edit"><Edit3 size={12} /></button>
-                          <button onClick={() => toggleBusinessStatus(tenant.id)} className={tenant.isActive ? 'text-red-500' : 'text-emerald-500'} title={tenant.isActive ? 'Deactivate' : 'Activate'}><Power size={12} /></button>
-                          <button onClick={() => handleDeleteTenant(tenant.id)} className="p-0.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors" title="Delete"><Trash2 size={12} /></button>
-                          <button onClick={() => navigate(`/${tenant.slug || tenant.id}/dashboard`)} className="p-0.5 text-slate-400 hover:text-black" title="Dashboard"><ExternalLink size={12} /></button>
+                          {isSuperAdmin && (
+                            <>
+                              <button onClick={() => handleEditTenant(tenant)} className="p-0.5 text-slate-400 hover:text-black" title="Edit"><Edit3 size={12} /></button>
+                              <button onClick={() => toggleBusinessStatus(tenant.id)} className={tenant.isActive ? 'text-red-500' : 'text-emerald-500'} title={tenant.isActive ? 'Deactivate' : 'Activate'}><Power size={12} /></button>
+                              <button onClick={() => handleDeleteTenant(tenant.id)} className="p-0.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors" title="Delete"><Trash2 size={12} /></button>
+                            </>
+                          )}
+                          <button onClick={() => navigate(`/${tenant.slug || tenant.id}/dashboard`)} className="p-0.5 text-indigo-600 hover:text-indigo-800 bg-indigo-50 rounded-lg transition-colors" title="Go to Dashboard"><ExternalLink size={14} /></button>
                         </div>
                       </td>
                     </tr>
@@ -511,9 +616,9 @@ export const SuperAdmin = () => {
 
             {/* Mobile Card View */}
             <div className="md:hidden divide-y-2 divide-black">
-              {filteredTenants.map((tenant) => (
+              {filteredTenants.map((tenant, index) => (
                 <div 
-                  key={tenant.id} 
+                  key={`${tenant.id}-${index}`} 
                   className={`p-4 space-y-4 transition-all border-2 m-2 rounded-2xl ${
                     selectedTenants.includes(tenant.id) 
                       ? 'bg-indigo-50/50 border-black shadow-lg' 
@@ -623,6 +728,185 @@ export const SuperAdmin = () => {
             </div>
           </div>
         </div>
+      </>
+    )}
+
+      {activeTab === 'users' && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-2xl border-2 border-black shadow-xl overflow-hidden">
+            <div className="p-3 border-b-2 border-black bg-slate-50/50 flex items-center gap-3 group">
+              <Search size={20} className="text-slate-400 group-focus-within:text-black transition-colors" />
+              <input 
+                type="text" 
+                placeholder="Search users by name or email..."
+                className="bg-transparent border-none focus:ring-0 flex-1 text-sm font-medium"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse table-auto">
+                <thead>
+                  <tr className="bg-slate-100 text-slate-900 text-[9px] uppercase tracking-wider border-b-2 border-black">
+                    <th className="px-4 py-3 font-black border-r border-black">User</th>
+                    <th className="px-4 py-3 font-black border-r border-black">Role</th>
+                    <th className="px-4 py-3 font-black border-r border-black">Linked Restaurants</th>
+                    <th className="px-4 py-3 font-black text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y-2 divide-black">
+                  {filteredUsers.map((user, index) => (
+                    <tr key={`${user.id}-${index}`} className="hover:bg-slate-50/50 transition">
+                      <td className="px-4 py-3 border-r border-black">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full border-2 border-black bg-slate-100 flex items-center justify-center overflow-hidden shrink-0">
+                            {user.avatar ? (
+                              <img src={user.avatar} className="w-full h-full object-cover" alt="Avatar" />
+                            ) : (
+                              <User size={20} className="text-slate-300" />
+                            )}
+                          </div>
+                          <div>
+                            <p className="font-bold text-slate-900 text-sm">{user.name}</p>
+                            <p className="text-xs text-slate-500">{user.email}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 border-r border-black">
+                        <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest border border-black ${
+                          user.role === Role.SUPER_ADMIN ? 'bg-purple-100 text-purple-700' :
+                          user.role === Role.OWNER ? 'bg-indigo-100 text-indigo-700' :
+                          'bg-slate-100 text-slate-700'
+                        }`}>
+                          {user.role}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 border-r border-black">
+                        <div className="flex flex-wrap gap-1">
+                          {Array.from(new Set([...(user.tenantIds || []), user.tenantId].filter(Boolean))).map((tid: string) => {
+                            const t = tenants.find(ten => ten.id === tid);
+                            return (
+                              <span key={tid} className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded text-[8px] font-bold border border-slate-200">
+                                {t?.name || tid}
+                              </span>
+                            );
+                          })}
+                          {Array.from(new Set([...(user.tenantIds || []), user.tenantId].filter(Boolean))).length === 0 && (
+                            <span className="text-[10px] text-slate-400 italic">No restaurants linked</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <button 
+                          onClick={() => handleEditUser(user)}
+                          className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                          title="Edit User & Links"
+                        >
+                          <Edit3 size={18} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'billing' && (
+        <div className="bg-white rounded-2xl border-2 border-black shadow-xl p-8 text-center">
+          <Wallet size={48} className="mx-auto text-slate-300 mb-4" />
+          <h3 className="text-xl font-bold text-slate-900">Billing History</h3>
+          <p className="text-slate-500">Billing history and reports will be displayed here.</p>
+        </div>
+      )}
+
+      {showUserModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[120]">
+          <div className="bg-white rounded-[2rem] border-2 border-black shadow-2xl w-full max-w-lg overflow-hidden">
+            <div className="p-6 border-b-2 border-black bg-slate-50 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                <User className="text-indigo-600" />
+                Edit User & Restaurant Access
+              </h2>
+              <button onClick={resetUserForm} className="p-2 hover:bg-slate-200 rounded-xl transition-colors">✕</button>
+            </div>
+            
+            <form onSubmit={handleSaveUser} className="p-6 space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <label className="block text-[10px] font-black uppercase text-slate-500 mb-1 tracking-widest">Full Name</label>
+                  <input 
+                    required
+                    type="text" 
+                    className="w-full px-4 py-3 rounded-xl border-2 border-slate-100 focus:border-indigo-500 outline-none font-bold text-sm"
+                    value={userForm.name}
+                    onChange={(e) => setUserForm({...userForm, name: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black uppercase text-slate-500 mb-1 tracking-widest">Email</label>
+                  <input 
+                    disabled
+                    type="email" 
+                    className="w-full px-4 py-3 rounded-xl border-2 border-slate-100 bg-slate-50 text-slate-400 font-bold text-sm"
+                    value={userForm.email}
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black uppercase text-slate-500 mb-1 tracking-widest">Mobile</label>
+                  <input 
+                    type="text" 
+                    className="w-full px-4 py-3 rounded-xl border-2 border-slate-100 focus:border-indigo-500 outline-none font-bold text-sm"
+                    value={userForm.mobile}
+                    onChange={(e) => setUserForm({...userForm, mobile: e.target.value})}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-[10px] font-black uppercase text-slate-500 mb-2 tracking-widest">Linked Restaurants</label>
+                  <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto p-2 border-2 border-slate-100 rounded-xl">
+                    {tenants.map(tenant => (
+                      <label key={tenant.id} className="flex items-center gap-2 p-2 hover:bg-slate-50 rounded-lg cursor-pointer transition-colors">
+                        <input 
+                          type="checkbox"
+                          className="w-4 h-4 rounded border-2 border-slate-200 text-indigo-600 focus:ring-indigo-500"
+                          checked={userForm.tenantIds.includes(tenant.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setUserForm({...userForm, tenantIds: [...userForm.tenantIds, tenant.id]});
+                            } else {
+                              setUserForm({...userForm, tenantIds: userForm.tenantIds.filter(id => id !== tenant.id)});
+                            }
+                          }}
+                        />
+                        <span className="text-xs font-bold text-slate-700 truncate">{tenant.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-6 border-t-2 border-slate-100 flex gap-3">
+                <button 
+                  type="button"
+                  onClick={resetUserForm}
+                  className="flex-1 px-6 py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] text-slate-500 hover:bg-slate-100 transition-all"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  className="flex-1 bg-indigo-600 text-white px-6 py-4 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-200"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {showModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-0 md:p-4 z-[100] overflow-y-auto">
@@ -905,7 +1189,7 @@ export const SuperAdmin = () => {
                     <p className="text-[10px] font-bold text-indigo-900 leading-relaxed">
                       {editingTenant 
                         ? "Editing owner details here will update the primary owner account for this restaurant. Be careful with email/password changes."
-                        : "This account will be created as the primary owner for the new restaurant with full administrative permissions."}
+                        : "This account will be created as the primary owner for the new restaurant. If you use an existing owner's email, the new restaurant will be automatically linked to their existing account."}
                     </p>
                   </div>
                 </div>
