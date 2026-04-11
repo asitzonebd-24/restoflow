@@ -10,15 +10,14 @@ service cloud.firestore {
     }
     
     function getUserData() {
-      let path = /databases/$(database)/documents/users/$(request.auth.uid);
-      return exists(path) ? get(path).data : null;
+      let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
+      return userDoc == null ? null : userDoc.data;
     }
     
     function isSuperAdmin() {
-      let userData = getUserData();
       return isAuthenticated() && (
-        (userData != null && (userData.role == 'SUPER_ADMIN' || userData.role == 'super_admin')) || 
-        request.auth.token.email == 'asitzonebd@gmail.com'
+        (getUserData() != null && getUserData().role == 'SUPER_ADMIN') || 
+        (request.auth.token.email == 'asitzonebd@gmail.com' && request.auth.token.email_verified == true)
       );
     }
     
@@ -45,7 +44,6 @@ service cloud.firestore {
         isSuperAdmin() || 
         (getUserData() != null && (
           getUserData().tenantId == resource.data.tenantId ||
-          (getUserData().role == 'super_admin' || getUserData().role == 'SUPER_ADMIN') ||
           ('tenantIds' in getUserData() && getUserData().tenantIds != null && resource.data.tenantId in getUserData().tenantIds)
         ))
       );
@@ -72,8 +70,8 @@ service cloud.firestore {
     // Tenants Collection
     // ===============================================================
     match /tenants/{tenantId} {
-      // Anyone can read tenants (needed for landing pages and routing)
-      allow read: if true;
+      // Anyone authenticated can read tenants (needed for login and routing)
+      allow read: if isAuthenticated();
       // Only super admins can write tenants
       allow write: if isSuperAdmin();
     }
@@ -112,13 +110,6 @@ service cloud.firestore {
     match /tables/{document} {
       allow read, update, delete: if isAuthenticated() && hasTenantAccess(resource.data.tenantId);
       allow create: if isAuthenticated() && hasTenantAccess(request.resource.data.tenantId);
-    }
-
-    // ===============================================================
-    // Connection Test
-    // ===============================================================
-    match /test/connection {
-      allow read: if true;
     }
 
     // Default deny for anything else

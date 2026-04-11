@@ -18,6 +18,7 @@ export const Billing = () => {
   const [showConfirmCollect, setShowConfirmCollect] = useState(false);
   
   const getCreator = (userId: string) => {
+    if (userId === currentUser?.id) return currentUser;
     return users.find(u => u.id === userId);
   };
 
@@ -34,13 +35,12 @@ export const Billing = () => {
 
     return orders
       .filter(o => {
-        // Show orders that are READY (Done) or COMPLETED (Paid)
-        const isDoneOrPaid = o.status === OrderStatus.READY || o.status === OrderStatus.COMPLETED;
+        const isReady = o.status === OrderStatus.READY;
         const matchesSearch = o.tokenNumber.toLowerCase().includes(searchTerm.toLowerCase()) || 
                               (o.deliveryStaffName && o.deliveryStaffName.toLowerCase().includes(searchTerm.toLowerCase()));
         const matchesStaff = selectedStaffId === 'all' || o.createdBy === selectedStaffId || o.deliveryStaffId === selectedStaffId;
         const isOwnOrder = canSeeAll || (currentUser && o.createdBy === currentUser.id);
-        return isDoneOrPaid && matchesSearch && matchesStaff && isOwnOrder;
+        return isReady && matchesSearch && matchesStaff && isOwnOrder;
       })
       .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
   }, [orders, searchTerm, selectedStaffId, currentUser]);
@@ -192,7 +192,7 @@ export const Billing = () => {
       return;
     }
 
-    const staff = users.find(u => u.id === staffId);
+    const staff = staffId === currentUser?.id ? currentUser : users.find(u => u.id === staffId);
     if (staff) {
       await updateOrderItems(
         orderId,
@@ -715,11 +715,18 @@ export const Billing = () => {
                   <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">Staff Name</p>
                   <p className="text-xs font-black text-emerald-600 uppercase tracking-tight">
                     {(() => {
-                      if (selectedStaffId !== 'all') return users.find(u => u.id === selectedStaffId)?.name || 'Unknown';
+                      if (selectedStaffId !== 'all') {
+                        if (selectedStaffId === currentUser?.id) return currentUser?.name || 'Unknown';
+                        return users.find(u => u.id === selectedStaffId)?.name || 'Unknown';
+                      }
                       if (selectedOrderIds.length === 0) return 'All Staff';
                       const firstOrderCreator = orders.find(o => o.id === selectedOrderIds[0])?.createdBy;
                       const allSame = selectedOrderIds.every(id => orders.find(o => o.id === id)?.createdBy === firstOrderCreator);
-                      return allSame ? (users.find(u => u.id === firstOrderCreator)?.name || 'All Staff') : 'All Staff';
+                      if (allSame) {
+                        if (firstOrderCreator === currentUser?.id) return currentUser?.name || 'All Staff';
+                        return users.find(u => u.id === firstOrderCreator)?.name || 'All Staff';
+                      }
+                      return 'All Staff';
                     })()}
                   </p>
                 </div>

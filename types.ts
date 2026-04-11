@@ -118,7 +118,6 @@ export interface Order {
   deliveryStaffName?: string | null;
   deliveryStaffMobile?: string | null;
   discount?: number;
-  isPaid?: boolean;
 }
 
 export interface Transaction {

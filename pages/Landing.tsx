@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { Utensils, ShieldCheck, ArrowRight, ChefHat, ShoppingBag, UserPlus } from 'lucide-react';
-import { RegistrationModal } from '../components/RegistrationModal';
+import { RegistrationModal } from '../src/components/RegistrationModal';
 import { useState } from 'react';
 
 export const Landing = () => {
