@@ -276,6 +276,37 @@ export const Kitchen = () => {
                     {order.deliveryStaffName ? `D-${order.deliveryStaffName.split(' ')[0]}` : order.tableNumber}
                   </div>
                 )}
+                <button
+                  onClick={async () => {
+                    if (currentTenant?.printerSettings?.pairedPrinterId) {
+                      try {
+                        const result = await BluetoothPrinterService.connect(currentTenant.printerSettings.pairedPrinterId);
+                        if (result.success) {
+                          const orderData = {
+                            tokenNumber: order.tokenNumber,
+                            tableNumber: order.tableNumber,
+                            items: order.items.filter(i => i.status === OrderStatus.PENDING),
+                            note: order.note,
+                            createdAt: order.createdAt,
+                            creatorName: getCreatorName(order.createdBy)
+                          };
+                          await BluetoothPrinterService.printKOT(currentTenant, orderData as any);
+                        } else {
+                          alert('Failed to connect to printer.');
+                        }
+                      } catch (error) {
+                        console.error('Bluetooth print failed:', error);
+                        alert('Failed to print KOT. Please check printer connection.');
+                      }
+                    } else {
+                      alert('No printer paired. Please pair a printer in Settings.');
+                    }
+                  }}
+                  className="absolute -top-2 -left-2 bg-indigo-600 text-white p-1.5 rounded-full border-2 border-white shadow-lg hover:bg-indigo-700 transition-all"
+                  title="Print KOT"
+                >
+                  <Printer size={12} />
+                </button>
               </div>
 
             {order.deliveryStaffName && (
