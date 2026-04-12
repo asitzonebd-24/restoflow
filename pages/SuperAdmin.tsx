@@ -125,9 +125,23 @@ export const SuperAdmin = () => {
     setDuplicateSourceId(tenant.id);
     setEditingTenant(null);
     setNewBusiness({
-      ...tenant,
-      id: '',
-      name: `${tenant.name} (Copy)`,
+      name: '',
+      address: '',
+      phone: '',
+      currency: '৳',
+      themeColor: '#0f172a',
+      monthlyBill: 500,
+      logo: '',
+      vatRate: 0,
+      includeVat: false,
+      timezone: 'UTC',
+      customerTokenPrefix: 'ORD',
+      customerAppEnabled: true,
+      isMaintenanceMode: false,
+      maintenanceMessage: '',
+      maintenanceTime: '',
+      inventoryMode: InventoryMode.SIMPLE,
+      menuCategories: tenant.menuCategories || ['Main', 'Starter', 'Beverage', 'Dessert'],
     });
     setNewOwner({ name: '', email: '', password: '', mobile: '' });
     setShowModal(true);
@@ -504,6 +518,7 @@ export const SuperAdmin = () => {
                       <td className="px-2 py-2 text-right">
                         <div className="flex items-center justify-end gap-1">
                           <button onClick={() => handleEditTenant(tenant)} className="p-0.5 text-slate-400 hover:text-black" title="Edit"><Edit3 size={12} /></button>
+                          <button onClick={() => handleDuplicateTenant(tenant)} className="p-0.5 text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 rounded transition-colors" title="Duplicate Menu"><Copy size={12} /></button>
                           <button onClick={() => toggleBusinessStatus(tenant.id)} className={tenant.isActive ? 'text-red-500' : 'text-emerald-500'} title={tenant.isActive ? 'Deactivate' : 'Activate'}><Power size={12} /></button>
                           <button onClick={() => handleDeleteTenant(tenant.id)} className="p-0.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors" title="Delete"><Trash2 size={12} /></button>
                           <button onClick={() => navigate(`/${tenant.slug || tenant.id}/dashboard`)} className="p-0.5 text-slate-400 hover:text-black" title="Dashboard"><ExternalLink size={12} /></button>
