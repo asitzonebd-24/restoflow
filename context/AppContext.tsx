@@ -1774,6 +1774,17 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
           };
           batch.set(doc(db, 'menu_items', newItemId), newItem);
         });
+
+        const sourceRecipes = allRecipes.filter(r => r.tenantId === sourceTenantId);
+        sourceRecipes.forEach((recipe, index) => {
+          const newRecipeId = `r-${Date.now()}-${index}`;
+          const newRecipe = {
+            ...recipe,
+            id: newRecipeId,
+            tenantId: newTenantId
+          };
+          batch.set(doc(db, 'recipes', newRecipeId), newRecipe);
+        });
       }
 
       await batch.commit();
