@@ -553,7 +553,8 @@ export const POS = () => {
         const totalAmount = cart.reduce((sum, i) => sum + (i.price * i.quantity), 0);
         
         // Check if new items were added to reset status to PENDING
-        const hasNewItems = cart.some((i: any) => !i.isExisting);
+        const newItems = cart.filter((i: any) => !i.isExisting);
+        const hasNewItems = newItems.length > 0;
         
         // Clean up the isExisting flag before saving
         const cleanedItems = cart.map(({ isExisting, ...item }: any) => item);
@@ -571,6 +572,22 @@ export const POS = () => {
           isDelivery ? (selectedStaff?.mobile || null) : null,
           isDelivery ? (deliveryAddress || null) : null
         );
+
+        // Auto-print KOT for new items only
+        if (hasNewItems && currentTenant?.printerSettings?.autoPrintKOT) {
+          const oldOrder = allOrders.find(o => o.id === selectedOrderId);
+          const printToken = oldOrder?.tokenNumber || '';
+          const printTable = oldOrder?.tableNumber || '';
+          const printCreator = currentUser?.name;
+          
+          // Print only new items
+          setTimeout(() => {
+            printKOT(printToken, printTable, printCreator, newItems).catch(err => {
+              console.error('Auto-print KOT failed:', err);
+              setErrorMessage('Auto-print KOT failed. Please check printer connection.');
+            });
+          }, 500);
+        }
       }
 
       setSelectedOrderId(null);
@@ -608,11 +625,12 @@ export const POS = () => {
   const cartTotal = cart.reduce((sum, i) => sum + (i.price * i.quantity), 0);
   const cartCount = cart.reduce((acc, i) => acc + i.quantity, 0);
 
-  const printKOT = async (overrideToken?: string, overrideTable?: string, overrideCreatorName?: string) => {
+  const printKOT = async (overrideToken?: string, overrideTable?: string, overrideCreatorName?: string, overrideItems?: OrderItem[]) => {
     const token = overrideToken || (isCreatingNew ? newTokenNum : orders.find(o => o.id === selectedOrderId)?.tokenNumber);
     const table = overrideTable || (isCreatingNew ? (isDelivery ? 'Delivery' : (isTakeAway ? 'Take Away' : newTableNum)) : orders.find(o => o.id === selectedOrderId)?.tableNumber);
     const creatorId = isCreatingNew ? currentUser?.id : orders.find(o => o.id === selectedOrderId)?.createdBy;
     const creatorName = overrideCreatorName || (creatorId ? getWaiterName(creatorId) : 'Staff');
+    const itemsToPrint = overrideItems || cart;
 
     // If a bluetooth printer is paired, try to print directly
     if (currentTenant?.printerSettings?.pairedPrinterId) {
@@ -622,7 +640,7 @@ export const POS = () => {
           const orderData = {
             tokenNumber: token || '000',
             tableNumber: table,
-            items: cart,
+            items: itemsToPrint,
             note: orderNote,
             createdAt: new Date().toISOString(),
             creatorName: creatorName
@@ -637,6 +655,7 @@ export const POS = () => {
       }
     }
 
+    // Note: System print might need adjustment to handle overrideItems if it relies on DOM
     const printContent = document.getElementById('kot-content');
     if (!printContent) return;
 
