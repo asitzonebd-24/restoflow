@@ -27,7 +27,8 @@ import {
   getDoc,
   writeBatch,
   serverTimestamp,
-  Timestamp
+  Timestamp,
+  addDoc
 } from 'firebase/firestore';
 
 enum OperationType {
@@ -91,6 +92,7 @@ interface AppContextType {
   login: (emailOrMobile: string, password: string, tenantId?: string | null) => Promise<boolean>;
   logout: () => Promise<void>;
   addOrder: (order: Omit<Order, 'tenantId'>) => Promise<void>;
+  createPrintRequest: (order: Order) => Promise<void>;
   updateOrderItems: (
     orderId: string, 
     items: OrderItem[], 
@@ -868,6 +870,21 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'orders');
       throw error; // Re-throw to handle in UI
+    }
+  };
+
+  const createPrintRequest = async (order: Order) => {
+    try {
+      await addDoc(collection(db, 'print_requests'), {
+        tenantId: business.id,
+        orderId: order.id,
+        tokenNumber: order.tokenNumber,
+        items: order.items,
+        createdAt: serverTimestamp()
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, 'print_requests');
+      throw error;
     }
   };
 
@@ -1954,6 +1971,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       login,
       logout,
       addOrder,
+      createPrintRequest,
       updateOrderItems,
       updateOrderStatus,
       updateOrderItemStatus,

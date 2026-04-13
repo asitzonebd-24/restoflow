@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Print Agent sensitive files
+print-agent/serviceAccountKey.json
+print-agent/config.json

@@ -30,6 +30,7 @@ export const Settings = () => {
     const [paperWidth, setPaperWidth] = useState<'58mm' | '80mm'>('80mm');
     const [autoPrintKOT, setAutoPrintKOT] = useState(false);
     const [autoPrintInvoice, setAutoPrintInvoice] = useState(false);
+    const [enablePrintAgent, setEnablePrintAgent] = useState(false);
     const [showLogo, setShowLogo] = useState(true);
     const [pairedPrinterName, setPairedPrinterName] = useState('');
     const [pairedPrinterId, setPairedPrinterId] = useState('');
@@ -66,6 +67,7 @@ export const Settings = () => {
                 setPaperWidth(business.printerSettings.paperWidth || '80mm');
                 setAutoPrintKOT(business.printerSettings.autoPrintKOT || false);
                 setAutoPrintInvoice(business.printerSettings.autoPrintInvoice || false);
+                setEnablePrintAgent(business.printerSettings.enablePrintAgent || false);
                 setShowLogo(business.printerSettings.showLogo ?? true);
                 setPairedPrinterName(business.printerSettings.pairedPrinterName || '');
                 setPairedPrinterId(business.printerSettings.pairedPrinterId || '');
@@ -124,6 +126,7 @@ export const Settings = () => {
                     paperWidth,
                     autoPrintKOT,
                     autoPrintInvoice,
+                    enablePrintAgent,
                     showLogo,
                     pairedPrinterName,
                     pairedPrinterId
@@ -641,6 +644,7 @@ export const Settings = () => {
                                                                         paperWidth,
                                                                         autoPrintKOT,
                                                                         autoPrintInvoice,
+                            enablePrintAgent,
                                                                         showLogo,
                                                                         pairedPrinterName: '',
                                                                         pairedPrinterId: ''
@@ -690,6 +694,15 @@ export const Settings = () => {
                                 <div className="space-y-4">
                                     <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Print Options</label>
                                     <div className="grid grid-cols-1 gap-3">
+                                        <label className="flex items-center justify-between p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl cursor-pointer hover:border-slate-200 transition-all">
+                                            <span className="text-[10px] font-bold uppercase text-slate-700 tracking-widest">Enable Print Agent</span>
+                                            <input 
+                                                type="checkbox" 
+                                                className="w-5 h-5 rounded border-slate-300 text-slate-900 focus:ring-slate-900"
+                                                checked={enablePrintAgent}
+                                                onChange={e => setEnablePrintAgent(e.target.checked)}
+                                            />
+                                        </label>
                                         <label className="flex items-center justify-between p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl cursor-pointer hover:border-slate-200 transition-all">
                                             <span className="text-[10px] font-bold uppercase text-slate-700 tracking-widest">Show Logo on Receipt</span>
                                             <input 

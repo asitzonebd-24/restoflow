@@ -30,6 +30,7 @@ export interface PrinterSettings {
   showLogo: boolean;
   pairedPrinterName?: string;
   pairedPrinterId?: string;
+  enablePrintAgent?: boolean;
 }
 
 export enum InventoryMode {
@@ -155,6 +156,7 @@ export interface InventoryItem {
   supplier: string;
   pricePerUnit: number;
   menuItemIds?: string[]; // Link to multiple menu items for auto-sync
+  menuCategory?: string;
 }
 
 export interface Recipe {

@@ -1,0 +1,13 @@
+{
+  "name": "print-agent",
+  "version": "1.0.0",
+  "main": "agent.js",
+  "bin": "agent.js",
+  "dependencies": {
+    "firebase": "^10.0.0",
+    "pdf-to-printer": "^2.0.0"
+  },
+  "pkg": {
+    "assets": ["config.json"]
+  }
+}
