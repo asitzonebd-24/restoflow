@@ -889,6 +889,9 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         tenantId: order.tenantId,
         orderId: order.id,
         tokenNumber: order.tokenNumber,
+        tableNumber: order.tableNumber || null,
+        creatorName: order.creatorName || null,
+        note: order.note || null,
         items: order.items,
         createdAt: serverTimestamp()
       });

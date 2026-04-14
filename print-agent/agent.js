@@ -192,7 +192,7 @@ function generateReceiptHtml(order, requestId) {
             .header-line {
                 font-weight: bold;
                 margin-bottom: 2px;
-                text-align: left;
+                text-align: center;
             }
 
             .date-time-row {
@@ -202,6 +202,7 @@ function generateReceiptHtml(order, requestId) {
                 padding-bottom: 3px;
                 margin-bottom: 5px;
                 font-weight: bold;
+                font-size: 9pt;
             }
 
             .items-container { width: 100%; }
