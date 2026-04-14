@@ -890,7 +890,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         orderId: order.id,
         tokenNumber: order.tokenNumber,
         tableNumber: order.tableNumber || null,
-        creatorName: order.creatorName || null,
+        creatorName: order.creatorName || currentUser?.name || 'Staff',
         note: order.note || null,
         items: order.items,
         createdAt: serverTimestamp()
@@ -943,6 +943,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         items,
         totalAmount,
         status: newStatus,
+        creatorName: oldOrder.creatorName || currentUser?.name || 'Staff',
         note: note ?? oldOrder.note ?? null,
         deliveryStaffId: deliveryStaffId !== undefined ? deliveryStaffId : (oldOrder.deliveryStaffId ?? null),
         deliveryStaffName: deliveryStaffName !== undefined ? deliveryStaffName : (oldOrder.deliveryStaffName ?? null),

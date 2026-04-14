@@ -16,7 +16,7 @@ const firebaseConfig = {
 // ---------------------
 
 const { initializeApp } = require('firebase/app');
-const { getFirestore, collection, query, where, onSnapshot, orderBy, limit, Timestamp } = require('firebase/firestore');
+const { getFirestore, collection, query, where, onSnapshot, orderBy, limit, Timestamp, doc, deleteDoc } = require('firebase/firestore');
 const { exec } = require('child_process');
 const fs = require('fs');
 const path = require('path');
@@ -27,6 +27,16 @@ const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 
 console.log('--- RestoKeep Automatic Printer Agent Starting ---');
 console.log(`Target Restaurant ID: ${MY_TENANT_ID}`);
+
+// Function to delete the print request from Firestore
+async function deletePrintRequest(requestId) {
+    try {
+        await deleteDoc(doc(db, 'print_requests', requestId));
+        console.log(`[${new Date().toLocaleTimeString()}] Successfully deleted print request ${requestId} from Firestore.`);
+    } catch (error) {
+        console.error(`Error deleting print request ${requestId}:`, error);
+    }
+}
 
 // Check for default printer
 exec('powershell -Command "Get-WmiObject -Query \\"SELECT Name FROM Win32_Printer WHERE Default = TRUE\\" | Select-Object -ExpandProperty Name"', (err, stdout) => {
@@ -122,10 +132,12 @@ function printOrder(order, requestId) {
                         console.error('All print methods failed:', fbError);
                     } else {
                         console.log('Fallback print command sent.');
+                        deletePrintRequest(requestId);
                     }
                 });
             } else {
                 console.log(`SUCCESS: Print command sent silently.`);
+                deletePrintRequest(requestId);
             }
         });
     } catch (err) {
@@ -170,6 +182,7 @@ function generateReceiptHtml(order, requestId) {
                 padding: 0;
                 background-color: #ffffff;
                 height: auto;
+                width: 100%;
             }
 
             body { 
@@ -183,40 +196,44 @@ function generateReceiptHtml(order, requestId) {
             }
 
             .container {
-                display: inline-block;
+                display: block;
                 width: 100%;
                 padding: 0;
                 margin: 0;
-                text-align: center; /* Center all text in container */
+                text-align: center;
+                position: relative;
+                margin-top: -15px; /* More aggressive pull up */
             }
 
             .header-line {
                 font-weight: bold;
-                margin-bottom: 2px;
+                margin: 0;
+                padding: 0;
                 text-align: center;
+                line-height: 1.1;
             }
 
             .date-time-row {
                 display: flex;
                 justify-content: space-between;
                 border-bottom: 1px solid #000;
-                padding-bottom: 3px;
-                margin-bottom: 5px;
+                padding: 1px 0;
+                margin: 2px 0;
                 font-weight: bold;
                 font-size: 9pt;
             }
 
             .items-container { 
                 width: 100%; 
-                text-align: left; /* Items should remain left-aligned for readability */
+                text-align: left;
             }
             
             .note-box { 
-                margin-top: 5px; 
-                padding: 3px; 
+                margin-top: 4px; 
+                padding: 2px; 
                 border: 1px dashed #000; 
                 font-style: italic; 
-                font-size: 10pt; 
+                font-size: 9pt; 
                 word-break: break-word;
                 text-align: left;
             }
@@ -224,17 +241,17 @@ function generateReceiptHtml(order, requestId) {
             .footer { 
                 text-align: center; 
                 border-top: 1px solid #000; 
-                margin-top: 8px; 
-                padding-top: 2px; 
+                margin-top: 6px; 
+                padding-top: 1px; 
                 font-weight: bold; 
-                font-size: 10pt;
+                font-size: 9pt;
             }
         </style>
     </head>
     <body>
         <div class="container">
-            <div class="header-line" style="font-size: 12pt; border-bottom: 1px solid #eee;">Kitchen Token: #${order.tokenNumber || '00'}</div>
-            <div class="header-line">Table No: ${order.tableNumber || 'Delivery'}</div>
+            <div class="header-line" style="font-size: 12pt; margin-bottom: 3px;">Kitchen Token: #${order.tokenNumber || '00'}</div>
+            <div class="header-line">Table No: ${order.tableNumber || 'N/A'}</div>
             <div class="header-line">Ordered by: ${order.creatorName || 'Staff'}</div>
             
             <div class="date-time-row">
