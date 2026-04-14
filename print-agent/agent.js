@@ -105,10 +105,10 @@ function printOrder(order, requestId) {
         console.log(`Generated temporary receipt file: ${filePath}`);
         
         // Method 1: PowerShell COM (Silent Printing)
-        // We reduce sleep time to 2 seconds to prevent extra paper feed
-        const psCommand = `powershell -Command "$ie = New-Object -ComObject InternetExplorer.Application; $ie.Visible = $false; $ie.Navigate('${filePath}'); while($ie.ReadyState -ne 4){Start-Sleep -m 100}; $ie.ExecWB(6, 2); Start-Sleep -s 2; $ie.Quit()"`;
+        // We also clear the Registry keys for Header and Footer to remove "Page 1 of 1" and file path
+        const psCommand = `powershell -Command "$p = 'HKCU:\\Software\\Microsoft\\Internet Explorer\\PageSetup'; Set-ItemProperty -Path $p -Name 'header' -Value ''; Set-ItemProperty -Path $p -Name 'footer' -Value ''; Set-ItemProperty -Path $p -Name 'margin_bottom' -Value '0'; Set-ItemProperty -Path $p -Name 'margin_left' -Value '0'; Set-ItemProperty -Path $p -Name 'margin_right' -Value '0'; Set-ItemProperty -Path $p -Name 'margin_top' -Value '0'; $ie = New-Object -ComObject InternetExplorer.Application; $ie.Visible = $false; $ie.Navigate('${filePath}'); while($ie.ReadyState -ne 4){Start-Sleep -m 100}; $ie.ExecWB(6, 2); Start-Sleep -s 2; $ie.Quit()"`;
         
-        console.log('Sending to printer (Silent Mode)...');
+        console.log('Sending to printer (Silent Mode - No Headers)...');
         exec(psCommand, (error) => {
             if (error) {
                 console.error(`PowerShell Print Error:`, error);
