@@ -174,7 +174,7 @@ function generateReceiptHtml(order, requestId) {
 
             body { 
                 font-family: 'SolaimanLipi', 'Arial', sans-serif; 
-                width: 68mm; /* Slightly narrower to ensure no clipping */
+                width: 68mm; 
                 margin: 0;
                 padding: 0;
                 color: #000;
@@ -187,6 +187,7 @@ function generateReceiptHtml(order, requestId) {
                 width: 100%;
                 padding: 0;
                 margin: 0;
+                text-align: center; /* Center all text in container */
             }
 
             .header-line {
@@ -205,7 +206,10 @@ function generateReceiptHtml(order, requestId) {
                 font-size: 9pt;
             }
 
-            .items-container { width: 100%; }
+            .items-container { 
+                width: 100%; 
+                text-align: left; /* Items should remain left-aligned for readability */
+            }
             
             .note-box { 
                 margin-top: 5px; 
@@ -214,6 +218,7 @@ function generateReceiptHtml(order, requestId) {
                 font-style: italic; 
                 font-size: 10pt; 
                 word-break: break-word;
+                text-align: left;
             }
             
             .footer { 

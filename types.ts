@@ -113,6 +113,7 @@ export interface Order {
   status: OrderStatus;
   createdAt: string;
   createdBy: string;
+  creatorName?: string;
   totalAmount: number;
   note?: string | null;
   deliveryAddress?: string | null;

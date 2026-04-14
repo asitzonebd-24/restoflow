@@ -536,6 +536,7 @@ export const POS = () => {
           status: OrderStatus.PENDING,
           createdAt: new Date().toISOString(),
           createdBy: currentUser!.id,
+          creatorName: currentUser?.name || 'Staff',
           totalAmount,
           note: orderNote,
           deliveryStaffId: isDelivery ? selectedDeliveryStaffId : null,
