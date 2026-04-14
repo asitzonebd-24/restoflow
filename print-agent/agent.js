@@ -87,6 +87,8 @@ onSnapshot(q, (snapshot) => {
                     console.log(`\n[${new Date().toLocaleTimeString()}] New Print Request Detected!`);
                     console.log(`Order ID: ${request.orderId}`);
                     console.log(`Token: ${request.tokenNumber}`);
+                    console.log(`Table: ${request.tableNumber}`);
+                    console.log(`Creator: ${request.creatorName}`);
                     console.log(`Tenant ID in DB: ${request.tenantId} (Type: ${typeof request.tenantId})`);
                     
                     printOrder(request, requestId);
@@ -202,7 +204,8 @@ function generateReceiptHtml(order, requestId) {
                 margin: 0;
                 text-align: center;
                 position: relative;
-                margin-top: -15px; /* More aggressive pull up */
+                margin-top: 0; /* Removed negative margin to be safe */
+                padding-top: 2px;
             }
 
             .header-line {
@@ -210,7 +213,14 @@ function generateReceiptHtml(order, requestId) {
                 margin: 0;
                 padding: 0;
                 text-align: center;
-                line-height: 1.1;
+                line-height: 1.4;
+            }
+
+            .token-header {
+                font-size: 14pt;
+                border-bottom: 1px double #000;
+                margin-bottom: 4px;
+                padding-bottom: 2px;
             }
 
             .date-time-row {
@@ -250,7 +260,7 @@ function generateReceiptHtml(order, requestId) {
     </head>
     <body>
         <div class="container">
-            <div class="header-line" style="font-size: 12pt; margin-bottom: 3px;">Kitchen Token: #${order.tokenNumber || '00'}</div>
+            <div class="header-line token-header">Kitchen Token: #${order.tokenNumber || '00'}</div>
             <div class="header-line">Table No: ${order.tableNumber || 'N/A'}</div>
             <div class="header-line">Ordered by: ${order.creatorName || 'Staff'}</div>
             

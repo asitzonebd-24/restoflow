@@ -885,7 +885,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const createPrintRequest = async (order: Order) => {
     try {
       console.log('[AppContext] Creating print request for tenant:', order.tenantId, 'Order:', order.id);
-      const docRef = await addDoc(collection(db, 'print_requests'), {
+      const printData = {
         tenantId: order.tenantId,
         orderId: order.id,
         tokenNumber: order.tokenNumber,
@@ -894,7 +894,9 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         note: order.note || null,
         items: order.items,
         createdAt: serverTimestamp()
-      });
+      };
+      console.log('[AppContext] Print Request Data:', printData);
+      const docRef = await addDoc(collection(db, 'print_requests'), printData);
       console.log('[AppContext] Print request created with ID:', docRef.id);
     } catch (error) {
       console.error('[AppContext] Failed to create print request:', error);
