@@ -500,11 +500,11 @@ export const Billing = () => {
                       </div>
                       <div className="flex flex-col gap-1">
                         {(order.tableNumber || order.deliveryStaffName) && (
-                          <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-lg border border-indigo-100 w-fit uppercase tracking-widest">
+                          <span className="text-[10px] font-bold text-white bg-pink-500 px-2 py-0.5 rounded-lg border border-pink-600 w-fit uppercase tracking-widest">
                             {order.deliveryStaffName ? `D-${order.deliveryStaffName.split(' ')[0]}` : order.tableNumber}
                           </span>
                         )}
-                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-tight">{creator?.name || '-'}</span>
+                        <span className="text-[9px] font-bold text-white bg-purple-600 px-2 py-0.5 rounded-lg border border-purple-700 w-fit uppercase tracking-tight">{creator?.name || '-'}</span>
                       </div>
                     </div>
                     <div className="text-right">

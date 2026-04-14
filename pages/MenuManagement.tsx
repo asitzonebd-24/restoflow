@@ -272,16 +272,16 @@ export const MenuManagement = () => {
                            <span className="text-white text-[10px] font-bold uppercase tracking-widest border border-white/40 px-5 py-2 rounded-full shadow-lg">Sold Out</span>
                         </div>
                       )}
-                      <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-all transform translate-y-2 group-hover:translate-y-0 flex gap-2">
+                      <div className="absolute top-4 right-4 flex gap-2">
                         <button 
                           onClick={() => openEditModal(item)}
-                          className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-600 shadow-xl hover:bg-slate-50 transition-all active:scale-90"
+                          className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-black shadow-xl hover:bg-slate-50 transition-all active:scale-90"
                         >
                           <Edit2 size={16} />
                         </button>
                         <button 
                           onClick={(e) => handleDeleteItem(item.id, e)}
-                          className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-red-500 shadow-xl hover:bg-red-50 transition-all active:scale-90"
+                          className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-red-600 shadow-xl hover:bg-red-50 transition-all active:scale-90"
                         >
                           <Trash2 size={16} />
                         </button>

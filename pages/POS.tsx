@@ -422,7 +422,15 @@ export const POS = () => {
   };
 
   const startNewOrder = () => {
-    const allActive = orders.filter(o => o.status !== OrderStatus.COMPLETED && o.status !== OrderStatus.CANCELLED);
+    const timezone = currentTenant?.timezone || 'UTC';
+    const now = new Date();
+    const today = new Intl.DateTimeFormat('en-US', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
+
+    const allActive = orders.filter(o => {
+        const orderDate = new Date(o.createdAt);
+        const orderDay = new Intl.DateTimeFormat('en-US', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(orderDate);
+        return orderDay === today && o.status !== OrderStatus.COMPLETED && o.status !== OrderStatus.CANCELLED;
+    });
     const numericTokens = allActive.map(o => parseInt(o.tokenNumber)).filter(n => !isNaN(n));
     const nextToken = numericTokens.length > 0 ? (Math.max(...numericTokens) + 1).toString() : "1";
     setNewTokenNum(nextToken);
