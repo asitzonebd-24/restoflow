@@ -143,7 +143,7 @@ function generateReceiptHtml(order, requestId) {
     if (order.items && Array.isArray(order.items)) {
         order.items.forEach(item => {
             itemsHtml += `
-                <div style="display: flex; justify-content: space-between; font-size: 20px; font-weight: bold; border-bottom: 1px dashed #ccc; padding: 8px 0; gap: 10px;">
+                <div style="display: flex; justify-content: space-between; font-size: 10pt; font-weight: bold; border-bottom: 1px dashed #000; padding: 2px 0; gap: 5px;">
                     <span style="flex: 1; word-break: break-word;">${item.name}</span>
                     <span style="white-space: nowrap;">x${item.quantity}</span>
                 </div>
@@ -168,52 +168,54 @@ function generateReceiptHtml(order, requestId) {
                 margin: 0;
                 padding: 0;
                 background-color: #ffffff;
+                height: auto;
             }
 
             body { 
                 font-family: 'SolaimanLipi', 'Arial', sans-serif; 
-                width: 72mm; /* Slightly less than 80mm to avoid clipping */
-                margin: 0 auto;
-                padding: 5px;
+                width: 70mm; 
+                margin: 0;
+                padding: 0;
                 color: #000;
+                font-size: 10pt;
                 overflow: hidden;
             }
 
             .kot-header { 
                 text-align: center; 
-                border-bottom: 2px solid #000; 
-                padding-bottom: 8px; 
-                margin-bottom: 10px; 
+                border-bottom: 1px solid #000; 
+                padding-bottom: 4px; 
+                margin-bottom: 5px; 
             }
-            .kot-title { font-size: 24px; font-weight: bold; margin: 0; }
+            .kot-title { font-size: 10pt; font-weight: bold; margin: 0; }
             .token-box { 
-                font-size: 36px; 
+                font-size: 14pt; 
                 font-weight: 900; 
-                margin: 5px 0; 
-                border: 3px solid #000; 
+                margin: 2px 0; 
+                border: 2px solid #000; 
                 display: inline-block; 
-                padding: 2px 15px; 
+                padding: 0 10px; 
             }
-            .kot-info { font-size: 16px; font-weight: bold; margin: 2px 0; }
+            .kot-info { font-size: 10pt; font-weight: bold; margin: 1px 0; }
             
             .items-container { width: 100%; }
             
             .note-box { 
-                margin-top: 10px; 
-                padding: 8px; 
+                margin-top: 5px; 
+                padding: 4px; 
                 border: 1px dashed #000; 
                 font-style: italic; 
-                font-size: 16px; 
+                font-size: 10pt; 
                 word-break: break-word;
             }
             
             .footer { 
                 text-align: center; 
                 border-top: 1px solid #000; 
-                margin-top: 15px; 
-                padding-top: 5px; 
+                margin-top: 10px; 
+                padding-top: 2px; 
                 font-weight: bold; 
-                font-size: 12px;
+                font-size: 10pt;
                 text-transform: uppercase;
             }
         </style>
@@ -224,7 +226,7 @@ function generateReceiptHtml(order, requestId) {
             <div class="token-box">#${order.tokenNumber || '00'}</div>
             <div class="kot-info">Table: ${order.tableNumber || 'Delivery'}</div>
             <div class="kot-info">Waiter: ${order.creatorName || 'Staff'}</div>
-            <div style="font-size: 12px;">${date}</div>
+            <div style="font-size: 9pt;">${date}</div>
         </div>
 
         <div class="items-container">
