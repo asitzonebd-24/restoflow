@@ -875,14 +875,17 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
   const createPrintRequest = async (order: Order) => {
     try {
-      await addDoc(collection(db, 'print_requests'), {
-        tenantId: business.id,
+      console.log('[AppContext] Creating print request for tenant:', order.tenantId, 'Order:', order.id);
+      const docRef = await addDoc(collection(db, 'print_requests'), {
+        tenantId: order.tenantId,
         orderId: order.id,
         tokenNumber: order.tokenNumber,
         items: order.items,
         createdAt: serverTimestamp()
       });
+      console.log('[AppContext] Print request created with ID:', docRef.id);
     } catch (error) {
+      console.error('[AppContext] Failed to create print request:', error);
       handleFirestoreError(error, OperationType.CREATE, 'print_requests');
       throw error;
     }
