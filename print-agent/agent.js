@@ -104,27 +104,28 @@ function printOrder(order, requestId) {
         fs.writeFileSync(filePath, html);
         console.log(`Generated temporary receipt file: ${filePath}`);
         
-        // Method 1: rundll32 (Most reliable for HTML to Printer)
-        const printCommand = `rundll32.exe mshtml.dll,PrintHTML "${filePath}"`;
+        // Method 1: PowerShell COM (Silent Printing)
+        // ExecWB(6, 2) -> 6 is OLECMDID_PRINT, 2 is OLECMDEXECOPT_DONTPROMPTUSER
+        const psCommand = `powershell -Command "$ie = New-Object -ComObject InternetExplorer.Application; $ie.Visible = $false; $ie.Navigate('${filePath}'); while($ie.ReadyState -ne 4){Start-Sleep -m 100}; $ie.ExecWB(6, 2); Start-Sleep -s 5; $ie.Quit()"`;
         
-        console.log('Sending to default printer (Method: mshtml)...');
-        exec(printCommand, (error) => {
+        console.log('Sending to printer (Silent Mode)...');
+        exec(psCommand, (error) => {
             if (error) {
-                console.error(`mshtml Print Error:`, error);
+                console.error(`PowerShell Print Error:`, error);
                 
-                // Method 2: PowerShell Fallback
-                console.log('Attempting Fallback Method (PowerShell COM)...');
-                const psCommand = `powershell -Command "$ie = New-Object -ComObject InternetExplorer.Application; $ie.Navigate('${filePath}'); while($ie.ReadyState -ne 4){Start-Sleep -m 100}; $ie.ExecWB(6, 2); Start-Sleep -s 5; $ie.Quit()"`;
+                // Fallback: rundll32 (Might show dialog but works as last resort)
+                console.log('Attempting Fallback Method (mshtml)...');
+                const fallbackCommand = `rundll32.exe mshtml.dll,PrintHTML "${filePath}"`;
                 
-                exec(psCommand, (psError) => {
-                    if (psError) {
-                        console.error('All print methods failed:', psError);
+                exec(fallbackCommand, (fbError) => {
+                    if (fbError) {
+                        console.error('All print methods failed:', fbError);
                     } else {
-                        console.log('Fallback print command sent successfully.');
+                        console.log('Fallback print command sent.');
                     }
                 });
             } else {
-                console.log(`SUCCESS: Print command sent to Windows spooler.`);
+                console.log(`SUCCESS: Print command sent silently.`);
             }
         });
     } catch (err) {
@@ -142,11 +143,9 @@ function generateReceiptHtml(order, requestId) {
     if (order.items && Array.isArray(order.items)) {
         order.items.forEach(item => {
             itemsHtml += `
-                <tr>
-                    <td style="padding: 5px 0;">${item.name}</td>
-                    <td style="text-align: center;">${item.quantity}</td>
-                    <td style="text-align: right;">${(item.price * item.quantity).toFixed(2)}</td>
-                </tr>
+                <div style="display: flex; justify-content: space-between; font-size: 22px; font-weight: bold; border-bottom: 1px solid #eee; padding: 5px 0;">
+                    <span>x${item.quantity} ${item.name}</span>
+                </div>
             `;
         });
     }
@@ -159,41 +158,43 @@ function generateReceiptHtml(order, requestId) {
         <style>
             @import url('https://cdn.jsdelivr.net/gh/at-shuvro/solaimanlipi-font@master/solaimanlipi.css');
             body { 
-                font-family: 'SolaimanLipi', 'Courier New', Courier, monospace; 
+                font-family: 'SolaimanLipi', 'Arial', sans-serif; 
                 width: 80mm; 
                 margin: 0; 
-                padding: 10px; 
-                font-size: 14px; 
-                line-height: 1.4;
+                padding: 5px; 
+                color: #000;
             }
-            .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 10px; }
-            .footer { text-align: center; border-top: 1px dashed #000; padding-top: 10px; margin-top: 10px; font-size: 12px; }
-            table { width: 100%; border-collapse: collapse; }
-            .total { font-weight: bold; font-size: 16px; margin-top: 10px; text-align: right; border-top: 1px solid #000; padding-top: 5px; }
-            .token { font-size: 24px; font-weight: bold; margin: 10px 0; }
+            .kot-header { text-align: center; border-bottom: 3px solid #000; padding-bottom: 10px; margin-bottom: 10px; }
+            .kot-title { font-size: 28px; font-weight: bold; margin: 0; }
+            .kot-info { font-size: 18px; font-weight: bold; margin: 5px 0; }
+            .token-box { font-size: 40px; font-weight: 900; margin: 10px 0; border: 4px solid #000; display: inline-block; padding: 5px 20px; }
+            .note-box { margin-top: 15px; padding: 10px; border: 1px dashed #000; font-style: italic; font-size: 18px; }
+            .footer { text-align: center; border-top: 2px solid #000; margin-top: 20px; padding-top: 10px; font-weight: bold; }
         </style>
     </head>
     <body>
-        <div class="header">
-            <h2 style="margin: 0;">RestoKeep</h2>
-            <div class="token">TOKEN: ${order.tokenNumber || 'N/A'}</div>
-            <p style="margin: 0;">Date: ${date}</p>
+        <div class="kot-header">
+            <div class="kot-title">KITCHEN TICKET</div>
+            <div class="token-box">#${order.tokenNumber || '00'}</div>
+            <div class="kot-info">Table: ${order.tableNumber || 'Delivery'}</div>
+            <div class="kot-info">Waiter: ${order.creatorName || 'Staff'}</div>
+            <div style="font-size: 14px;">${date}</div>
         </div>
-        <table>
-            <thead>
-                <tr style="border-bottom: 1px solid #000;">
-                    <th style="text-align: left;">Item</th>
-                    <th style="text-align: center;">Qty</th>
-                    <th style="text-align: right;">Total</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${itemsHtml}
-            </tbody>
-        </table>
+
+        <div class="items-container">
+            ${itemsHtml}
+        </div>
+
+        ${order.note ? `<div class="note-box"><strong>Note:</strong> ${order.note}</div>` : ''}
+
         <div class="footer">
-            <p>Powered By: RestoKeep</p>
+            --- End of Ticket ---
         </div>
+        
+        <script>
+            // Optional: Auto-close if opened in a browser
+            // window.onload = function() { setTimeout(function() { window.close(); }, 5000); }
+        </script>
     </body>
     </html>
     `;
