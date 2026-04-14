@@ -21,6 +21,11 @@ export const Transactions = () => {
     });
     const [viewInvoice, setViewInvoice] = useState<{ order: Order; transaction: Transaction } | null>(null);
 
+    const getCreator = (userId: string) => {
+        if (userId === currentUser?.id) return currentUser;
+        return users.find(u => u.id === userId);
+    };
+
     // List of staff for the dropdown (exclude customers)
     const staffList = useMemo(() => {
         return users.filter(u => u.role !== Role.CUSTOMER);
@@ -511,8 +516,8 @@ export const Transactions = () => {
                               <X size={20}/>
                             </button>
                         </div>
-                        <div className="p-10 overflow-y-auto no-scrollbar print:p-0 print:overflow-visible flex-1 text-black" id="invoice-content">
-                            <div className="text-center mb-10">
+                        <div className="p-6 overflow-y-auto no-scrollbar print:p-0 print:overflow-visible flex-1 text-black" id="invoice-content" style={{ fontSize: '10pt' }}>
+                            <div className="text-center mb-4">
                                 {currentTenant?.printerSettings?.showLogo !== false && (
                                     <div className="h-16 w-16 mx-auto mb-4 rounded-2xl border border-black bg-slate-50 flex items-center justify-center overflow-hidden shadow-sm">
                                       {currentTenant?.logo ? (
@@ -522,91 +527,102 @@ export const Transactions = () => {
                                       )}
                                     </div>
                                 )}
-                                <h2 className="text-2xl font-bold text-black tracking-tight mb-1">{currentTenant?.name}</h2>
+                                <h2 className="font-bold text-black tracking-tight mb-1" style={{ fontSize: '14pt' }}>{currentTenant?.name}</h2>
                                 {currentTenant?.printerSettings?.receiptHeader ? (
-                                    <p className="text-sm text-black font-bold whitespace-pre-line mb-2">{currentTenant.printerSettings.receiptHeader}</p>
+                                    <p className="text-black font-bold whitespace-pre-line mb-2">{currentTenant.printerSettings.receiptHeader}</p>
                                 ) : (
-                                    <p className="text-sm text-black font-bold uppercase tracking-widest">{currentTenant?.address}</p>
+                                    <>
+                                        <p className="text-black font-bold capitalize">{currentTenant?.address}</p>
+                                        <p className="text-black font-bold capitalize mt-1">Tel: {currentTenant?.phone}</p>
+                                    </>
                                 )}
+                                <div className="flex justify-between font-bold capitalize mt-2 border-b border-dashed border-black pb-1">
+                                    <span>Date: {new Date(viewInvoice.order.createdAt).toLocaleDateString()}</span>
+                                    <span>Time: {new Date(viewInvoice.order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                </div>
                             </div>
                             
-                            <div className="border-y border-black py-8 mb-8 bg-slate-50/50 rounded-3xl px-6">
-                                <div className="flex justify-between text-sm mb-3 font-bold uppercase tracking-widest">
-                                    <span className="text-black">Order Ref</span>
-                                    <span className="text-black">#{viewInvoice.order.id.slice(-8).toUpperCase()}</span>
+                            <div className="mt-4 space-y-1 mb-4" style={{ fontSize: '12pt' }}>
+                                <div className="flex justify-between font-bold capitalize">
+                                    <span>Table No: {viewInvoice.order.tableNumber || 'N/A'}</span>
+                                    <span>Token No: #{viewInvoice.order.tokenNumber}</span>
                                 </div>
-                                <div className="flex justify-between text-sm mb-3 font-bold uppercase tracking-widest">
-                                    <span className="text-black">Date/Time</span>
-                                    <span className="text-black">{new Date(viewInvoice.order.createdAt).toLocaleString()}</span>
+                                <div className="font-bold capitalize">
+                                    Ordered By: {viewInvoice.transaction.creatorName || 'Unknown'}
                                 </div>
-                                <div className="flex justify-between text-sm mb-4 font-bold uppercase tracking-widest">
-                                    <span className="text-black">Ordered by</span>
-                                    <span className="text-black">{viewInvoice.transaction.creatorName || 'Unknown'}</span>
-                                </div>
-                                <div className="flex justify-between items-center pt-4 border-t border-black">
-                                    <span className="text-sm font-bold text-black uppercase tracking-widest">Token Number</span>
-                                    <span className="text-4xl text-black font-bold tracking-tight">#{viewInvoice.order.tokenNumber}</span>
-                                </div>
+                                {viewInvoice.order.deliveryAddress && (
+                                    <div className="mt-2 space-y-1 border-t border-dashed border-black pt-2">
+                                        <div className="font-bold capitalize">Customer Name: {getCreator(viewInvoice.order.createdBy)?.name || 'N/A'}</div>
+                                        <div className="font-bold capitalize">Address: {viewInvoice.order.deliveryAddress}</div>
+                                        <div className="font-bold capitalize">Mobile: {getCreator(viewInvoice.order.createdBy)?.mobile || 'N/A'}</div>
+                                        {viewInvoice.order.deliveryStaffName && (
+                                            <div className="font-bold capitalize">Delivery Staff: {viewInvoice.order.deliveryStaffName}</div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
 
-                            <div className="space-y-4 mb-10">
-                                <div className="flex justify-between text-sm font-bold uppercase tracking-widest text-black border-b border-black pb-2">
-                                  <span>Selection</span>
-                                  <span>Subtotal</span>
+                            <div className="space-y-1 mb-4">
+                                <div className="grid grid-cols-[20px_1fr_25px_45px_55px] gap-1 font-bold capitalize text-black border-b border-dashed border-black pb-1 text-[9pt]">
+                                  <span>Sl.</span>
+                                  <span>Name</span>
+                                  <span className="text-center">Qty</span>
+                                  <span className="text-right">Price</span>
+                                  <span className="text-right">Total</span>
                                 </div>
-                                <div className="space-y-3">
+                                <div className="space-y-1">
                                     {groupItems(viewInvoice.order.items).map((item, i) => (
-                                        <div key={i} className="flex justify-between items-center text-base font-medium">
-                                            <div className="flex items-center gap-3">
-                                                <span className="text-black font-bold">{item.quantity} x</span>
-                                                <span className="text-black">{item.name}</span>
-                                            </div>
-                                            <span className="text-black font-bold shrink-0">{currentTenant?.currency}{(item.price * item.quantity) % 1 === 0 ? (item.price * item.quantity).toFixed(0) : (item.price * item.quantity).toFixed(2)}</span>
+                                        <div key={i} className="grid grid-cols-[20px_1fr_25px_45px_55px] gap-1 items-start font-medium text-[9pt]">
+                                            <span className="text-black">{i + 1}.</span>
+                                            <span className="text-black break-words">{item.name}</span>
+                                            <span className="text-black text-center">{item.quantity}</span>
+                                            <span className="text-black text-right">{item.price % 1 === 0 ? item.price.toFixed(0) : item.price.toFixed(2)}</span>
+                                            <span className="text-black font-bold text-right shrink-0">{(item.price * item.quantity) % 1 === 0 ? (item.price * item.quantity).toFixed(0) : (item.price * item.quantity).toFixed(2)}</span>
                                         </div>
                                     ))}
                                 </div>
                             </div>
 
-                            <div className="space-y-3 pt-6 border-t border-black">
+                            <div className="space-y-1 pt-2 border-t border-dashed border-black">
                                 {(() => {
                                     const { subtotal, vat, total } = calculateInvoiceTotal(viewInvoice.order, viewInvoice.transaction.discount);
                                     return (
                                         <>
-                                            <div className="flex justify-between text-sm font-bold uppercase tracking-widest text-black">
+                                            <div className="flex justify-between font-bold capitalize text-black">
                                                 <span>Subtotal</span>
                                                 <span>{currentTenant?.currency}{subtotal % 1 === 0 ? subtotal.toFixed(0) : subtotal.toFixed(2)}</span>
                                             </div>
                                             {currentTenant?.includeVat && (
-                                                <div className="flex justify-between text-sm font-bold uppercase tracking-widest text-black">
+                                                <div className="flex justify-between font-bold capitalize text-black">
                                                     <span>VAT ({currentTenant?.vatRate}%)</span>
                                                     <span>{currentTenant?.currency}{vat % 1 === 0 ? vat.toFixed(0) : vat.toFixed(2)}</span>
                                                 </div>
                                             )}
                                             {viewInvoice.transaction.discount ? (
-                                                <div className="flex justify-between text-sm font-bold uppercase tracking-widest text-black">
+                                                <div className="flex justify-between font-bold capitalize text-black">
                                                     <span>Discount</span>
                                                     <span>-{currentTenant?.currency}{viewInvoice.transaction.discount % 1 === 0 ? viewInvoice.transaction.discount.toFixed(0) : viewInvoice.transaction.discount.toFixed(2)}</span>
                                                 </div>
                                             ) : null}
-                                            <div className="flex justify-between items-center pt-6 mt-4 border-t border-black">
-                                                <span className="text-base font-bold uppercase tracking-widest text-black">Total Amount</span>
-                                                <span className="text-4xl font-bold text-black tracking-tight">{currentTenant?.currency}{total % 1 === 0 ? total.toFixed(0) : total.toFixed(2)}</span>
+                                            <div className="flex justify-between items-center pt-2 mt-2 border-t border-dashed border-black">
+                                                <span className="font-bold capitalize text-black">Total Amount</span>
+                                                <span className="font-bold text-black tracking-tight">{currentTenant?.currency}{total % 1 === 0 ? total.toFixed(0) : total.toFixed(2)}</span>
                                             </div>
                                         </>
                                     );
                                 })()}
                             </div>
                             
-                            <div className="text-center mt-8 pt-6 border-t border-black">
+                            <div className="text-center mt-4 pt-2 border-t border-dashed border-black">
                                 {currentTenant?.printerSettings?.receiptFooter ? (
-                                    <p className="text-sm text-black font-bold whitespace-pre-line mb-2">{currentTenant.printerSettings.receiptFooter}</p>
+                                    <p className="text-black font-bold whitespace-pre-line mb-1">{currentTenant.printerSettings.receiptFooter}</p>
                                 ) : (
-                                    <p className="text-sm font-bold text-black uppercase tracking-widest mb-2">Thank You! Come Again</p>
+                                    <p className="font-bold text-black capitalize mb-1">Thank You! Come Again</p>
                                 )}
-                                <div className="flex flex-col items-center justify-center gap-1">
-                                    <p className="text-xs font-bold tracking-widest text-black">Powered by: RestoKeep</p>
-                                    <p className="text-xs font-bold tracking-widest text-black">www.restokeep.app</p>
-                                    <p className="text-[10px] font-bold tracking-widest text-black">Mob: 01303565316</p>
+                                <div className="flex flex-col items-center justify-center gap-0">
+                                    <p className="font-bold text-black">Powered by: RestoKeep</p>
+                                    <p className="font-bold text-black">www.restokeep.app</p>
+                                    <p className="font-bold text-black">Mob: 01303565316</p>
                                 </div>
                             </div>
                         </div>
