@@ -95,13 +95,25 @@ function printOrder(order, requestId) {
         console.log(`Generated temporary receipt file: ${filePath}`);
         
         // Windows Print Command (Using PowerShell to print HTML)
-        // This command opens the HTML file and sends it to the default printer
-        const printCommand = `powershell -Command "Start-Process -FilePath '${filePath}' -Verb Print"`;
+        // We use the InternetExplorer COM object which is built into Windows 
+        // and can print HTML directly without needing a file association for the 'Print' verb.
+        // ExecWB(6, 2) means Print (6) with No Prompt (2).
+        const printCommand = `powershell -Command "$ie = New-Object -ComObject InternetExplorer.Application; $ie.Navigate('${filePath}'); while($ie.ReadyState -ne 4){Start-Sleep -m 100}; $ie.ExecWB(6, 2); Start-Sleep -s 2; $ie.Quit()"`;
         
-        console.log('Sending to default printer...');
+        console.log('Sending to default printer (Automatic Mode)...');
         exec(printCommand, (error) => {
             if (error) {
                 console.error(`Print Error for Request ${requestId}:`, error);
+                console.log('Attempting Fallback Print Method...');
+                // Fallback: Try rundll32 if COM object fails
+                const fallbackCommand = `rundll32.exe mshtml.dll,PrintHTML "${filePath}"`;
+                exec(fallbackCommand, (fallbackError) => {
+                    if (fallbackError) {
+                        console.error('Fallback Print also failed:', fallbackError);
+                    } else {
+                        console.log('Fallback Print command sent.');
+                    }
+                });
             } else {
                 console.log(`SUCCESS: Sent to printer.`);
             }
