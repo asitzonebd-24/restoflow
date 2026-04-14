@@ -791,7 +791,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     const tenantId = resolvedTenantId || '';
     const newOrder = { ...order, tenantId } as Order;
     
-    console.log('Attempting to add order:', newOrder);
+    console.log('[AppContext] addOrder called. resolvedTenantId:', resolvedTenantId, 'Final tenantId:', tenantId);
+    console.log('[AppContext] Business context:', { id: business.id, name: business.name, enablePrintAgent: business.printerSettings?.enablePrintAgent });
 
     try {
       const batch = writeBatch(db);
@@ -870,7 +871,10 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       
       // Centralized Print Trigger
       if (business.printerSettings?.enablePrintAgent) {
+        console.log('[AppContext] Print agent enabled for business:', business.id, '. Creating print request...');
         createPrintRequest(newOrder).catch(err => console.error('[AppContext] Auto-print failed:', err));
+      } else {
+        console.log('[AppContext] Print agent NOT enabled for business:', business.id);
       }
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'orders');

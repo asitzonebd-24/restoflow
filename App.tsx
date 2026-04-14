@@ -485,15 +485,21 @@ const AppContent = () => {
 
   React.useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
-    const tenantId = searchParams.get('tenantId');
+    const pathSegments = location.pathname.split('/').filter(Boolean);
+    const pathTenantId = pathSegments[0];
+    
+    // Reserved words that are not tenant IDs
+    const reservedWords = ['login', 'portal', 'order', 'pending-bills', 'approved-bills', 'platform-expenses', 'global-reports', 'dashboard', 'pos', 'kitchen', 'menu', 'inventory', 'billing', 'transactions', 'expenses', 'reports', 'users', 'settings'];
+    
+    const tenantId = searchParams.get('tenantId') || (pathTenantId && !reservedWords.includes(pathTenantId) ? pathTenantId : null);
     
     // Auto-logout if user is logged into a different restaurant and tries to access login page
-    if (tenantId && currentUser && currentUser.role !== Role.SUPER_ADMIN && location.pathname === '/login') {
+    if (tenantId && currentUser && currentUser.role !== Role.SUPER_ADMIN && location.pathname.includes('/login')) {
       const targetTenant = tenants.find(t => t.id === tenantId || t.slug === tenantId);
       const targetId = targetTenant?.id || tenantId;
       
       if (targetId !== currentUser.tenantId) {
-        console.log('[AppContent] Tenant mismatch on login page. Logging out previous session.', {
+        console.log('[AppContent] Tenant mismatch. Logging out previous session.', {
           urlTenant: tenantId,
           targetId,
           currentUserTenant: currentUser.tenantId
@@ -504,16 +510,13 @@ const AppContent = () => {
     }
     
     if (tenantId && tenantId !== currentTenantId) {
-      console.log('[AppContent] Found tenantId in URL, updating currentTenantId:', tenantId);
+      console.log('[AppContent] Syncing tenantId from URL:', tenantId);
       setCurrentTenantId(tenantId);
-    } else if (!tenantId && location.pathname === '/login' && currentTenantId) {
-      console.log('[AppContent] No tenantId on login page, clearing currentTenantId');
-      setCurrentTenantId(null);
-    } else if (location.pathname === '/portal' && currentTenantId) {
-      console.log('[AppContent] On portal page, clearing currentTenantId');
+    } else if (!tenantId && (location.pathname === '/login' || location.pathname === '/portal') && currentTenantId) {
+      console.log('[AppContent] Clearing tenantId for system page');
       setCurrentTenantId(null);
     }
-  }, [location.search, location.pathname, currentTenantId, setCurrentTenantId]);
+  }, [location.search, location.pathname, currentTenantId, setCurrentTenantId, currentUser, tenants, logout]);
 
   React.useEffect(() => {
     if (business.name) {
