@@ -867,6 +867,11 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     }
 
       await batch.commit();
+      
+      // Centralized Print Trigger
+      if (business.printerSettings?.enablePrintAgent) {
+        createPrintRequest(newOrder).catch(err => console.error('[AppContext] Auto-print failed:', err));
+      }
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'orders');
       throw error; // Re-throw to handle in UI
@@ -1002,6 +1007,23 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       }
 
       await batch.commit();
+
+      // Centralized Print Trigger for Updated Orders (New Items Only)
+      if (business.printerSettings?.enablePrintAgent) {
+        const newItems = items.filter(newItem => {
+          const oldItem = oldOrder.items.find(oi => oi.rowId === newItem.rowId);
+          return !oldItem;
+        });
+
+        if (newItems.length > 0) {
+          const printOrder = {
+            ...oldOrder,
+            items: newItems,
+            totalAmount: newItems.reduce((sum, i) => sum + (i.price * i.quantity), 0)
+          } as Order;
+          createPrintRequest(printOrder).catch(err => console.error('[AppContext] Auto-print update failed:', err));
+        }
+      }
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `orders/${orderId}`);
       throw error;

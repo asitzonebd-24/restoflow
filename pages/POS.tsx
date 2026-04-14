@@ -545,30 +545,8 @@ export const POS = () => {
         };
         await addOrder(newOrder);
 
-        // Auto-print KOT if enabled
-        if (currentTenant?.printerSettings?.enablePrintAgent) {
-          const newOrder = {
-            id: 'temp-' + Date.now(),
-            tenantId: currentTenant.id,
-            tokenNumber: newTokenNum,
-            items: cart.map((i: any) => ({
-              rowId: i.rowId,
-              itemId: i.itemId,
-              name: i.name,
-              quantity: i.quantity,
-              price: i.price,
-              status: OrderStatus.PENDING
-            })),
-            status: OrderStatus.PENDING,
-            createdAt: new Date().toISOString(),
-            createdBy: currentUser?.name || 'Unknown',
-            totalAmount: cart.reduce((sum, i) => sum + (i.price * i.quantity), 0)
-          } as Order;
-          createPrintRequest(newOrder).catch(err => {
-            console.error('Create print request failed:', err);
-            setErrorMessage('Create print request failed.');
-          });
-        } else if (currentTenant?.printerSettings?.autoPrintKOT) {
+        // Auto-print KOT if enabled (Handled by addOrder in AppContext)
+        if (!currentTenant?.printerSettings?.enablePrintAgent && currentTenant?.printerSettings?.autoPrintKOT) {
           const printToken = newTokenNum;
           const printTable = isDelivery ? 'Delivery' : (isTakeAway ? 'Take Away' : newTableNum);
           const printCreator = currentUser?.name;
@@ -603,32 +581,8 @@ export const POS = () => {
           isDelivery ? (deliveryAddress || null) : null
         );
 
-        // Auto-print KOT for new items only
-        if (hasNewItems && currentTenant?.printerSettings?.enablePrintAgent) {
-          const oldOrder = orders.find(o => o.id === selectedOrderId);
-          const newOrderItems = cart.filter((i: any) => !i.isExisting).map((i: any) => ({
-            rowId: i.rowId,
-            itemId: i.itemId,
-            name: i.name,
-            quantity: i.quantity,
-            price: i.price,
-            status: OrderStatus.PENDING
-          }));
-          const newOrder = {
-            id: selectedOrderId,
-            tenantId: currentTenant.id,
-            tokenNumber: oldOrder?.tokenNumber || '',
-            items: newOrderItems,
-            status: OrderStatus.PENDING,
-            createdAt: new Date().toISOString(),
-            createdBy: currentUser?.name || 'Unknown',
-            totalAmount: newOrderItems.reduce((sum: number, i: any) => sum + (i.price * i.quantity), 0)
-          } as Order;
-          createPrintRequest(newOrder).catch(err => {
-            console.error('Create print request failed:', err);
-            setErrorMessage('Create print request failed.');
-          });
-        } else if (hasNewItems && currentTenant?.printerSettings?.autoPrintKOT) {
+        // Auto-print logic for updates is now handled centrally in AppContext.tsx
+        if (!currentTenant?.printerSettings?.enablePrintAgent && hasNewItems && currentTenant?.printerSettings?.autoPrintKOT) {
           const oldOrder = orders.find(o => o.id === selectedOrderId);
           const printToken = oldOrder?.tokenNumber || '';
           const printTable = oldOrder?.tableNumber || '';

@@ -120,20 +120,8 @@ export const CustomerOrder = () => {
 
       await addOrder(newOrder);
       
-      // Trigger print request if agent is enabled
+      // Auto-print logic is now handled centrally in AppContext.tsx
       console.log('[CustomerOrder] Order added successfully:', newOrder.id);
-      console.log('[CustomerOrder] Printer Settings:', business.printerSettings);
-      
-      if (business.printerSettings?.enablePrintAgent) {
-        console.log('[CustomerOrder] Print agent is ENABLED. Triggering createPrintRequest...');
-        createPrintRequest(newOrder).then(() => {
-          console.log('[CustomerOrder] createPrintRequest SUCCESS');
-        }).catch(err => {
-          console.error('[CustomerOrder] createPrintRequest FAILED:', err);
-        });
-      } else {
-        console.warn('[CustomerOrder] Print agent is DISABLED in settings. Skipping print request.');
-      }
 
       // Explicitly increment the sequence
       await updateBusiness({ nextCustomerToken: sequenceNum + 1 });
