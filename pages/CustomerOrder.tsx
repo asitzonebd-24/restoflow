@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 export const CustomerOrder = () => {
   const { tenantId: urlTenantId } = useParams<{ tenantId: string }>();
-  const { menu, business, addOrder, currentUser, logout, updateBusiness, setCurrentTenantId, activeCategory, setActiveCategory, categories } = useApp();
+  const { menu, business, addOrder, currentUser, logout, updateBusiness, setCurrentTenantId, activeCategory, setActiveCategory, categories, createPrintRequest } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
   const [cart, setCart] = useState<OrderItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -107,6 +107,7 @@ export const CustomerOrder = () => {
 
       const newOrder = {
         id: `cust-ord-${Date.now()}`,
+        tenantId: tenantId || business.id,
         tokenNumber: tokenNumber,
         items: cart,
         status: OrderStatus.PENDING,
@@ -115,9 +116,17 @@ export const CustomerOrder = () => {
         totalAmount: cartTotal,
         note: "Online Customer Order",
         deliveryAddress: finalAddress
-      };
+      } as Order;
 
       await addOrder(newOrder);
+      
+      // Trigger print request if agent is enabled
+      if (business.printerSettings?.enablePrintAgent) {
+        createPrintRequest(newOrder).catch(err => {
+          console.error('Mobile order print request failed:', err);
+        });
+      }
+
       // Explicitly increment the sequence
       await updateBusiness({ nextCustomerToken: sequenceNum + 1 });
       setCart([]);
