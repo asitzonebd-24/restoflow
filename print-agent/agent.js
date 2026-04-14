@@ -27,6 +27,16 @@ const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 
 console.log('--- RestoKeep Automatic Printer Agent Starting ---');
 console.log(`Target Restaurant ID: ${MY_TENANT_ID}`);
+
+// Check for default printer
+exec('powershell -Command "Get-WmiObject -Query \\"SELECT Name FROM Win32_Printer WHERE Default = TRUE\\" | Select-Object -ExpandProperty Name"', (err, stdout) => {
+    if (!err && stdout) {
+        console.log(`Default Printer detected: ${stdout.trim()}`);
+    } else {
+        console.log('Warning: Could not detect default printer. Please ensure a printer is set as default in Windows.');
+    }
+});
+
 console.log('Listening for new print requests in real-time...');
 
 // Keep track of processed requests to avoid double printing
@@ -94,28 +104,27 @@ function printOrder(order, requestId) {
         fs.writeFileSync(filePath, html);
         console.log(`Generated temporary receipt file: ${filePath}`);
         
-        // Windows Print Command (Using PowerShell to print HTML)
-        // We use the InternetExplorer COM object which is built into Windows 
-        // and can print HTML directly without needing a file association for the 'Print' verb.
-        // ExecWB(6, 2) means Print (6) with No Prompt (2).
-        const printCommand = `powershell -Command "$ie = New-Object -ComObject InternetExplorer.Application; $ie.Navigate('${filePath}'); while($ie.ReadyState -ne 4){Start-Sleep -m 100}; $ie.ExecWB(6, 2); Start-Sleep -s 2; $ie.Quit()"`;
+        // Method 1: rundll32 (Most reliable for HTML to Printer)
+        const printCommand = `rundll32.exe mshtml.dll,PrintHTML "${filePath}"`;
         
-        console.log('Sending to default printer (Automatic Mode)...');
+        console.log('Sending to default printer (Method: mshtml)...');
         exec(printCommand, (error) => {
             if (error) {
-                console.error(`Print Error for Request ${requestId}:`, error);
-                console.log('Attempting Fallback Print Method...');
-                // Fallback: Try rundll32 if COM object fails
-                const fallbackCommand = `rundll32.exe mshtml.dll,PrintHTML "${filePath}"`;
-                exec(fallbackCommand, (fallbackError) => {
-                    if (fallbackError) {
-                        console.error('Fallback Print also failed:', fallbackError);
+                console.error(`mshtml Print Error:`, error);
+                
+                // Method 2: PowerShell Fallback
+                console.log('Attempting Fallback Method (PowerShell COM)...');
+                const psCommand = `powershell -Command "$ie = New-Object -ComObject InternetExplorer.Application; $ie.Navigate('${filePath}'); while($ie.ReadyState -ne 4){Start-Sleep -m 100}; $ie.ExecWB(6, 2); Start-Sleep -s 5; $ie.Quit()"`;
+                
+                exec(psCommand, (psError) => {
+                    if (psError) {
+                        console.error('All print methods failed:', psError);
                     } else {
-                        console.log('Fallback Print command sent.');
+                        console.log('Fallback print command sent successfully.');
                     }
                 });
             } else {
-                console.log(`SUCCESS: Sent to printer.`);
+                console.log(`SUCCESS: Print command sent to Windows spooler.`);
             }
         });
     } catch (err) {
