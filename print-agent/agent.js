@@ -143,8 +143,9 @@ function generateReceiptHtml(order, requestId) {
     if (order.items && Array.isArray(order.items)) {
         order.items.forEach(item => {
             itemsHtml += `
-                <div style="display: flex; justify-content: space-between; font-size: 22px; font-weight: bold; border-bottom: 1px solid #eee; padding: 5px 0;">
-                    <span>x${item.quantity} ${item.name}</span>
+                <div style="display: flex; justify-content: space-between; font-size: 20px; font-weight: bold; border-bottom: 1px dashed #ccc; padding: 8px 0; gap: 10px;">
+                    <span style="flex: 1; word-break: break-word;">${item.name}</span>
+                    <span style="white-space: nowrap;">x${item.quantity}</span>
                 </div>
             `;
         });
@@ -157,19 +158,64 @@ function generateReceiptHtml(order, requestId) {
         <meta charset="UTF-8">
         <style>
             @import url('https://cdn.jsdelivr.net/gh/at-shuvro/solaimanlipi-font@master/solaimanlipi.css');
+            
+            @page {
+                margin: 0;
+                size: auto;
+            }
+
+            html, body {
+                margin: 0;
+                padding: 0;
+                background-color: #ffffff;
+            }
+
             body { 
                 font-family: 'SolaimanLipi', 'Arial', sans-serif; 
-                width: 80mm; 
-                margin: 0; 
-                padding: 5px; 
+                width: 72mm; /* Slightly less than 80mm to avoid clipping */
+                margin: 0 auto;
+                padding: 5px;
                 color: #000;
+                overflow: hidden;
             }
-            .kot-header { text-align: center; border-bottom: 3px solid #000; padding-bottom: 10px; margin-bottom: 10px; }
-            .kot-title { font-size: 28px; font-weight: bold; margin: 0; }
-            .kot-info { font-size: 18px; font-weight: bold; margin: 5px 0; }
-            .token-box { font-size: 40px; font-weight: 900; margin: 10px 0; border: 4px solid #000; display: inline-block; padding: 5px 20px; }
-            .note-box { margin-top: 15px; padding: 10px; border: 1px dashed #000; font-style: italic; font-size: 18px; }
-            .footer { text-align: center; border-top: 2px solid #000; margin-top: 20px; padding-top: 10px; font-weight: bold; }
+
+            .kot-header { 
+                text-align: center; 
+                border-bottom: 2px solid #000; 
+                padding-bottom: 8px; 
+                margin-bottom: 10px; 
+            }
+            .kot-title { font-size: 24px; font-weight: bold; margin: 0; }
+            .token-box { 
+                font-size: 36px; 
+                font-weight: 900; 
+                margin: 5px 0; 
+                border: 3px solid #000; 
+                display: inline-block; 
+                padding: 2px 15px; 
+            }
+            .kot-info { font-size: 16px; font-weight: bold; margin: 2px 0; }
+            
+            .items-container { width: 100%; }
+            
+            .note-box { 
+                margin-top: 10px; 
+                padding: 8px; 
+                border: 1px dashed #000; 
+                font-style: italic; 
+                font-size: 16px; 
+                word-break: break-word;
+            }
+            
+            .footer { 
+                text-align: center; 
+                border-top: 1px solid #000; 
+                margin-top: 15px; 
+                padding-top: 5px; 
+                font-weight: bold; 
+                font-size: 12px;
+                text-transform: uppercase;
+            }
         </style>
     </head>
     <body>
@@ -178,7 +224,7 @@ function generateReceiptHtml(order, requestId) {
             <div class="token-box">#${order.tokenNumber || '00'}</div>
             <div class="kot-info">Table: ${order.tableNumber || 'Delivery'}</div>
             <div class="kot-info">Waiter: ${order.creatorName || 'Staff'}</div>
-            <div style="font-size: 14px;">${date}</div>
+            <div style="font-size: 12px;">${date}</div>
         </div>
 
         <div class="items-container">
@@ -190,11 +236,6 @@ function generateReceiptHtml(order, requestId) {
         <div class="footer">
             --- End of Ticket ---
         </div>
-        
-        <script>
-            // Optional: Auto-close if opened in a browser
-            // window.onload = function() { setTimeout(function() { window.close(); }, 5000); }
-        </script>
     </body>
     </html>
     `;
