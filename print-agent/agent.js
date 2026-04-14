@@ -33,28 +33,23 @@ console.log('Listening for new print requests in real-time...');
 const processedRequests = new Set();
 
 // Listen for new print requests
-// We use a timestamp to only get requests created AFTER the agent starts
-// We subtract 10 minutes to account for potential clock sync issues between local machine and server
-const startTime = new Timestamp(Timestamp.now().seconds - 600, 0);
-
-console.log(`Listening for requests created after: ${startTime.toDate().toLocaleString()}`);
-
+// We'll start by getting the last 5 requests to see if we can connect at all
+// Then we'll filter them in the code to avoid printing old ones
 const printRequestsRef = collection(db, 'print_requests');
 const q = query(
     printRequestsRef, 
-    where('tenantId', '==', MY_TENANT_ID),
-    where('createdAt', '>=', startTime),
+    where('tenantId', 'in', [MY_TENANT_ID, parseInt(MY_TENANT_ID) || MY_TENANT_ID]), // Try both string and number
     orderBy('createdAt', 'desc'),
     limit(10)
 );
 
-console.log('Connecting to Firestore listener...');
+console.log(`Connecting to Firestore listener for Tenant ID: ${MY_TENANT_ID}...`);
 
 onSnapshot(q, (snapshot) => {
-    console.log(`[${new Date().toLocaleTimeString()}] Listener update received. Documents in view: ${snapshot.size}`);
+    console.log(`[${new Date().toLocaleTimeString()}] Listener update: ${snapshot.size} orders found for this tenant.`);
     
     if (snapshot.empty) {
-        console.log('Waiting for new orders...');
+        console.log('No orders found for this tenant. Waiting...');
     }
     
     snapshot.docChanges().forEach((change) => {
@@ -62,12 +57,22 @@ onSnapshot(q, (snapshot) => {
             const request = change.doc.data();
             const requestId = change.doc.id;
 
+            // Only process if it's new (created within the last 5 minutes)
+            // This avoids printing very old orders when the agent starts
+            const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
+            const createdAt = request.createdAt?.toDate ? request.createdAt.toDate().getTime() : 0;
+
             if (!processedRequests.has(requestId)) {
-                console.log(`\n[${new Date().toLocaleTimeString()}] New Print Request Detected!`);
-                console.log(`Order ID: ${request.orderId}`);
-                console.log(`Token: ${request.tokenNumber}`);
-                
-                printOrder(request, requestId);
+                if (createdAt > fiveMinutesAgo) {
+                    console.log(`\n[${new Date().toLocaleTimeString()}] New Print Request Detected!`);
+                    console.log(`Order ID: ${request.orderId}`);
+                    console.log(`Token: ${request.tokenNumber}`);
+                    console.log(`Tenant ID in DB: ${request.tenantId} (Type: ${typeof request.tenantId})`);
+                    
+                    printOrder(request, requestId);
+                } else {
+                    console.log(`Skipping old order: ${request.orderId} (Created at: ${new Date(createdAt).toLocaleString()})`);
+                }
                 processedRequests.add(requestId);
             }
         }
