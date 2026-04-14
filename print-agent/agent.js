@@ -105,15 +105,15 @@ function printOrder(order, requestId) {
         console.log(`Generated temporary receipt file: ${filePath}`);
         
         // Method 1: PowerShell COM (Silent Printing)
-        // ExecWB(6, 2) -> 6 is OLECMDID_PRINT, 2 is OLECMDEXECOPT_DONTPROMPTUSER
-        const psCommand = `powershell -Command "$ie = New-Object -ComObject InternetExplorer.Application; $ie.Visible = $false; $ie.Navigate('${filePath}'); while($ie.ReadyState -ne 4){Start-Sleep -m 100}; $ie.ExecWB(6, 2); Start-Sleep -s 5; $ie.Quit()"`;
+        // We reduce sleep time to 2 seconds to prevent extra paper feed
+        const psCommand = `powershell -Command "$ie = New-Object -ComObject InternetExplorer.Application; $ie.Visible = $false; $ie.Navigate('${filePath}'); while($ie.ReadyState -ne 4){Start-Sleep -m 100}; $ie.ExecWB(6, 2); Start-Sleep -s 2; $ie.Quit()"`;
         
         console.log('Sending to printer (Silent Mode)...');
         exec(psCommand, (error) => {
             if (error) {
                 console.error(`PowerShell Print Error:`, error);
                 
-                // Fallback: rundll32 (Might show dialog but works as last resort)
+                // Fallback: rundll32
                 console.log('Attempting Fallback Method (mshtml)...');
                 const fallbackCommand = `rundll32.exe mshtml.dll,PrintHTML "${filePath}"`;
                 
@@ -136,7 +136,8 @@ function printOrder(order, requestId) {
 function generateReceiptHtml(order, requestId) {
     // Handle both Firestore Timestamp and ISO string
     const createdAt = order.createdAt?.toDate ? order.createdAt.toDate() : new Date();
-    const date = createdAt.toLocaleString();
+    const dateStr = createdAt.toLocaleDateString('en-GB');
+    const timeStr = createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     
     let itemsHtml = '';
     
@@ -173,7 +174,7 @@ function generateReceiptHtml(order, requestId) {
 
             body { 
                 font-family: 'SolaimanLipi', 'Arial', sans-serif; 
-                width: 70mm; 
+                width: 68mm; /* Slightly narrower to ensure no clipping */
                 margin: 0;
                 padding: 0;
                 color: #000;
@@ -181,28 +182,33 @@ function generateReceiptHtml(order, requestId) {
                 overflow: hidden;
             }
 
-            .kot-header { 
-                text-align: center; 
-                border-bottom: 1px solid #000; 
-                padding-bottom: 4px; 
-                margin-bottom: 5px; 
+            .container {
+                display: inline-block;
+                width: 100%;
+                padding: 0;
+                margin: 0;
             }
-            .kot-title { font-size: 10pt; font-weight: bold; margin: 0; }
-            .token-box { 
-                font-size: 14pt; 
-                font-weight: 900; 
-                margin: 2px 0; 
-                border: 2px solid #000; 
-                display: inline-block; 
-                padding: 0 10px; 
+
+            .header-line {
+                font-weight: bold;
+                margin-bottom: 2px;
+                text-align: left;
             }
-            .kot-info { font-size: 10pt; font-weight: bold; margin: 1px 0; }
-            
+
+            .date-time-row {
+                display: flex;
+                justify-content: space-between;
+                border-bottom: 1px solid #000;
+                padding-bottom: 3px;
+                margin-bottom: 5px;
+                font-weight: bold;
+            }
+
             .items-container { width: 100%; }
             
             .note-box { 
                 margin-top: 5px; 
-                padding: 4px; 
+                padding: 3px; 
                 border: 1px dashed #000; 
                 font-style: italic; 
                 font-size: 10pt; 
@@ -212,31 +218,33 @@ function generateReceiptHtml(order, requestId) {
             .footer { 
                 text-align: center; 
                 border-top: 1px solid #000; 
-                margin-top: 10px; 
+                margin-top: 8px; 
                 padding-top: 2px; 
                 font-weight: bold; 
                 font-size: 10pt;
-                text-transform: uppercase;
             }
         </style>
     </head>
     <body>
-        <div class="kot-header">
-            <div class="kot-title">KITCHEN TICKET</div>
-            <div class="token-box">#${order.tokenNumber || '00'}</div>
-            <div class="kot-info">Table: ${order.tableNumber || 'Delivery'}</div>
-            <div class="kot-info">Waiter: ${order.creatorName || 'Staff'}</div>
-            <div style="font-size: 9pt;">${date}</div>
-        </div>
+        <div class="container">
+            <div class="header-line" style="font-size: 12pt; border-bottom: 1px solid #eee;">Kitchen Token: #${order.tokenNumber || '00'}</div>
+            <div class="header-line">Table No: ${order.tableNumber || 'Delivery'}</div>
+            <div class="header-line">Ordered by: ${order.creatorName || 'Staff'}</div>
+            
+            <div class="date-time-row">
+                <span>Date: ${dateStr}</span>
+                <span>Time: ${timeStr}</span>
+            </div>
 
-        <div class="items-container">
-            ${itemsHtml}
-        </div>
+            <div class="items-container">
+                ${itemsHtml}
+            </div>
 
-        ${order.note ? `<div class="note-box"><strong>Note:</strong> ${order.note}</div>` : ''}
+            ${order.note ? `<div class="note-box">Note: ${order.note}</div>` : ''}
 
-        <div class="footer">
-            --- End of Ticket ---
+            <div class="footer">
+                --- End of Ticket ---
+            </div>
         </div>
     </body>
     </html>
