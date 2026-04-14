@@ -121,10 +121,16 @@ export const CustomerOrder = () => {
       await addOrder(newOrder);
       
       // Trigger print request if agent is enabled
+      console.log('Order added, checking print agent settings:', business.printerSettings);
       if (business.printerSettings?.enablePrintAgent) {
-        createPrintRequest(newOrder).catch(err => {
+        console.log('Print agent enabled, creating print request for order:', newOrder.id);
+        createPrintRequest(newOrder).then(() => {
+          console.log('Print request created successfully');
+        }).catch(err => {
           console.error('Mobile order print request failed:', err);
         });
+      } else {
+        console.log('Print agent is NOT enabled in settings');
       }
 
       // Explicitly increment the sequence

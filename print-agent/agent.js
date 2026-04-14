@@ -34,7 +34,10 @@ const processedRequests = new Set();
 
 // Listen for new print requests
 // We use a timestamp to only get requests created AFTER the agent starts
-const startTime = Timestamp.now();
+// We subtract 10 minutes to account for potential clock sync issues between local machine and server
+const startTime = new Timestamp(Timestamp.now().seconds - 600, 0);
+
+console.log(`Listening for requests created after: ${startTime.toDate().toLocaleString()}`);
 
 const printRequestsRef = collection(db, 'print_requests');
 const q = query(
@@ -42,10 +45,14 @@ const q = query(
     where('tenantId', '==', MY_TENANT_ID),
     where('createdAt', '>=', startTime),
     orderBy('createdAt', 'desc'),
-    limit(5)
+    limit(10)
 );
 
+console.log('Connecting to Firestore listener...');
+
 onSnapshot(q, (snapshot) => {
+    console.log(`[${new Date().toLocaleTimeString()}] Listener update received. Documents in view: ${snapshot.size}`);
+    
     if (snapshot.empty) {
         console.log('Waiting for new orders...');
     }
@@ -69,6 +76,8 @@ onSnapshot(q, (snapshot) => {
     console.error('Firestore Listen Error:', error);
     if (error.code === 'permission-denied') {
         console.error('ERROR: Permission denied. Please check your Firestore rules.');
+    } else if (error.message.includes('index')) {
+        console.error('ERROR: Missing Firestore Index. Please click the link in the error message to create it.');
     }
 });
 
