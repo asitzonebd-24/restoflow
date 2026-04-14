@@ -1,13 +1,12 @@
 {
-  "name": "print-agent",
+  "name": "restokeep-printer-agent",
   "version": "1.0.0",
+  "description": "Automatic printer agent for RestoKeep",
   "main": "agent.js",
-  "bin": "agent.js",
-  "dependencies": {
-    "firebase": "^10.0.0",
-    "pdf-to-printer": "^2.0.0"
+  "scripts": {
+    "start": "node agent.js"
   },
-  "pkg": {
-    "assets": ["config.json"]
+  "dependencies": {
+    "firebase": "^10.0.0"
   }
 }

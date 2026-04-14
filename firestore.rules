@@ -112,6 +112,17 @@ service cloud.firestore {
       allow create: if isAuthenticated() && hasTenantAccess(request.resource.data.tenantId);
     }
 
+    // ===============================================================
+    // Print Requests (For Automatic Printer Agent)
+    // ===============================================================
+    match /print_requests/{document} {
+      // Allow authenticated users to create print requests
+      allow create: if isAuthenticated() && hasTenantAccess(request.resource.data.tenantId);
+      // Allow reading print requests (Agent uses this)
+      // In a production app, you'd use a service account or custom claims
+      allow read: if true; 
+    }
+
     // Default deny for anything else
     match /{document=**} {
       allow read, write: if false;

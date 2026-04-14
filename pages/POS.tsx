@@ -701,6 +701,9 @@ export const POS = () => {
           };
           await BluetoothPrinterService.printKOT(currentTenant, orderData as any);
           return; // Skip system print if bluetooth worked
+        } else if (result.error === 'unsupported') {
+          console.warn('Bluetooth is not supported or blocked in this environment. Using automatic printer agent instead.');
+          // We don't show an error message here because the automatic agent will handle it
         } else if (result.error === 'failed') {
           setErrorMessage('Bluetooth printer connection failed. Please check if the printer is on and paired.');
         }

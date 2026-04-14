@@ -185,8 +185,14 @@ export class BluetoothPrinterService {
     }
   }
 
-  static async connect(deviceId?: string): Promise<{ success: boolean; device?: any; error?: 'cancelled' | 'failed' }> {
+  static async connect(deviceId?: string): Promise<{ success: boolean; device?: any; error?: 'cancelled' | 'failed' | 'unsupported' }> {
     try {
+      // 0. Check if Bluetooth is supported and allowed
+      if (!navigator || !(navigator as any).bluetooth) {
+        console.warn('Bluetooth is not supported in this browser or environment.');
+        return { success: false, error: 'unsupported' };
+      }
+
       // 1. Check if already connected in memory
       if (this.characteristic && this.device?.gatt?.connected) {
         try {
@@ -252,6 +258,10 @@ export class BluetoothPrinterService {
       
       throw new Error('No writable characteristic found.');
     } catch (error: any) {
+      if (error.name === 'SecurityError' || error.message.includes('disallowed by permissions policy')) {
+        console.warn('Bluetooth access is blocked by permissions policy.');
+        return { success: false, error: 'unsupported' };
+      }
       if (error.name === 'NotFoundError' || error.name === 'NotAllowedError' || error.message.includes('cancelled')) {
         console.warn('Bluetooth connection cancelled by user.');
         return { success: false, error: 'cancelled' };

@@ -240,6 +240,8 @@ export const Billing = () => {
             creatorName: creator?.name || 'Unknown'
           });
           return; // Skip system print if bluetooth worked
+        } else if (result.error === 'unsupported') {
+          console.warn('Bluetooth is not supported or blocked in this environment.');
         }
       } catch (error) {
         console.error('Bluetooth print failed, falling back to system print:', error);
