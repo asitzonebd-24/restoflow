@@ -509,17 +509,11 @@ export const Billing = () => {
 
                     <div className="flex flex-col items-end gap-1 shrink-0 max-w-[35%]">
                       {(order.tableNumber || order.deliveryStaffName) && (
-                        <span 
-                          className="text-[9px] font-bold text-white px-1.5 py-0.5 rounded-lg w-fit uppercase tracking-widest truncate max-w-full"
-                          style={{ backgroundColor: `hsl(${((order.tableNumber || order.deliveryStaffName || '').length * 137) % 360}, 60%, 45%)` }}
-                        >
+                        <span className="text-[10px] font-bold text-white bg-purple-600 px-2 py-0.5 rounded-lg border border-purple-700 w-fit uppercase tracking-widest truncate max-w-full">
                           {order.deliveryStaffName ? `D-${order.deliveryStaffName.split(' ')[0]}` : order.tableNumber}
                         </span>
                       )}
-                      <span 
-                        className="text-[8px] font-bold text-white px-1.5 py-0.5 rounded-lg w-fit uppercase tracking-tight truncate max-w-full"
-                        style={{ backgroundColor: `hsl(${((creator?.name || '').length * 137) % 360}, 70%, 40%)` }}
-                      >
+                      <span className="text-[10px] font-bold text-white bg-pink-500 px-2 py-0.5 rounded-lg border border-pink-600 w-fit uppercase tracking-tight truncate max-w-full">
                         {creator?.name || '-'}
                       </span>
                     </div>

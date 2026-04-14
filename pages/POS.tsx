@@ -55,13 +55,13 @@ const ItemSummary = ({ cart, cartTotal, currency }: { cart: OrderItem[], cartTot
         {groupItems(cart).map((item, i) => (
           <div key={i} className="flex justify-between text-[10px] gap-2 leading-tight">
             <span className="font-medium text-slate-700 break-words flex-1 line-clamp-2 capitalize tracking-tight">{item.quantity} x {item.name}</span>
-            <span className="font-bold text-slate-900 shrink-0">{currency}{(item.price * item.quantity).toFixed(2)}</span>
+            <span className="font-bold text-slate-900 shrink-0">{currency}{(item.price * item.quantity) % 1 === 0 ? (item.price * item.quantity).toFixed(0) : (item.price * item.quantity).toFixed(2)}</span>
           </div>
         ))}
       </div>
       <div className="border-t border-slate-100 mt-2 pt-2 flex justify-between items-center">
         <span className="text-xs font-bold text-slate-900">Total</span>
-        <span className="text-sm font-bold text-slate-900">{currency}{cartTotal.toFixed(2)}</span>
+        <span className="text-sm font-bold text-slate-900">{currency}{cartTotal % 1 === 0 ? cartTotal.toFixed(0) : cartTotal.toFixed(2)}</span>
       </div>
     </div>
   );
@@ -201,7 +201,7 @@ const POSCartContent = ({
                     <div className="min-w-0 pr-2 flex-1">
                         <h4 className="font-bold text-slate-900 text-[11px] leading-tight break-words line-clamp-2 capitalize tracking-tight">{item.name}</h4>
                         <div className="flex items-center gap-2">
-                          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{currentTenant.currency}{item.price.toFixed(2)}</p>
+                          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{currentTenant.currency}{item.price % 1 === 0 ? item.price.toFixed(0) : item.price.toFixed(2)}</p>
                           {isExisting && (
                             <span className="text-[7px] font-black bg-indigo-100 text-indigo-600 px-1 py-0.5 rounded uppercase tracking-tighter">Existing</span>
                           )}
@@ -247,7 +247,7 @@ const POSCartContent = ({
       <div className="space-y-4">
         <div className="flex justify-between items-center">
             <span className="font-bold uppercase text-[10px] text-slate-400 tracking-widest">Total Amount</span>
-            <span className="text-3xl font-bold text-slate-900 tracking-tight">{currentTenant.currency}{cartTotal.toFixed(2)}</span>
+            <span className="text-3xl font-bold text-slate-900 tracking-tight">{currentTenant.currency}{cartTotal % 1 === 0 ? cartTotal.toFixed(0) : cartTotal.toFixed(2)}</span>
         </div>
 
         <button 

@@ -27,6 +27,10 @@ export const Transactions = () => {
     }, [users]);
 
     const filteredTransactions = useMemo(() => {
+        if (selectedStaffId === 'all' && dateFilter === 'all') {
+            return [];
+        }
+
         const now = new Date();
         const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         const startOfWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -221,7 +225,7 @@ export const Transactions = () => {
                             onChange={(e) => setSelectedStaffId(e.target.value)}
                             className="w-full pl-11 pr-10 py-3.5 bg-white border-2 border-black rounded-2xl text-[10px] font-bold uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm appearance-none"
                         >
-                            <option value="all">All Staff</option>
+                            <option value="all">Select Staff</option>
                             {staffList.map(s => (
                                 <option key={s.id} value={s.id}>{s.name}</option>
                             ))}
@@ -237,7 +241,7 @@ export const Transactions = () => {
                             onChange={(e) => setDateFilter(e.target.value as any)}
                             className="w-full pl-11 pr-10 py-3.5 bg-white border-2 border-black rounded-2xl text-[10px] font-bold uppercase tracking-widest focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm appearance-none"
                         >
-                            <option value="all">All Time</option>
+                            <option value="all">Select Time</option>
                             <option value="today">Today</option>
                             <option value="week">Last 7 Days</option>
                             <option value="month">Last 30 Days</option>
@@ -291,7 +295,7 @@ export const Transactions = () => {
                     <div>
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Revenue</p>
                         <h3 className="text-3xl font-black text-slate-900 tracking-tight">
-                            {currentTenant?.currency}{stats.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            {currentTenant?.currency}{stats.total % 1 === 0 ? stats.total.toFixed(0) : stats.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </h3>
                     </div>
                     <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center border-2 border-black group-hover:rotate-12 transition-transform">
@@ -355,7 +359,11 @@ export const Transactions = () => {
                                             <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-6 border-2 border-dashed border-slate-200">
                                                 <Search size={32} strokeWidth={1.5} className="opacity-40" />
                                             </div>
-                                            <p className="text-sm font-black opacity-60 uppercase tracking-[0.2em]">No matching records found</p>
+                                            <p className="text-sm font-black opacity-60 uppercase tracking-[0.2em]">
+                                                {selectedStaffId === 'all' && dateFilter === 'all' 
+                                                    ? 'Please select Staff or Time to view history' 
+                                                    : 'No matching records found'}
+                                            </p>
                                         </div>
                                     </td>
                                 </tr>
@@ -386,12 +394,12 @@ export const Transactions = () => {
                                         </td>
                                         <td className="px-8 py-6 border-r border-black">
                                             <span className="text-sm font-black text-red-500 tracking-tighter">
-                                                {txn.discount ? `-${currentTenant?.currency}${txn.discount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
+                                                {txn.discount ? `-${currentTenant?.currency}${txn.discount % 1 === 0 ? txn.discount.toFixed(0) : txn.discount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '-'}
                                             </span>
                                         </td>
                                         <td className="px-8 py-6 border-r border-black">
                                             <span className="text-sm font-black text-slate-900 tracking-tighter">
-                                                {currentTenant?.currency}{txn.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                {currentTenant?.currency}{txn.amount % 1 === 0 ? txn.amount.toFixed(0) : txn.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                             </span>
                                         </td>
                                         <td className="px-8 py-6 text-right">
@@ -419,7 +427,11 @@ export const Transactions = () => {
                                 <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mb-6 border-2 border-dashed border-slate-200">
                                     <Search size={32} strokeWidth={1.5} className="opacity-40" />
                                 </div>
-                                <p className="text-sm font-black opacity-60 uppercase tracking-[0.2em]">No matching records found</p>
+                                <p className="text-sm font-black opacity-60 uppercase tracking-[0.2em]">
+                                    {selectedStaffId === 'all' && dateFilter === 'all' 
+                                        ? 'Please select Staff or Time to view history' 
+                                        : 'No matching records found'}
+                                </p>
                             </div>
                         </div>
                     ) : (
@@ -457,11 +469,11 @@ export const Transactions = () => {
                                         <div className="flex flex-col items-end gap-1 mb-3">
                                             {txn.discount > 0 && (
                                                 <span className="text-[10px] font-black text-red-500 tracking-tighter">
-                                                    Disc: -{currentTenant?.currency}{txn.discount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                    Disc: -{currentTenant?.currency}{txn.discount % 1 === 0 ? txn.discount.toFixed(0) : txn.discount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                                 </span>
                                             )}
                                             <span className="text-lg font-black text-slate-900 tracking-tighter">
-                                                {currentTenant?.currency}{txn.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                                {currentTenant?.currency}{txn.amount % 1 === 0 ? txn.amount.toFixed(0) : txn.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                             </span>
                                         </div>
                                         <button 
@@ -549,7 +561,7 @@ export const Transactions = () => {
                                                 <span className="text-black font-bold">{item.quantity} x</span>
                                                 <span className="text-black">{item.name}</span>
                                             </div>
-                                            <span className="text-black font-bold shrink-0">{currentTenant?.currency}{(item.price * item.quantity).toFixed(2)}</span>
+                                            <span className="text-black font-bold shrink-0">{currentTenant?.currency}{(item.price * item.quantity) % 1 === 0 ? (item.price * item.quantity).toFixed(0) : (item.price * item.quantity).toFixed(2)}</span>
                                         </div>
                                     ))}
                                 </div>
@@ -562,23 +574,23 @@ export const Transactions = () => {
                                         <>
                                             <div className="flex justify-between text-sm font-bold uppercase tracking-widest text-black">
                                                 <span>Subtotal</span>
-                                                <span>{currentTenant?.currency}{subtotal.toFixed(2)}</span>
+                                                <span>{currentTenant?.currency}{subtotal % 1 === 0 ? subtotal.toFixed(0) : subtotal.toFixed(2)}</span>
                                             </div>
                                             {currentTenant?.includeVat && (
                                                 <div className="flex justify-between text-sm font-bold uppercase tracking-widest text-black">
                                                     <span>VAT ({currentTenant?.vatRate}%)</span>
-                                                    <span>{currentTenant?.currency}{vat.toFixed(2)}</span>
+                                                    <span>{currentTenant?.currency}{vat % 1 === 0 ? vat.toFixed(0) : vat.toFixed(2)}</span>
                                                 </div>
                                             )}
                                             {viewInvoice.transaction.discount ? (
                                                 <div className="flex justify-between text-sm font-bold uppercase tracking-widest text-black">
                                                     <span>Discount</span>
-                                                    <span>-{currentTenant?.currency}{viewInvoice.transaction.discount.toFixed(2)}</span>
+                                                    <span>-{currentTenant?.currency}{viewInvoice.transaction.discount % 1 === 0 ? viewInvoice.transaction.discount.toFixed(0) : viewInvoice.transaction.discount.toFixed(2)}</span>
                                                 </div>
                                             ) : null}
                                             <div className="flex justify-between items-center pt-6 mt-4 border-t border-black">
                                                 <span className="text-base font-bold uppercase tracking-widest text-black">Total Amount</span>
-                                                <span className="text-4xl font-bold text-black tracking-tight">{currentTenant?.currency}{total.toFixed(2)}</span>
+                                                <span className="text-4xl font-bold text-black tracking-tight">{currentTenant?.currency}{total % 1 === 0 ? total.toFixed(0) : total.toFixed(2)}</span>
                                             </div>
                                         </>
                                     );
