@@ -486,31 +486,41 @@ export const Billing = () => {
               const creator = getCreator(order.createdBy);
 
               return (
-                <div key={order.id} className={`p-5 flex flex-col gap-4 border-b border-black ${selectedOrderIds.includes(order.id) ? 'bg-indigo-50/30' : ''}`}>
-                  <div className="flex justify-between items-start">
-                    <div className="flex items-center gap-3">
+                <div key={order.id} className={`p-4 flex flex-col gap-3 border-b border-black ${selectedOrderIds.includes(order.id) ? 'bg-indigo-50/30' : ''}`}>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 shrink-0">
                       <input 
                         type="checkbox" 
                         checked={selectedOrderIds.includes(order.id)}
                         onChange={() => toggleSelectOrder(order.id)}
-                        className="w-5 h-5 rounded border-2 border-black text-indigo-600 focus:ring-indigo-500"
+                        className="w-4 h-4 rounded border-2 border-black text-indigo-600 focus:ring-indigo-500"
                       />
-                      <div className="px-3 py-1.5 rounded-xl border-2 border-black flex items-center justify-center font-black text-lg text-white bg-emerald-500 shadow-md min-w-[3rem]">
+                      <div className="px-2 py-1 rounded-xl border-2 border-black flex items-center justify-center font-black text-base text-white bg-emerald-500 shadow-md min-w-[2.5rem]">
                         {order.tokenNumber}
                       </div>
-                      <div className="flex flex-col gap-1">
-                        {(order.tableNumber || order.deliveryStaffName) && (
-                          <span className="text-[10px] font-bold text-white bg-pink-500 px-2 py-0.5 rounded-lg border border-pink-600 w-fit uppercase tracking-widest">
-                            {order.deliveryStaffName ? `D-${order.deliveryStaffName.split(' ')[0]}` : order.tableNumber}
-                          </span>
-                        )}
-                        <span className="text-[9px] font-bold text-white bg-purple-600 px-2 py-0.5 rounded-lg border border-purple-700 w-fit uppercase tracking-tight">{creator?.name || '-'}</span>
-                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Due</p>
-                      <span className="text-xl font-black text-slate-900 tracking-tighter">
-                        {currentTenant?.currency}{total.toFixed(2)}
+
+                    <div className="flex-1 text-center min-w-0">
+                      <p className="text-[8px] font-bold text-black uppercase tracking-widest mb-0.5 truncate">Total Due</p>
+                      <span className="text-lg font-black text-black tracking-tighter truncate block">
+                        {currentTenant?.currency}{total % 1 === 0 ? total.toFixed(0) : total.toFixed(2)}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-col items-end gap-1 shrink-0 max-w-[35%]">
+                      {(order.tableNumber || order.deliveryStaffName) && (
+                        <span 
+                          className="text-[9px] font-bold text-white px-1.5 py-0.5 rounded-lg w-fit uppercase tracking-widest truncate max-w-full"
+                          style={{ backgroundColor: `hsl(${((order.tableNumber || order.deliveryStaffName || '').length * 137) % 360}, 60%, 45%)` }}
+                        >
+                          {order.deliveryStaffName ? `D-${order.deliveryStaffName.split(' ')[0]}` : order.tableNumber}
+                        </span>
+                      )}
+                      <span 
+                        className="text-[8px] font-bold text-white px-1.5 py-0.5 rounded-lg w-fit uppercase tracking-tight truncate max-w-full"
+                        style={{ backgroundColor: `hsl(${((creator?.name || '').length * 137) % 360}, 70%, 40%)` }}
+                      >
+                        {creator?.name || '-'}
                       </span>
                     </div>
                   </div>
@@ -545,7 +555,7 @@ export const Billing = () => {
                         className="w-full pl-7 pr-3 py-2 text-[10px] font-bold bg-white border-2 border-black rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
                       />
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 shrink-0">
                       <button 
                         onClick={() => {
                           const discount = discounts[order.id] || 0;
