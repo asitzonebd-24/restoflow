@@ -109,22 +109,36 @@ onSnapshot(q, (snapshot) => {
 });
 
 function printOrder(order, requestId) {
-    const html = generateReceiptHtml(order);
+    const html = generateReceiptHtml(order, requestId);
     const filePath = path.join(__dirname, 'temp_receipt.html');
     
     try {
         fs.writeFileSync(filePath, html);
-        console.log(`Generated: ${filePath}`);
+        console.log(`Generated temporary receipt file: ${filePath}`);
         
-        // Reliable printing command using rundll32
-        const printCommand = `rundll32.exe mshtml.dll,PrintHTML "${filePath}"`;
+        // Method 1: PowerShell COM (Silent Printing)
+        // We also clear the Registry keys for Header and Footer to remove "Page 1 of 1" and file path
+        const psCommand = `powershell -Command "$p = 'HKCU:\\Software\\Microsoft\\Internet Explorer\\PageSetup'; Set-ItemProperty -Path $p -Name 'header' -Value ''; Set-ItemProperty -Path $p -Name 'footer' -Value ''; Set-ItemProperty -Path $p -Name 'margin_bottom' -Value '0'; Set-ItemProperty -Path $p -Name 'margin_left' -Value '0'; Set-ItemProperty -Path $p -Name 'margin_right' -Value '0'; Set-ItemProperty -Path $p -Name 'margin_top' -Value '0'; $ie = New-Object -ComObject InternetExplorer.Application; $ie.Visible = $false; $ie.Navigate('${filePath}'); while($ie.ReadyState -ne 4){Start-Sleep -m 100}; $ie.ExecWB(6, 2); Start-Sleep -s 2; $ie.Quit()"`;
         
-        console.log('Sending to printer...');
-        exec(printCommand, (error) => {
+        console.log('Sending to printer (Silent Mode - No Headers)...');
+        exec(psCommand, (error) => {
             if (error) {
-                console.error(`Print Error:`, error);
+                console.error(`PowerShell Print Error:`, error);
+                
+                // Fallback: rundll32
+                console.log('Attempting Fallback Method (mshtml)...');
+                const fallbackCommand = `rundll32.exe mshtml.dll,PrintHTML "${filePath}"`;
+                
+                exec(fallbackCommand, (fbError) => {
+                    if (fbError) {
+                        console.error('All print methods failed:', fbError);
+                    } else {
+                        console.log('Fallback print command sent.');
+                        deletePrintRequest(requestId);
+                    }
+                });
             } else {
-                console.log(`SUCCESS: Print command sent for Token #${order.tokenNumber}`);
+                console.log(`SUCCESS: Print command sent silently.`);
                 deletePrintRequest(requestId);
             }
         });
