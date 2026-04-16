@@ -2,7 +2,7 @@
 import React, { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Order, OrderStatus, ItemStatus, Role, OrderItem } from '../types';
-import { Clock, CheckCircle, Flame, Timer, PlayCircle, CheckSquare, FileText, Lock, Hash, User as UserIcon, ChevronDown, ShoppingBag, Printer, Plus, X, Search, AlertCircle } from 'lucide-react';
+import { Clock, CheckCircle, Flame, Timer, PlayCircle, CheckSquare, FileText, Lock, Hash, User as UserIcon, ChevronDown, ShoppingBag, Printer, Plus, X, Search, AlertCircle, Pen, Minus } from 'lucide-react';
 import { BluetoothPrinterService } from '../services/printerService';
 
 export const Kitchen = () => {
@@ -10,6 +10,7 @@ export const Kitchen = () => {
   const [filter, setFilter] = React.useState<'pending' | 'done'>('pending');
   const [currentPage, setCurrentPage] = useState(1);
   const [showAddItemModal, setShowAddItemModal] = useState(false);
+  const [showEditItemsModal, setShowEditItemsModal] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [quantity, setQuantity] = useState(1);
@@ -331,16 +332,16 @@ export const Kitchen = () => {
 
             <div className="flex-1 mb-6 overflow-y-auto no-scrollbar rounded-2xl border border-slate-100 overflow-hidden bg-white">
               <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
-                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Order Items</h4>
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-black">Edit Items</h4>
                 {isAdmin && order.status !== OrderStatus.READY && (
                   <button 
                     onClick={() => {
                       setSelectedOrderId(order.id);
-                      setShowAddItemModal(true);
+                      setShowEditItemsModal(true);
                     }}
                     className="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-all border border-indigo-100"
                   >
-                    <Plus size={14} strokeWidth={3} />
+                    <Pen size={14} strokeWidth={3} />
                   </button>
                 )}
               </div>
@@ -560,6 +561,58 @@ export const Kitchen = () => {
                   </button>
                 ))}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Edit Items Modal */}
+      {showEditItemsModal && selectedOrderId && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 md:p-6">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowEditItemsModal(false)}></div>
+          <div className="relative bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden border-4 border-black flex flex-col max-h-[80vh]">
+            <div className="p-6 border-b-2 border-slate-100 flex items-center justify-between bg-slate-50">
+              <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Edit Order Items</h3>
+              <button onClick={() => setShowEditItemsModal(false)} className="p-2 hover:bg-slate-200 rounded-xl transition-all">
+                <X size={20} className="text-slate-400" />
+              </button>
+            </div>
+            <div className="p-6 overflow-y-auto no-scrollbar space-y-4">
+              {orders.find(o => o.id === selectedOrderId)?.items.map(item => (
+                <div key={item.rowId} className="flex items-center justify-between bg-slate-50 p-4 rounded-2xl border-2 border-slate-100">
+                  <span className="font-bold text-sm w-1/2 truncate">{item.name}</span>
+                  <div className="flex items-center gap-3">
+                    <button 
+                      onClick={() => {
+                        const order = orders.find(o => o.id === selectedOrderId);
+                        if (!order) return;
+                        const updatedItems = order.items.map(i => 
+                          i.rowId === item.rowId ? { ...i, quantity: Math.max(0, i.quantity - 1) } : i
+                        ).filter(i => i.quantity > 0);
+                        const newTotal = updatedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                        updateOrderItems(order.id, updatedItems, newTotal);
+                      }}
+                      className="w-8 h-8 flex items-center justify-center bg-white border border-slate-300 rounded-lg hover:bg-rose-50 hover:text-rose-500"
+                    >
+                      <Minus size={14} />
+                    </button>
+                    <span className="font-black text-sm w-6 text-center">{item.quantity}</span>
+                    <button 
+                      onClick={() => {
+                        const order = orders.find(o => o.id === selectedOrderId);
+                        if (!order) return;
+                        const updatedItems = order.items.map(i => 
+                          i.rowId === item.rowId ? { ...i, quantity: i.quantity + 1 } : i
+                        );
+                        const newTotal = updatedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                        updateOrderItems(order.id, updatedItems, newTotal);
+                      }}
+                      className="w-8 h-8 flex items-center justify-center bg-white border border-slate-300 rounded-lg hover:bg-emerald-50 hover:text-emerald-500"
+                    >
+                      <Plus size={14} />
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>

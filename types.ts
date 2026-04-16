@@ -57,6 +57,7 @@ export interface Business {
   supplierDues?: Record<string, number>;
   customerTokenPrefix: string;
   nextCustomerToken: number;
+  lastTokenDate?: string;
   customerAppEnabled: boolean;
   isActive: boolean;
   isMaintenanceMode?: boolean;

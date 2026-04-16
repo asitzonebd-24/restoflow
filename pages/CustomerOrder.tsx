@@ -101,9 +101,16 @@ export const CustomerOrder = () => {
 
     setIsSubmitting(true);
     try {
+      const today = new Date().toISOString().split('T')[0];
+      let currentToken = business.nextCustomerToken || 1;
+      
+      if (business.lastTokenDate !== today) {
+        currentToken = 1;
+      }
+
       const prefix = business.customerTokenPrefix || 'WEB';
-      const sequenceNum = business.nextCustomerToken || 100;
-      const tokenNumber = `${prefix}-${sequenceNum}`;
+      const formattedToken = String(currentToken).padStart(2, '0');
+      const tokenNumber = `${prefix}-${formattedToken}`;
 
       const newOrder = {
         id: `cust-ord-${Date.now()}`,
@@ -123,8 +130,8 @@ export const CustomerOrder = () => {
       // Auto-print logic is now handled centrally in AppContext.tsx
       console.log('[CustomerOrder] Order added successfully:', newOrder.id);
 
-      // Explicitly increment the sequence
-      await updateBusiness({ nextCustomerToken: sequenceNum + 1 });
+      // Explicitly increment the sequence and update date
+      await updateBusiness({ nextCustomerToken: currentToken + 1, lastTokenDate: today });
       setCart([]);
       navigate(`/${tenantId}/order/panel`);
     } finally {

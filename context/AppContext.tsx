@@ -1157,18 +1157,20 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     if (!order) return;
 
     const rowIds = Array.isArray(rowId) ? rowId : [rowId];
-    const newItems = order.items.map(i => rowIds.includes(i.rowId) ? { ...i, status } : i);
+    let newItems: OrderItem[] = [];
+    if (status === OrderStatus.CANCELLED) {
+      newItems = order.items.filter(i => !rowIds.includes(i.rowId));
+    } else {
+      newItems = order.items.map(i => rowIds.includes(i.rowId) ? { ...i, status } : i);
+    }
     
-    // Recalculate total amount excluding cancelled items
-    const newTotalAmount = newItems.reduce((sum, item) => {
-      if (item.status === OrderStatus.CANCELLED) return sum;
-      return sum + (item.price * item.quantity);
-    }, 0);
+    // Recalculate total amount
+    const newTotalAmount = newItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
     let newOrderStatus = order.status;
-    const allReady = newItems.every(i => i.status === OrderStatus.READY || i.status === OrderStatus.CANCELLED);
+    const allReady = newItems.length > 0 && newItems.every(i => i.status === OrderStatus.READY);
     const anyPreparing = newItems.some(i => i.status === OrderStatus.PREPARING);
-    const allCancelled = newItems.every(i => i.status === OrderStatus.CANCELLED);
+    const allCancelled = newItems.length === 0;
 
     if (allCancelled) newOrderStatus = OrderStatus.CANCELLED;
     else if (allReady) newOrderStatus = OrderStatus.READY;

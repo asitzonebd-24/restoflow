@@ -106,42 +106,83 @@ onSnapshot(q, (snapshot) => {
     }
 });
 
-function printOrder(order, requestId) {
+function printOrder(order, requestId, attempt = 1) {
     const html = generateReceiptHtml(order, requestId);
-    const filePath = path.join(__dirname, 'temp_receipt.html');
+    // Use unique filename for each request to avoid race conditions
+    const filePath = path.join(__dirname, `temp_receipt_${requestId}.html`);
+    const pdfFilePath = filePath + '.pdf';
     
     try {
         fs.writeFileSync(filePath, html);
-        console.log(`Generated temporary receipt file: ${filePath}`);
+        console.log(`Generated temporary receipt file (Attempt ${attempt}): ${filePath}`);
         
-        // Method 1: PowerShell COM (Silent Printing)
-        // We also clear the Registry keys for Header and Footer to remove "Page 1 of 1" and file path
-        const psCommand = `powershell -Command "$p = 'HKCU:\\Software\\Microsoft\\Internet Explorer\\PageSetup'; Set-ItemProperty -Path $p -Name 'header' -Value ''; Set-ItemProperty -Path $p -Name 'footer' -Value ''; Set-ItemProperty -Path $p -Name 'margin_bottom' -Value '0'; Set-ItemProperty -Path $p -Name 'margin_left' -Value '0'; Set-ItemProperty -Path $p -Name 'margin_right' -Value '0'; Set-ItemProperty -Path $p -Name 'margin_top' -Value '0'; $ie = New-Object -ComObject InternetExplorer.Application; $ie.Visible = $false; $ie.Navigate('${filePath}'); while($ie.ReadyState -ne 4){Start-Sleep -m 100}; $ie.ExecWB(6, 2); Start-Sleep -s 2; $ie.Quit()"`;
-        
-        console.log('Sending to printer (Silent Mode - No Headers)...');
-        exec(psCommand, (error) => {
-            if (error) {
-                console.error(`PowerShell Print Error:`, error);
-                
-                // Fallback: rundll32
-                console.log('Attempting Fallback Method (mshtml)...');
-                const fallbackCommand = `rundll32.exe mshtml.dll,PrintHTML "${filePath}"`;
-                
-                exec(fallbackCommand, (fbError) => {
-                    if (fbError) {
-                        console.error('All print methods failed:', fbError);
-                    } else {
-                        console.log('Fallback print command sent.');
-                        deletePrintRequest(requestId);
-                    }
-                });
-            } else {
-                console.log(`SUCCESS: Print command sent silently.`);
-                deletePrintRequest(requestId);
+        // 1. HTML ফাইলটিকে PDF এ কনভার্ট করা
+        const convertCommand = `powershell -Command "Start-Process 'msedge' -ArgumentList '--headless', '--print-to-pdf=\\\"${pdfFilePath}\\\"', '${filePath}' -Wait"`;
+
+        exec(convertCommand, (err) => {
+            if (err) {
+                 console.error('PDF conversion failed:', err);
+                 // পিডিএফ কনভার্সনে ফেইল করলেও রিট্রাই করা উচিত
+                 handleRetry(order, requestId, attempt, err, filePath, pdfFilePath);
+                 return;
             }
+
+            // 2. ফাইলটি তৈরি হতে কিছুটা সময় দেওয়া
+            let attempts = 0;
+            const checkFile = setInterval(() => {
+                attempts++;
+                if (fs.existsSync(pdfFilePath) || attempts > 10) {
+                    clearInterval(checkFile);
+                    
+                    if (fs.existsSync(pdfFilePath)) {
+                        // 3. প্রিন্ট করা (noscale ব্যবহার করছি যাতে রিসিপ্টটি ছোট না হয়ে যায়)
+                        const sumatraPath = 'C:\\PrinterService\\SumatraPDF\\SumatraPDF.exe';
+                        const printCommand = `"${sumatraPath}" -print-to "XP-80C" -silent -print-settings "noscale" "${pdfFilePath}"`;
+
+                        console.log('Sending PDF to XP-80C...');
+                        exec(printCommand, (fbError) => {
+                            // ফাইল পরিষ্কার করা
+                            setTimeout(() => { 
+                                try { 
+                                    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+                                    if (fs.existsSync(pdfFilePath)) fs.unlinkSync(pdfFilePath);
+                                } catch(e) { console.error('Error cleaning files:', e); }
+                            }, 5000); 
+                            
+                            if (fbError) {
+                                console.error('SumatraPDF print command failed:', fbError);
+                                handleRetry(order, requestId, attempt, fbError, filePath, pdfFilePath);
+                            } else {
+                                console.log(`SUCCESS: PDF print command sent to XP-80C.`);
+                                deletePrintRequest(requestId);
+                            }
+                        });
+                    } else {
+                        console.error('PDF file was not created by MS Edge.');
+                        handleRetry(order, requestId, attempt, new Error('PDF file not created'), filePath, pdfFilePath);
+                    }
+                }
+            }, 1000); // প্রতি সেকেন্ডে চেক করবে
         });
     } catch (err) {
         console.error('File Write Error:', err);
+        handleRetry(order, requestId, attempt, err, filePath, pdfFilePath);
+    }
+}
+
+function handleRetry(order, requestId, attempt, error, filePath, pdfFilePath) {
+    // Retry cleanup
+    try {
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+        if (fs.existsSync(pdfFilePath)) fs.unlinkSync(pdfFilePath);
+    } catch (e) {}
+
+    if (attempt < 5) {
+        const nextAttempt = attempt + 1;
+        console.log(`Retrying print for Order ${order.orderId} in 5 seconds... (Attempt ${nextAttempt}/5)`);
+        setTimeout(() => printOrder(order, requestId, nextAttempt), 5000);
+    } else {
+        console.error(`Max retries reached for Order ${order.orderId}. System will stop trying this Ticket.`);
     }
 }
 
@@ -173,8 +214,8 @@ function generateReceiptHtml(order, requestId) {
             @import url('https://cdn.jsdelivr.net/gh/at-shuvro/solaimanlipi-font@master/solaimanlipi.css');
             
             @page {
-                margin: 0;
-                size: auto;
+                size: 80mm auto;
+                margin: 2mm;
             }
 
             html, body {
@@ -182,16 +223,16 @@ function generateReceiptHtml(order, requestId) {
                 padding: 0;
                 background-color: #ffffff;
                 height: auto;
-                width: 100%;
+                width: 68mm;
             }
 
             body { 
                 font-family: 'SolaimanLipi', 'Arial', sans-serif; 
                 width: 68mm; 
-                margin: 0;
-                padding: 0;
+                margin: 0 auto;
+                padding: 15px 5px 0 5px;
                 color: #000;
-                font-size: 10pt;
+                font-size: 20pt;
                 overflow: hidden;
             }
 
@@ -211,6 +252,11 @@ function generateReceiptHtml(order, requestId) {
                 padding: 0;
                 text-align: center;
                 line-height: 1.1;
+                font-size: 10pt;
+            }
+            #token-line {
+                font-size: 16pt;
+                margin-bottom: 3px;
             }
 
             .date-time-row {
@@ -250,7 +296,7 @@ function generateReceiptHtml(order, requestId) {
     </head>
     <body>
         <div class="container">
-            <div class="header-line" style="font-size: 12pt; margin-bottom: 3px;">Kitchen Token: #${order.tokenNumber || '00'}</div>
+            <div id="token-line" class="header-line">Kitchen Token: #${order.tokenNumber || '00'}</div>
             <div class="header-line">Table No: ${order.tableNumber || 'N/A'}</div>
             <div class="header-line">Ordered by: ${order.creatorName || 'Staff'}</div>
             
