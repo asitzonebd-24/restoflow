@@ -112,8 +112,7 @@ async function printOrder(order, requestId) {
     const { ThermalPrinter, PrinterTypes } = require('node-thermal-printer');
     const printer = new ThermalPrinter({
         type: PrinterTypes.EPSON,
-        interface: 'printer:XP-80C',
-        driver: require('node-thermal-printer').printerTypes.EPSON
+        interface: 'printer:XP-80C'
     });
 
     try {
