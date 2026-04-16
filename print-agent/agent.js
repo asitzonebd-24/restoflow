@@ -110,7 +110,8 @@ onSnapshot(q, (snapshot) => {
 
 function printOrder(order, requestId) {
     const html = generateReceiptHtml(order, requestId);
-    const filePath = path.join(__dirname, 'temp_receipt.html');
+    const os = require('os');
+    const filePath = path.join(os.tmpdir(), 'temp_receipt.html');
     
     try {
         fs.writeFileSync(filePath, html);
