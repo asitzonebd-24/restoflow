@@ -108,44 +108,34 @@ onSnapshot(q, (snapshot) => {
     }
 });
 
-function printOrder(order, requestId) {
-    const html = generateReceiptHtml(order, requestId);
-    const filePath = 'C:\\PrinterService\\temp_receipt.html';
-    
+async function printOrder(order, requestId) {
+    const { ThermalPrinter, PrinterTypes } = require('node-thermal-printer');
+    const printer = new ThermalPrinter({
+        type: PrinterTypes.EPSON,
+        interface: 'printer:XP-80C',
+        driver: require('node-thermal-printer').printerTypes.EPSON
+    });
+
     try {
-        fs.writeFileSync(filePath, html);
-        console.log(`Generated temporary receipt file: ${filePath}`);
+        printer.alignCenter();
+        printer.setTextSize(1, 1);
+        printer.println("Kitchen Token #" + order.tokenNumber);
+        printer.println("Table: " + order.tableNumber);
         
-        // Method 1: PowerShell COM (Silent Printing)
-        // We also clear the Registry keys for Header and Footer to remove "Page 1 of 1" and file path
-        const psCommand = `powershell -Command "$p = 'HKCU:\\Software\\Microsoft\\Internet Explorer\\PageSetup'; try { Set-ItemProperty -Path $p -Name 'header' -Value '' -ErrorAction Stop; Set-ItemProperty -Path $p -Name 'footer' -Value '' -ErrorAction Stop; Set-ItemProperty -Path $p -Name 'margin_bottom' -Value '0' -ErrorAction Stop; Set-ItemProperty -Path $p -Name 'margin_left' -Value '0' -ErrorAction Stop; Set-ItemProperty -Path $p -Name 'margin_right' -Value '0' -ErrorAction Stop; Set-ItemProperty -Path $p -Name 'margin_top' -Value '0' -ErrorAction Stop; } catch { Write-Error 'Registry update failed'; exit 1 }; $ie = New-Object -ComObject InternetExplorer.Application; $ie.Visible = $false; $ie.Navigate('${filePath}'); while($ie.ReadyState -ne 4){Start-Sleep -m 100}; $ie.ExecWB(6, 2, 1, 0); Start-Sleep -s 3; $ie.Quit()"`;
-        
-        console.log('Sending to printer (Silent Mode - No Headers)...');
-        exec(psCommand, { timeout: 15000 }, (error, stdout, stderr) => {
-            if (error) {
-                console.error(`PowerShell Print Error:`, error);
-                console.error(`Stdout:`, stdout);
-                console.error(`Stderr:`, stderr);
-                
-                // Fallback: rundll32
-                console.log('Attempting Fallback Method (mshtml)...');
-                const fallbackCommand = `rundll32.exe mshtml.dll,PrintHTML "${filePath}"`;
-                
-                exec(fallbackCommand, (fbError) => {
-                    if (fbError) {
-                        console.error('All print methods failed:', fbError);
-                    } else {
-                        console.log('Fallback print command sent.');
-                        deletePrintRequest(requestId);
-                    }
-                });
-            } else {
-                console.log(`SUCCESS: Print command sent silently.`);
-                deletePrintRequest(requestId);
-            }
+        printer.feed(1);
+        printer.setTextSize(0, 0); // Reset size
+        order.items.forEach(item => {
+            printer.println(`${item.quantity}x ${item.name}`);
         });
-    } catch (err) {
-        console.error('File Write Error:', err);
+        
+        printer.feed(4);
+        printer.cut();
+        
+        await printer.execute();
+        console.log("Print success!");
+        deletePrintRequest(requestId);
+    } catch (error) {
+        console.error("Print failed:", error);
     }
 }
 
