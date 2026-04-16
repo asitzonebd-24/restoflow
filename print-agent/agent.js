@@ -87,8 +87,6 @@ onSnapshot(q, (snapshot) => {
                     console.log(`\n[${new Date().toLocaleTimeString()}] New Print Request Detected!`);
                     console.log(`Order ID: ${request.orderId}`);
                     console.log(`Token: ${request.tokenNumber}`);
-                    console.log(`Table: ${request.tableNumber}`);
-                    console.log(`Creator: ${request.creatorName}`);
                     console.log(`Tenant ID in DB: ${request.tenantId} (Type: ${typeof request.tenantId})`);
                     
                     printOrder(request, requestId);
@@ -108,33 +106,42 @@ onSnapshot(q, (snapshot) => {
     }
 });
 
-async function printOrder(order, requestId) {
-    const { ThermalPrinter, PrinterTypes } = require('node-thermal-printer');
-    const printer = new ThermalPrinter({
-        type: PrinterTypes.EPSON,
-        interface: 'printer:XP-80C'
-    });
-
+function printOrder(order, requestId) {
+    const html = generateReceiptHtml(order, requestId);
+    const filePath = path.join(__dirname, 'temp_receipt.html');
+    
     try {
-        printer.alignCenter();
-        printer.setTextSize(1, 1);
-        printer.println("Kitchen Token #" + order.tokenNumber);
-        printer.println("Table: " + order.tableNumber);
+        fs.writeFileSync(filePath, html);
+        console.log(`Generated temporary receipt file: ${filePath}`);
         
-        printer.feed(1);
-        printer.setTextSize(0, 0); // Reset size
-        order.items.forEach(item => {
-            printer.println(`${item.quantity}x ${item.name}`);
+        // Method 1: PowerShell COM (Silent Printing)
+        // We also clear the Registry keys for Header and Footer to remove "Page 1 of 1" and file path
+        const psCommand = `powershell -Command "$p = 'HKCU:\\Software\\Microsoft\\Internet Explorer\\PageSetup'; Set-ItemProperty -Path $p -Name 'header' -Value ''; Set-ItemProperty -Path $p -Name 'footer' -Value ''; Set-ItemProperty -Path $p -Name 'margin_bottom' -Value '0'; Set-ItemProperty -Path $p -Name 'margin_left' -Value '0'; Set-ItemProperty -Path $p -Name 'margin_right' -Value '0'; Set-ItemProperty -Path $p -Name 'margin_top' -Value '0'; $ie = New-Object -ComObject InternetExplorer.Application; $ie.Visible = $false; $ie.Navigate('${filePath}'); while($ie.ReadyState -ne 4){Start-Sleep -m 100}; $ie.ExecWB(6, 2); Start-Sleep -s 2; $ie.Quit()"`;
+        
+        console.log('Sending to printer (Silent Mode - No Headers)...');
+        exec(psCommand, (error) => {
+            if (error) {
+                console.error(`PowerShell Print Error:`, error);
+                
+                // Fallback: rundll32
+                console.log('Attempting Fallback Method (mshtml)...');
+                const fallbackCommand = `rundll32.exe mshtml.dll,PrintHTML "${filePath}"`;
+                
+                exec(fallbackCommand, (fbError) => {
+                    if (fbError) {
+                        console.error('All print methods failed:', fbError);
+                    } else {
+                        console.log('Fallback print command sent.');
+                        deletePrintRequest(requestId);
+                    }
+                });
+            } else {
+                console.log(`SUCCESS: Print command sent silently.`);
+                deletePrintRequest(requestId);
+            }
         });
-        
-        printer.feed(4);
-        printer.cut();
-        
-        await printer.execute();
-        console.log("Print success!");
-        deletePrintRequest(requestId);
-    } catch (error) {
-        console.error("Print failed:", error);
+    } catch (err) {
+        console.error('File Write Error:', err);
     }
 }
 
@@ -195,8 +202,7 @@ function generateReceiptHtml(order, requestId) {
                 margin: 0;
                 text-align: center;
                 position: relative;
-                margin-top: 0; /* Removed negative margin to be safe */
-                padding-top: 2px;
+                margin-top: -15px; /* More aggressive pull up */
             }
 
             .header-line {
@@ -204,14 +210,7 @@ function generateReceiptHtml(order, requestId) {
                 margin: 0;
                 padding: 0;
                 text-align: center;
-                line-height: 1.4;
-            }
-
-            .token-header {
-                font-size: 14pt;
-                border-bottom: 1px double #000;
-                margin-bottom: 4px;
-                padding-bottom: 2px;
+                line-height: 1.1;
             }
 
             .date-time-row {
@@ -251,7 +250,7 @@ function generateReceiptHtml(order, requestId) {
     </head>
     <body>
         <div class="container">
-            <div class="header-line token-header">Kitchen Token: #${order.tokenNumber || '00'}</div>
+            <div class="header-line" style="font-size: 12pt; margin-bottom: 3px;">Kitchen Token: #${order.tokenNumber || '00'}</div>
             <div class="header-line">Table No: ${order.tableNumber || 'N/A'}</div>
             <div class="header-line">Ordered by: ${order.creatorName || 'Staff'}</div>
             

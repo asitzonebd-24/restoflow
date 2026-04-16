@@ -2,14 +2,14 @@
 import React, { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Order, OrderStatus, ItemStatus, Role, OrderItem } from '../types';
-import { Clock, CheckCircle, Flame, Timer, PlayCircle, CheckSquare, FileText, Lock, Hash, User as UserIcon, ChevronDown, ShoppingBag, Printer, Edit2, X, Search, AlertCircle } from 'lucide-react';
+import { Clock, CheckCircle, Flame, Timer, PlayCircle, CheckSquare, FileText, Lock, Hash, User as UserIcon, ChevronDown, ShoppingBag, Printer, Plus, X, Search, AlertCircle } from 'lucide-react';
 import { BluetoothPrinterService } from '../services/printerService';
 
 export const Kitchen = () => {
   const { orders, updateOrderStatus, updateOrderItemStatus, currentTenant, currentUser, users, menu, updateOrderItems } = useApp();
   const [filter, setFilter] = React.useState<'pending' | 'done'>('pending');
   const [currentPage, setCurrentPage] = useState(1);
-  const [showEditOrderModal, setShowEditOrderModal] = useState(false);
+  const [showAddItemModal, setShowAddItemModal] = useState(false);
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [quantity, setQuantity] = useState(1);
@@ -151,28 +151,6 @@ export const Kitchen = () => {
     if (userId === currentUser?.id) return currentUser?.name || 'Staff';
     const user = users.find(u => u.id === userId);
     return user ? user.name : 'Unknown';
-  };
-
-  const handleUpdateItemQuantity = async (orderId: string, rowId: string, delta: number) => {
-    const order = orders.find(o => o.id === orderId);
-    if (!order) return;
-
-    const updatedItems = order.items.map(item => {
-      if (item.rowId === rowId) {
-        return { ...item, quantity: Math.max(0, item.quantity + delta) };
-      }
-      return item;
-    }).filter(item => item.quantity > 0);
-
-    const newTotal = updatedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-
-    try {
-      setError(null);
-      await updateOrderItems(order.id, updatedItems, newTotal);
-    } catch (err) {
-      console.error('Failed to update item quantity:', err);
-      setError('Failed to update item quantity. Please try again.');
-    }
   };
 
   const handleAddItem = async (menuItemId: string) => {
@@ -353,16 +331,16 @@ export const Kitchen = () => {
 
             <div className="flex-1 mb-6 overflow-y-auto no-scrollbar rounded-2xl border border-slate-100 overflow-hidden bg-white">
               <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
-                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Edit Items</h4>
+                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Order Items</h4>
                 {isAdmin && order.status !== OrderStatus.READY && (
                   <button 
                     onClick={() => {
                       setSelectedOrderId(order.id);
-                      setShowEditOrderModal(true);
+                      setShowAddItemModal(true);
                     }}
                     className="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-all border border-indigo-100"
                   >
-                    <Edit2 size={14} strokeWidth={3} />
+                    <Plus size={14} strokeWidth={3} />
                   </button>
                 )}
               </div>
@@ -413,17 +391,8 @@ export const Kitchen = () => {
                       <div className="relative">
                           <select 
                               value={group.status}
-                              disabled={!isAdmin}
-                              onChange={(e) => {
-                                const newStatus = e.target.value as ItemStatus;
-                                if (newStatus === OrderStatus.CANCELLED) {
-                                  const updatedItems = order.items.filter(item => !group.rowIds.includes(item.rowId));
-                                  const newTotal = updatedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-                                  updateOrderItems(order.id, updatedItems, newTotal);
-                                } else {
-                                  updateOrderItemStatus(order.id, group.rowIds, newStatus);
-                                }
-                              }}
+                              disabled={!isAllowedToUpdate || (group.status === OrderStatus.READY && !isAdmin)}
+                              onChange={(e) => updateOrderItemStatus(order.id, group.rowIds, e.target.value as ItemStatus)}
                               className={`text-[9px] font-black uppercase py-1.5 pl-4 pr-8 rounded-full border-2 outline-none transition-all appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${itemStatusColors.lightBg} ${itemStatusColors.border} ${itemStatusColors.text}`}
                           >
                               <option value={OrderStatus.PENDING}>New</option>
@@ -521,17 +490,17 @@ export const Kitchen = () => {
         </div>
       )}
 
-      {/* Edit Order Modal */}
-      {showEditOrderModal && selectedOrderId && (
+      {/* Add Item Modal */}
+      {showAddItemModal && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 md:p-6">
-          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowEditOrderModal(false)}></div>
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowAddItemModal(false)}></div>
           <div className="relative bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden border-4 border-black flex flex-col max-h-[80vh] animate-in fade-in zoom-in duration-200">
             <div className="p-6 border-b-2 border-slate-100 flex items-center justify-between bg-slate-50">
               <div>
-                <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Edit Order Items</h3>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Adjust quantities</p>
+                <h3 className="text-xl font-black text-slate-900 uppercase tracking-tighter">Add New Item</h3>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Select item to add to token</p>
               </div>
-              <button onClick={() => setShowEditOrderModal(false)} className="p-2 hover:bg-slate-200 rounded-xl transition-all">
+              <button onClick={() => setShowAddItemModal(false)} className="p-2 hover:bg-slate-200 rounded-xl transition-all">
                 <X size={20} className="text-slate-400" />
               </button>
             </div>
@@ -543,29 +512,52 @@ export const Kitchen = () => {
                   {error}
                 </div>
               )}
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <input 
+                  type="text"
+                  placeholder="Search menu items..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-12 pr-4 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-sm font-bold outline-none focus:border-indigo-500 transition-all"
+                />
+              </div>
+
+              <div className="flex items-center gap-4 bg-indigo-50 p-4 rounded-2xl border-2 border-indigo-100">
+                <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Quantity:</span>
+                <div className="flex items-center gap-4">
+                  <button 
+                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                    className="w-8 h-8 bg-white border-2 border-indigo-200 rounded-lg flex items-center justify-center font-black text-indigo-600 hover:bg-indigo-100 transition-all"
+                  >
+                    -
+                  </button>
+                  <span className="text-lg font-black text-indigo-600 w-8 text-center">{quantity}</span>
+                  <button 
+                    onClick={() => setQuantity(quantity + 1)}
+                    className="w-8 h-8 bg-white border-2 border-indigo-200 rounded-lg flex items-center justify-center font-black text-indigo-600 hover:bg-indigo-100 transition-all"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 gap-3">
-                {orders.find(o => o.id === selectedOrderId)?.items.map(item => (
-                  <div key={item.rowId} className="flex items-center justify-between p-4 bg-white border-2 border-slate-100 rounded-2xl">
-                    <div>
-                      <p className="text-sm font-black text-slate-900 capitalize tracking-tight">{item.name}</p>
-                      <p className="text-[10px] font-bold text-indigo-600">{currentTenant?.currency}{item.price}</p>
+                {filteredMenu.map(item => (
+                  <button
+                    key={item.id}
+                    onClick={() => handleAddItem(item.id)}
+                    className="flex items-center justify-between p-4 bg-white border-2 border-slate-100 rounded-2xl hover:border-indigo-500 hover:bg-indigo-50 transition-all group"
+                  >
+                    <div className="text-left">
+                      <p className="text-sm font-black text-slate-900 capitalize tracking-tight group-hover:text-indigo-600">{item.name}</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{item.category}</p>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <button 
-                        onClick={() => handleUpdateItemQuantity(selectedOrderId, item.rowId, -1)}
-                        className="w-8 h-8 bg-slate-100 border-2 border-slate-200 rounded-lg flex items-center justify-center font-black text-slate-600 hover:bg-slate-200 transition-all"
-                      >
-                        -
-                      </button>
-                      <span className="text-lg font-black text-slate-900 w-8 text-center">{item.quantity}</span>
-                      <button 
-                        onClick={() => handleUpdateItemQuantity(selectedOrderId, item.rowId, 1)}
-                        className="w-8 h-8 bg-indigo-100 border-2 border-indigo-200 rounded-lg flex items-center justify-center font-black text-indigo-600 hover:bg-indigo-200 transition-all"
-                      >
-                        +
-                      </button>
+                    <div className="text-right">
+                      <p className="text-sm font-black text-indigo-600">{currentTenant?.currency}{item.price}</p>
+                      <Plus size={16} className="text-slate-300 group-hover:text-indigo-500 ml-auto mt-1" />
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>
