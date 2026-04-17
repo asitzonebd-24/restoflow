@@ -271,7 +271,7 @@ const POSCartContent = ({
 );
 
 export const POS = () => {
-  const { menu, currentTenant, currentUser, addOrder, updateOrderItems, updateOrderPaymentStatus, orders, users, isLoading, categories, tables, addTable, deleteTable, createPrintRequest } = useApp();
+  const { menu, currentTenant, currentUser, addOrder, updateOrderItems, updateOrderPaymentStatus, orders, users, isLoading, categories, tables, addTable, deleteTable, createPrintRequest, getNextToken } = useApp();
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [cart, setCart] = useState<OrderItem[]>([]);
   const [activeCategory, setActiveCategory] = useState<string>('Select Categories');
@@ -376,9 +376,16 @@ export const POS = () => {
   }, [orders, currentUser, filter]);
 
   const isTokenDuplicate = useMemo(() => {
-    const allActive = orders.filter(o => o.status !== OrderStatus.COMPLETED && o.status !== OrderStatus.CANCELLED);
-    return isCreatingNew && allActive.some(o => o.tokenNumber === newTokenNum);
-  }, [isCreatingNew, orders, newTokenNum]);
+    return isCreatingNew && orders.some(o => {
+      const timezone = currentTenant?.timezone || 'UTC';
+      const todayFormat = new Intl.DateTimeFormat('en-US', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' });
+      const today = todayFormat.format(new Date());
+      const orderDate = new Date(o.createdAt);
+      const orderDay = todayFormat.format(orderDate);
+      
+      return orderDay === today && o.tokenNumber === newTokenNum && o.status !== OrderStatus.CANCELLED;
+    });
+  }, [isCreatingNew, orders, newTokenNum, currentTenant]);
 
   const activeOrdersTotal = useMemo(() => {
     return activeOrders.reduce((sum, order) => sum + order.totalAmount, 0);
@@ -422,22 +429,8 @@ export const POS = () => {
   };
 
   const startNewOrder = () => {
-    const timezone = currentTenant?.timezone || 'UTC';
-    const now = new Date();
-    const today = new Intl.DateTimeFormat('en-US', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
-
-    const allTodayOrders = orders.filter(o => {
-        const orderDate = new Date(o.createdAt);
-        const orderDay = new Intl.DateTimeFormat('en-US', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(orderDate);
-        return orderDay === today && o.status !== OrderStatus.CANCELLED;
-    });
-    const takenTokens = allTodayOrders.map(o => parseInt(o.tokenNumber)).filter(n => !isNaN(n));
-    let nextToken = 1;
-    while (takenTokens.includes(nextToken)) {
-        nextToken++;
-    }
-    const formattedToken = String(nextToken).padStart(2, '0');
-    setNewTokenNum(formattedToken);
+    const nextToken = getNextToken();
+    setNewTokenNum(nextToken);
     setNewTableNum('');
     setIsCreatingNew(true);
     setSelectedOrderId(null);
@@ -520,22 +513,9 @@ export const POS = () => {
       setErrorMessage(null);
       if (isCreatingNew) {
         let finalTokenNum = newTokenNum;
-        if (isTokenDuplicate || orders.some(o => o.tokenNumber === finalTokenNum && o.status !== OrderStatus.COMPLETED && o.status !== OrderStatus.CANCELLED)) {
+        if (isTokenDuplicate) {
           console.log('Token is duplicate, auto-resolving to next available token...');
-          const timezone = currentTenant?.timezone || 'UTC';
-          const now = new Date();
-          const today = new Intl.DateTimeFormat('en-US', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
-          const allTodayOrders = orders.filter(o => {
-              const orderDate = new Date(o.createdAt);
-              const orderDay = new Intl.DateTimeFormat('en-US', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(orderDate);
-              return orderDay === today && o.status !== OrderStatus.CANCELLED;
-          });
-          const takenTokens = allTodayOrders.map(o => parseInt(o.tokenNumber)).filter(n => !isNaN(n));
-          let nextToken = 1;
-          while (takenTokens.includes(nextToken)) {
-              nextToken++;
-          }
-          finalTokenNum = String(nextToken).padStart(2, '0');
+          finalTokenNum = getNextToken();
         }
 
         const totalAmount = cart.reduce((sum, i) => sum + (i.price * i.quantity), 0);

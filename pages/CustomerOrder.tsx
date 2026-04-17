@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 export const CustomerOrder = () => {
   const { tenantId: urlTenantId } = useParams<{ tenantId: string }>();
-  const { menu, business, addOrder, currentUser, logout, updateBusiness, setCurrentTenantId, activeCategory, setActiveCategory, categories, createPrintRequest, orders } = useApp();
+  const { menu, business, addOrder, currentUser, logout, updateBusiness, setCurrentTenantId, activeCategory, setActiveCategory, categories, createPrintRequest, orders, getNextToken } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
   const [cart, setCart] = useState<OrderItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -101,31 +101,8 @@ export const CustomerOrder = () => {
 
     setIsSubmitting(true);
     try {
-      const timezone = business?.timezone || 'UTC';
-      const now = new Date();
-      const today = new Intl.DateTimeFormat('en-US', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
-      
       const prefix = business.customerTokenPrefix || 'WEB';
-      
-      // Auto-generate next token sequentially for today's orders
-      const allTodayOrders = orders.filter(o => {
-          const orderDate = new Date(o.createdAt);
-          const orderDay = new Intl.DateTimeFormat('en-US', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(orderDate);
-          return orderDay === today && o.tokenNumber.startsWith(prefix) && o.status !== OrderStatus.CANCELLED;
-      });
-      
-      const takenTokens = allTodayOrders.map(o => {
-          const parts = o.tokenNumber.split('-');
-          return parseInt(parts[parts.length - 1]);
-      }).filter(n => !isNaN(n));
-      
-      let nextToken = 1;
-      while (takenTokens.includes(nextToken)) {
-          nextToken++;
-      }
-      
-      const formattedToken = String(nextToken).padStart(2, '0');
-      const tokenNumber = `${prefix}-${formattedToken}`;
+      const tokenNumber = getNextToken(prefix);
 
       const newOrder = {
         id: `cust-ord-${Date.now()}`,

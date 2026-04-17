@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect, useCallback } from 'react';
 import { Role, Business, User, Order, InventoryItem, MenuItem, OrderStatus, ItemStatus, Transaction, Expense, OrderItem, MonthlyBill, BillStatus, Recipe, Table, InventoryMode } from '../types';
 import { BUSINESS_DETAILS, MOCK_USERS, INITIAL_ORDERS, MOCK_INVENTORY, MOCK_MENU, MOCK_EXPENSES, DEFAULT_MENU_IMAGE, DEFAULT_AVATAR, DEFAULT_BUSINESS_LOGO } from '../constants';
 import { auth, secondaryAuth, db, googleProvider } from '../src/firebase';
@@ -2008,6 +2008,37 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     return currentUser.role === Role.SUPER_ADMIN ? "/portal" : "/";
   };
 
+  const getNextToken = useCallback((prefix?: string) => {
+    const timezone = business?.timezone || 'UTC';
+    const now = new Date();
+    const todayFormat = new Intl.DateTimeFormat('en-US', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' });
+    const today = todayFormat.format(now);
+    
+    const allTodayOrders = orders.filter(o => {
+        const orderDate = new Date(o.createdAt);
+        const orderDay = todayFormat.format(orderDate);
+        const matchesPrefix = prefix ? o.tokenNumber.startsWith(prefix) : !o.tokenNumber.includes('-'); // POS tokens usually don't have hyphens
+        return orderDay === today && matchesPrefix && o.status !== OrderStatus.CANCELLED;
+    });
+    
+    const takenTokens = allTodayOrders.map(o => {
+        if (prefix) {
+            const parts = o.tokenNumber.split('-');
+            const lastPart = parts[parts.length - 1];
+            return parseInt(lastPart);
+        }
+        return parseInt(o.tokenNumber);
+    }).filter(n => !isNaN(n));
+    
+    let nextToken = 1;
+    while (takenTokens.includes(nextToken)) {
+        nextToken++;
+    }
+    
+    const formattedToken = String(nextToken).padStart(2, '0');
+    return prefix ? `${prefix}-${formattedToken}` : formattedToken;
+  }, [orders, business]);
+
   return (
     <AppContext.Provider value={{
       currentUser,
@@ -2074,7 +2105,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       dbStatus,
       tables,
       addTable,
-      deleteTable
+      deleteTable,
+      getNextToken
     }}>
       {children}
     </AppContext.Provider>
