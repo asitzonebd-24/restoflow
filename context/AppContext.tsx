@@ -1026,6 +1026,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         if (newItems.length > 0) {
           const printOrder = {
             ...oldOrder,
+            note: note, // Pass the newly updated note
             items: newItems,
             totalAmount: newItems.reduce((sum, i) => sum + (i.price * i.quantity), 0)
           } as Order;

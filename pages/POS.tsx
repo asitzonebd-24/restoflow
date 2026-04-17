@@ -111,7 +111,7 @@ const POSCartContent = ({
   createAndSubmitOrder: () => void,
   isTokenDuplicate: boolean,
   isSubmitting: boolean,
-  printKOT: (overrideToken?: string, overrideTable?: string, overrideCreatorName?: string) => void,
+  printKOT: (overrideToken?: string, overrideTable?: string, overrideCreatorName?: string, overrideItems?: OrderItem[], overrideNote?: string) => void,
   newTokenNum: string
 }) => (
   <div className={`flex flex-col ${isEmbedded ? 'h-auto rounded-[2rem] border-2' : 'h-full border-l-2'} bg-white border-indigo-500 shadow-2xl shadow-indigo-100 overflow-hidden`}>
@@ -258,7 +258,7 @@ const POSCartContent = ({
           {isSubmitting ? 'Processing...' : (isCreatingNew ? (isTokenDuplicate ? 'Auto-Resolve & Send' : (!newTokenNum.trim() ? 'Token Required' : (orderType === 'Dine In' && !newTableNum.trim() ? 'Table Required' : 'Send to Kitchen'))) : 'Update Order')} <ArrowRight size={18} />
         </button>
         <button 
-          onClick={() => printKOT()}
+          onClick={() => printKOT(undefined, undefined, undefined, undefined, orderNote)}
           disabled={cart.length === 0}
           className="w-14 py-4 rounded-2xl bg-white border-2 border-slate-900 text-slate-900 flex items-center justify-center shadow-xl hover:bg-slate-50 transition-all active:scale-95 disabled:opacity-30"
           title="Print KOT"
@@ -557,17 +557,29 @@ export const POS = () => {
         };
         await addOrder(newOrder);
 
+        const printToken = finalTokenNum;
+        const printTable = isDelivery ? 'Delivery' : (isTakeAway ? 'Take Away' : newTableNum);
+        const printCreator = currentUser?.name;
+        const printNote = orderNote;
+
+        // Clear UI form state *before* blocking print dialog
+        setSelectedOrderId(null);
+        setIsCreatingNew(false);
+        setCart([]);
+        setOrderNote('');
+        setNewTableNum('');
+        setOrderType('Dine In');
+        setSelectedDeliveryStaffId('');
+        setDeliveryAddress('');
+
         // Auto-print KOT if enabled (Handled by addOrder in AppContext)
         if (!currentTenant?.printerSettings?.enablePrintAgent && currentTenant?.printerSettings?.autoPrintKOT) {
-          const printToken = finalTokenNum;
-          const printTable = isDelivery ? 'Delivery' : (isTakeAway ? 'Take Away' : newTableNum);
-          const printCreator = currentUser?.name;
-          setTimeout(() => {
-            printKOT(printToken, printTable, printCreator).catch(err => {
-              console.error('Auto-print KOT failed:', err);
-              setErrorMessage('Auto-print KOT failed. Please check printer connection.');
-            });
-          }, 500);
+          try {
+            await printKOT(printToken, printTable, printCreator, cleanedItems, printNote);
+          } catch (err) {
+            console.error('Auto-print KOT failed:', err);
+            setErrorMessage('Auto-print KOT failed. Please check printer connection.');
+          }
         }
       } else if (selectedOrderId) {
         const totalAmount = cart.reduce((sum, i) => sum + (i.price * i.quantity), 0);
@@ -592,32 +604,36 @@ export const POS = () => {
           isDelivery ? (selectedStaff?.mobile || null) : null,
           isDelivery ? (deliveryAddress || null) : null
         );
+        
+        // Save these for print before clearing
+        const oldOrder = orders.find(o => o.id === selectedOrderId);
+        const printToken = oldOrder?.tokenNumber || '';
+        const printTable = oldOrder?.tableNumber || '';
+        const printCreator = currentUser?.name;
+        const printNote = orderNote;
+
+        // Clear UI form state *before* blocking print dialog
+        setSelectedOrderId(null);
+        setIsCreatingNew(false);
+        setCart([]);
+        setOrderNote('');
+        setNewTableNum('');
+        setOrderType('Dine In');
+        setSelectedDeliveryStaffId('');
+        setDeliveryAddress('');
 
         // Auto-print logic for updates is now handled centrally in AppContext.tsx
+        // but if we are using the browser print, it requires local DOM
         if (!currentTenant?.printerSettings?.enablePrintAgent && hasNewItems && currentTenant?.printerSettings?.autoPrintKOT) {
-          const oldOrder = orders.find(o => o.id === selectedOrderId);
-          const printToken = oldOrder?.tokenNumber || '';
-          const printTable = oldOrder?.tableNumber || '';
-          const printCreator = currentUser?.name;
-          
           // Print only new items
-          setTimeout(() => {
-            printKOT(printToken, printTable, printCreator, newItems).catch(err => {
-              console.error('Auto-print KOT failed:', err);
-              setErrorMessage('Auto-print KOT failed. Please check printer connection.');
-            });
-          }, 500);
+          try {
+            await printKOT(printToken, printTable, printCreator, newItems, printNote);
+          } catch (err) {
+            console.error('Auto-print KOT failed:', err);
+            setErrorMessage('Auto-print KOT failed. Please check printer connection.');
+          }
         }
       }
-
-      setSelectedOrderId(null);
-      setIsCreatingNew(false);
-      setCart([]);
-      setOrderNote('');
-      setNewTableNum('');
-      setOrderType('Dine In');
-      setSelectedDeliveryStaffId('');
-      setDeliveryAddress('');
     } catch (error: any) {
       console.error('Failed to submit order:', error);
       let msg = 'Unknown error';
@@ -645,12 +661,13 @@ export const POS = () => {
   const cartTotal = cart.reduce((sum, i) => sum + (i.price * i.quantity), 0);
   const cartCount = cart.reduce((acc, i) => acc + i.quantity, 0);
 
-  const printKOT = async (overrideToken?: string, overrideTable?: string, overrideCreatorName?: string, overrideItems?: OrderItem[]) => {
+  const printKOT = async (overrideToken?: string, overrideTable?: string, overrideCreatorName?: string, overrideItems?: OrderItem[], overrideNote?: string) => {
     const token = overrideToken || (isCreatingNew ? newTokenNum : orders.find(o => o.id === selectedOrderId)?.tokenNumber);
     const table = overrideTable || (isCreatingNew ? (isDelivery ? 'Delivery' : (isTakeAway ? 'Take Away' : newTableNum)) : orders.find(o => o.id === selectedOrderId)?.tableNumber);
     const creatorId = isCreatingNew ? currentUser?.id : orders.find(o => o.id === selectedOrderId)?.createdBy;
     const creatorName = overrideCreatorName || (creatorId ? getWaiterName(creatorId) : 'Staff');
     const itemsToPrint = overrideItems || cart;
+    const noteToPrint = overrideNote !== undefined ? overrideNote : orderNote;
 
     // If a bluetooth printer is paired, try to print directly
     if (currentTenant?.printerSettings?.pairedPrinterId) {
@@ -661,7 +678,7 @@ export const POS = () => {
             tokenNumber: token || '000',
             tableNumber: table,
             items: itemsToPrint,
-            note: orderNote,
+            note: noteToPrint,
             createdAt: new Date().toISOString(),
             creatorName: creatorName
           };
@@ -707,8 +724,36 @@ export const POS = () => {
     const waiterEl = tempDiv.querySelector('.kot-waiter');
     if (waiterEl) waiterEl.textContent = `Waiter: ${creatorName}`;
 
+    // Update note dynamically
+    const noteContainerEl = tempDiv.querySelector('.kot-note-container') as HTMLElement;
+    const noteContentEl = tempDiv.querySelector('.kot-note');
+    if (noteContainerEl && noteContentEl) {
+        if (noteToPrint) {
+            noteContainerEl.style.display = 'block';
+            noteContentEl.textContent = noteToPrint;
+        } else {
+            noteContainerEl.style.display = 'none';
+        }
+    }
+
+    // Overwrite items list dynamically to prevent stale data
+    const itemsContainer = tempDiv.querySelector('.kot-items-container');
+        if (itemsContainer && itemsToPrint) {
+            itemsContainer.innerHTML = '';
+            const grouped = groupItems(itemsToPrint as any);
+            grouped.forEach((item: any) => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'flex justify-between items-start text-xl font-black';
+                itemDiv.innerHTML = `<span class="text-black">x${item.quantity} ${item.name}</span>`;
+                itemsContainer.appendChild(itemDiv);
+            });
+        }
+
     printContainer.innerHTML = tempDiv.innerHTML;
     document.body.appendChild(printContainer);
+
+    // Wait briefly to allow DOM to update, then trigger print
+    await new Promise(resolve => setTimeout(resolve, 100));
 
     window.focus();
     window.print();
@@ -1195,7 +1240,7 @@ export const POS = () => {
           <p className="text-base mt-1 font-bold">{new Date().toLocaleString()}</p>
         </div>
         
-        <div className="space-y-3 mb-4">
+        <div className="space-y-3 mb-4 kot-items-container">
           {groupItems(cart).map((item, i) => (
             <div key={i} className="flex justify-between items-start text-xl font-black">
               <span className="text-black">x{item.quantity} {item.name}</span>
@@ -1203,12 +1248,10 @@ export const POS = () => {
           ))}
         </div>
 
-        {orderNote && (
-          <div className="border-t border-black pt-2 mb-4">
-            <p className="text-base font-bold uppercase text-black">Note:</p>
-            <p className="text-lg font-black italic text-black">{orderNote}</p>
-          </div>
-        )}
+        <div className="border-t border-black pt-2 mb-4 kot-note-container" style={{ display: orderNote ? 'block' : 'none' }}>
+          <p className="text-base font-bold uppercase text-black">Note:</p>
+          <p className="text-lg font-black italic text-black kot-note">{orderNote}</p>
+        </div>
 
         <div className="text-center border-t-2 border-black pt-4">
           <p className="text-base font-bold text-black">End of Ticket</p>
