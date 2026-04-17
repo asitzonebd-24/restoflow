@@ -538,7 +538,7 @@ export const Transactions = () => {
                                         <p className="text-black font-bold capitalize mt-1">Tel: {currentTenant?.phone}</p>
                                     </>
                                 )}
-                                <div className="flex justify-between font-bold capitalize mt-2 border-b border-dashed border-black pb-1">
+                                <div className="flex justify-between font-bold capitalize mt-2 border-b border-dashed border-black pb-1" style={{ fontSize: '6pt' }}>
                                     <span>Date: {new Date(viewInvoice.order.createdAt).toLocaleDateString()}</span>
                                     <span>Time: {new Date(viewInvoice.order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                 </div>
@@ -565,7 +565,7 @@ export const Transactions = () => {
                             </div>
 
                             <div className="space-y-1 mb-4">
-                                <div className="grid grid-cols-[30px_1fr_30px_55px_65px] gap-1 font-bold capitalize text-black border-b border-dashed border-black pb-1 text-[10pt]">
+                                <div className="grid grid-cols-[15px_1fr_20px_40px_45px] gap-0.5 font-bold capitalize text-black border-b border-dashed border-black pb-1" style={{ fontSize: '6pt' }}>
                                   <span>Sl.</span>
                                   <span>Name</span>
                                   <span className="text-center">Qty</span>
@@ -574,7 +574,7 @@ export const Transactions = () => {
                                 </div>
                                 <div className="space-y-1">
                                     {groupItems(viewInvoice.order.items).map((item, i) => (
-                                        <div key={i} className="grid grid-cols-[30px_1fr_30px_55px_65px] gap-1 items-start font-medium text-[10pt]">
+                                        <div key={i} className="grid grid-cols-[15px_1fr_20px_40px_45px] gap-0.5 items-start font-medium" style={{ fontSize: '6pt' }}>
                                             <span className="text-black">{i + 1}.</span>
                                             <span className="text-black break-words">{item.name}</span>
                                             <span className="text-black text-center">{item.quantity}</span>
@@ -585,7 +585,7 @@ export const Transactions = () => {
                                 </div>
                             </div>
 
-                            <div className="space-y-1 pt-2 border-t border-dashed border-black">
+                            <div className="space-y-1 pt-2 border-t border-dashed border-black" style={{ fontSize: '8pt' }}>
                                 {(() => {
                                     const { subtotal, vat, total } = calculateInvoiceTotal(viewInvoice.order, viewInvoice.transaction.discount);
                                     return (
@@ -607,8 +607,8 @@ export const Transactions = () => {
                                                 </div>
                                             ) : null}
                                             <div className="flex justify-between items-center pt-2 mt-2 border-t border-dashed border-black">
-                                                <span className="font-bold capitalize text-black">Total Amount</span>
-                                                <span className="font-bold text-black tracking-tight">{currentTenant?.currency}{total % 1 === 0 ? total.toFixed(0) : total.toFixed(2)}</span>
+                                                <span className="font-bold capitalize text-black" style={{ fontSize: '8pt' }}>Total Amount</span>
+                                                <span className="font-bold text-black tracking-tight" style={{ fontSize: '8pt' }}>{currentTenant?.currency}{total % 1 === 0 ? total.toFixed(0) : total.toFixed(2)}</span>
                                             </div>
                                         </>
                                     );

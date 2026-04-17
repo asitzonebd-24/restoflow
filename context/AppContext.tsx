@@ -570,13 +570,26 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const categories = useMemo(() => ['All', ...Array.from(new Set(menu.map(m => m.category)))], [menu]);
 
   const users = useMemo(() => {
-    if (currentUser?.role === Role.SUPER_ADMIN) return allUsers;
-    const targetId = business.id;
-    return allUsers.filter(u => 
-      String(u.tenantId || '01') === String(targetId) || 
-      (u.tenantIds && u.tenantIds.includes(String(targetId))) || 
-      u.role === Role.SUPER_ADMIN
-    );
+    let baseUsers = [];
+    if (currentUser?.role === Role.SUPER_ADMIN) {
+      baseUsers = allUsers;
+    } else {
+      const targetId = business.id;
+      baseUsers = allUsers.filter(u => 
+        String(u.tenantId || '01') === String(targetId) || 
+        (u.tenantIds && u.tenantIds.includes(String(targetId))) || 
+        u.role === Role.SUPER_ADMIN
+      );
+    }
+    
+    // Deduplicate by ID to prevent duplicate key errors in UI components
+    const seen = new Set();
+    return baseUsers.filter(u => {
+      const id = u.id || u.uid;
+      if (!id || seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
   }, [allUsers, currentUser, business.id]);
 
   const transactions = useMemo(() => {
