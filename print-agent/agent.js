@@ -116,57 +116,70 @@ function printOrder(order, requestId, attempt = 1) {
         fs.writeFileSync(filePath, html);
         console.log(`Generated temporary receipt file (Attempt ${attempt}): ${filePath}`);
         
-        // 1. HTML ফাইলটিকে PDF এ কনভার্ট করা
-        const convertCommand = `powershell -Command "Start-Process 'msedge' -ArgumentList '--headless', '--print-to-pdf=\\\"${pdfFilePath}\\\"', '${filePath}' -Wait"`;
+        // PDF কনভার্সন কমান্ডটি আরও নিখুঁত করা হলো
+        // --headless=old ব্যবহার করা হয়েছে কারণ এটি প্রিন্টিং এর জন্য বেশি স্ট্যাবল
+        console.time(`print-task-${requestId}`);
+        
+        // সরাসরি msedge কল করার চেষ্টা করি, powershell এর মাধ্যমে নয় যদি সম্ভব হয়
+        // তবে পাথ ভিন্ন হতে পারে তাই powershell ই নিরাপদ তবে -Wait ছাড়া
+        const convertCommand = `powershell -Command "msedge --headless=old --no-sandbox --disable-gpu --disable-extensions --disable-web-security --no-pdf-header-footer --print-to-pdf=\\\"${pdfFilePath}\\\" \\\"${filePath}\\\""`;
 
-        exec(convertCommand, (err) => {
+        console.log(`[${new Date().toLocaleTimeString()}] Starting conversion...`);
+        exec(convertCommand, { timeout: 30000 }, (err) => {
             if (err) {
-                 console.error('PDF conversion failed:', err);
-                 // পিডিএফ কনভার্সনে ফেইল করলেও রিট্রাই করা উচিত
+                 console.error('PDF conversion command execution failed or timed out:', err);
                  handleRetry(order, requestId, attempt, err, filePath, pdfFilePath);
                  return;
             }
 
-            // 2. ফাইলটি তৈরি হতে কিছুটা সময় দেওয়া
-            let attempts = 0;
+            // 2. ফাইলটি তৈরি হতে কিছুটা সময় দেওয়া (Retry limit বাড়িয়ে ২০ সেকেন্ড করা হলো)
+            let checkAttempts = 0;
             const checkFile = setInterval(() => {
-                attempts++;
-                if (fs.existsSync(pdfFilePath) || attempts > 10) {
+                checkAttempts++;
+                if (fs.existsSync(pdfFilePath)) {
                     clearInterval(checkFile);
+                    console.timeLog(`print-task-${requestId}`, 'PDF generated');
                     
-                    if (fs.existsSync(pdfFilePath)) {
-                        // 3. প্রিন্ট করা (noscale ব্যবহার করছি যাতে রিসিপ্টটি ছোট না হয়ে যায়)
-                        const sumatraPath = 'C:\\PrinterService\\SumatraPDF\\SumatraPDF.exe';
-                        const printCommand = `"${sumatraPath}" -print-to "XP-80C" -silent -print-settings "noscale" "${pdfFilePath}"`;
+                    // 3. প্রিন্ট করা 
+                    const sumatraPath = 'C:\\PrinterService\\SumatraPDF\\SumatraPDF.exe';
+                    const printCommand = `"${sumatraPath}" -print-to "XP-80C" -silent -print-settings "noscale" "${pdfFilePath}"`;
 
-                        console.log('Sending PDF to XP-80C...');
-                        exec(printCommand, (fbError) => {
-                            // ফাইল পরিষ্কার করা
+                    console.log(`[${new Date().toLocaleTimeString()}] Sending PDF to printer...`);
+                    exec(printCommand, { timeout: 30000 }, (fbError) => {
+                        console.timeEnd(`print-task-${requestId}`);
+                        if (fbError) {
+                            console.error('Print command failed:', fbError);
+                            handleRetry(order, requestId, attempt, fbError, filePath, pdfFilePath);
+                        } else {
+                            console.log(`SUCCESS: Print job sent for Request ID: ${requestId}`);
+                            deletePrintRequest(requestId);
+                            // ক্লিনআপ
                             setTimeout(() => { 
-                                try { 
-                                    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-                                    if (fs.existsSync(pdfFilePath)) fs.unlinkSync(pdfFilePath);
-                                } catch(e) { console.error('Error cleaning files:', e); }
+                                cleanupFiles(filePath, pdfFilePath);
                             }, 5000); 
-                            
-                            if (fbError) {
-                                console.error('SumatraPDF print command failed:', fbError);
-                                handleRetry(order, requestId, attempt, fbError, filePath, pdfFilePath);
-                            } else {
-                                console.log(`SUCCESS: PDF print command sent to XP-80C.`);
-                                deletePrintRequest(requestId);
-                            }
-                        });
-                    } else {
-                        console.error('PDF file was not created by MS Edge.');
-                        handleRetry(order, requestId, attempt, new Error('PDF file not created'), filePath, pdfFilePath);
-                    }
+                        }
+                    });
+                } else if (checkAttempts > 15) { // ১৫ সেকেন্ড পর্যন্ত অপেক্ষা করবে
+                    clearInterval(checkFile);
+                    console.timeEnd(`print-task-${requestId}`);
+                    console.error('Timeout: PDF file was not created by Edge within 15 seconds.');
+                    handleRetry(order, requestId, attempt, new Error('PDF creation timeout'), filePath, pdfFilePath);
                 }
-            }, 1000); // প্রতি সেকেন্ডে চেক করবে
+            }, 1000); 
         });
     } catch (err) {
         console.error('File Write Error:', err);
         handleRetry(order, requestId, attempt, err, filePath, pdfFilePath);
+    }
+}
+
+function cleanupFiles(filePath, pdfFilePath) {
+    try { 
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+        if (fs.existsSync(pdfFilePath)) fs.unlinkSync(pdfFilePath);
+        console.log('Temporary files cleaned up.');
+    } catch(e) { 
+        // ফাইল ওপেন থাকলে ডিলিট করতে ফেইল করতে পারে, এটি ইগনোর করা যায়
     }
 }
 
