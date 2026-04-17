@@ -111,15 +111,19 @@ export const CustomerOrder = () => {
       const allTodayOrders = orders.filter(o => {
           const orderDate = new Date(o.createdAt);
           const orderDay = new Intl.DateTimeFormat('en-US', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(orderDate);
-          return orderDay === today && o.tokenNumber.startsWith(prefix);
+          return orderDay === today && o.tokenNumber.startsWith(prefix) && o.status !== OrderStatus.CANCELLED;
       });
       
-      const numericTokens = allTodayOrders.map(o => {
+      const takenTokens = allTodayOrders.map(o => {
           const parts = o.tokenNumber.split('-');
           return parseInt(parts[parts.length - 1]);
       }).filter(n => !isNaN(n));
       
-      const nextToken = numericTokens.length > 0 ? Math.max(...numericTokens) + 1 : 1;
+      let nextToken = 1;
+      while (takenTokens.includes(nextToken)) {
+          nextToken++;
+      }
+      
       const formattedToken = String(nextToken).padStart(2, '0');
       const tokenNumber = `${prefix}-${formattedToken}`;
 

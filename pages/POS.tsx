@@ -429,10 +429,13 @@ export const POS = () => {
     const allTodayOrders = orders.filter(o => {
         const orderDate = new Date(o.createdAt);
         const orderDay = new Intl.DateTimeFormat('en-US', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(orderDate);
-        return orderDay === today;
+        return orderDay === today && o.status !== OrderStatus.CANCELLED;
     });
-    const numericTokens = allTodayOrders.map(o => parseInt(o.tokenNumber)).filter(n => !isNaN(n));
-    const nextToken = numericTokens.length > 0 ? Math.max(...numericTokens) + 1 : 1;
+    const takenTokens = allTodayOrders.map(o => parseInt(o.tokenNumber)).filter(n => !isNaN(n));
+    let nextToken = 1;
+    while (takenTokens.includes(nextToken)) {
+        nextToken++;
+    }
     const formattedToken = String(nextToken).padStart(2, '0');
     setNewTokenNum(formattedToken);
     setNewTableNum('');
@@ -525,10 +528,13 @@ export const POS = () => {
           const allTodayOrders = orders.filter(o => {
               const orderDate = new Date(o.createdAt);
               const orderDay = new Intl.DateTimeFormat('en-US', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(orderDate);
-              return orderDay === today;
+              return orderDay === today && o.status !== OrderStatus.CANCELLED;
           });
-          const numericTokens = allTodayOrders.map(o => parseInt(o.tokenNumber)).filter(n => !isNaN(n));
-          const nextToken = numericTokens.length > 0 ? Math.max(...numericTokens) + 1 : 1;
+          const takenTokens = allTodayOrders.map(o => parseInt(o.tokenNumber)).filter(n => !isNaN(n));
+          let nextToken = 1;
+          while (takenTokens.includes(nextToken)) {
+              nextToken++;
+          }
           finalTokenNum = String(nextToken).padStart(2, '0');
         }
 
@@ -846,7 +852,7 @@ export const POS = () => {
                   <div className="relative z-10 flex flex-col h-full p-6 pt-10">
                     {/* Token Number Pill */}
                     <div className="flex justify-center mb-6 relative">
-                      <div className={`w-fit min-w-[3rem] px-4 h-12 rounded-full border-4 border-black flex items-center justify-center font-black text-2xl text-white shadow-xl ${statusStyles.topBorder}`}>
+                      <div className={`w-11 h-11 rounded-full border-2 border-black flex items-center justify-center font-black text-lg text-white shadow-xl ${statusStyles.topBorder}`}>
                         {order.tokenNumber}
                       </div>
                       {(order.tableNumber || order.deliveryStaffName) && (

@@ -382,7 +382,7 @@ export const Billing = () => {
                       </td>
                       <td className="px-8 py-6 border-r border-black">
                         <div className="flex justify-center">
-                          <div className="px-4 py-2 rounded-xl border-2 border-black flex items-center justify-center font-black text-xl text-white bg-emerald-500 shadow-lg min-w-[3.5rem]">
+                          <div className="w-10 h-10 rounded-full border-2 border-black flex items-center justify-center font-black text-base text-white bg-emerald-500 shadow-lg shrink-0">
                             {order.tokenNumber}
                           </div>
                         </div>
@@ -497,7 +497,7 @@ export const Billing = () => {
                         onChange={() => toggleSelectOrder(order.id)}
                         className="w-4 h-4 rounded border-2 border-black text-indigo-600 focus:ring-indigo-500"
                       />
-                      <div className="px-2 py-1 rounded-xl border-2 border-black flex items-center justify-center font-black text-base text-white bg-emerald-500 shadow-md min-w-[2.5rem]">
+                      <div className="w-9 h-9 rounded-full border-2 border-black flex items-center justify-center font-black text-sm text-white bg-emerald-500 shadow-md shrink-0">
                         {order.tokenNumber}
                       </div>
                     </div>

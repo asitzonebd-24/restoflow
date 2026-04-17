@@ -117,7 +117,7 @@ export const CustomerPanel = ({ setIsSidebarOpen }: { setIsSidebarOpen?: (open: 
 
                             <div className="relative z-10 flex flex-col h-full p-6 pt-10">
                                 <div className="flex justify-center mb-6 relative">
-                                    <div className={`w-fit min-w-[3rem] px-4 h-12 rounded-full border-4 border-black flex items-center justify-center font-black text-2xl text-white shadow-xl ${status.topBorder}`}>
+                                    <div className={`w-11 h-11 rounded-full border-2 border-black flex items-center justify-center font-black text-lg text-white shadow-xl ${status.topBorder}`}>
                                         {order.tokenNumber}
                                     </div>
                                     {order.tableNumber && (
@@ -270,7 +270,7 @@ export const CustomerPanel = ({ setIsSidebarOpen }: { setIsSidebarOpen?: (open: 
               >
                 <div className="p-6 border-b-4 border-indigo-500 bg-slate-50 flex items-center justify-between shrink-0">
                   <div className="flex items-center gap-4">
-                    <div className="min-w-[3rem] px-4 h-12 bg-indigo-600 text-white rounded-2xl flex items-center justify-center font-black text-xl border-2 border-white shadow-lg">
+                    <div className="w-11 h-11 bg-indigo-600 text-white rounded-full flex items-center justify-center font-black text-lg border-2 border-white shadow-lg shrink-0">
                       {selectedOrder.tokenNumber}
                     </div>
                     <div>
