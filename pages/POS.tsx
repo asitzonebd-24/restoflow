@@ -772,57 +772,60 @@ export const POS = () => {
   if (!selectedOrderId && !isCreatingNew) {
     return (
       <div className="p-4 md:p-10 h-full bg-slate-50/50 overflow-y-auto no-scrollbar">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 md:mb-10 gap-6">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight flex items-center gap-4">
-              <LayoutGrid className="text-indigo-500" size={28} /> Active Terminals
-            </h1>
-            <p className="text-slate-400 text-[10px] font-medium uppercase tracking-widest mt-2 opacity-80">
-              {currentUser?.role === Role.WAITER ? 'Your active service tokens' : 'Global floor tracking & management'}
-            </p>
-          </div>
-
-          <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
-            <div className="flex flex-wrap items-center gap-2 bg-white p-1.5 rounded-2xl border-2 border-slate-100 shadow-sm w-full sm:w-auto">
-              <button 
-                onClick={() => setFilter('pending')}
-                className={`flex-1 sm:flex-none px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${filter === 'pending' ? 'bg-pink-500 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
-              >
-                Pending
-              </button>
-              <button 
-                onClick={() => setFilter('done')}
-                className={`flex-1 sm:flex-none px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${filter === 'done' ? 'bg-emerald-500 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
-              >
-                Done
-              </button>
-              <button 
-                onClick={() => setFilter('paid')}
-                className={`flex-1 sm:flex-none px-4 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${filter === 'paid' ? 'bg-indigo-500 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
-              >
-                Paid
-              </button>
+      <div className="flex flex-col md:flex-row md:items-center gap-10 mb-8 md:mb-12">
+        <div className="flex items-center gap-5">
+            <div className="w-12 h-12 rounded-2xl bg-[#1a1a37] flex items-center justify-center shadow-xl shrink-0">
+                <LayoutGrid className="text-indigo-500" size={24} />
             </div>
-            
-            <div className="flex gap-3 w-full sm:w-auto">
-              <div className="flex-1 sm:flex-none bg-rose-100 px-4 py-3 rounded-2xl border-2 border-rose-200 shadow-sm flex flex-col items-center justify-center">
-                <span className="text-[8px] font-black uppercase tracking-widest text-rose-800 mb-0.5">Orders</span>
-                <span className="text-rose-900 text-sm font-black leading-none">{activeOrders.length}</span>
-              </div>
-              <div className="flex-1 sm:flex-none bg-indigo-100 px-4 py-3 rounded-2xl border-2 border-indigo-200 shadow-sm flex flex-col items-center justify-center">
-                <span className="text-[8px] font-black uppercase tracking-widest text-indigo-800 mb-0.5">Total</span>
-                <span className="text-indigo-900 text-sm font-black leading-none">{currentTenant?.currency}{activeOrdersTotal.toFixed(0)}</span>
-              </div>
+            <div className="min-w-fit">
+                <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tighter">Active Terminals</h1>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                  {currentUser?.role === Role.WAITER ? 'Your active service tokens' : 'Global floor tracking & management'}
+                </p>
             </div>
+        </div>
 
+        <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto ml-1 md:ml-0">
+          <div className="flex items-center gap-2 bg-white p-1.5 rounded-2xl border-2 border-slate-100 shadow-sm w-full md:w-auto">
             <button 
-              onClick={startNewOrder}
-              className="bg-slate-900 text-white px-6 py-3.5 rounded-2xl font-bold uppercase tracking-widest text-[10px] shadow-xl shadow-indigo-200 hover:bg-slate-800 transition-all transform hover:-translate-y-1 active:scale-95 flex items-center justify-center gap-3 border-2 border-indigo-500 w-full sm:w-auto"
+              onClick={() => setFilter('pending')}
+              className={`flex-1 px-5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${filter === 'pending' ? 'bg-pink-500 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
             >
-              <Plus size={18} /> New Order
+              Pending
+            </button>
+            <button 
+              onClick={() => setFilter('done')}
+              className={`flex-1 px-5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${filter === 'done' ? 'bg-emerald-500 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
+            >
+              Done
+            </button>
+            <button 
+              onClick={() => setFilter('paid')}
+              className={`flex-1 px-5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${filter === 'paid' ? 'bg-indigo-500 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
+            >
+              Paid
             </button>
           </div>
+          
+          <div className="flex gap-3 w-full md:w-auto">
+            <div className="flex-1 md:flex-none bg-rose-100 px-5 py-2.5 rounded-2xl border-2 border-rose-200 shadow-sm flex flex-col items-center justify-center min-w-[90px]">
+              <span className="text-[7px] font-black uppercase tracking-widest text-rose-800 mb-0.5">Orders</span>
+              <span className="text-rose-900 text-xs font-black leading-none">{activeOrders.length}</span>
+            </div>
+            <div className="flex-1 md:flex-none bg-indigo-100 px-5 py-2.5 rounded-2xl border-2 border-indigo-200 shadow-sm flex flex-col items-center justify-center min-w-[110px]">
+              <span className="text-[7px] font-black uppercase tracking-widest text-indigo-800 mb-0.5">Total</span>
+              <span className="text-indigo-900 text-xs font-black leading-none">{currentTenant?.currency}{activeOrdersTotal.toFixed(0)}</span>
+            </div>
+          </div>
+
+          <button 
+            onClick={startNewOrder}
+            className="bg-slate-900 text-white px-8 py-3.5 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl shadow-indigo-200 hover:bg-slate-800 transition-all transform hover:-translate-y-1 active:scale-95 flex items-center justify-center gap-3 border-2 border-indigo-500 w-full md:w-auto h-[52px] shrink-0"
+          >
+            <Plus size={18} /> New Order
+          </button>
         </div>
+      </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4 md:gap-6 pb-6">
           <AnimatePresence mode="popLayout">

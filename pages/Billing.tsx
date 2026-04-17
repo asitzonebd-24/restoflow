@@ -618,7 +618,7 @@ export const Billing = () => {
                 </div>
               </div>
               
-              <div className="mt-4 space-y-1 mb-4" style={{ fontSize: '12pt' }}>
+              <div className="mt-4 space-y-1 mb-4" style={{ fontSize: '10pt' }}>
                 <div className="flex justify-between font-bold capitalize">
                   <span>Table No: {invoiceOrder.tableNumber || 'N/A'}</span>
                   <span>Token No: #{invoiceOrder.tokenNumber}</span>
@@ -639,7 +639,7 @@ export const Billing = () => {
               </div>
 
               <div className="space-y-1 mb-4">
-                <div className="grid grid-cols-[20px_1fr_25px_45px_55px] gap-1 font-bold capitalize text-black border-b border-dashed border-black pb-1 text-[9pt]">
+                <div className="grid grid-cols-[30px_1fr_30px_55px_65px] gap-1 font-bold capitalize text-black border-b border-dashed border-black pb-1 text-[10pt]">
                   <span>Sl.</span>
                   <span>Name</span>
                   <span className="text-center">Qty</span>
@@ -648,7 +648,7 @@ export const Billing = () => {
                 </div>
                 <div className="space-y-1">
                   {groupItems(invoiceOrder.items).map((item, i) => (
-                    <div key={i} className="grid grid-cols-[20px_1fr_25px_45px_55px] gap-1 items-start font-medium text-[9pt]">
+                    <div key={i} className="grid grid-cols-[30px_1fr_30px_55px_65px] gap-1 items-start font-medium text-[10pt]">
                       <span className="text-black">{i + 1}.</span>
                       <span className="text-black break-words">{item.name}</span>
                       <span className="text-black text-center">{item.quantity}</span>

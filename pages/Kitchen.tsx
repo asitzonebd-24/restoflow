@@ -200,36 +200,39 @@ export const Kitchen = () => {
 
   return (
     <div className="p-4 md:p-10 h-full overflow-y-auto bg-slate-50/50 no-scrollbar">
-      <div className="mb-8 md:mb-12 flex flex-col items-start gap-6">
+      <div className="mb-8 md:mb-12 flex flex-col md:flex-row md:items-center gap-8">
         <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-2xl bg-[#1a1a37] flex items-center justify-center shadow-xl">
                 <Flame className="text-orange-500 animate-pulse" size={24} />
             </div>
-            <div>
+            <div className="min-w-fit">
                 <h1 className="text-2xl font-black text-[#1a1a37] uppercase tracking-tighter">Live Kitchen</h1>
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Real-time token monitoring</p>
             </div>
         </div>
 
-        <div className="flex flex-col items-start gap-4 w-full md:w-auto">
-          <div className="flex items-center gap-3 bg-white p-1.5 rounded-2xl border-2 border-slate-100 shadow-sm w-full md:w-64">
+        <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
+          <div className="flex items-center gap-3 bg-white p-1.5 rounded-2xl border-2 border-slate-100 shadow-sm w-full md:w-72">
             <button 
               onClick={() => setFilter('pending')}
-              className={`flex-1 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'pending' ? 'bg-pink-500 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
+              className={`flex-1 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'pending' ? 'bg-pink-500 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
             >
               Pending
             </button>
             <button 
               onClick={() => setFilter('done')}
-              className={`flex-1 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'done' ? 'bg-emerald-500 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
+              className={`flex-1 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${filter === 'done' ? 'bg-emerald-500 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
             >
               Done
             </button>
           </div>
 
-          <button className="bg-rose-100 px-6 py-3 rounded-2xl border-2 border-rose-200 shadow-sm text-[10px] font-black uppercase tracking-widest text-rose-800 w-full md:w-64">
-            {filter === 'pending' ? 'Active Orders' : 'Completed Orders'}: <span className="text-rose-900 text-sm">{activeOrders.length}</span>
-          </button>
+          <div className="bg-rose-100 px-6 py-3 rounded-2xl border-2 border-rose-200 shadow-sm text-[10px] font-black uppercase tracking-widest text-rose-800 w-full md:w-72 flex items-center justify-between">
+            <span className="min-w-[120px]">{filter === 'pending' ? 'Active Orders' : 'Completed Orders'}</span>
+            <span className="text-rose-900 text-sm bg-rose-200/50 px-3 py-0.5 rounded-lg border border-rose-300/50 leading-none flex items-center justify-center min-w-[2.5rem] h-7">
+              {activeOrders.length}
+            </span>
+          </div>
         </div>
       </div>
 
