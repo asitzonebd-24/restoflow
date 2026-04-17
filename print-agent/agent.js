@@ -116,18 +116,23 @@ function printOrder(order, requestId, attempt = 1) {
         fs.writeFileSync(filePath, html);
         console.log(`Generated temporary receipt file (Attempt ${attempt}): ${filePath}`);
         
-        // PDF কনভার্সন কমান্ডটি আরও নিখুঁত করা হলো
-        // --headless=old ব্যবহার করা হয়েছে কারণ এটি প্রিন্টিং এর জন্য বেশি স্ট্যাবল
+        // Microsoft Edge এর সঠিক পাথ খুঁজে বের করা
+        const edgePaths = [
+            '"C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe"',
+            '"C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe"',
+            'msedge'
+        ];
+        
+        let convertCommand = '';
         console.time(`print-task-${requestId}`);
         
-        // সরাসরি msedge কল করার চেষ্টা করি, powershell এর মাধ্যমে নয় যদি সম্ভব হয়
-        // তবে পাথ ভিন্ন হতে পারে তাই powershell ই নিরাপদ তবে -Wait ছাড়া
-        const convertCommand = `powershell -Command "msedge --headless=old --no-sandbox --disable-gpu --disable-extensions --disable-web-security --no-pdf-header-footer --print-to-pdf=\\\"${pdfFilePath}\\\" \\\"${filePath}\\\""`;
+        // Edge পাথটি ডাইনামিকভাবে সেট করা হচ্ছে (পাওয়ারশেল এর মাধ্যমে)
+        convertCommand = `powershell -Command "$edge = (Get-ChildItem 'C:\\Program Files*\\Microsoft\\Edge\\Application\\msedge.exe' | Select-Object -First 1).FullName; if ($edge) { & \\"$edge\\" --headless=old --no-sandbox --disable-gpu --disable-extensions --no-pdf-header-footer --print-to-pdf=\\\"${pdfFilePath}\\\" \\\"${filePath}\\\" } else { msedge --headless=old --no-sandbox --disable-gpu --disable-extensions --no-pdf-header-footer --print-to-pdf=\\\"${pdfFilePath}\\\" \\\"${filePath}\\\" }"`;
 
         console.log(`[${new Date().toLocaleTimeString()}] Starting conversion...`);
         exec(convertCommand, { timeout: 30000 }, (err) => {
-            if (err) {
-                 console.error('PDF conversion command execution failed or timed out:', err);
+            if (err && !fs.existsSync(pdfFilePath)) {
+                 console.error('PDF conversion failed to generate file:', err);
                  handleRetry(order, requestId, attempt, err, filePath, pdfFilePath);
                  return;
             }
