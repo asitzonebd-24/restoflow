@@ -124,7 +124,9 @@ async function performPrint(order, requestId, attempt = 1, startTime = Date.now(
             console.time(`job-${requestId}`);
             exec(convertCommand, { timeout: 15000 }, (err) => {
                 if (err && !fs.existsSync(pdfFilePath)) {
+                    console.timeEnd(`job-${requestId}`);
                     cleanupFiles(filePath, pdfFilePath, profilePath);
+                    console.error(`[${new Date().toLocaleTimeString()}] Edge Error:`, err.message);
                     handleRetry(order, requestId, attempt, resolve, reject, startTime);
                     return;
                 }
@@ -151,10 +153,11 @@ async function performPrint(order, requestId, attempt = 1, startTime = Date.now(
                                 resolve();
                             }
                         });
-                    } else if (checkAttempts > 10) {
+                    } else if (checkAttempts > 20) { // Wait up to 10 seconds
                         clearInterval(checkFile);
+                        console.timeEnd(`job-${requestId}`);
                         cleanupFiles(filePath, pdfFilePath, profilePath);
-                        console.error('PDF creation timeout (5s polling exceeded).');
+                        console.error(`[${new Date().toLocaleTimeString()}] PDF creation timeout for ${requestId}`);
                         handleRetry(order, requestId, attempt, resolve, reject, startTime);
                     }
                 }, 500); 
