@@ -100,28 +100,35 @@ onSnapshot(q, (snapshot) => {
     console.error('Firestore Fetch Error:', error);
 });
 
-async function performPrint(order, requestId, attempt = 1) {
+async function performPrint(order, requestId, attempt = 1, startTime = Date.now()) {
     const html = generateReceiptHtml(order, requestId);
     const filePath = path.join(__dirname, `temp_${requestId}.html`);
     const pdfFilePath = filePath + '.pdf';
+    const profilePath = path.join(__dirname, `profile_${requestId}`);
     
     return new Promise((resolve, reject) => {
+        // --- TIMEOUT CHECK ---
+        const currentAge = Date.now() - startTime;
+        if (currentAge > 60000) {
+            console.error(`[${new Date().toLocaleTimeString()}] JOB EXPIRED: Request ${requestId} exceeded 60s limit.`);
+            deletePrintRequest(requestId);
+            cleanupFiles(filePath, pdfFilePath, profilePath);
+            return resolve(); // Resolve to unblock queue
+        }
+
         try {
             fs.writeFileSync(filePath, html);
             
-            // Search for Edge in common locations
-            const convertCommand = `powershell -Command "$edge = (Get-ChildItem 'C:\\Program Files*\\Microsoft\\Edge\\Application\\msedge.exe' | Select-Object -First 1).FullName; if ($edge) { & \\"$edge\\" --headless=old --no-sandbox --disable-gpu --disable-extensions --no-pdf-header-footer --print-to-pdf=\\\"${pdfFilePath}\\\" \\\"${filePath}\\\" } else { msedge --headless=old --no-sandbox --disable-gpu --disable-extensions --no-pdf-header-footer --print-to-pdf=\\\"${pdfFilePath}\\\" \\\"${filePath}\\\" }"`;
+            const convertCommand = `powershell -Command "$edge = (Get-ChildItem 'C:\\Program Files*\\Microsoft\\Edge\\Application\\msedge.exe' | Select-Object -First 1).FullName; if ($edge) { & \\"$edge\\" --headless=new --no-sandbox --disable-gpu --user-data-dir=\\\"${profilePath}\\\" --no-pdf-header-footer --print-to-pdf=\\\"${pdfFilePath}\\\" \\\"${filePath}\\\" } else { msedge --headless=new --no-sandbox --disable-gpu --user-data-dir=\\\"${profilePath}\\\" --no-pdf-header-footer --print-to-pdf=\\\"${pdfFilePath}\\\" \\\"${filePath}\\\" }"`;
 
             console.time(`job-${requestId}`);
-            exec(convertCommand, { timeout: 25000 }, (err) => {
+            exec(convertCommand, { timeout: 15000 }, (err) => {
                 if (err && !fs.existsSync(pdfFilePath)) {
-                    cleanupFiles(filePath, pdfFilePath);
-                    console.error('PDF Conversion error:', err.message);
-                    handleRetry(order, requestId, attempt, resolve, reject);
+                    cleanupFiles(filePath, pdfFilePath, profilePath);
+                    handleRetry(order, requestId, attempt, resolve, reject, startTime);
                     return;
                 }
 
-                // Check for PDF existence repeatedly for 5 seconds
                 let checkAttempts = 0;
                 const checkFile = setInterval(() => {
                     checkAttempts++;
@@ -129,52 +136,60 @@ async function performPrint(order, requestId, attempt = 1) {
                         clearInterval(checkFile);
                         
                         const sumatraPath = 'C:\\PrinterService\\SumatraPDF\\SumatraPDF.exe';
-                        // Sumatra PDF printing with noscale
                         const printCommand = `"${sumatraPath}" -print-to "XP-80C" -silent -print-settings "noscale" "${pdfFilePath}"`;
 
-                        exec(printCommand, { timeout: 25000 }, (fbError) => {
+                        exec(printCommand, { timeout: 15000 }, (fbError) => {
                             console.timeEnd(`job-${requestId}`);
                             if (fbError) {
                                 console.error('SumatraPDF error:', fbError.message);
-                                cleanupFiles(filePath, pdfFilePath);
-                                handleRetry(order, requestId, attempt, resolve, reject);
+                                cleanupFiles(filePath, pdfFilePath, profilePath);
+                                handleRetry(order, requestId, attempt, resolve, reject, startTime);
                             } else {
                                 console.log(`[${new Date().toLocaleTimeString()}] PRINT SUCCESS: Request ${requestId}`);
                                 deletePrintRequest(requestId);
-                                setTimeout(() => cleanupFiles(filePath, pdfFilePath), 10000);
+                                setTimeout(() => cleanupFiles(filePath, pdfFilePath, profilePath), 5000);
                                 resolve();
                             }
                         });
                     } else if (checkAttempts > 10) {
                         clearInterval(checkFile);
-                        cleanupFiles(filePath, pdfFilePath);
-                        console.error('PDF file failed to generate in time.');
-                        handleRetry(order, requestId, attempt, resolve, reject);
+                        cleanupFiles(filePath, pdfFilePath, profilePath);
+                        console.error('PDF creation timeout (5s polling exceeded).');
+                        handleRetry(order, requestId, attempt, resolve, reject, startTime);
                     }
                 }, 500); 
             });
         } catch (err) {
-            console.error('Local File Error:', err);
-            handleRetry(order, requestId, attempt, resolve, reject);
+            handleRetry(order, requestId, attempt, resolve, reject, startTime);
         }
     });
 }
 
-function handleRetry(order, requestId, attempt, resolve, reject) {
-    if (attempt < 3) {
-        console.log(`Retrying Request ${requestId} (Attempt ${attempt + 1}/3)...`);
-        setTimeout(() => performPrint(order, requestId, attempt + 1).then(resolve).catch(reject), 3000);
+function handleRetry(order, requestId, attempt, resolve, reject, startTime) {
+    const currentAge = Date.now() - startTime;
+    
+    if (currentAge < 60000 && attempt < 3) {
+        console.log(`Retrying Request ${requestId} (Attempt ${attempt + 1}/3)... Remaining time: ${Math.round((60000-currentAge)/1000)}s`);
+        setTimeout(() => performPrint(order, requestId, attempt + 1, startTime).then(resolve).catch(reject), 2000);
     } else {
-        console.error(`Gave up on Request ${requestId} after 3 attempts.`);
-        deletePrintRequest(requestId); // Delete so it doesn't try again on next startup
-        resolve(); // Resolve anyway to unblock queue
+        if (currentAge >= 60000) {
+            console.error(`Skipping Request ${requestId}: Time limit of 60s reached.`);
+        } else {
+            console.error(`Gave up on Request ${requestId} after ${attempt} attempts.`);
+        }
+        deletePrintRequest(requestId);
+        resolve(); // Unblock queue
     }
 }
 
-function cleanupFiles(filePath, pdfFilePath) {
+function cleanupFiles(filePath, pdfFilePath, profilePath) {
     try { 
         if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
         if (fs.existsSync(pdfFilePath)) fs.unlinkSync(pdfFilePath);
+        if (profilePath && fs.existsSync(profilePath)) {
+            // Delete Edge temporary profile folder to avoid conflicts and save space
+            exec(`rmdir /s /q "${profilePath}"`);
+        }
     } catch(e) {}
 }
 
@@ -186,10 +201,16 @@ function generateReceiptHtml(order, requestId) {
     let itemsHtml = '';
     if (order.items && Array.isArray(order.items)) {
         order.items.forEach(item => {
+            const price = Number(item.price || 0);
+            const total = price * item.quantity;
             itemsHtml += `
-                <div style="display: flex; justify-content: space-between; font-size: 10pt; font-weight: bold; border-bottom: 1px dashed #000; padding: 2px 0; gap: 5px;">
-                    <span style="flex: 1; word-break: break-word;">${item.name}</span>
-                    <span style="white-space: nowrap;">x${item.quantity}</span>
+                <div style="display: flex; justify-content: space-between; font-size: 8pt; font-weight: bold; border-bottom: 1px dashed #000; padding: 4px 0; gap: 2px;">
+                    <span style="flex: 1; word-break: break-word; padding-right: 5px;">${item.name}</span>
+                    <div style="display: flex; gap: 12px; white-space: nowrap; align-items: baseline;">
+                        <span style="min-width: 15px; text-align: center;">${item.quantity}</span>
+                        <span style="min-width: 30px; text-align: right;">${price.toFixed(0)}</span>
+                        <span style="min-width: 40px; text-align: right;">${total.toFixed(0)}</span>
+                    </div>
                 </div>
             `;
         });
@@ -201,21 +222,24 @@ function generateReceiptHtml(order, requestId) {
     <head>
         <meta charset="UTF-8">
         <style>
-            @import url('https://cdn.jsdelivr.net/gh/at-shuvro/solaimanlipi-font@master/solaimanlipi.css');
             @page { size: 80mm auto; margin: 2mm; }
             html, body { margin: 0; padding: 0; background-color: #ffffff; height: auto; width: 68mm; }
-            body { font-family: 'SolaimanLipi', 'Arial', sans-serif; width: 68mm; margin: 0 auto; padding: 10px 5px 0 5px; color: #000; font-size: 20pt; overflow: hidden; }
+            body { font-family: 'SolaimanLipi', 'Arial', 'Vrinda', sans-serif; width: 68mm; margin: 0 auto; padding: 10px 5px 0 5px; color: #000; font-size: 8pt; overflow: hidden; }
             .container { display: block; width: 100%; padding: 0; margin: 0; text-align: center; position: relative; }
-            .header-line { font-weight: bold; margin: 0; padding: 0; text-align: center; line-height: 1.1; font-size: 10pt; }
-            #token-line { font-size: 16pt; margin-bottom: 3px; }
-            .date-time-row { display: flex; justify-content: space-between; border-bottom: 1px solid #000; padding: 1px 0; margin: 2px 0; font-weight: bold; font-size: 9pt; }
+            .restaurant-name { font-size: 12pt; font-weight: bold; margin-bottom: 2px; }
+            .restaurant-address { font-size: 8pt; margin-bottom: 5px; }
+            .header-line { font-weight: bold; margin: 0; padding: 0; text-align: center; line-height: 1.1; font-size: 8pt; }
+            #token-line { font-size: 8pt; margin-top: 5px; }
+            .date-time-row { display: flex; justify-content: space-between; border-bottom: 1px solid #000; padding: 1px 0; margin: 2px 0; font-weight: bold; font-size: 8pt; }
             .items-container { width: 100%; text-align: left; }
-            .note-box { margin-top: 4px; padding: 2px; border: 1px dashed #000; font-style: italic; font-size: 9pt; word-break: break-word; text-align: left; }
-            .footer { text-align: center; border-top: 1px solid #000; margin-top: 6px; padding-top: 1px; font-weight: bold; font-size: 9pt; }
+            .note-box { margin-top: 4px; padding: 2px; border: 1px dashed #000; font-style: italic; font-size: 8pt; word-break: break-word; text-align: left; }
+            .footer { text-align: center; border-top: 1px solid #000; margin-top: 6px; padding-top: 1px; font-weight: bold; font-size: 8pt; }
         </style>
     </head>
     <body>
         <div class="container">
+            <div class="restaurant-name">${order.businessName || 'Restaurant'}</div>
+            ${order.businessAddress ? `<div class="restaurant-address">${order.businessAddress}</div>` : ''}
             <div id="token-line" class="header-line">Kitchen Token: #${order.tokenNumber || '00'}</div>
             <div class="header-line">Table No: ${order.tableNumber || 'N/A'}</div>
             <div class="header-line">Ordered by: ${order.creatorName || 'Staff'}</div>

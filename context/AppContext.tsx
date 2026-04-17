@@ -900,6 +900,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       console.log('[AppContext] Creating print request for tenant:', order.tenantId, 'Order:', order.id);
       const docRef = await addDoc(collection(db, 'print_requests'), {
         tenantId: order.tenantId,
+        businessName: business.name || 'Restaurant',
+        businessAddress: business.address || null,
         orderId: order.id,
         tokenNumber: order.tokenNumber,
         tableNumber: order.tableNumber || null,
