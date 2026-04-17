@@ -252,10 +252,10 @@ const POSCartContent = ({
 
         <button 
           onClick={createAndSubmitOrder}
-          disabled={cart.length === 0 || isTokenDuplicate || (isCreatingNew && !newTokenNum.trim()) || (isCreatingNew && orderType === 'Dine In' && !newTableNum.trim()) || isSubmitting}
-          className={`flex-1 py-4 rounded-2xl font-bold uppercase tracking-widest text-[10px] shadow-xl flex items-center justify-center gap-3 active:scale-95 transition-all disabled:opacity-30 border-2 ${isTokenDuplicate ? 'bg-rose-500 text-white border-rose-600 shadow-rose-100' : 'bg-slate-900 text-white hover:bg-slate-800 border-indigo-500 shadow-indigo-100'}`}
+          disabled={cart.length === 0 || (isCreatingNew && !newTokenNum.trim()) || (isCreatingNew && orderType === 'Dine In' && !newTableNum.trim()) || isSubmitting}
+          className={`flex-1 py-4 rounded-2xl font-bold uppercase tracking-widest text-[10px] shadow-xl flex items-center justify-center gap-3 active:scale-95 transition-all disabled:opacity-30 border-2 ${isTokenDuplicate ? 'bg-amber-500 text-white border-amber-600 shadow-amber-100' : 'bg-slate-900 text-white hover:bg-slate-800 border-indigo-500 shadow-indigo-100'}`}
         >
-          {isSubmitting ? 'Processing...' : (isCreatingNew ? (isTokenDuplicate ? 'Duplicate Token' : (!newTokenNum.trim() ? 'Token Required' : (orderType === 'Dine In' && !newTableNum.trim() ? 'Table Required' : 'Send to Kitchen'))) : 'Update Order')} <ArrowRight size={18} />
+          {isSubmitting ? 'Processing...' : (isCreatingNew ? (isTokenDuplicate ? 'Auto-Resolve & Send' : (!newTokenNum.trim() ? 'Token Required' : (orderType === 'Dine In' && !newTableNum.trim() ? 'Table Required' : 'Send to Kitchen'))) : 'Update Order')} <ArrowRight size={18} />
         </button>
         <button 
           onClick={() => printKOT()}
@@ -426,14 +426,15 @@ export const POS = () => {
     const now = new Date();
     const today = new Intl.DateTimeFormat('en-US', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
 
-    const allActive = orders.filter(o => {
+    const allTodayOrders = orders.filter(o => {
         const orderDate = new Date(o.createdAt);
         const orderDay = new Intl.DateTimeFormat('en-US', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(orderDate);
-        return orderDay === today && o.status !== OrderStatus.COMPLETED && o.status !== OrderStatus.CANCELLED;
+        return orderDay === today;
     });
-    const numericTokens = allActive.map(o => parseInt(o.tokenNumber)).filter(n => !isNaN(n));
-    const nextToken = numericTokens.length > 0 ? (Math.max(...numericTokens) + 1).toString() : "1";
-    setNewTokenNum(nextToken);
+    const numericTokens = allTodayOrders.map(o => parseInt(o.tokenNumber)).filter(n => !isNaN(n));
+    const nextToken = numericTokens.length > 0 ? Math.max(...numericTokens) + 1 : 1;
+    const formattedToken = String(nextToken).padStart(2, '0');
+    setNewTokenNum(formattedToken);
     setNewTableNum('');
     setIsCreatingNew(true);
     setSelectedOrderId(null);
@@ -515,12 +516,22 @@ export const POS = () => {
     try {
       setErrorMessage(null);
       if (isCreatingNew) {
-        if (isTokenDuplicate) {
-          console.log('Token is duplicate, aborting');
-          setErrorMessage('This token number is already in use for an active order. Please use a different token.');
-          setIsSubmitting(false);
-          return;
+        let finalTokenNum = newTokenNum;
+        if (isTokenDuplicate || orders.some(o => o.tokenNumber === finalTokenNum && o.status !== OrderStatus.COMPLETED && o.status !== OrderStatus.CANCELLED)) {
+          console.log('Token is duplicate, auto-resolving to next available token...');
+          const timezone = currentTenant?.timezone || 'UTC';
+          const now = new Date();
+          const today = new Intl.DateTimeFormat('en-US', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
+          const allTodayOrders = orders.filter(o => {
+              const orderDate = new Date(o.createdAt);
+              const orderDay = new Intl.DateTimeFormat('en-US', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(orderDate);
+              return orderDay === today;
+          });
+          const numericTokens = allTodayOrders.map(o => parseInt(o.tokenNumber)).filter(n => !isNaN(n));
+          const nextToken = numericTokens.length > 0 ? Math.max(...numericTokens) + 1 : 1;
+          finalTokenNum = String(nextToken).padStart(2, '0');
         }
+
         const totalAmount = cart.reduce((sum, i) => sum + (i.price * i.quantity), 0);
         
         // Clean up the isExisting flag before saving
@@ -530,7 +541,7 @@ export const POS = () => {
         
         const newOrder = {
           id: `ord-${Date.now()}`,
-          tokenNumber: newTokenNum,
+          tokenNumber: finalTokenNum,
           tableNumber: isDelivery ? 'Delivery' : (isTakeAway ? 'Take Away' : newTableNum),
           items: cleanedItems,
           status: OrderStatus.PENDING,
@@ -548,7 +559,7 @@ export const POS = () => {
 
         // Auto-print KOT if enabled (Handled by addOrder in AppContext)
         if (!currentTenant?.printerSettings?.enablePrintAgent && currentTenant?.printerSettings?.autoPrintKOT) {
-          const printToken = newTokenNum;
+          const printToken = finalTokenNum;
           const printTable = isDelivery ? 'Delivery' : (isTakeAway ? 'Take Away' : newTableNum);
           const printCreator = currentUser?.name;
           setTimeout(() => {
