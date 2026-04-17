@@ -1220,30 +1220,32 @@ export const POS = () => {
       </div>
 
       {/* KOT Print Content (Hidden normally, visible during print) */}
-      <div id="kot-content" className="hidden print:block p-4 font-mono print-visible text-black">
-        <div className="text-center border-b-2 border-black pb-4 mb-4">
-          <h2 className="text-3xl font-bold uppercase tracking-widest">KITCHEN TICKET</h2>
-          <p className="text-lg font-bold kot-token">Token: #{isCreatingNew ? newTokenNum : orders.find(o => o.id === selectedOrderId)?.tokenNumber}</p>
-          <p className="text-lg font-bold kot-table">Table: {isCreatingNew ? (isDelivery ? 'Delivery' : (isTakeAway ? 'Take Away' : newTableNum)) : orders.find(o => o.id === selectedOrderId)?.tableNumber}</p>
-          <p className="text-lg font-bold kot-waiter">Waiter: {isCreatingNew ? currentUser?.name : getWaiterName(orders.find(o => o.id === selectedOrderId)?.createdBy || '')}</p>
-          <p className="text-base mt-1 font-bold">{new Date().toLocaleString()}</p>
+      <div id="kot-content" className="hidden print:block p-4 font-sans print-visible text-black">
+        <div className="text-center border-b-2 border-black pb-2 mb-2">
+          <div className="text-[12pt] font-bold">Kitchen Token: #{isCreatingNew ? newTokenNum : orders.find(o => o.id === selectedOrderId)?.tokenNumber}</div>
+          <div className="text-[12pt] font-bold">Table No: {isCreatingNew ? (isDelivery ? 'Delivery' : (isTakeAway ? 'Take Away' : newTableNum)) : orders.find(o => o.id === selectedOrderId)?.tableNumber}</div>
+          <div className="text-[12pt] font-bold">Ordered by: {isCreatingNew ? currentUser?.name : getWaiterName(orders.find(o => o.id === selectedOrderId)?.createdBy || '')}</div>
+          <div className="flex justify-between text-[10pt] font-bold mt-2 border-t border-black pt-1">
+            <span>Date: {new Date().toLocaleDateString('en-GB')}</span>
+            <span>Time: {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}</span>
+          </div>
         </div>
         
-        <div className="space-y-3 mb-4 kot-items-container">
+        <div className="space-y-1 mb-4 kot-items-container">
           {groupItems(cart).map((item, i) => (
-            <div key={i} className="flex justify-between items-start text-xl font-black">
-              <span className="text-black">x{item.quantity} {item.name}</span>
+            <div key={i} className="flex justify-between items-start text-[12pt] font-bold border-b border-dashed border-black pb-1">
+              <span className="text-black">{item.quantity} x {item.name}</span>
             </div>
           ))}
         </div>
 
         <div className="border-t border-black pt-2 mb-4 kot-note-container" style={{ display: orderNote ? 'block' : 'none' }}>
-          <p className="text-base font-bold uppercase text-black">Note:</p>
-          <p className="text-lg font-black italic text-black kot-note">{orderNote}</p>
+          <p className="text-[10pt] font-bold uppercase text-black">Note:</p>
+          <p className="text-[12pt] font-black italic text-black kot-note">{orderNote}</p>
         </div>
 
         <div className="text-center border-t-2 border-black pt-4">
-          <p className="text-base font-bold text-black">End of Ticket</p>
+          <p className="text-[10pt] font-bold text-black">--- Kitchen Copy ---</p>
         </div>
       </div>
 

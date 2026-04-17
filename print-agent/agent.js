@@ -159,14 +159,15 @@ function cleanupFiles(filePath, pdfFilePath, profilePath) {
 function generateReceiptHtml(order, requestId) {
     const createdAt = order.createdAt?.toDate ? order.createdAt.toDate() : new Date();
     const dateStr = createdAt.toLocaleDateString('en-GB');
-    const timeStr = createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const timeStr = createdAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+    
     let itemsHtml = '';
     if (order.items && Array.isArray(order.items)) {
         order.items.forEach(item => {
             itemsHtml += `
-                <div style="display: flex; justify-content: space-between; font-size: 10pt; font-weight: bold; border-bottom: 1px dashed #000; padding: 4px 0; gap: 2px;">
-                    <span style="flex: 1; word-break: break-word; padding-right: 5px;">${item.name}</span>
-                    <span style="white-space: nowrap;">x${item.quantity}</span>
+                <div style="display: flex; gap: 8px; font-size: 12pt; font-weight: bold; border-bottom: 1px dashed #000; padding: 5px 0;">
+                    <span style="white-space: nowrap; min-width: 25px;">${item.quantity} x</span>
+                    <span style="flex: 1; word-break: break-word;">${item.name}</span>
                 </div>`;
         });
     }
@@ -176,8 +177,8 @@ function generateReceiptHtml(order, requestId) {
     html, body { margin: 0; padding: 0; background-color: #ffffff; height: auto; width: 68mm; }
     body { font-family: 'SolaimanLipi', 'Arial', 'Vrinda', sans-serif; width: 68mm; margin: 0 auto; padding: 10px 5px 0 5px; color: #000; font-size: 10pt; overflow: hidden; }
     .container { display: block; width: 100%; text-align: center; }
-    .token-line { font-size: 14pt; font-weight: bold; margin-bottom: 5px; border-bottom: 1px solid #000; padding-bottom: 2px; }
-    .info-line { font-size: 12pt; font-weight: bold; margin: 2px 0; text-align: center; }
+    .token-line { font-size: 12pt; font-weight: bold; margin-bottom: 3px; border-bottom: 1px solid #000; padding-bottom: 2px; }
+    .info-line { font-size: 12pt; font-weight: bold; margin: 1px 0; text-align: center; }
     .date-time-row { display: flex; justify-content: space-between; border-bottom: 1px solid #000; padding: 1px 0; margin: 4px 0; font-weight: bold; font-size: 10pt; }
     .footer { text-align: center; border-top: 1px solid #000; margin-top: 8px; padding-top: 2px; font-weight: bold; font-size: 10pt; }
     </style></head><body><div class="container">
@@ -186,7 +187,7 @@ function generateReceiptHtml(order, requestId) {
     <div class="info-line">Ordered by: ${order.creatorName || 'Staff'}</div>
     <div class="date-time-row"><span>Date: ${dateStr}</span><span>Time: ${timeStr}</span></div>
     <div style="width: 100%; text-align: left;">${itemsHtml}</div>
-    ${order.note ? `<div style="margin-top: 6px; padding: 3px; border: 1px dashed #000; font-style: italic; font-size: 10pt; text-align: left; font-weight: bold;">Note: ${order.note}</div>` : ''}
+    ${order.note ? `<div style="margin-top: 6px; padding: 3px; border: 1px dashed #000; font-style: italic; font-size: 12pt; text-align: left; font-weight: bold;">Note: ${order.note}</div>` : ''}
     <div class="footer">--- Kitchen Copy ---</div>
     </div></body></html>`;
 }

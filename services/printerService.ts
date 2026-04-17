@@ -458,13 +458,16 @@ export class BluetoothPrinterService {
     
     await this.printRaw(new Uint8Array(this.COMMANDS.INIT));
 
-    await this.printTextLine('KITCHEN TICKET', pixelWidth, { align: 'center', doubleSize: true, bold: true });
-    await this.printTextLine(`Token: #${order.tokenNumber}`, pixelWidth, { align: 'center' });
-    await this.printTextLine(`Table: ${order.tableNumber || 'Delivery'}`, pixelWidth, { align: 'center' });
+    await this.printTextLine(`Kitchen Token: #${order.tokenNumber}`, pixelWidth, { align: 'center', bold: true });
+    await this.printTextLine(`Table No: ${order.tableNumber || 'Delivery'}`, pixelWidth, { align: 'center', bold: true });
     if (order.creatorName) {
-      await this.printTextLine(`Waiter: ${order.creatorName}`, pixelWidth, { align: 'center' });
+      await this.printTextLine(`Ordered by: ${order.creatorName}`, pixelWidth, { align: 'center', bold: true });
     }
-    await this.printTextLine(new Date().toLocaleString(), pixelWidth, { align: 'center' });
+    
+    const dateStr = new Date().toLocaleDateString('en-GB');
+    const timeStr = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+    await this.printTextLine(`Date: ${dateStr}  Time: ${timeStr}`, pixelWidth, { align: 'center' });
+    
     await this.printRaw(new Uint8Array(new TextEncoder().encode('-'.repeat(width) + '\n')));
 
     const groupedItems = this.groupItems(order.items);
@@ -474,9 +477,10 @@ export class BluetoothPrinterService {
 
     if (order.note) {
       await this.printRaw(new Uint8Array(new TextEncoder().encode('-'.repeat(width) + '\n')));
-      await this.printTextLine(`NOTE: ${order.note}`, pixelWidth, { align: 'left' });
+      await this.printTextLine(`NOTE: ${order.note}`, pixelWidth, { align: 'left', bold: true });
     }
 
+    await this.printTextLine('--- Kitchen Copy ---', pixelWidth, { align: 'center' });
     await this.printRaw(new Uint8Array([...Array(4).fill(0x0A), ...this.COMMANDS.CUT]));
   }
 }
