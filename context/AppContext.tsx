@@ -483,18 +483,23 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
     collections.forEach(({ name, setter }) => {
       let q;
-      if (!isSuperAdmin && effectiveTenantId) {
-        q = query(collection(db, name), where('tenantId', '==', effectiveTenantId));
+      // If we have a selected tenant (or if non-admin), always filter by tenantId to prevent massive data fetch
+      if (effectiveTenantId) {
+        q = query(collection(db, name), where('tenantId', '==', String(effectiveTenantId)));
+      } else if (isSuperAdmin) {
+        // Only if no tenant is selected, Super Admin fetches latest data with a strict limit
+        q = query(collection(db, name), limit(100));
       } else {
-        q = query(collection(db, name));
+        // Fallback or empty query to avoid fetching world data
+        q = query(collection(db, name), limit(1));
       }
 
       if (name === 'orders') {
-        q = query(collection(db, name), ...(effectiveTenantId && !isSuperAdmin ? [where('tenantId', '==', effectiveTenantId)] : []), limit(500));
+        q = query(collection(db, name), ...(effectiveTenantId ? [where('tenantId', '==', String(effectiveTenantId))] : []), limit(500));
       }
 
       if (['transactions', 'expenses', 'monthly_bills'].includes(name)) {
-        q = query(collection(db, name), ...(effectiveTenantId && !isSuperAdmin ? [where('tenantId', '==', effectiveTenantId)] : []), limit(1000));
+        q = query(collection(db, name), ...(effectiveTenantId ? [where('tenantId', '==', String(effectiveTenantId))] : []), limit(1000));
       }
 
       const unsub = onSnapshot(q, (snapshot) => {
