@@ -2,6 +2,7 @@
 import React, { useMemo, useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { Order, OrderStatus, ItemStatus, Role, OrderItem } from '../types';
+import { toast } from 'sonner';
 import { Clock, CheckCircle, Flame, Timer, PlayCircle, CheckSquare, FileText, Lock, Hash, User as UserIcon, ChevronDown, ShoppingBag, Printer, Plus, X, Search, AlertCircle, Pen, Minus } from 'lucide-react';
 import { BluetoothPrinterService } from '../services/printerService';
 
@@ -293,9 +294,12 @@ export const Kitchen = () => {
                         tenantId: currentTenant.id,
                         creatorName: getCreatorName(order.createdBy)
                       };
-                      createPrintRequest(printOrder as any, 'kot').catch(err => 
-                        console.error('[Kitchen] Cloud print KOT failed:', err)
-                      );
+                      createPrintRequest(printOrder as any, 'kot')
+                        .then(() => toast.success('KOT sent to Cloud Agent'))
+                        .catch(err => {
+                          console.error('[Kitchen] Cloud print KOT failed:', err);
+                          toast.error('Cloud print failed');
+                        });
                     }
 
                     // 2. Bluetooth Print
@@ -312,9 +316,13 @@ export const Kitchen = () => {
                             creatorName: getCreatorName(order.createdBy)
                           };
                           await BluetoothPrinterService.printKOT(currentTenant, orderData as any);
+                          toast.success('KOT Printed via Bluetooth');
+                        } else if (result.error === 'cancelled') {
+                          return;
                         }
                       } catch (error) {
                         console.error('Bluetooth print failed:', error);
+                        toast.error('Bluetooth print failed');
                       }
                     }
                   }}

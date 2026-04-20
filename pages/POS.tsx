@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { MenuItem, OrderItem, Order, OrderStatus, Role } from '../types';
+import { toast } from 'sonner';
 import { 
   ShoppingCart, 
   Plus, 
@@ -655,6 +656,8 @@ export const POS = () => {
     const itemsToPrint = overrideItems || cart;
     const noteToPrint = overrideNote !== undefined ? overrideNote : orderNote;
 
+    let printed = false;
+
     // 1. Cloud Print via Agent (If enabled)
     if (currentTenant?.printerSettings?.enablePrintAgent) {
       const printOrder = {
@@ -666,9 +669,14 @@ export const POS = () => {
         tenantId: currentTenant.id,
         creatorName: creatorName
       };
-      createPrintRequest(printOrder as any, 'kot').catch(err => 
-        console.error('[POS] Cloud print KOT failed:', err)
-      );
+      try {
+        await createPrintRequest(printOrder as any, 'kot');
+        toast.success('KOT request sent to Cloud Agent');
+        printed = true;
+      } catch (err) {
+        console.error('[POS] Cloud print KOT failed:', err);
+        toast.error('Cloud print failed');
+      }
     }
 
     // 2. If a bluetooth printer is paired, try to print directly
@@ -685,84 +693,89 @@ export const POS = () => {
             creatorName: creatorName
           };
           await BluetoothPrinterService.printKOT(currentTenant, orderData as any);
+          toast.success('KOT Printed via Bluetooth');
           return; // Skip system print if bluetooth worked
         } else if (result.error === 'unsupported') {
-          console.warn('Bluetooth is not supported or blocked in this environment. Using automatic printer agent instead.');
-          // We don't show an error message here because the automatic agent will handle it
+          console.warn('Bluetooth is not supported or blocked in this environment.');
+        } else if (result.error === 'cancelled') {
+          return;
         } else if (result.error === 'failed') {
           setErrorMessage('Bluetooth printer connection failed. Please check if the printer is on and paired.');
         }
       } catch (error) {
-        console.error('Bluetooth KOT print failed, falling back to system print:', error);
+        console.error('Bluetooth KOT print failed:', error);
       }
     }
 
-    // Note: System print might need adjustment to handle overrideItems if it relies on DOM
-    const printContent = document.getElementById('kot-content');
-    if (!printContent) return;
+    // 3. Fallback to system print if not printed via other methods
+    if (!printed) {
+      const printContent = document.getElementById('kot-content');
+      if (!printContent) return;
 
-    const originalTitle = document.title;
-    document.title = `KOT - #${token}`;
-    
-    // Create a temporary container for printing
-    const printContainer = document.createElement('div');
-    printContainer.id = 'print-container';
-    
-    // Apply paper width setting
-    const paperWidth = currentTenant?.printerSettings?.paperWidth || '80mm';
-    printContainer.style.width = paperWidth;
-    printContainer.style.margin = '0 auto';
-    
-    // Update the DOM elements with the correct values before printing
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = printContent.innerHTML;
-    
-    const tokenEl = tempDiv.querySelector('.kot-token');
-    if (tokenEl) tokenEl.textContent = `Token: #${token}`;
-    
-    const tableEl = tempDiv.querySelector('.kot-table');
-    if (tableEl) tableEl.textContent = `Table: ${table}`;
-    
-    const waiterEl = tempDiv.querySelector('.kot-waiter');
-    if (waiterEl) waiterEl.textContent = `Waiter: ${creatorName}`;
+      const originalTitle = document.title;
+      document.title = `KOT - #${token}`;
+      
+      // Create a temporary container for printing
+      const printContainer = document.createElement('div');
+      printContainer.id = 'print-container';
+      
+      // Apply paper width setting
+      const paperWidth = currentTenant?.printerSettings?.paperWidth || '80mm';
+      printContainer.style.width = paperWidth;
+      printContainer.style.margin = '0 auto';
+      
+      // Update the DOM elements with the correct values before printing
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = printContent.innerHTML;
+      
+      const tokenEl = tempDiv.querySelector('.kot-token');
+      if (tokenEl) tokenEl.textContent = `Token: #${token}`;
+      
+      const tableEl = tempDiv.querySelector('.kot-table');
+      if (tableEl) tableEl.textContent = `Table: ${table}`;
+      
+      const waiterEl = tempDiv.querySelector('.kot-waiter');
+      if (waiterEl) waiterEl.textContent = `Waiter: ${creatorName}`;
 
-    // Update note dynamically
-    const noteContainerEl = tempDiv.querySelector('.kot-note-container') as HTMLElement;
-    const noteContentEl = tempDiv.querySelector('.kot-note');
-    if (noteContainerEl && noteContentEl) {
-        if (noteToPrint) {
-            noteContainerEl.style.display = 'block';
-            noteContentEl.textContent = noteToPrint;
-        } else {
-            noteContainerEl.style.display = 'none';
-        }
+      // Update note dynamically
+      const noteContainerEl = tempDiv.querySelector('.kot-note-container') as HTMLElement;
+      const noteContentEl = tempDiv.querySelector('.kot-note');
+      if (noteContainerEl && noteContentEl) {
+          if (noteToPrint) {
+              noteContainerEl.style.display = 'block';
+              noteContentEl.textContent = noteToPrint;
+          } else {
+              noteContainerEl.style.display = 'none';
+          }
+      }
+
+      // Overwrite items list dynamically to prevent stale data
+      const itemsContainer = tempDiv.querySelector('.kot-items-container');
+          if (itemsContainer && itemsToPrint) {
+              itemsContainer.innerHTML = '';
+              const grouped = groupItems(itemsToPrint as any);
+              grouped.forEach((item: any) => {
+                  const itemDiv = document.createElement('div');
+                  itemDiv.className = 'flex justify-between items-start text-xl font-black';
+                  itemDiv.innerHTML = `<span class="text-black">x${item.quantity} ${item.name}</span>`;
+                  itemsContainer.appendChild(itemDiv);
+              });
+          }
+
+      printContainer.innerHTML = tempDiv.innerHTML;
+      document.body.appendChild(printContainer);
+
+      try {
+        window.focus();
+        window.print();
+      } catch (e) {
+        console.error('System print KOT failed:', e);
+      }
+      
+      // Clean up
+      document.body.removeChild(printContainer);
+      document.title = originalTitle;
     }
-
-    // Overwrite items list dynamically to prevent stale data
-    const itemsContainer = tempDiv.querySelector('.kot-items-container');
-        if (itemsContainer && itemsToPrint) {
-            itemsContainer.innerHTML = '';
-            const grouped = groupItems(itemsToPrint as any);
-            grouped.forEach((item: any) => {
-                const itemDiv = document.createElement('div');
-                itemDiv.className = 'flex justify-between items-start text-xl font-black';
-                itemDiv.innerHTML = `<span class="text-black">x${item.quantity} ${item.name}</span>`;
-                itemsContainer.appendChild(itemDiv);
-            });
-        }
-
-    printContainer.innerHTML = tempDiv.innerHTML;
-    document.body.appendChild(printContainer);
-
-    // Wait briefly to allow DOM to update, then trigger print
-    await new Promise(resolve => setTimeout(resolve, 100));
-
-    window.focus();
-    window.print();
-    
-    // Clean up
-    document.body.removeChild(printContainer);
-    document.title = originalTitle;
   };
 
   if (!selectedOrderId && !isCreatingNew) {
@@ -918,10 +931,22 @@ export const POS = () => {
                         <span className="text-[11px] font-black uppercase tracking-widest text-slate-900">{getWaiterName(order.createdBy).split(' ')[0]}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        {order.status === OrderStatus.READY && (
+                        {(order.status === OrderStatus.READY || order.isPaid) && (
                           <button
                             onClick={async (e) => {
                               e.stopPropagation();
+                              
+                              // 1. Cloud Print via Agent (If enabled)
+                              if (currentTenant?.printerSettings?.enablePrintAgent) {
+                                createPrintRequest(order, 'invoice')
+                                  .then(() => toast.success('Sent to Cloud Agent'))
+                                  .catch(err => {
+                                    console.error('[POS] Cloud print failed:', err);
+                                    toast.error('Cloud print failed');
+                                  });
+                              }
+
+                              // 2. If a bluetooth printer is paired, try to print directly
                               if (currentTenant?.printerSettings?.pairedPrinterId) {
                                 try {
                                   const result = await BluetoothPrinterService.connect(currentTenant.printerSettings.pairedPrinterId);
@@ -929,15 +954,21 @@ export const POS = () => {
                                     await BluetoothPrinterService.printInvoice(currentTenant, order, { 
                                       creatorName: getWaiterName(order.createdBy)
                                     });
-                                  } else {
+                                    toast.success('Printed via Bluetooth');
+                                    return; // Skip fallback if bluetooth worked
+                                  } else if (result.error === 'unsupported') {
+                                    console.warn('Bluetooth is not supported in this environment.');
+                                  } else if (result.error === 'cancelled') {
+                                    return;
+                                  } else if (result.error === 'failed') {
                                     setErrorMessage('Bluetooth printer connection failed. Please check if the printer is on and paired.');
                                   }
                                 } catch (error) {
                                   console.error('Bluetooth print failed:', error);
                                   setErrorMessage('Failed to print invoice. Please check printer connection.');
                                 }
-                              } else {
-                                setErrorMessage('No printer paired. Please pair a printer in Settings.');
+                              } else if (!currentTenant?.printerSettings?.enablePrintAgent) {
+                                setErrorMessage('No printer configured. Please enable Cloud Agent or pair a Bluetooth printer in Settings.');
                               }
                             }}
                             className="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-lg shadow-emerald-100 hover:bg-emerald-600 transition-all active:scale-90"

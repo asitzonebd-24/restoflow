@@ -2,6 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { OrderStatus, Order, Transaction, OrderItem, Role } from '../types';
+import { toast } from 'sonner';
 import { Receipt, CheckCheck, Printer, X, FileText, Store, Search, Users, Eye, AlertTriangle, Truck, ChevronDown, Bluetooth } from 'lucide-react';
 import { BluetoothPrinterService } from '../services/printerService';
 import { Pagination } from '../components/Pagination';
@@ -230,12 +231,19 @@ export const Billing = () => {
   const printInvoice = async () => {
     if (!invoiceOrder) return;
 
+    let printed = false;
+
     // 1. Cloud Print via Agent (If enabled)
     if (currentTenant?.printerSettings?.enablePrintAgent) {
-      const discount = discounts[invoiceOrder.id] || 0;
-      createPrintRequest({ ...invoiceOrder, discount } as any, 'invoice').catch(err => 
-        console.error('[Billing] Cloud print failed:', err)
-      );
+      try {
+        const discount = discounts[invoiceOrder.id] || 0;
+        await createPrintRequest({ ...invoiceOrder, discount } as any, 'invoice');
+        toast.success('Print request sent to Cloud Agent');
+        printed = true;
+      } catch (err) {
+        console.error('[Billing] Cloud print failed:', err);
+        toast.error('Cloud print failed. Check agent status.');
+      }
     }
 
     // 2. If a bluetooth printer is paired, try to print directly
@@ -249,39 +257,53 @@ export const Billing = () => {
             discount,
             creatorName: creator?.name || 'Unknown'
           });
+          toast.success('Printed via Bluetooth');
           return; // Skip system print if bluetooth worked
         } else if (result.error === 'unsupported') {
           console.warn('Bluetooth is not supported or blocked in this environment.');
+        } else if (result.error === 'cancelled') {
+          // User cancelled the picker, don't fallback to system print automatically
+          return;
         }
       } catch (error) {
-        console.error('Bluetooth print failed, falling back to system print:', error);
+        console.error('Bluetooth print failed:', error);
       }
     }
 
-    const printContent = document.getElementById('invoice-content');
-    if (!printContent) return;
+    // 3. Fallback to system print if not printed yet and not on mobile (or if requested)
+    if (!printed) {
+      const printContent = document.getElementById('invoice-content');
+      if (!printContent) return;
 
-    const originalTitle = document.title;
-    document.title = `${currentTenant?.name || 'Invoice'} - #${invoiceOrder?.tokenNumber}`;
-    
-    // Create a temporary container for printing
-    const printContainer = document.createElement('div');
-    printContainer.id = 'print-container';
-    
-    // Apply paper width setting
-    const paperWidth = currentTenant?.printerSettings?.paperWidth || '80mm';
-    printContainer.style.width = paperWidth;
-    printContainer.style.margin = '0 auto';
-    
-    printContainer.innerHTML = printContent.innerHTML;
-    document.body.appendChild(printContainer);
+      const originalTitle = document.title;
+      document.title = `${currentTenant?.name || 'Invoice'} - #${invoiceOrder?.tokenNumber}`;
+      
+      // Create a temporary container for printing
+      const printContainer = document.createElement('div');
+      printContainer.id = 'print-container';
+      
+      // Apply paper width setting
+      const paperWidth = currentTenant?.printerSettings?.paperWidth || '80mm';
+      printContainer.style.width = paperWidth;
+      printContainer.style.margin = '0 auto';
+      
+      printContainer.innerHTML = printContent.innerHTML;
+      document.body.appendChild(printContainer);
 
-    window.focus();
-    window.print();
-    
-    // Clean up
-    document.body.removeChild(printContainer);
-    document.title = originalTitle;
+      try {
+        window.focus();
+        window.print();
+      } catch (e) {
+        console.error('System print failed:', e);
+        if (!currentTenant?.printerSettings?.enablePrintAgent && !currentTenant?.printerSettings?.pairedPrinterId) {
+          toast.error('System print failed. Please configure a printer in Settings.');
+        }
+      }
+      
+      // Clean up
+      document.body.removeChild(printContainer);
+      document.title = originalTitle;
+    }
   };
 
   return (

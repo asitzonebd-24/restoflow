@@ -3,6 +3,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Transaction, Order, Role, OrderItem } from '../types';
 import { History, Search, Calendar, Eye, FileText, Printer, X, Hash, ChevronRight, User as UserIcon, Receipt, TrendingUp, Trophy, Award, Filter, Store, Bluetooth } from 'lucide-react';
+import { toast } from 'sonner';
 import { BluetoothPrinterService } from '../services/printerService';
 import { Pagination } from '../components/Pagination';
 
@@ -134,15 +135,23 @@ export const Transactions = () => {
     };
 
     const printInvoice = async () => {
+      if (!viewInvoice) return;
+      let printed = false;
+
       // 1. Cloud Print via Agent (If enabled)
-      if (currentTenant?.printerSettings?.enablePrintAgent && viewInvoice) {
-        createPrintRequest({ ...viewInvoice.order } as any, 'invoice').catch(err => 
-          console.error('[Transactions] Cloud print invoice failed:', err)
-        );
+      if (currentTenant?.printerSettings?.enablePrintAgent) {
+        try {
+          await createPrintRequest({ ...viewInvoice.order } as any, 'invoice');
+          toast.success('Invoice sent to Cloud Agent');
+          printed = true;
+        } catch (err) {
+          console.error('[Transactions] Cloud print invoice failed:', err);
+          toast.error('Cloud print failed');
+        }
       }
 
       // 2. Bluetooth Print
-      if (currentTenant?.printerSettings?.pairedPrinterId && viewInvoice) {
+      if (currentTenant?.printerSettings?.pairedPrinterId) {
         try {
           const result = await BluetoothPrinterService.connect(currentTenant.printerSettings.pairedPrinterId);
           if (result.success) {
@@ -150,37 +159,47 @@ export const Transactions = () => {
               discount: viewInvoice.transaction.discount,
               creatorName: viewInvoice.transaction.creatorName
             });
+            toast.success('Printed via Bluetooth');
             return; // Skip system print if bluetooth worked
+          } else if (result.error === 'cancelled') {
+            return;
           }
         } catch (error) {
-          console.error('Bluetooth print failed, falling back to system print:', error);
+          console.error('Bluetooth print failed:', error);
         }
       }
 
-      const printContent = document.getElementById('invoice-content');
-      if (!printContent) return;
+      // 3. Fallback to system print
+      if (!printed) {
+        const printContent = document.getElementById('invoice-content');
+        if (!printContent) return;
 
-      const originalTitle = document.title;
-      document.title = `${currentTenant?.name || 'Invoice'} - #${viewInvoice?.order.tokenNumber}`;
-      
-      // Create a temporary container for printing
-      const printContainer = document.createElement('div');
-      printContainer.id = 'print-container';
-      
-      // Apply paper width setting
-      const paperWidth = currentTenant?.printerSettings?.paperWidth || '80mm';
-      printContainer.style.width = paperWidth;
-      printContainer.style.margin = '0 auto';
-      
-      printContainer.innerHTML = printContent.innerHTML;
-      document.body.appendChild(printContainer);
+        const originalTitle = document.title;
+        document.title = `${currentTenant?.name || 'Invoice'} - #${viewInvoice?.order.tokenNumber}`;
+        
+        // Create a temporary container for printing
+        const printContainer = document.createElement('div');
+        printContainer.id = 'print-container';
+        
+        // Apply paper width setting
+        const paperWidth = currentTenant?.printerSettings?.paperWidth || '80mm';
+        printContainer.style.width = paperWidth;
+        printContainer.style.margin = '0 auto';
+        
+        printContainer.innerHTML = printContent.innerHTML;
+        document.body.appendChild(printContainer);
 
-      window.focus();
-      window.print();
-      
-      // Clean up
-      document.body.removeChild(printContainer);
-      document.title = originalTitle;
+        try {
+          window.focus();
+          window.print();
+        } catch (e) {
+          console.error('System print failed:', e);
+        }
+        
+        // Clean up
+        document.body.removeChild(printContainer);
+        document.title = originalTitle;
+      }
     };
 
     const calculateInvoiceTotal = (order: Order, discount: number = 0) => {
