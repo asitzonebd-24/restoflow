@@ -434,14 +434,61 @@ export const Transactions = () => {
                                             </span>
                                         </td>
                                         <td className="px-8 py-6 text-right">
-                                            <button 
-                                                type="button"
-                                                onClick={() => openInvoice(txn)}
-                                                className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 hover:text-indigo-500 shadow-sm border-2 border-black hover:border-indigo-500/50 transition-all group-hover:scale-110"
-                                                title="View Receipt"
-                                            >
-                                                <Eye size={18} />
-                                            </button>
+                                            <div className="flex items-center justify-end gap-2">
+                                                <button 
+                                                    type="button"
+                                                    onClick={async () => {
+                                                        const originalOrder = orders.find(o => o.id === txn.orderId);
+                                                        if (!originalOrder) {
+                                                            toast.error("Order details archived.");
+                                                            return;
+                                                        }
+                                                        
+                                                        // 1. Cloud Print
+                                                        if (currentTenant?.printerSettings?.enablePrintAgent) {
+                                                          try {
+                                                            await createPrintRequest({ ...originalOrder } as any, 'invoice');
+                                                            toast.success('Invoice sent to Cloud Agent');
+                                                          } catch (err) {
+                                                            console.error('[Transactions] Cloud print failed:', err);
+                                                            toast.error('Cloud print failed');
+                                                          }
+                                                        }
+
+                                                        // 2. Bluetooth Print
+                                                        if (currentTenant?.printerSettings?.pairedPrinterId) {
+                                                          try {
+                                                            const result = await BluetoothPrinterService.connect(currentTenant.printerSettings.pairedPrinterId);
+                                                            if (result.success) {
+                                                              await BluetoothPrinterService.printInvoice(currentTenant, originalOrder, { 
+                                                                discount: txn.discount,
+                                                                creatorName: txn.creatorName
+                                                              });
+                                                              toast.success('Printed via Bluetooth');
+                                                              return;
+                                                            }
+                                                          } catch (error) {
+                                                            console.error('Bluetooth print failed:', error);
+                                                          }
+                                                        }
+
+                                                        // 3. Fallback to view
+                                                        openInvoice(txn);
+                                                    }}
+                                                    className="w-10 h-10 bg-emerald-500 text-white rounded-xl flex items-center justify-center hover:bg-emerald-600 shadow-lg border-2 border-black transition-all active:scale-95"
+                                                    title="Print Invoice"
+                                                >
+                                                    <Printer size={18} />
+                                                </button>
+                                                <button 
+                                                    type="button"
+                                                    onClick={() => openInvoice(txn)}
+                                                    className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 hover:text-indigo-500 shadow-sm border-2 border-black hover:border-indigo-500/50 transition-all group-hover:scale-110"
+                                                    title="View Receipt"
+                                                >
+                                                    <Eye size={18} />
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))

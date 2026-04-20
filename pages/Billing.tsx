@@ -471,6 +471,49 @@ export const Billing = () => {
                       <td className="px-8 py-6 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <button 
+                            onClick={async () => {
+                              const discount = discounts[order.id] || 0;
+                              const creator = getCreator(order.createdBy);
+                              
+                              // 1. Cloud Print via Agent
+                              if (currentTenant?.printerSettings?.enablePrintAgent) {
+                                try {
+                                  await createPrintRequest({ ...order, discount } as any, 'invoice');
+                                  toast.success('Invoice sent to Cloud Agent');
+                                } catch (err) {
+                                  console.error('[Billing] Cloud print failed:', err);
+                                  toast.error('Cloud print failed');
+                                }
+                              }
+
+                              // 2. Bluetooth Print
+                              if (currentTenant?.printerSettings?.pairedPrinterId) {
+                                try {
+                                  const result = await BluetoothPrinterService.connect(currentTenant.printerSettings.pairedPrinterId);
+                                  if (result.success) {
+                                    await BluetoothPrinterService.printInvoice(currentTenant, order, { 
+                                      discount,
+                                      creatorName: creator?.name || 'Unknown'
+                                    });
+                                    toast.success('Invoice Printed via Bluetooth');
+                                    return;
+                                  }
+                                } catch (error) {
+                                  console.error('Bluetooth print failed:', error);
+                                }
+                              }
+
+                              // 3. Fallback: Show preview if no other method worked
+                              if (!currentTenant?.printerSettings?.enablePrintAgent && !currentTenant?.printerSettings?.pairedPrinterId) {
+                                setInvoiceOrder({ ...order, discount } as any);
+                              }
+                            }}
+                            className="w-10 h-10 bg-emerald-500 text-white rounded-xl flex items-center justify-center hover:bg-emerald-600 shadow-lg border-2 border-black transition-all active:scale-95"
+                            title="Print Invoice"
+                          >
+                            <Printer size={18} />
+                          </button>
+                          <button 
                             onClick={() => {
                               const discount = discounts[order.id] || 0;
                               setInvoiceOrder({ ...order, discount } as any);
@@ -584,6 +627,46 @@ export const Billing = () => {
                       />
                     </div>
                     <div className="flex gap-2 shrink-0">
+                      <button 
+                         onClick={async () => {
+                           const discount = discounts[order.id] || 0;
+                           const creator = getCreator(order.createdBy);
+                           
+                           // 1. Cloud Print via Agent
+                           if (currentTenant?.printerSettings?.enablePrintAgent) {
+                             try {
+                               await createPrintRequest({ ...order, discount } as any, 'invoice');
+                               toast.success('Invoice sent to Cloud Agent');
+                             } catch (err) {
+                               console.error('[BillingHub] Cloud print failed:', err);
+                               toast.error('Cloud print failed');
+                             }
+                           }
+
+                           // 2. Bluetooth Print
+                           if (currentTenant?.printerSettings?.pairedPrinterId) {
+                             try {
+                               const result = await BluetoothPrinterService.connect(currentTenant.printerSettings.pairedPrinterId);
+                               if (result.success) {
+                                 await BluetoothPrinterService.printInvoice(currentTenant, order, { 
+                                   discount,
+                                   creatorName: creator?.name || 'Unknown'
+                                 });
+                                 toast.success('Invoice Printed via Bluetooth');
+                                 return;
+                               }
+                             } catch (error) {
+                               console.error('Bluetooth print failed:', error);
+                             }
+                           }
+
+                           // Fallback to preview
+                           setInvoiceOrder({ ...order, discount } as any);
+                         }}
+                         className="h-10 px-4 bg-emerald-500 text-white rounded-xl flex items-center justify-center gap-2 font-bold uppercase tracking-widest text-[9px] shadow-lg border-2 border-black active:scale-95 transition-all"
+                       >
+                         Print <Printer size={16} />
+                       </button>
                       <button 
                         onClick={() => {
                           const discount = discounts[order.id] || 0;

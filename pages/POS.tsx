@@ -938,12 +938,13 @@ export const POS = () => {
                               
                               // 1. Cloud Print via Agent (If enabled)
                               if (currentTenant?.printerSettings?.enablePrintAgent) {
-                                createPrintRequest(order, 'invoice')
-                                  .then(() => toast.success('Sent to Cloud Agent'))
-                                  .catch(err => {
-                                    console.error('[POS] Cloud print failed:', err);
-                                    toast.error('Cloud print failed');
-                                  });
+                                try {
+                                  await createPrintRequest({ ...order } as any, 'invoice');
+                                  toast.success('Invoice sent to Cloud Agent');
+                                } catch (err) {
+                                  console.error('[POS] Cloud print failed:', err);
+                                  toast.error('Cloud print failed');
+                                }
                               }
 
                               // 2. If a bluetooth printer is paired, try to print directly
@@ -954,25 +955,19 @@ export const POS = () => {
                                     await BluetoothPrinterService.printInvoice(currentTenant, order, { 
                                       creatorName: getWaiterName(order.createdBy)
                                     });
-                                    toast.success('Printed via Bluetooth');
+                                    toast.success('Invoice Printed via Bluetooth');
                                     return; // Skip fallback if bluetooth worked
-                                  } else if (result.error === 'unsupported') {
-                                    console.warn('Bluetooth is not supported in this environment.');
                                   } else if (result.error === 'cancelled') {
                                     return;
-                                  } else if (result.error === 'failed') {
-                                    setErrorMessage('Bluetooth printer connection failed. Please check if the printer is on and paired.');
                                   }
                                 } catch (error) {
                                   console.error('Bluetooth print failed:', error);
-                                  setErrorMessage('Failed to print invoice. Please check printer connection.');
+                                  toast.error('Bluetooth print failed');
                                 }
-                              } else if (!currentTenant?.printerSettings?.enablePrintAgent) {
-                                setErrorMessage('No printer configured. Please enable Cloud Agent or pair a Bluetooth printer in Settings.');
                               }
                             }}
-                            className="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-lg shadow-emerald-100 hover:bg-emerald-600 transition-all active:scale-90"
-                            title="Print Invoice"
+                            className="w-10 h-10 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-lg shadow-emerald-100 hover:bg-emerald-700 transition-all active:scale-90 border-2 border-emerald-400/30"
+                            title="Print Final Bill"
                           >
                             <Printer size={18} />
                           </button>
