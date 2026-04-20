@@ -6,7 +6,7 @@ import { Clock, CheckCircle, Flame, Timer, PlayCircle, CheckSquare, FileText, Lo
 import { BluetoothPrinterService } from '../services/printerService';
 
 export const Kitchen = () => {
-  const { orders, updateOrderStatus, updateOrderItemStatus, currentTenant, currentUser, users, menu, updateOrderItems } = useApp();
+  const { orders, updateOrderStatus, updateOrderItemStatus, currentTenant, currentUser, users, menu, updateOrderItems, createPrintRequest } = useApp();
   const [filter, setFilter] = React.useState<'pending' | 'done'>('pending');
   const [currentPage, setCurrentPage] = useState(1);
   const [showAddItemModal, setShowAddItemModal] = useState(false);
@@ -282,6 +282,23 @@ export const Kitchen = () => {
                 )}
                 <button
                   onClick={async () => {
+                    // 1. Cloud Print via Agent (If enabled)
+                    if (currentTenant?.printerSettings?.enablePrintAgent) {
+                      const printOrder = {
+                        id: order.id,
+                        tokenNumber: order.tokenNumber,
+                        tableNumber: order.tableNumber || 'N/A',
+                        items: order.items.filter(i => i.status === OrderStatus.PENDING),
+                        note: order.note,
+                        tenantId: currentTenant.id,
+                        creatorName: getCreatorName(order.createdBy)
+                      };
+                      createPrintRequest(printOrder as any, 'kot').catch(err => 
+                        console.error('[Kitchen] Cloud print KOT failed:', err)
+                      );
+                    }
+
+                    // 2. Bluetooth Print
                     if (currentTenant?.printerSettings?.pairedPrinterId) {
                       try {
                         const result = await BluetoothPrinterService.connect(currentTenant.printerSettings.pairedPrinterId);
@@ -295,15 +312,10 @@ export const Kitchen = () => {
                             creatorName: getCreatorName(order.createdBy)
                           };
                           await BluetoothPrinterService.printKOT(currentTenant, orderData as any);
-                        } else {
-                          alert('Failed to connect to printer.');
                         }
                       } catch (error) {
                         console.error('Bluetooth print failed:', error);
-                        alert('Failed to print KOT. Please check printer connection.');
                       }
-                    } else {
-                      alert('No printer paired. Please pair a printer in Settings.');
                     }
                   }}
                   className="absolute -top-2 -left-2 bg-indigo-600 text-white p-1.5 rounded-full border-2 border-white shadow-lg hover:bg-indigo-700 transition-all"
@@ -442,27 +454,32 @@ export const Kitchen = () => {
                      <CheckCircle size={18} /> READY FOR SERVICE
                    </div>
                    <button 
-                     onClick={async () => {
-                       if (currentTenant?.printerSettings?.pairedPrinterId) {
-                         try {
-                           const result = await BluetoothPrinterService.connect(currentTenant.printerSettings.pairedPrinterId);
-                           if (result.success) {
-                             await BluetoothPrinterService.printInvoice(currentTenant, order, { 
-                               creatorName: getCreatorName(order.createdBy)
-                             });
-                           }
-                         } catch (error) {
-                           console.error('Bluetooth print failed:', error);
-                           alert('Failed to print invoice. Please check printer connection.');
-                         }
-                       } else {
-                         alert('No printer paired. Please pair a printer in Settings.');
-                       }
-                     }}
-                     className="w-full py-4 rounded-[1.5rem] font-black text-white transition-all transform active:scale-95 hover:brightness-110 shadow-xl text-xs uppercase tracking-[0.2em] flex items-center justify-center gap-3 bg-emerald-600"
-                   >
-                     <Printer size={18} /> PRINT INVOICE
-                   </button>
+                      onClick={async () => {
+                        // 1. Cloud Print via Agent (If enabled)
+                        if (currentTenant?.printerSettings?.enablePrintAgent) {
+                          createPrintRequest({ ...order } as any, 'invoice').catch(err => 
+                            console.error('[Kitchen] Cloud print invoice failed:', err)
+                          );
+                        }
+
+                        // 2. Bluetooth Print
+                        if (currentTenant?.printerSettings?.pairedPrinterId) {
+                          try {
+                            const result = await BluetoothPrinterService.connect(currentTenant.printerSettings.pairedPrinterId);
+                            if (result.success) {
+                              await BluetoothPrinterService.printInvoice(currentTenant, order, { 
+                                creatorName: getCreatorName(order.createdBy)
+                              });
+                            }
+                          } catch (error) {
+                            console.error('Bluetooth print failed:', error);
+                          }
+                        }
+                      }}
+                      className="w-full py-4 rounded-[1.5rem] font-black text-white transition-all transform active:scale-95 hover:brightness-110 shadow-xl text-xs uppercase tracking-[0.2em] flex items-center justify-center gap-3 bg-emerald-600"
+                    >
+                      <Printer size={18} /> PRINT INVOICE
+                    </button>
                  </div>
                )}
             </div>

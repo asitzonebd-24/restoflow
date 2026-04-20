@@ -7,7 +7,7 @@ import { BluetoothPrinterService } from '../services/printerService';
 import { Pagination } from '../components/Pagination';
 
 export const Billing = () => {
-  const { orders, currentTenant, currentUser, updateOrderStatus, updateOrderItems, updateOrderPaymentStatus, addTransaction, users } = useApp();
+  const { orders, currentTenant, currentUser, updateOrderStatus, updateOrderItems, updateOrderPaymentStatus, addTransaction, users, createPrintRequest } = useApp();
   const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
   const [discounts, setDiscounts] = useState<{ [key: string]: number }>({});
   const [searchTerm, setSearchTerm] = useState('');
@@ -228,8 +228,18 @@ export const Billing = () => {
   };
 
   const printInvoice = async () => {
-    // If a bluetooth printer is paired, try to print directly
-    if (currentTenant?.printerSettings?.pairedPrinterId && invoiceOrder) {
+    if (!invoiceOrder) return;
+
+    // 1. Cloud Print via Agent (If enabled)
+    if (currentTenant?.printerSettings?.enablePrintAgent) {
+      const discount = discounts[invoiceOrder.id] || 0;
+      createPrintRequest({ ...invoiceOrder, discount } as any, 'invoice').catch(err => 
+        console.error('[Billing] Cloud print failed:', err)
+      );
+    }
+
+    // 2. If a bluetooth printer is paired, try to print directly
+    if (currentTenant?.printerSettings?.pairedPrinterId) {
       try {
         const result = await BluetoothPrinterService.connect(currentTenant.printerSettings.pairedPrinterId);
         if (result.success) {

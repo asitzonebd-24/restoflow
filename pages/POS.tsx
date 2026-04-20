@@ -655,7 +655,23 @@ export const POS = () => {
     const itemsToPrint = overrideItems || cart;
     const noteToPrint = overrideNote !== undefined ? overrideNote : orderNote;
 
-    // If a bluetooth printer is paired, try to print directly
+    // 1. Cloud Print via Agent (If enabled)
+    if (currentTenant?.printerSettings?.enablePrintAgent) {
+      const printOrder = {
+        id: selectedOrderId || `manual-${Date.now()}`,
+        tokenNumber: token || '00',
+        tableNumber: table || 'N/A',
+        items: itemsToPrint,
+        note: noteToPrint,
+        tenantId: currentTenant.id,
+        creatorName: creatorName
+      };
+      createPrintRequest(printOrder as any, 'kot').catch(err => 
+        console.error('[POS] Cloud print KOT failed:', err)
+      );
+    }
+
+    // 2. If a bluetooth printer is paired, try to print directly
     if (currentTenant?.printerSettings?.pairedPrinterId) {
       try {
         const result = await BluetoothPrinterService.connect(currentTenant.printerSettings.pairedPrinterId);

@@ -9,7 +9,7 @@ import { Pagination } from '../components/Pagination';
 type DateFilter = 'all' | 'today' | 'week' | 'month' | 'custom';
 
 export const Transactions = () => {
-    const { transactions, currentTenant, currentUser, orders, users } = useApp();
+    const { transactions, currentTenant, currentUser, orders, users, createPrintRequest } = useApp();
     const [searchTerm, setSearchTerm] = useState('');
     const [dateFilter, setDateFilter] = useState<DateFilter>('all');
     const [selectedStaffId, setSelectedStaffId] = useState<string>('all');
@@ -134,7 +134,14 @@ export const Transactions = () => {
     };
 
     const printInvoice = async () => {
-      // If a bluetooth printer is paired, try to print directly
+      // 1. Cloud Print via Agent (If enabled)
+      if (currentTenant?.printerSettings?.enablePrintAgent && viewInvoice) {
+        createPrintRequest({ ...viewInvoice.order } as any, 'invoice').catch(err => 
+          console.error('[Transactions] Cloud print invoice failed:', err)
+        );
+      }
+
+      // 2. Bluetooth Print
       if (currentTenant?.printerSettings?.pairedPrinterId && viewInvoice) {
         try {
           const result = await BluetoothPrinterService.connect(currentTenant.printerSettings.pairedPrinterId);
@@ -144,8 +151,6 @@ export const Transactions = () => {
               creatorName: viewInvoice.transaction.creatorName
             });
             return; // Skip system print if bluetooth worked
-          } else if (result.error === 'unsupported') {
-            console.warn('Bluetooth is not supported or blocked in this environment.');
           }
         } catch (error) {
           console.error('Bluetooth print failed, falling back to system print:', error);
