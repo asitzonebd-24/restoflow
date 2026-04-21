@@ -1,7 +1,5 @@
 // --- CONFIGURATION ---
 const MY_TENANT_ID = process.argv[2] || '01'; 
-const PRINTER_NAME = "XP-80C"; // Change this to your printer name from Windows Control Panel
-const SUMATRA_PATH = 'C:\\PrinterService\\SumatraPDF\\SumatraPDF.exe';
 
 // Firebase Configuration
 const firebaseConfig = {
@@ -88,76 +86,53 @@ async function performPrint(order, requestId, attempt = 1, startTime = Date.now(
     
     return new Promise((resolve) => {
         const currentAge = Date.now() - startTime;
-        if (currentAge > 55000) { // Slightly less than 60s to ensure clean abort
-            console.error(`[EXPIRED] Request ${requestId} exceeded timeout.`);
+        if (currentAge > 60000) {
+            console.error(`[EXPIRED] Request ${requestId} exceeded 60s limit.`);
             deletePrintRequest(requestId);
             cleanupFiles(filePath, pdfFilePath, profilePath);
             return resolve();
         }
 
         try {
-            console.log(`[Attempt ${attempt}] Rendering HTML for Token ${order.tokenNumber}...`);
-            fs.writeFileSync(filePath, html, 'utf8');
-            
-            // Refined Edge command with better path handling and fallbacks
-            const edgePaths = [
-                'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
-                'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
-                'C:\\Users\\' + process.env.USERNAME + '\\AppData\\Local\\Microsoft\\Edge\\Application\\msedge.exe'
-            ];
-            
-            let edgeCmd = 'msedge'; // Default to PATH
-            for (const p of edgePaths) {
-                if (fs.existsSync(p)) {
-                    edgeCmd = `"${p}"`;
-                    break;
-                }
-            }
-
-            const convertCommand = `${edgeCmd} --headless=new --no-sandbox --disable-gpu --disable-software-rasterizer --user-data-dir="${profilePath}" --no-pdf-header-footer --print-to-pdf="${pdfFilePath}" "${filePath}"`;
+            fs.writeFileSync(filePath, html);
+            const convertCommand = `powershell -Command "$edge = (Get-ChildItem 'C:\\Program Files*\\Microsoft\\Edge\\Application\\msedge.exe' | Select-Object -First 1).FullName; if ($edge) { & \\"$edge\\" --headless=new --no-sandbox --disable-gpu --user-data-dir=\\\"${profilePath}\\\" --no-pdf-header-footer --print-to-pdf=\\\"${pdfFilePath}\\\" \\\"${filePath}\\\" } else { msedge --headless=new --no-sandbox --disable-gpu --user-data-dir=\\\"${profilePath}\\\" --no-pdf-header-footer --print-to-pdf=\\\"${pdfFilePath}\\\" \\\"${filePath}\\\" }"`;
 
             console.time(`job-${requestId}`);
-            exec(convertCommand, { timeout: 20000 }, (err) => {
-                if (err) {
-                    console.error(`[Edge Error] attempt ${attempt}:`, err.message);
+            exec(convertCommand, { timeout: 15000 }, (err) => {
+                if (err && !fs.existsSync(pdfFilePath)) {
+                    console.timeEnd(`job-${requestId}`);
+                    cleanupFiles(filePath, pdfFilePath, profilePath);
+                    handleRetry(order, requestId, attempt, resolve, startTime);
+                    return;
                 }
 
                 let checkAttempts = 0;
-                const maxCheckAttempts = 20;
                 const checkFile = setInterval(() => {
                     checkAttempts++;
                     if (fs.existsSync(pdfFilePath)) {
                         clearInterval(checkFile);
-                        console.log(`[PDF Ready] printing...`);
-                        const printCommand = `"${SUMATRA_PATH}" -print-to "${PRINTER_NAME}" -silent -print-settings "noscale" "${pdfFilePath}"`;
-                        
+                        const sumatraPath = 'C:\\PrinterService\\SumatraPDF\\SumatraPDF.exe';
+                        const printCommand = `"${sumatraPath}" -print-to "XP-80C" -silent -print-settings "noscale" "${pdfFilePath}"`;
                         exec(printCommand, { timeout: 15000 }, (fbError) => {
                             console.timeEnd(`job-${requestId}`);
                             if (!fbError) {
-                                console.log(`[SUCCESS] Token: ${order.tokenNumber} printed.`);
+                                console.log(`[SUCCESS] Token: ${order.tokenNumber}`);
                                 deletePrintRequest(requestId);
                             } else {
-                                console.error('Printer Execution Error:', fbError.message);
-                                // We still delete if it was sent to printer spooler
-                                deletePrintRequest(requestId);
+                                console.error('Printer Error:', fbError.message);
                             }
-                            // Cleanup after a delay to ensure printer handle is released
-                            setTimeout(() => cleanupFiles(filePath, pdfFilePath, profilePath), 3000);
+                            setTimeout(() => cleanupFiles(filePath, pdfFilePath, profilePath), 5000);
                             resolve();
                         });
-                    } else if (checkAttempts >= maxCheckAttempts) {
+                    } else if (checkAttempts > 20) {
                         clearInterval(checkFile);
                         console.timeEnd(`job-${requestId}`);
-                        console.error(`[Timeout] PDF not generated within 10s for Token ${order.tokenNumber}`);
                         cleanupFiles(filePath, pdfFilePath, profilePath);
                         handleRetry(order, requestId, attempt, resolve, startTime);
                     }
                 }, 500); 
             });
-        } catch (err) { 
-            console.error(`[Fatal Error]`, err);
-            handleRetry(order, requestId, attempt, resolve, startTime); 
-        }
+        } catch (err) { handleRetry(order, requestId, attempt, resolve, startTime); }
     });
 }
 
@@ -182,69 +157,20 @@ function cleanupFiles(filePath, pdfFilePath, profilePath) {
 }
 
 function generateReceiptHtml(order, requestId) {
-    const isInvoice = order.type === 'invoice';
     const createdAt = order.createdAt?.toDate ? order.createdAt.toDate() : new Date();
     const dateStr = createdAt.toLocaleDateString('en-GB');
     const timeStr = createdAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-    const currency = order.currency || 'Tk';
     
     let itemsHtml = '';
     if (order.items && Array.isArray(order.items)) {
         order.items.forEach(item => {
-            if (isInvoice) {
-                itemsHtml += `
-                    <div style="display: flex; justify-content: space-between; font-size: 10pt; border-bottom: 1px dashed #eee; padding: 4px 0;">
-                        <span style="flex: 1;">${item.quantity} x ${item.name}</span>
-                        <span style="font-weight: bold;">${currency}${(item.price * item.quantity).toFixed(0)}</span>
-                    </div>`;
-            } else {
-                itemsHtml += `
-                    <div style="display: flex; gap: 8px; font-size: 12pt; font-weight: bold; border-bottom: 1px dashed #000; padding: 5px 0;">
-                        <span style="white-space: nowrap; min-width: 25px;">${item.quantity} x</span>
-                        <span style="flex: 1; word-break: break-word;">${item.name}</span>
-                    </div>`;
-            }
+            itemsHtml += `
+                <div style="display: flex; gap: 8px; font-size: 12pt; font-weight: bold; border-bottom: 1px dashed #000; padding: 5px 0;">
+                    <span style="white-space: nowrap; min-width: 25px;">${item.quantity} x</span>
+                    <span style="flex: 1; word-break: break-word;">${item.name}</span>
+                </div>`;
         });
     }
-
-    if (isInvoice) {
-        const headerText = order.receiptHeader ? order.receiptHeader.replace(/\n/g, '<br>') : '';
-        const footerText = order.receiptFooter ? order.receiptFooter.replace(/\n/g, '<br>') : 'Thank you for dining with us!<br>Please visit again.';
-        
-        return `
-        <!DOCTYPE html><html><head><meta charset="UTF-8"><style>
-        @page { size: ${order.paperWidth || '80mm'} auto; margin: 2mm; }
-        html, body { margin: 0; padding: 0; background-color: #ffffff; width: ${order.paperWidth === '58mm' ? '54mm' : '72mm'}; }
-        body { font-family: 'SolaimanLipi', 'Arial', sans-serif; margin: 0 auto; padding: 10px 5px; color: #000; font-size: 10pt; }
-        .header { text-align: center; margin-bottom: 15px; border-bottom: 2px solid #000; padding-bottom: 10px; }
-        .biz-name { font-size: 16pt; font-weight: bold; margin-bottom: 2px; }
-        .biz-info { font-size: 9pt; color: #444; }
-        .custom-header { margin-top: 5px; font-size: 9pt; font-style: italic; }
-        .bill-info { display: flex; justify-content: space-between; margin: 10px 0; font-size: 9pt; border-bottom: 1px solid #000; padding-bottom: 5px; }
-        .summary-row { display: flex; justify-content: space-between; padding: 2px 0; font-size: 10pt; }
-        .total-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 14pt; font-weight: bold; border-top: 2px solid #000; margin-top: 5px; }
-        .footer { text-align: center; margin-top: 20px; font-size: 9pt; border-top: 1px solid #eee; padding-top: 10px; font-style: italic; }
-        </style></head><body>
-        <div class="header">
-            <div class="biz-name">${order.businessName}</div>
-            <div class="biz-info">${order.businessAddress || ''}</div>
-            <div class="biz-info">Mob: ${order.businessMobile || ''}</div>
-            ${headerText ? `<div class="custom-header">${headerText}</div>` : ''}
-            <div style="font-size: 14pt; font-weight: bold; margin-top: 10px; text-decoration: underline;">INVOICE</div>
-        </div>
-        <div class="bill-info">
-            <div>Token: <b>#${order.tokenNumber}</b><br>Table: ${order.tableNumber || 'N/A'}</div>
-            <div style="text-align: right;">Date: ${dateStr}<br>Time: ${timeStr}</div>
-        </div>
-        <div style="margin-bottom: 15px;">${itemsHtml}</div>
-        <div class="summary-row"><span>Subtotal</span><span>${currency}${(order.subtotal || 0).toFixed(2)}</span></div>
-        ${order.vat > 0 ? `<div class="summary-row"><span>VAT</span><span>${currency}${(order.vat || 0).toFixed(2)}</span></div>` : ''}
-        ${order.discount > 0 ? `<div class="summary-row"><span>Discount</span><span>-${currency}${(order.discount || 0).toFixed(2)}</span></div>` : ''}
-        <div class="total-row"><span>TOTAL</span><span>${currency}${(order.total || 0).toFixed(2)}</span></div>
-        <div class="footer">${footerText}</div>
-        </body></html>`;
-    }
-
     return `
     <!DOCTYPE html><html><head><meta charset="UTF-8"><style>
     @page { size: 80mm auto; margin: 2mm; }

@@ -376,39 +376,46 @@ export class BluetoothPrinterService {
   }
 
   static async printInvoice(business: Business, order: Order, transaction?: any, elementId: string = 'invoice-content') {
+    // We prefer text-based printing because it's much more reliable on thermal printers
+    // and handles Bangla correctly by rendering only text lines to canvas when needed.
+    
     const width = business.printerSettings?.paperWidth === '58mm' ? 32 : 48;
     const pixelWidth = business.printerSettings?.paperWidth === '58mm' ? 384 : 576;
-    const currency = business.currency || 'Tk';
     
     await this.printRaw(new Uint8Array(this.COMMANDS.INIT));
 
     // Header
     await this.printTextLine(business.name, pixelWidth, { align: 'center', doubleSize: true, bold: true });
-    await this.printTextLine(business.address || '', pixelWidth, { align: 'center' });
-    if (business.phone) await this.printTextLine(`Mob: ${business.phone}`, pixelWidth, { align: 'center' });
     
-    await this.printRaw(new Uint8Array([0x0A])); // LF
-    await this.printTextLine('INVOICE', pixelWidth, { align: 'center', bold: true, doubleSize: true });
+    if (business.printerSettings?.receiptHeader) {
+      await this.printTextLine(business.printerSettings.receiptHeader, pixelWidth, { align: 'center' });
+    } else {
+      await this.printTextLine(business.address, pixelWidth, { align: 'center' });
+      await this.printTextLine('Tel: ' + business.phone, pixelWidth, { align: 'center' });
+    }
+    
     await this.printRaw(new Uint8Array(new TextEncoder().encode('-'.repeat(width) + '\n')));
 
     // Order Info
-    const dateStr = new Date(order.createdAt).toLocaleDateString('en-GB');
-    const timeStr = new Date(order.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-    
     await this.printTextLine(`Token: #${order.tokenNumber}`, pixelWidth, { align: 'left', bold: true });
-    await this.printTextLine(`Table: ${order.tableNumber || 'N/A'}`, pixelWidth, { align: 'left' });
-    
-    const dateTimeCanvas = await this.renderLineToCanvas(`Date: ${dateStr}`, `Time: ${timeStr}`, pixelWidth, { leftFontSize: 24, rightFontSize: 24 });
-    await this.printCanvas(dateTimeCanvas);
+    await this.printTextLine(`Date: ${new Date(order.createdAt).toLocaleString()}`, pixelWidth, { align: 'left' });
+    if (transaction?.creatorName) {
+      await this.printTextLine(`Ordered by: ${transaction.creatorName}`, pixelWidth, { align: 'left' });
+    }
+    if (order.tableNumber) {
+      await this.printTextLine(`Table: ${order.tableNumber}`, pixelWidth, { align: 'left' });
+    }
     
     await this.printRaw(new Uint8Array(new TextEncoder().encode('-'.repeat(width) + '\n')));
 
     // Items
     const groupedItems = this.groupItems(order.items);
     for (const item of groupedItems) {
-      const qty = `${item.quantity} x ${item.name}`;
-      const price = `${currency}${(item.price * item.quantity).toFixed(0)}`;
-      const canvas = await this.renderLineToCanvas(qty, price, pixelWidth, { leftFontSize: 28, rightFontSize: 28 });
+      const qty = `${item.quantity} x`;
+      const price = (item.price * item.quantity).toFixed(2);
+      const name = item.name;
+      
+      const canvas = await this.renderLineToCanvas(`${qty} ${name}`, price, pixelWidth, { leftFontSize: 32, rightFontSize: 24 });
       await this.printCanvas(canvas);
     }
 
@@ -420,22 +427,29 @@ export class BluetoothPrinterService {
     const discount = transaction?.discount || order.discount || 0;
     const total = subtotal + vat - discount;
 
-    const totalsCanvas = async (label: string, value: string, bold: boolean = false) => {
-        const c = await this.renderLineToCanvas(label, value, pixelWidth, { leftFontSize: 24, rightFontSize: bold ? 32 : 24, bold });
-        await this.printCanvas(c);
-    };
+    await this.printTextLine(`Subtotal: ${business.currency}${subtotal.toFixed(2)}`, pixelWidth, { align: 'right' });
+    if (business.includeVat) {
+      await this.printTextLine(`VAT (${business.vatRate}%): ${business.currency}${vat.toFixed(2)}`, pixelWidth, { align: 'right' });
+    }
+    if (discount > 0) {
+      await this.printTextLine(`Discount: -${business.currency}${discount.toFixed(2)}`, pixelWidth, { align: 'right' });
+    }
+    await this.printTextLine(`TOTAL: ${business.currency}${total.toFixed(2)}`, pixelWidth, { align: 'right', bold: true });
 
-    await totalsCanvas('Subtotal', `${currency}${subtotal.toFixed(2)}`);
-    if (business.includeVat) await totalsCanvas(`VAT (${business.vatRate}%)`, `${currency}${vat.toFixed(2)}`);
-    if (discount > 0) await totalsCanvas('Discount', `-${currency}${discount.toFixed(2)}`);
-    await totalsCanvas('TOTAL', `${currency}${total.toFixed(2)}`, true);
+    // 2 lines white space
+    await this.printRaw(new Uint8Array([this.LF, this.LF]));
 
     // Footer
-    await this.printRaw(new Uint8Array([0x0A, 0x0A]));
-    await this.printTextLine('Thank you for dining with us!', pixelWidth, { align: 'center' });
-    await this.printTextLine('Please visit again.', pixelWidth, { align: 'center' });
+    if (business.printerSettings?.receiptFooter) {
+      await this.printTextLine(business.printerSettings.receiptFooter, pixelWidth, { align: 'center' });
+    } else {
+      await this.printTextLine('ধন্যবাদ! আবার আসবেন', pixelWidth, { align: 'center' });
+    }
     
-    await this.printRaw(new Uint8Array([...Array(4).fill(0x0A), ...this.COMMANDS.CUT]));
+    await this.printTextLine('Powered By: RestoKeep', pixelWidth, { align: 'center', fontSize: 18 });
+    await this.printTextLine('Web: www.restokeep.app', pixelWidth, { align: 'center', fontSize: 14 });
+    await this.printTextLine('Mob: 01303565316', pixelWidth, { align: 'center', fontSize: 14 });
+    await this.printRaw(new Uint8Array([...Array(2).fill(0x0A), ...this.COMMANDS.CUT]));
   }
 
   static async printKOT(business: Business, order: Order | any, elementId: string = 'kot-content') {
@@ -444,32 +458,29 @@ export class BluetoothPrinterService {
     
     await this.printRaw(new Uint8Array(this.COMMANDS.INIT));
 
-    await this.printTextLine(`Kitchen Token: #${order.tokenNumber}`, pixelWidth, { align: 'center', bold: true, doubleSize: true });
-    await this.printTextLine(`Table No: ${order.tableNumber || 'Delivery'}`, pixelWidth, { align: 'center', bold: true, doubleSize: true });
+    await this.printTextLine(`Kitchen Token: #${order.tokenNumber}`, pixelWidth, { align: 'center', bold: true });
+    await this.printTextLine(`Table No: ${order.tableNumber || 'Delivery'}`, pixelWidth, { align: 'center', bold: true });
     if (order.creatorName) {
-      await this.printTextLine(`Ordered by: ${order.creatorName}`, pixelWidth, { align: 'center', bold: true, doubleSize: true });
+      await this.printTextLine(`Ordered by: ${order.creatorName}`, pixelWidth, { align: 'center', bold: true });
     }
     
     const dateStr = new Date().toLocaleDateString('en-GB');
     const timeStr = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-    
-    const dateTimeCanvas = await this.renderLineToCanvas(`Date: ${dateStr}`, `Time: ${timeStr}`, pixelWidth, { leftFontSize: 24, rightFontSize: 24, bold: true });
-    await this.printCanvas(dateTimeCanvas);
+    await this.printTextLine(`Date: ${dateStr}  Time: ${timeStr}`, pixelWidth, { align: 'center' });
     
     await this.printRaw(new Uint8Array(new TextEncoder().encode('-'.repeat(width) + '\n')));
 
     const groupedItems = this.groupItems(order.items);
     for (const item of groupedItems) {
-      await this.printTextLine(`${item.quantity} x ${item.name}`, pixelWidth, { align: 'left', bold: true, doubleSize: true });
+      await this.printTextLine(`${item.quantity} x ${item.name}`, pixelWidth, { align: 'left', bold: true });
     }
 
     if (order.note) {
       await this.printRaw(new Uint8Array(new TextEncoder().encode('-'.repeat(width) + '\n')));
-      await this.printTextLine(`NOTE: ${order.note}`, pixelWidth, { align: 'left', bold: true, doubleSize: true });
+      await this.printTextLine(`NOTE: ${order.note}`, pixelWidth, { align: 'left', bold: true });
     }
 
-    await this.printRaw(new Uint8Array([0x0A]));
-    await this.printTextLine('--- Kitchen Copy ---', pixelWidth, { align: 'center', bold: true });
+    await this.printTextLine('--- Kitchen Copy ---', pixelWidth, { align: 'center' });
     await this.printRaw(new Uint8Array([...Array(4).fill(0x0A), ...this.COMMANDS.CUT]));
   }
 }

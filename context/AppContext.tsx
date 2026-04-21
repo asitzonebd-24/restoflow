@@ -92,7 +92,7 @@ interface AppContextType {
   login: (emailOrMobile: string, password: string, tenantId?: string | null) => Promise<boolean>;
   logout: () => Promise<void>;
   addOrder: (order: Omit<Order, 'tenantId'>) => Promise<void>;
-  createPrintRequest: (order: Order, type?: 'kot' | 'invoice') => Promise<void>;
+  createPrintRequest: (order: Order) => Promise<void>;
   updateOrderItems: (
     orderId: string, 
     items: OrderItem[], 
@@ -900,40 +900,19 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     }
   };
 
-  const calculateTotal = useCallback((order: Order, discount: number = 0) => {
-    const subtotal = order.totalAmount;
-    const vat = business?.includeVat ? (subtotal * ((business?.vatRate || 0) / 100)) : 0;
-    const total = Math.max(0, subtotal + vat - discount);
-    return { subtotal, vat, total };
-  }, [business]);
-
-  const createPrintRequest = async (order: Order, type: 'kot' | 'invoice' = 'kot') => {
+  const createPrintRequest = async (order: Order) => {
     try {
-      console.log(`[AppContext] Creating ${type} print request for tenant:`, order.tenantId, 'Order:', order.id);
-      const { subtotal, vat, total } = calculateTotal(order, order.discount || 0);
-      
+      console.log('[AppContext] Creating print request for tenant:', order.tenantId, 'Order:', order.id);
       const docRef = await addDoc(collection(db, 'print_requests'), {
         tenantId: order.tenantId,
         businessName: business.name || 'Restaurant',
         businessAddress: business.address || null,
-        businessMobile: business.phone || business.mobile || null,
-        receiptHeader: business.printerSettings?.receiptHeader || null,
-        receiptFooter: business.printerSettings?.receiptFooter || null,
-        showLogo: business.printerSettings?.showLogo || false,
-        paperWidth: business.printerSettings?.paperWidth || '80mm',
         orderId: order.id,
         tokenNumber: order.tokenNumber,
         tableNumber: order.tableNumber || null,
         creatorName: order.creatorName || currentUser?.name || currentUser?.email?.split('@')[0] || 'Staff',
         note: order.note || null,
         items: order.items,
-        type: type,
-        status: 'pending',
-        discount: order.discount || 0,
-        subtotal,
-        vat,
-        total,
-        currency: business.currency || 'Tk',
         createdAt: serverTimestamp()
       });
       console.log('[AppContext] Print request created with ID:', docRef.id);

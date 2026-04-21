@@ -3,14 +3,13 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Transaction, Order, Role, OrderItem } from '../types';
 import { History, Search, Calendar, Eye, FileText, Printer, X, Hash, ChevronRight, User as UserIcon, Receipt, TrendingUp, Trophy, Award, Filter, Store, Bluetooth } from 'lucide-react';
-import { toast } from 'sonner';
 import { BluetoothPrinterService } from '../services/printerService';
 import { Pagination } from '../components/Pagination';
 
 type DateFilter = 'all' | 'today' | 'week' | 'month' | 'custom';
 
 export const Transactions = () => {
-    const { transactions, currentTenant, currentUser, orders, users, createPrintRequest } = useApp();
+    const { transactions, currentTenant, currentUser, orders, users } = useApp();
     const [searchTerm, setSearchTerm] = useState('');
     const [dateFilter, setDateFilter] = useState<DateFilter>('all');
     const [selectedStaffId, setSelectedStaffId] = useState<string>('all');
@@ -135,23 +134,8 @@ export const Transactions = () => {
     };
 
     const printInvoice = async () => {
-      if (!viewInvoice) return;
-      let printed = false;
-
-      // 1. Cloud Print via Agent (If enabled)
-      if (currentTenant?.printerSettings?.enablePrintAgent) {
-        try {
-          await createPrintRequest({ ...viewInvoice.order } as any, 'invoice');
-          toast.success('Invoice sent to Cloud Agent');
-          printed = true;
-        } catch (err) {
-          console.error('[Transactions] Cloud print invoice failed:', err);
-          toast.error('Cloud print failed');
-        }
-      }
-
-      // 2. Bluetooth Print
-      if (currentTenant?.printerSettings?.pairedPrinterId) {
+      // If a bluetooth printer is paired, try to print directly
+      if (currentTenant?.printerSettings?.pairedPrinterId && viewInvoice) {
         try {
           const result = await BluetoothPrinterService.connect(currentTenant.printerSettings.pairedPrinterId);
           if (result.success) {
@@ -159,47 +143,39 @@ export const Transactions = () => {
               discount: viewInvoice.transaction.discount,
               creatorName: viewInvoice.transaction.creatorName
             });
-            toast.success('Printed via Bluetooth');
             return; // Skip system print if bluetooth worked
-          } else if (result.error === 'cancelled') {
-            return;
+          } else if (result.error === 'unsupported') {
+            console.warn('Bluetooth is not supported or blocked in this environment.');
           }
         } catch (error) {
-          console.error('Bluetooth print failed:', error);
+          console.error('Bluetooth print failed, falling back to system print:', error);
         }
       }
 
-      // 3. Fallback to system print
-      if (!printed) {
-        const printContent = document.getElementById('invoice-content');
-        if (!printContent) return;
+      const printContent = document.getElementById('invoice-content');
+      if (!printContent) return;
 
-        const originalTitle = document.title;
-        document.title = `${currentTenant?.name || 'Invoice'} - #${viewInvoice?.order.tokenNumber}`;
-        
-        // Create a temporary container for printing
-        const printContainer = document.createElement('div');
-        printContainer.id = 'print-container';
-        
-        // Apply paper width setting
-        const paperWidth = currentTenant?.printerSettings?.paperWidth || '80mm';
-        printContainer.style.width = paperWidth;
-        printContainer.style.margin = '0 auto';
-        
-        printContainer.innerHTML = printContent.innerHTML;
-        document.body.appendChild(printContainer);
+      const originalTitle = document.title;
+      document.title = `${currentTenant?.name || 'Invoice'} - #${viewInvoice?.order.tokenNumber}`;
+      
+      // Create a temporary container for printing
+      const printContainer = document.createElement('div');
+      printContainer.id = 'print-container';
+      
+      // Apply paper width setting
+      const paperWidth = currentTenant?.printerSettings?.paperWidth || '80mm';
+      printContainer.style.width = paperWidth;
+      printContainer.style.margin = '0 auto';
+      
+      printContainer.innerHTML = printContent.innerHTML;
+      document.body.appendChild(printContainer);
 
-        try {
-          window.focus();
-          window.print();
-        } catch (e) {
-          console.error('System print failed:', e);
-        }
-        
-        // Clean up
-        document.body.removeChild(printContainer);
-        document.title = originalTitle;
-      }
+      window.focus();
+      window.print();
+      
+      // Clean up
+      document.body.removeChild(printContainer);
+      document.title = originalTitle;
     };
 
     const calculateInvoiceTotal = (order: Order, discount: number = 0) => {
@@ -434,61 +410,14 @@ export const Transactions = () => {
                                             </span>
                                         </td>
                                         <td className="px-8 py-6 text-right">
-                                            <div className="flex items-center justify-end gap-2">
-                                                <button 
-                                                    type="button"
-                                                    onClick={async () => {
-                                                        const originalOrder = orders.find(o => o.id === txn.orderId);
-                                                        if (!originalOrder) {
-                                                            toast.error("Order details archived.");
-                                                            return;
-                                                        }
-                                                        
-                                                        // 1. Cloud Print
-                                                        if (currentTenant?.printerSettings?.enablePrintAgent) {
-                                                          try {
-                                                            await createPrintRequest({ ...originalOrder } as any, 'invoice');
-                                                            toast.success('Invoice sent to Cloud Agent');
-                                                          } catch (err) {
-                                                            console.error('[Transactions] Cloud print failed:', err);
-                                                            toast.error('Cloud print failed');
-                                                          }
-                                                        }
-
-                                                        // 2. Bluetooth Print
-                                                        if (currentTenant?.printerSettings?.pairedPrinterId) {
-                                                          try {
-                                                            const result = await BluetoothPrinterService.connect(currentTenant.printerSettings.pairedPrinterId);
-                                                            if (result.success) {
-                                                              await BluetoothPrinterService.printInvoice(currentTenant, originalOrder, { 
-                                                                discount: txn.discount,
-                                                                creatorName: txn.creatorName
-                                                              });
-                                                              toast.success('Printed via Bluetooth');
-                                                              return;
-                                                            }
-                                                          } catch (error) {
-                                                            console.error('Bluetooth print failed:', error);
-                                                          }
-                                                        }
-
-                                                        // 3. Fallback to view
-                                                        openInvoice(txn);
-                                                    }}
-                                                    className="w-10 h-10 bg-emerald-500 text-white rounded-xl flex items-center justify-center hover:bg-emerald-600 shadow-lg border-2 border-black transition-all active:scale-95"
-                                                    title="Print Invoice"
-                                                >
-                                                    <Printer size={18} />
-                                                </button>
-                                                <button 
-                                                    type="button"
-                                                    onClick={() => openInvoice(txn)}
-                                                    className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 hover:text-indigo-500 shadow-sm border-2 border-black hover:border-indigo-500/50 transition-all group-hover:scale-110"
-                                                    title="View Receipt"
-                                                >
-                                                    <Eye size={18} />
-                                                </button>
-                                            </div>
+                                            <button 
+                                                type="button"
+                                                onClick={() => openInvoice(txn)}
+                                                className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 hover:text-indigo-500 shadow-sm border-2 border-black hover:border-indigo-500/50 transition-all group-hover:scale-110"
+                                                title="View Receipt"
+                                            >
+                                                <Eye size={18} />
+                                            </button>
                                         </td>
                                     </tr>
                                 ))
