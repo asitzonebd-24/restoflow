@@ -82,26 +82,33 @@ async function performPrint(order, requestId, attempt = 1, startTime = Date.now(
     const html = generateReceiptHtml(order, requestId);
     const filePath = path.join(__dirname, `temp_${requestId}.html`);
     const pdfFilePath = filePath + '.pdf';
-    const profilePath = path.join(__dirname, `profile_${requestId}`);
+    const profilePath = path.join(__dirname, 'edge_profile'); // Shared profile
     
+    // Ensure profile dir exists once
+    if (!fs.existsSync(profilePath)) {
+        try { fs.mkdirSync(profilePath); } catch(e) {}
+    }
+
     return new Promise((resolve) => {
         const currentAge = Date.now() - startTime;
-        if (currentAge > 60000) {
-            console.error(`[EXPIRED] Request ${requestId} exceeded 60s limit.`);
+        if (currentAge > 90000) { // Increased to 90s total
+            console.error(`[EXPIRED] Request ${requestId} exceeded limit.`);
             deletePrintRequest(requestId);
-            cleanupFiles(filePath, pdfFilePath, profilePath);
+            cleanupFiles(filePath, pdfFilePath, null);
             return resolve();
         }
 
         try {
             fs.writeFileSync(filePath, html);
-            const convertCommand = `powershell -Command "$edge = (Get-ChildItem 'C:\\Program Files*\\Microsoft\\Edge\\Application\\msedge.exe' | Select-Object -First 1).FullName; if ($edge) { & \\"$edge\\" --headless=new --no-sandbox --disable-gpu --user-data-dir=\\\"${profilePath}\\\" --no-pdf-header-footer --print-to-pdf=\\\"${pdfFilePath}\\\" \\\"${filePath}\\\" } else { msedge --headless=new --no-sandbox --disable-gpu --user-data-dir=\\\"${profilePath}\\\" --no-pdf-header-footer --print-to-pdf=\\\"${pdfFilePath}\\\" \\\"${filePath}\\\" }"`;
+            // Optimized Edge flags for speed
+            const convertCommand = `powershell -Command "$edge = (Get-ChildItem 'C:\\Program Files*\\Microsoft\\Edge\\Application\\msedge.exe' | Select-Object -First 1).FullName; if ($edge) { & \\"$edge\\" --headless=new --no-sandbox --disable-gpu --disable-extensions --disable-software-rasterizer --user-data-dir=\\\"${profilePath}\\\" --no-pdf-header-footer --print-to-pdf=\\\"${pdfFilePath}\\\" \\\"${filePath}\\\" } else { msedge --headless=new --no-sandbox --disable-gpu --disable-extensions --disable-software-rasterizer --user-data-dir=\\\"${profilePath}\\\" --no-pdf-header-footer --print-to-pdf=\\\"${pdfFilePath}\\\" \\\"${filePath}\\\" }"`;
 
             console.time(`job-${requestId}`);
-            exec(convertCommand, { timeout: 15000 }, (err) => {
+            exec(convertCommand, { timeout: 30000 }, (err) => { // Increased timeout to 30s
                 if (err && !fs.existsSync(pdfFilePath)) {
                     console.timeEnd(`job-${requestId}`);
-                    cleanupFiles(filePath, pdfFilePath, profilePath);
+                    console.error(`[CONVERT_ERROR] Attempt ${attempt}:`, err.message);
+                    cleanupFiles(filePath, pdfFilePath, null);
                     handleRetry(order, requestId, attempt, resolve, startTime);
                     return;
                 }
@@ -113,36 +120,41 @@ async function performPrint(order, requestId, attempt = 1, startTime = Date.now(
                         clearInterval(checkFile);
                         const sumatraPath = 'C:\\PrinterService\\SumatraPDF\\SumatraPDF.exe';
                         const printCommand = `"${sumatraPath}" -print-to "XP-80C" -silent -print-settings "noscale" "${pdfFilePath}"`;
-                        exec(printCommand, { timeout: 15000 }, (fbError) => {
+                        exec(printCommand, { timeout: 20000 }, (fbError) => {
                             console.timeEnd(`job-${requestId}`);
                             if (!fbError) {
                                 console.log(`[SUCCESS] Token: ${order.tokenNumber}`);
                                 deletePrintRequest(requestId);
                             } else {
                                 console.error('Printer Error:', fbError.message);
+                                // Delete anyway to avoid loop if printer is offline
+                                deletePrintRequest(requestId);
                             }
-                            setTimeout(() => cleanupFiles(filePath, pdfFilePath, profilePath), 5000);
+                            setTimeout(() => cleanupFiles(filePath, pdfFilePath, null), 5000);
                             resolve();
                         });
-                    } else if (checkAttempts > 20) {
+                    } else if (checkAttempts > 30) { // Wait up to 15s for file appearance
                         clearInterval(checkFile);
                         console.timeEnd(`job-${requestId}`);
-                        cleanupFiles(filePath, pdfFilePath, profilePath);
+                        cleanupFiles(filePath, pdfFilePath, null);
                         handleRetry(order, requestId, attempt, resolve, startTime);
                     }
                 }, 500); 
             });
-        } catch (err) { handleRetry(order, requestId, attempt, resolve, startTime); }
+        } catch (err) { 
+            console.error('[CRITICAL_ERROR]:', err);
+            handleRetry(order, requestId, attempt, resolve, startTime); 
+        }
     });
 }
 
 function handleRetry(order, requestId, attempt, resolve, startTime) {
     const currentAge = Date.now() - startTime;
-    if (currentAge < 60000 && attempt < 3) {
-        console.log(`[RETRY] Token ${order.tokenNumber} (Attempt ${attempt + 1}/3)`);
-        setTimeout(() => performPrint(order, requestId, attempt + 1, startTime).then(resolve), 2000);
+    if (currentAge < 90000 && attempt < 3) {
+        console.log(`[RETRY] Token ${order.tokenNumber} (Attempt ${attempt + 1}/3) after ${Math.round(currentAge/1000)}s`);
+        setTimeout(() => performPrint(order, requestId, attempt + 1, startTime).then(resolve), 3000);
     } else {
-        console.error(`[ABORTED] Token ${order.tokenNumber} failed too many times or expired.`);
+        console.error(`[ABORTED] Token ${order.tokenNumber} failed too many times or expired (${Math.round(currentAge/1000)}s).`);
         deletePrintRequest(requestId);
         resolve();
     }
