@@ -924,6 +924,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         note: order.note || null,
         items: order.items,
         type: type,
+        status: 'pending',
         discount: order.discount || 0,
         subtotal,
         vat,
