@@ -292,6 +292,11 @@ export const Kitchen = () => {
                     if (currentTenant?.printerSettings?.enablePrintAgent) {
                       try {
                         await createPrintRequest(orderData as any, isDone ? 'invoice' : 'kot');
+                        
+                        // Auto mark as ready if setting enabled for KOT
+                        if (!isDone && currentTenant.printerSettings?.autoMarkReadyOnPrint) {
+                          updateOrderStatus(order.id, OrderStatus.READY);
+                        }
                       } catch (error) {
                         console.error('Print Agent failed:', error);
                         alert('Cloud print failed. please check Print Agent status.');

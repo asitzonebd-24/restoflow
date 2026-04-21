@@ -258,7 +258,7 @@ const POSCartContent = ({
           {isSubmitting ? 'Processing...' : (isCreatingNew ? (isTokenDuplicate ? 'Auto-Resolve & Send' : (!newTokenNum.trim() ? 'Token Required' : (orderType === 'Dine In' && !newTableNum.trim() ? 'Table Required' : 'Send to Kitchen'))) : 'Update Order')} <ArrowRight size={18} />
         </button>
         <button 
-          onClick={() => printKOT(undefined, undefined, undefined, undefined, orderNote)}
+          onClick={() => printKOT(selectedOrderId || undefined, undefined, undefined, undefined, undefined, orderNote)}
           disabled={cart.length === 0}
           className="w-14 py-4 rounded-2xl bg-white border-2 border-slate-900 text-slate-900 flex items-center justify-center shadow-xl hover:bg-slate-50 transition-all active:scale-95 disabled:opacity-30"
           title="Print KOT"
@@ -561,7 +561,7 @@ export const POS = () => {
         // Auto-print KOT if enabled (Handled by addOrder in AppContext)
         if (!currentTenant?.printerSettings?.enablePrintAgent && currentTenant?.printerSettings?.autoPrintKOT) {
           try {
-            await printKOT(printToken, printTable, printCreator, cleanedItems, printNote);
+            await printKOT(newOrder.id, printToken, printTable, printCreator, cleanedItems, printNote);
           } catch (err) {
             console.error('Auto-print KOT failed:', err);
             setErrorMessage('Auto-print KOT failed. Please check printer connection.');
@@ -613,7 +613,7 @@ export const POS = () => {
         if (!currentTenant?.printerSettings?.enablePrintAgent && hasNewItems && currentTenant?.printerSettings?.autoPrintKOT) {
           // Print only new items
           try {
-            await printKOT(printToken, printTable, printCreator, newItems, printNote);
+            await printKOT(selectedOrderId!, printToken, printTable, printCreator, newItems, printNote);
           } catch (err) {
             console.error('Auto-print KOT failed:', err);
             setErrorMessage('Auto-print KOT failed. Please check printer connection.');
@@ -647,16 +647,17 @@ export const POS = () => {
   const cartTotal = cart.reduce((sum, i) => sum + (i.price * i.quantity), 0);
   const cartCount = cart.reduce((acc, i) => acc + i.quantity, 0);
 
-  const printKOT = async (overrideToken?: string, overrideTable?: string, overrideCreatorName?: string, overrideItems?: OrderItem[], overrideNote?: string) => {
-    const token = overrideToken || (isCreatingNew ? newTokenNum : orders.find(o => o.id === selectedOrderId)?.tokenNumber);
-    const table = overrideTable || (isCreatingNew ? (isDelivery ? 'Delivery' : (isTakeAway ? 'Take Away' : newTableNum)) : orders.find(o => o.id === selectedOrderId)?.tableNumber);
-    const creatorId = isCreatingNew ? currentUser?.id : orders.find(o => o.id === selectedOrderId)?.createdBy;
+  const printKOT = async (orderIdOverride?: string, overrideToken?: string, overrideTable?: string, overrideCreatorName?: string, overrideItems?: OrderItem[], overrideNote?: string) => {
+    const currentId = orderIdOverride || selectedOrderId;
+    const token = overrideToken || (isCreatingNew ? newTokenNum : orders.find(o => o.id === currentId)?.tokenNumber);
+    const table = overrideTable || (isCreatingNew ? (isDelivery ? 'Delivery' : (isTakeAway ? 'Take Away' : newTableNum)) : orders.find(o => o.id === currentId)?.tableNumber);
+    const creatorId = isCreatingNew ? currentUser?.id : (currentId ? orders.find(o => o.id === currentId)?.createdBy : null);
     const creatorName = overrideCreatorName || (creatorId ? getWaiterName(creatorId) : 'Staff');
     const itemsToPrint = overrideItems || cart;
     const noteToPrint = overrideNote !== undefined ? overrideNote : orderNote;
 
     const orderData = {
-      id: selectedOrderId || 'manual-' + Date.now(),
+      id: currentId || 'manual-' + Date.now(),
       tenantId: currentTenant.id,
       tokenNumber: token || '000',
       tableNumber: table,
@@ -670,6 +671,12 @@ export const POS = () => {
     if (currentTenant?.printerSettings?.enablePrintAgent) {
       try {
         await createPrintRequest(orderData as any, 'kot');
+        
+        // Auto mark as ready if setting enabled
+        if (currentTenant.printerSettings?.autoMarkReadyOnPrint && currentId) {
+          await updateOrderStatus(currentId, OrderStatus.READY);
+        }
+        
         return;
       } catch (error) {
         console.error('Print Agent KOT failed:', error);
@@ -681,7 +688,7 @@ export const POS = () => {
       try {
         const result = await BluetoothPrinterService.connect(currentTenant.printerSettings.pairedPrinterId);
         if (result.success) {
-          const orderData = {
+          const btOrderData = {
             tokenNumber: token || '000',
             tableNumber: table,
             items: itemsToPrint,
@@ -689,10 +696,10 @@ export const POS = () => {
             createdAt: new Date().toISOString(),
             creatorName: creatorName
           };
-          await BluetoothPrinterService.printKOT(currentTenant, orderData as any);
+          await BluetoothPrinterService.printKOT(currentTenant, btOrderData as any);
           
-          if (currentTenant.printerSettings?.autoMarkReadyOnPrint && selectedOrderId) {
-            updateOrderStatus(selectedOrderId, OrderStatus.READY);
+          if (currentTenant.printerSettings?.autoMarkReadyOnPrint && currentId) {
+            updateOrderStatus(currentId, OrderStatus.READY);
           }
           
           return; // Skip system print if bluetooth worked
@@ -773,6 +780,11 @@ export const POS = () => {
     // Clean up
     document.body.removeChild(printContainer);
     document.title = originalTitle;
+
+    // Auto mark as ready if setting enabled
+    if (currentTenant.printerSettings?.autoMarkReadyOnPrint && currentId) {
+      await updateOrderStatus(currentId, OrderStatus.READY);
+    }
   };
 
   if (!selectedOrderId && !isCreatingNew) {
