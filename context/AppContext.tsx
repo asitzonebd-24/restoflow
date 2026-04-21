@@ -156,6 +156,8 @@ interface AppContextType {
   activeCategory: string;
   setActiveCategory: (category: string) => void;
   categories: string[];
+  relayMode: boolean;
+  setRelayMode: (active: boolean) => void;
   dbStatus: {
     isConfigured: boolean;
     hasTables: boolean;
@@ -230,6 +232,20 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     console.log(`[AppContext] State Update - isLoading: ${isLoading}, isAuthReady: ${isAuthReady}, currentUser: ${currentUser?.email || 'null'}`);
   }, [isLoading, isAuthReady, currentUser]);
   const [activeCategory, setActiveCategory] = useState<string>('Select Categories');
+  const [relayMode, setRelayMode] = useState<boolean>(() => {
+    return localStorage.getItem('mobile_printer_relay_active') === 'true';
+  });
+
+  const toggleRelayMode = (active: boolean) => {
+    setRelayMode(active);
+    localStorage.setItem('mobile_printer_relay_active', String(active));
+    if (active) {
+      toast.info('Mobile Printer Relay Activated');
+    } else {
+      toast.info('Mobile Printer Relay Deactivated');
+    }
+  };
+
   const [dbStatus, setDbStatus] = useState<{
     isConfigured: boolean;
     hasTables: boolean;
@@ -923,6 +939,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         items: order.items,
         totalAmount: order.totalAmount,
         discount: order.discount || 0,
+        autoMarkReady: (type === 'kot' && business.printerSettings?.autoMarkReadyOnPrint) || false,
         deliveryStaffName: order.deliveryStaffName || null,
         createdAt: serverTimestamp()
       });
@@ -2124,7 +2141,9 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       tables,
       addTable,
       deleteTable,
-      getNextToken
+      getNextToken,
+      relayMode,
+      setRelayMode: toggleRelayMode
     }}>
       {children}
     </AppContext.Provider>

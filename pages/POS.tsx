@@ -655,6 +655,27 @@ export const POS = () => {
     const itemsToPrint = overrideItems || cart;
     const noteToPrint = overrideNote !== undefined ? overrideNote : orderNote;
 
+    const orderData = {
+      id: selectedOrderId || 'manual-' + Date.now(),
+      tenantId: currentTenant.id,
+      tokenNumber: token || '000',
+      tableNumber: table,
+      items: itemsToPrint,
+      note: noteToPrint,
+      createdAt: new Date().toISOString(),
+      creatorName: creatorName,
+      totalAmount: itemsToPrint.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+    };
+
+    if (currentTenant?.printerSettings?.enablePrintAgent) {
+      try {
+        await createPrintRequest(orderData as any, 'kot');
+        return;
+      } catch (error) {
+        console.error('Print Agent KOT failed:', error);
+      }
+    }
+
     // If a bluetooth printer is paired, try to print directly
     if (currentTenant?.printerSettings?.pairedPrinterId) {
       try {
@@ -669,6 +690,11 @@ export const POS = () => {
             creatorName: creatorName
           };
           await BluetoothPrinterService.printKOT(currentTenant, orderData as any);
+          
+          if (currentTenant.printerSettings?.autoMarkReadyOnPrint && selectedOrderId) {
+            updateOrderStatus(selectedOrderId, OrderStatus.READY);
+          }
+          
           return; // Skip system print if bluetooth worked
         } else if (result.error === 'unsupported') {
           console.warn('Bluetooth is not supported or blocked in this environment. Using automatic printer agent instead.');

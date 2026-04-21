@@ -678,6 +678,7 @@ const AppContent = () => {
 }
 
 import { Toaster } from 'sonner';
+import { PrinterRelay } from './src/components/PrinterRelay';
 
 const OfflineAlert = () => {
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
@@ -719,6 +720,7 @@ export default function App() {
     <Router>
       <AppProvider>
         <OfflineAlert />
+        <PrinterRelay />
         <AppContent />
         <Toaster position="top-right" richColors />
       </AppProvider>

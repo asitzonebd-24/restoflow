@@ -13,7 +13,7 @@ const firebaseConfig = {
 };
 
 const { initializeApp } = require('firebase/app');
-const { getFirestore, collection, query, where, onSnapshot, orderBy, limit, doc, deleteDoc } = require('firebase/firestore');
+const { getFirestore, collection, query, where, onSnapshot, orderBy, limit, doc, deleteDoc, updateDoc, getDoc } = require('firebase/firestore');
 const { exec } = require('child_process');
 const fs = require('fs');
 const path = require('path');
@@ -142,6 +142,12 @@ async function performPrint(order, requestId, attempt = 1, startTime = Date.now(
                             console.timeEnd(`job-${requestId}`);
                             if (!fbError) {
                                 console.log(`[SUCCESS] Token: ${order.tokenNumber}`);
+                                
+                                // Auto Mark Ready logic
+                                if (order.autoMarkReady && order.orderId) {
+                                    handleAutoMarkReady(order);
+                                }
+
                                 deletePrintRequest(requestId);
                             } else {
                                 console.error('Printer Error:', fbError.message);
@@ -174,6 +180,35 @@ function handleRetry(order, requestId, attempt, resolve, startTime) {
         console.error(`[ABORTED] Token ${order.tokenNumber} failed too many times or expired (${Math.round(currentAge/1000)}s).`);
         deletePrintRequest(requestId);
         resolve();
+    }
+}
+
+async function handleAutoMarkReady(order) {
+    try {
+        const orderRef = doc(db, 'orders', order.orderId);
+        const orderSnap = await getDoc(orderRef);
+        if (orderSnap.exists()) {
+            const orderData = orderSnap.data();
+            const updatedItems = orderData.items.map((item) => {
+                const printedItem = order.items?.find((pi) => pi.rowId === item.rowId);
+                if (printedItem && item.status === 'PENDING') {
+                    return { ...item, status: 'READY' };
+                }
+                return item;
+            });
+
+            const allReady = updatedItems.every((i) => 
+                ['READY', 'COMPLETED', 'CANCELLED'].includes(i.status)
+            );
+
+            await updateDoc(orderRef, {
+                items: updatedItems,
+                status: allReady ? 'READY' : orderData.status
+            });
+            console.log(`[AUTO-MARK] Order ${order.tokenNumber} items marked as READY.`);
+        }
+    } catch (err) {
+        console.error('[AUTO-MARK-ERROR]:', err.message);
     }
 }
 

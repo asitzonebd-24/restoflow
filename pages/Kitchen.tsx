@@ -306,6 +306,9 @@ export const Kitchen = () => {
                             });
                           } else {
                             await BluetoothPrinterService.printKOT(currentTenant, orderData as any);
+                            if (currentTenant.printerSettings?.autoMarkReadyOnPrint) {
+                              updateOrderStatus(order.id, OrderStatus.READY);
+                            }
                           }
                         } else {
                           alert('Failed to connect to printer.');

@@ -7,7 +7,7 @@ import { BluetoothPrinterService } from '../services/printerService';
 import { QRCodeModal } from '../components/QRCodeModal';
 
 export const Settings = () => {
-    const { business, updateBusiness, currentUser, updateUser } = useApp();
+    const { business, updateBusiness, currentUser, updateUser, relayMode, setRelayMode } = useApp();
     
     // Business Settings state
     const [name, setName] = useState('');
@@ -34,6 +34,7 @@ export const Settings = () => {
     const [showLogo, setShowLogo] = useState(true);
     const [pairedPrinterName, setPairedPrinterName] = useState('');
     const [pairedPrinterId, setPairedPrinterId] = useState('');
+    const [autoMarkReadyOnPrint, setAutoMarkReadyOnPrint] = useState(false);
     const [isBluetoothSearching, setIsBluetoothSearching] = useState(false);
 
     // User Profile state
@@ -71,6 +72,7 @@ export const Settings = () => {
                 setShowLogo(business.printerSettings.showLogo ?? true);
                 setPairedPrinterName(business.printerSettings.pairedPrinterName || '');
                 setPairedPrinterId(business.printerSettings.pairedPrinterId || '');
+                setAutoMarkReadyOnPrint(business.printerSettings.autoMarkReadyOnPrint || false);
             }
         }
         if (currentUser) {
@@ -127,6 +129,7 @@ export const Settings = () => {
                     autoPrintKOT,
                     autoPrintInvoice,
                     enablePrintAgent,
+                    autoMarkReadyOnPrint,
                     showLogo,
                     pairedPrinterName,
                     pairedPrinterId
@@ -695,7 +698,10 @@ export const Settings = () => {
                                     <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Print Options</label>
                                     <div className="grid grid-cols-1 gap-3">
                                         <label className="flex items-center justify-between p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl cursor-pointer hover:border-slate-200 transition-all">
-                                            <span className="text-[10px] font-bold uppercase text-slate-700 tracking-widest">Enable Print Agent</span>
+                                            <div className="flex flex-col">
+                                                <span className="text-[10px] font-bold uppercase text-slate-700 tracking-widest">Enable Print Agent</span>
+                                                <span className="text-[8px] text-slate-400 font-medium uppercase tracking-tight">Print from PC (KOT/Invoice)</span>
+                                            </div>
                                             <input 
                                                 type="checkbox" 
                                                 className="w-5 h-5 rounded border-slate-300 text-slate-900 focus:ring-slate-900"
@@ -703,6 +709,41 @@ export const Settings = () => {
                                                 onChange={e => setEnablePrintAgent(e.target.checked)}
                                             />
                                         </label>
+
+                                        <label className="flex items-center justify-between p-4 bg-indigo-50 border-2 border-indigo-100 rounded-2xl cursor-pointer hover:border-indigo-200 transition-all">
+                                            <div className="flex flex-col">
+                                                <span className="text-[10px] font-bold uppercase text-indigo-700 tracking-widest">Mobile Printer Relay</span>
+                                                <span className="text-[8px] text-indigo-400 font-medium uppercase tracking-tight">This phone will act as Printer Hub</span>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <span className={`text-[8px] font-black uppercase tracking-widest ${relayMode ? 'text-emerald-600' : 'text-slate-400'}`}>
+                                                    {relayMode ? 'Active' : 'Off'}
+                                                </span>
+                                                <label className="relative inline-flex items-center cursor-pointer">
+                                                    <input 
+                                                        type="checkbox" 
+                                                        className="sr-only peer"
+                                                        checked={relayMode}
+                                                        onChange={e => setRelayMode(e.target.checked)}
+                                                    />
+                                                    <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                                                </label>
+                                            </div>
+                                        </label>
+
+                                        <label className="flex items-center justify-between p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl cursor-pointer hover:border-slate-200 transition-all">
+                                            <div className="flex flex-col">
+                                                <span className="text-[10px] font-bold uppercase text-slate-700 tracking-widest">Auto Mark Done on Print</span>
+                                                <span className="text-[8px] text-slate-400 font-medium uppercase tracking-tight">KOT প্রিন্ট হলে অর্ডার অটোমেটিক ডান হবে</span>
+                                            </div>
+                                            <input 
+                                                type="checkbox" 
+                                                className="w-5 h-5 rounded border-slate-300 text-slate-900 focus:ring-slate-900"
+                                                checked={autoMarkReadyOnPrint}
+                                                onChange={e => setAutoMarkReadyOnPrint(e.target.checked)}
+                                            />
+                                        </label>
+
                                         <label className="flex items-center justify-between p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl cursor-pointer hover:border-slate-200 transition-all">
                                             <span className="text-[10px] font-bold uppercase text-slate-700 tracking-widest">Show Logo on Receipt</span>
                                             <input 

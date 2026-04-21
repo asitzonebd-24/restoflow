@@ -31,6 +31,7 @@ export interface PrinterSettings {
   pairedPrinterName?: string;
   pairedPrinterId?: string;
   enablePrintAgent?: boolean;
+  autoMarkReadyOnPrint?: boolean;
 }
 
 export enum InventoryMode {
