@@ -92,7 +92,7 @@ interface AppContextType {
   login: (emailOrMobile: string, password: string, tenantId?: string | null) => Promise<boolean>;
   logout: () => Promise<void>;
   addOrder: (order: Omit<Order, 'tenantId'>) => Promise<void>;
-  createPrintRequest: (order: Order) => Promise<void>;
+  createPrintRequest: (order: Order, type?: 'kot' | 'invoice') => Promise<void>;
   updateOrderItems: (
     orderId: string, 
     items: OrderItem[], 
@@ -900,19 +900,30 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     }
   };
 
-  const createPrintRequest = async (order: Order) => {
+  const createPrintRequest = async (order: Order, type: 'kot' | 'invoice' = 'kot') => {
     try {
-      console.log('[AppContext] Creating print request for tenant:', order.tenantId, 'Order:', order.id);
+      console.log('[AppContext] Creating print request for tenant:', order.tenantId, 'Order:', order.id, 'Type:', type);
       const docRef = await addDoc(collection(db, 'print_requests'), {
         tenantId: order.tenantId,
         businessName: business.name || 'Restaurant',
         businessAddress: business.address || null,
+        businessPhone: business.phone || null,
+        currency: business.currency || '৳',
+        vatRate: business.vatRate || 0,
+        includeVat: business.includeVat || false,
+        receiptHeader: business.printerSettings?.receiptHeader || null,
+        receiptFooter: business.printerSettings?.receiptFooter || null,
+        paperWidth: business.printerSettings?.paperWidth || '80mm',
+        type,
         orderId: order.id,
         tokenNumber: order.tokenNumber,
         tableNumber: order.tableNumber || null,
         creatorName: order.creatorName || currentUser?.name || currentUser?.email?.split('@')[0] || 'Staff',
         note: order.note || null,
         items: order.items,
+        totalAmount: order.totalAmount,
+        discount: order.discount || 0,
+        deliveryStaffName: order.deliveryStaffName || null,
         createdAt: serverTimestamp()
       });
       console.log('[AppContext] Print request created with ID:', docRef.id);

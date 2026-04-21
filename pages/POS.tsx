@@ -906,7 +906,16 @@ export const POS = () => {
                           <button
                             onClick={async (e) => {
                               e.stopPropagation();
-                              if (currentTenant?.printerSettings?.pairedPrinterId) {
+                              const orderData = { ...order, creatorName: getWaiterName(order.createdBy) };
+                              
+                              if (currentTenant?.printerSettings?.enablePrintAgent) {
+                                try {
+                                  await createPrintRequest(orderData as any, 'invoice');
+                                } catch (error) {
+                                  console.error('Print Agent failed:', error);
+                                  setErrorMessage('Cloud print failed. Please check Print Agent status.');
+                                }
+                              } else if (currentTenant?.printerSettings?.pairedPrinterId) {
                                 try {
                                   const result = await BluetoothPrinterService.connect(currentTenant.printerSettings.pairedPrinterId);
                                   if (result.success) {
@@ -921,7 +930,7 @@ export const POS = () => {
                                   setErrorMessage('Failed to print invoice. Please check printer connection.');
                                 }
                               } else {
-                                setErrorMessage('No printer paired. Please pair a printer in Settings.');
+                                setErrorMessage('No printer configured. Enable Print Agent or pair a Bluetooth printer in Settings.');
                               }
                             }}
                             className="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-lg shadow-emerald-100 hover:bg-emerald-600 transition-all active:scale-90"

@@ -157,37 +157,96 @@ function cleanupFiles(filePath, pdfFilePath, profilePath) {
 }
 
 function generateReceiptHtml(order, requestId) {
+    const isInvoice = order.type === 'invoice';
     const createdAt = order.createdAt?.toDate ? order.createdAt.toDate() : new Date();
     const dateStr = createdAt.toLocaleDateString('en-GB');
     const timeStr = createdAt.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
     
+    const paperWidth = order.paperWidth || '80mm';
+    const contentWidth = paperWidth.includes('58') ? '48mm' : '68mm';
+
     let itemsHtml = '';
-    if (order.items && Array.isArray(order.items)) {
-        order.items.forEach(item => {
-            itemsHtml += `
-                <div style="display: flex; gap: 8px; font-size: 12pt; font-weight: bold; border-bottom: 1px dashed #000; padding: 5px 0;">
-                    <span style="white-space: nowrap; min-width: 25px;">${item.quantity} x</span>
-                    <span style="flex: 1; word-break: break-word;">${item.name}</span>
-                </div>`;
-        });
+    const groupedItems = groupItems(order.items || []);
+    groupedItems.forEach(item => {
+        itemsHtml += `
+            <div style="display: flex; gap: 8px; font-size: 11pt; font-weight: bold; border-bottom: 1px dashed #000; padding: 4px 0;">
+                <span style="white-space: nowrap; min-width: 25px;">${item.quantity} x</span>
+                <span style="flex: 1; word-break: break-word;">${item.name}</span>
+                ${isInvoice ? `<span style="font-weight: bold;">${(item.price * item.quantity).toFixed(0)}</span>` : ''}
+            </div>`;
+    });
+
+    if (isInvoice) {
+        const subtotal = order.totalAmount || 0;
+        const vat = order.includeVat ? (subtotal * (order.vatRate / 100)) : 0;
+        const discount = order.discount || 0;
+        const total = subtotal + vat - discount;
+
+        itemsHtml += `
+            <div style="margin-top: 10px; border-top: 2px solid #000; padding-top: 4px;">
+                <div style="display: flex; justify-content: space-between; font-size: 9pt;">
+                    <span>Subtotal:</span><span>${order.currency || '৳'}${subtotal.toFixed(0)}</span>
+                </div>
+                ${order.includeVat ? `
+                <div style="display: flex; justify-content: space-between; font-size: 9pt;">
+                    <span>VAT (${order.vatRate}%):</span><span>${order.currency || '৳'}${vat.toFixed(0)}</span>
+                </div>` : ''}
+                ${discount > 0 ? `
+                <div style="display: flex; justify-content: space-between; font-size: 9pt;">
+                    <span>Discount:</span><span>-${order.currency || '৳'}${discount.toFixed(0)}</span>
+                </div>` : ''}
+                <div style="display: flex; justify-content: space-between; font-size: 11pt; font-weight: bold; border-top: 1px solid #000; margin-top: 4px; padding-top: 2px;">
+                    <span>TOTAL:</span><span>${order.currency || '৳'}${total.toFixed(0)}</span>
+                </div>
+            </div>
+        `;
     }
+
     return `
     <!DOCTYPE html><html><head><meta charset="UTF-8"><style>
-    @page { size: 80mm auto; margin: 2mm; }
-    html, body { margin: 0; padding: 0; background-color: #ffffff; height: auto; width: 68mm; }
-    body { font-family: 'SolaimanLipi', 'Arial', 'Vrinda', sans-serif; width: 68mm; margin: 0 auto; padding: 10px 5px 0 5px; color: #000; font-size: 10pt; overflow: hidden; }
+    @page { size: ${paperWidth} auto; margin: 0; }
+    html, body { margin: 0; padding: 0; background-color: #ffffff; height: auto; width: ${contentWidth}; }
+    body { font-family: 'SolaimanLipi', 'Arial', 'Vrinda', sans-serif; width: ${contentWidth}; margin: 0 auto; padding: 10px 5px; color: #000; font-size: 9pt; overflow: hidden; }
     .container { display: block; width: 100%; text-align: center; }
-    .token-line { font-size: 12pt; font-weight: bold; margin-bottom: 3px; border-bottom: 1px solid #000; padding-bottom: 2px; }
-    .info-line { font-size: 12pt; font-weight: bold; margin: 1px 0; text-align: center; }
-    .date-time-row { display: flex; justify-content: space-between; border-bottom: 1px solid #000; padding: 1px 0; margin: 4px 0; font-weight: bold; font-size: 10pt; }
-    .footer { text-align: center; border-top: 1px solid #000; margin-top: 8px; padding-top: 2px; font-weight: bold; font-size: 10pt; }
+    .header { margin-bottom: 8px; text-align: center; }
+    .business-name { font-size: 14pt; font-weight: bold; margin-bottom: 2px; }
+    .token-line { font-size: 11pt; font-weight: bold; margin-bottom: 3px; border-bottom: 2px solid #000; padding-bottom: 2px; }
+    .info-line { font-size: 10pt; font-weight: bold; margin: 1px 0; text-align: center; }
+    .date-time-row { display: flex; justify-content: space-between; border-bottom: 1px solid #000; padding: 1px 0; margin: 4px 0; font-weight: bold; font-size: 8pt; }
+    .footer { text-align: center; border-top: 1px solid #000; margin-top: 12px; padding-top: 4px; font-weight: bold; font-size: 10pt; }
     </style></head><body><div class="container">
-    <div class="token-line">Kitchen Token: #${order.tokenNumber || '00'}</div>
-    <div class="info-line">Table No: ${order.tableNumber || 'N/A'}</div>
-    <div class="info-line">Ordered by: ${order.creatorName || 'Staff'}</div>
+    ${isInvoice ? `
+        <div class="header">
+            <div class="business-name">${order.businessName || 'RestoKeep'}</div>
+            ${order.receiptHeader ? `<div style="font-size: 8pt;">${order.receiptHeader}</div>` : `
+                <div style="font-size: 8pt;">${order.businessAddress || ''}</div>
+                ${order.businessPhone ? `<div style="font-size: 8pt;">Tel: ${order.businessPhone}</div>` : ''}
+            `}
+        </div>
+    ` : ''}
+    <div class="token-line">${isInvoice ? 'INVOICE' : 'Kitchen Token'}: #${order.tokenNumber || '00'}</div>
+    <div class="info-line">Table No: ${order.tableNumber || 'Delivery'}</div>
+    <div class="info-line">Waiter: ${order.creatorName || 'Staff'}</div>
     <div class="date-time-row"><span>Date: ${dateStr}</span><span>Time: ${timeStr}</span></div>
     <div style="width: 100%; text-align: left;">${itemsHtml}</div>
-    ${order.note ? `<div style="margin-top: 6px; padding: 3px; border: 1px dashed #000; font-style: italic; font-size: 12pt; text-align: left; font-weight: bold;">Note: ${order.note}</div>` : ''}
-    <div class="footer">--- Kitchen Copy ---</div>
+    ${order.note ? `<div style="margin-top: 8px; padding: 4px; border: 1px dashed #000; font-style: italic; font-size: 10pt; text-align: left; font-weight: bold; background: #f9f9f9;">Note: ${order.note}</div>` : ''}
+    <div class="footer">${isInvoice ? (order.receiptFooter || 'ধন্যবাদ! আবার আসবেন') : '--- Kitchen Copy ---'}</div>
+    ${isInvoice ? `
+        <div style="font-size: 7pt; margin-top: 15px; opacity: 0.6; text-align: center; border-top: 0.5px solid #eee; padding-top: 5px;">Powered By: RestoKeep (RestoKeep.app)</div>
+    ` : ''}
     </div></body></html>`;
+}
+
+function groupItems(items) {
+    const grouped = [];
+    if (!items || !Array.isArray(items)) return grouped;
+    items.forEach(item => {
+        const existing = grouped.find(i => i.itemId === item.itemId);
+        if (existing) {
+            existing.quantity += item.quantity;
+        } else {
+            grouped.push({ ...item });
+        }
+    });
+    return grouped;
 }
