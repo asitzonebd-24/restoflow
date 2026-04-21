@@ -111,7 +111,7 @@ const POSCartContent = ({
   createAndSubmitOrder: () => void,
   isTokenDuplicate: boolean,
   isSubmitting: boolean,
-  printKOT: (overrideToken?: string, overrideTable?: string, overrideCreatorName?: string, overrideItems?: OrderItem[], overrideNote?: string) => void,
+  printKOT: (orderIdOverride?: string, overrideToken?: string, overrideTable?: string, overrideCreatorName?: string, overrideItems?: OrderItem[], overrideNote?: string) => void,
   newTokenNum: string
 }) => (
   <div className={`flex flex-col ${isEmbedded ? 'h-auto rounded-[2rem] border-2' : 'h-full border-l-2'} bg-white border-indigo-500 shadow-2xl shadow-indigo-100 overflow-hidden`}>
