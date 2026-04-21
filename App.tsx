@@ -16,6 +16,7 @@ import { Transactions } from './pages/Transactions';
 import { Expenses } from './pages/Expenses';
 import { Reports } from './pages/Reports';
 import { SalesItems } from './pages/SalesItems';
+import { Subscription } from './pages/Subscription';
 import { Users as UsersPage } from './pages/Users';
 import { Settings as SettingsPage } from './pages/Settings';
 import { CustomerOrder } from './pages/CustomerOrder';
@@ -213,6 +214,12 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
                 {currentUser.role === Role.OWNER && currentUser.tenantIds && currentUser.tenantIds.length > 1 && (
                   <NavLink to="/global-reports" onClick={() => onClose()} className={navItemClass('/global-reports')} title="Global Reports">
                     <Globe size={22} />
+                  </NavLink>
+                )}
+
+                {currentUser.role === Role.OWNER && (
+                  <NavLink to={`/${tId}/subscription`} onClick={() => onClose()} className={navItemClass('/subscription')} title="Subscription">
+                    <Wallet size={22} className="text-emerald-400" />
                   </NavLink>
                 )}
 
@@ -652,6 +659,7 @@ const AppContent = () => {
       <Route path="/:tenantId/expenses" element={<ProtectedLayout><Expenses /></ProtectedLayout>} />
       <Route path="/:tenantId/reports" element={<ProtectedLayout><Reports /></ProtectedLayout>} />
       <Route path="/:tenantId/users" element={<ProtectedLayout><UsersPage /></ProtectedLayout>} />
+      <Route path="/:tenantId/subscription" element={<ProtectedLayout><Subscription /></ProtectedLayout>} />
       <Route path="/:tenantId/settings" element={<ProtectedLayout><SettingsPage /></ProtectedLayout>} />
 
       {/* Legacy routes for backward compatibility or direct access */}

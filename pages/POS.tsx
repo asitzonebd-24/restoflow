@@ -271,7 +271,7 @@ const POSCartContent = ({
 );
 
 export const POS = () => {
-  const { menu, currentTenant, currentUser, addOrder, updateOrderItems, updateOrderPaymentStatus, orders, users, isLoading, categories, tables, addTable, deleteTable, createPrintRequest, getNextToken } = useApp();
+  const { menu, currentTenant, currentUser, addOrder, updateOrderItems, updateOrderStatus, updateOrderPaymentStatus, orders, users, isLoading, categories, tables, addTable, deleteTable, createPrintRequest, getNextToken } = useApp();
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [cart, setCart] = useState<OrderItem[]>([]);
   const [activeCategory, setActiveCategory] = useState<string>('Select Categories');

@@ -150,6 +150,7 @@ interface AppContextType {
   deleteTable: (id: string) => Promise<void>;
   generateMonthlyBills: (month: string) => Promise<number>;
   approveBill: (billId: string) => Promise<void>;
+  markBillAsPaid: (billId: string, txnId: string) => Promise<void>;
   allUsers: User[];
   isLoading: boolean;
   getDefaultRedirect: () => string;
@@ -1988,6 +1989,21 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     }
   };
 
+  const markBillAsPaid = async (billId: string, txnId: string) => {
+    const paidAt = new Date().toISOString();
+    try {
+      const billRef = doc(db, 'monthly_bills', billId);
+      await updateDoc(billRef, {
+        status: BillStatus.PAID,
+        paidAt,
+        txnId
+      });
+      setMonthlyBills(prev => prev.map(b => b.id === billId ? { ...b, status: BillStatus.PAID, paidAt, txnId } : b));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `monthly_bills/${billId}`);
+    }
+  };
+
   const approveBill = async (billId: string) => {
     const approvedAt = new Date().toISOString();
 
@@ -2131,6 +2147,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       monthlyBills,
       generateMonthlyBills,
       approveBill,
+      markBillAsPaid,
       allUsers,
       isLoading,
       getDefaultRedirect,

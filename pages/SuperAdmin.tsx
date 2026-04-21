@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { Business, Role, BillStatus, InventoryMode } from '../types';
-import { Plus, Building2, User, Mail, Phone, Globe, MapPin, Search, ExternalLink, Calendar, Power, PowerOff, Edit3, Save, X as CloseIcon, AlertTriangle, Copy, Check, Wallet, Trash2, ChevronDown } from 'lucide-react';
+import { Plus, Building2, User, Mail, Phone, Globe, MapPin, Search, ExternalLink, Calendar, Power, PowerOff, Edit3, Save, X as CloseIcon, AlertTriangle, Copy, Check, Wallet, Trash2, ChevronDown, Printer, Settings2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -27,6 +27,8 @@ export const SuperAdmin = () => {
   const [isBulkUpdating, setIsBulkUpdating] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [tenantToDelete, setTenantToDelete] = useState<string | null>(null);
+  const [showPrinterModal, setShowPrinterModal] = useState(false);
+  const [selectedTenantForPrinter, setSelectedTenantForPrinter] = useState<Business | null>(null);
 
   const CURRENCIES = ['৳', '$', '€', '£', '₹', '₨', 'AED', 'SAR', 'QAR', 'OMR', 'BHD', 'KWD'];
 
@@ -517,6 +519,7 @@ export const SuperAdmin = () => {
                       </td>
                       <td className="px-2 py-2 text-right">
                         <div className="flex items-center justify-end gap-1">
+                          <button onClick={() => { setSelectedTenantForPrinter(tenant); setShowPrinterModal(true); }} className="p-0.5 text-slate-400 hover:text-indigo-600" title="Printer Setup"><Printer size={12} /></button>
                           <button onClick={() => handleEditTenant(tenant)} className="p-0.5 text-slate-400 hover:text-black" title="Edit"><Edit3 size={12} /></button>
                           <button onClick={() => handleDuplicateTenant(tenant)} className="p-0.5 text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 rounded transition-colors" title="Duplicate Menu"><Copy size={12} /></button>
                           <button onClick={() => toggleBusinessStatus(tenant.id)} className={tenant.isActive ? 'text-red-500' : 'text-emerald-500'} title={tenant.isActive ? 'Deactivate' : 'Activate'}><Power size={12} /></button>
@@ -627,7 +630,8 @@ export const SuperAdmin = () => {
                   </div>
 
                   <div className="flex items-center justify-between pt-2 border-t-2 border-black">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => { setSelectedTenantForPrinter(tenant); setShowPrinterModal(true); }} className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title="Printer Setup"><Printer size={18} /></button>
                       <button onClick={() => handleEditTenant(tenant)} className="p-2 text-slate-700 hover:text-black" title="Edit"><Edit3 size={18} /></button>
                       <button onClick={() => toggleBusinessStatus(tenant.id)} className={tenant.isActive ? 'text-red-600' : 'text-emerald-600'} title={tenant.isActive ? 'Deactivate' : 'Activate'}><Power size={18} /></button>
                       <button onClick={() => handleDeleteTenant(tenant.id)} className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all" title="Delete"><Trash2 size={18} /></button>
@@ -984,6 +988,132 @@ export const SuperAdmin = () => {
                     No, Keep It
                   </button>
                 </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+      {/* Delete Confirmation Modal Code ... */}
+
+      {/* Printer Setup Modal */}
+      <AnimatePresence>
+        {showPrinterModal && selectedTenantForPrinter && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[120]">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white rounded-[2rem] border-[3px] border-black shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]"
+            >
+              <div className="p-6 border-b-[3px] border-black bg-slate-50 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center border-2 border-black">
+                    <Printer className="text-indigo-600" size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Printer Setup</h3>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{selectedTenantForPrinter.name}</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => { setShowPrinterModal(false); setSelectedTenantForPrinter(null); }}
+                  className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-slate-200 text-slate-400 hover:text-black transition-colors border-2 border-transparent hover:border-black"
+                >
+                  <CloseIcon size={20} />
+                </button>
+              </div>
+
+              <div className="p-8 overflow-y-auto no-scrollbar space-y-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Toggles */}
+                  <div className="space-y-4">
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Core Settings</h4>
+                    
+                    {[
+                      { key: 'enablePrintAgent', label: 'Enable Print Agent', desc: 'Print through PC connection' },
+                      { key: 'enablePrinterRelay', label: 'Mobile Printer Relay', desc: 'Allow phone as printing hub' },
+                      { key: 'autoMarkReadyOnPrint', label: 'Auto Mark Done', desc: 'Ready on KOT print' },
+                      { key: 'showLogo', label: 'Show Logo on Receipt', desc: 'Include logo header' },
+                      { key: 'autoPrintKOT', label: 'Auto-print KOT', desc: 'Print on new order' }
+                    ].map((item) => (
+                      <label key={item.key} className="flex items-center justify-between p-4 bg-slate-50 border-2 border-black rounded-2xl cursor-pointer hover:bg-white transition-all">
+                        <div className="flex flex-col">
+                          <span className="text-[10px] font-black uppercase text-slate-900 tracking-tight">{item.label}</span>
+                          <span className="text-[8px] text-slate-400 font-bold uppercase tracking-widest leading-none mt-1">{item.desc}</span>
+                        </div>
+                        <div className="relative inline-flex items-center cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            className="sr-only peer"
+                            checked={!!selectedTenantForPrinter.printerSettings?.[item.key as keyof typeof selectedTenantForPrinter.printerSettings]}
+                            onChange={(e) => {
+                              const newSettings = { 
+                                ...selectedTenantForPrinter.printerSettings, 
+                                [item.key]: e.target.checked 
+                              };
+                              setSelectedTenantForPrinter({
+                                ...selectedTenantForPrinter,
+                                printerSettings: newSettings as any
+                              });
+                            }}
+                          />
+                          <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+
+                  {/* Text Areas */}
+                  <div className="space-y-6">
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4">Receipt Content</h4>
+                    
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Header Custom Text</label>
+                      <textarea 
+                        className="w-full p-4 bg-slate-50 border-2 border-black rounded-2xl focus:bg-white focus:ring-4 focus:ring-indigo-100 outline-none font-bold text-xs transition-all h-32 resize-none"
+                        placeholder="Welcome message..."
+                        value={selectedTenantForPrinter.printerSettings?.receiptHeader || ''}
+                        onChange={(e) => {
+                          const newSettings = { ...selectedTenantForPrinter.printerSettings, receiptHeader: e.target.value };
+                          setSelectedTenantForPrinter({ ...selectedTenantForPrinter, printerSettings: newSettings as any });
+                        }}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Footer Custom Text</label>
+                      <textarea 
+                        className="w-full p-4 bg-slate-50 border-2 border-black rounded-2xl focus:bg-white focus:ring-4 focus:ring-indigo-100 outline-none font-bold text-xs transition-all h-32 resize-none"
+                        placeholder="Thank you message..."
+                        value={selectedTenantForPrinter.printerSettings?.receiptFooter || ''}
+                        onChange={(e) => {
+                          const newSettings = { ...selectedTenantForPrinter.printerSettings, receiptFooter: e.target.value };
+                          setSelectedTenantForPrinter({ ...selectedTenantForPrinter, printerSettings: newSettings as any });
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6 border-t-[3px] border-black bg-slate-50 flex gap-3">
+                <button 
+                  onClick={() => { setShowPrinterModal(false); setSelectedTenantForPrinter(null); }}
+                  className="flex-1 py-4 bg-white border-2 border-black rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-slate-100 active:scale-[0.98] transition-all"
+                >
+                  Discard
+                </button>
+                <button 
+                  onClick={async () => {
+                    await updateTenant(selectedTenantForPrinter.id, { printerSettings: selectedTenantForPrinter.printerSettings });
+                    toast.success('Printer settings updated successfully');
+                    setShowPrinterModal(false);
+                    setSelectedTenantForPrinter(null);
+                  }}
+                  className="flex-1 py-4 bg-slate-900 text-white border-2 border-black rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-indigo-600 active:scale-[0.98] transition-all shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]"
+                >
+                  Save Settings
+                </button>
               </div>
             </motion.div>
           </div>

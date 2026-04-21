@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { Settings as SettingsIcon, Save, Store, Globe, Percent, Upload, Image as ImageIcon, User as UserIcon, Lock, Mail, Phone, Printer, QrCode } from 'lucide-react';
+import { Settings as SettingsIcon, Save, Store, Globe, Percent, Upload, Image as ImageIcon, User as UserIcon, Lock, Mail, Phone, Printer, QrCode, Check } from 'lucide-react';
 import { Role, InventoryMode } from '../types';
 import { BluetoothPrinterService } from '../services/printerService';
 import { QRCodeModal } from '../components/QRCodeModal';
@@ -697,94 +697,86 @@ export const Settings = () => {
                                 <div className="space-y-4">
                                     <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Print Options</label>
                                     <div className="grid grid-cols-1 gap-3">
-                                        <label className="flex items-center justify-between p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl cursor-pointer hover:border-slate-200 transition-all">
-                                            <div className="flex flex-col">
-                                                <span className="text-[10px] font-bold uppercase text-slate-700 tracking-widest">Enable Print Agent</span>
-                                                <span className="text-[8px] text-slate-400 font-medium uppercase tracking-tight">Print from PC (KOT/Invoice)</span>
-                                            </div>
-                                            <input 
-                                                type="checkbox" 
-                                                className="w-5 h-5 rounded border-slate-300 text-slate-900 focus:ring-slate-900"
-                                                checked={enablePrintAgent}
-                                                onChange={e => setEnablePrintAgent(e.target.checked)}
-                                            />
-                                        </label>
+                                        {business.printerSettings?.enablePrintAgent && (
+                                            <label className="flex items-center justify-between p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl">
+                                                <div className="flex flex-col">
+                                                    <span className="text-[10px] font-bold uppercase text-slate-700 tracking-widest">Enable Print Agent</span>
+                                                    <span className="text-[8px] text-slate-400 font-medium uppercase tracking-tight">Status: Active</span>
+                                                </div>
+                                                <div className={`w-5 h-5 rounded border-2 border-slate-300 flex items-center justify-center bg-indigo-600 border-indigo-600`}>
+                                                    <Check size={12} className="text-white" />
+                                                </div>
+                                            </label>
+                                        )}
 
-                                        <label className="flex items-center justify-between p-4 bg-indigo-50 border-2 border-indigo-100 rounded-2xl cursor-pointer hover:border-indigo-200 transition-all">
-                                            <div className="flex flex-col">
-                                                <span className="text-[10px] font-bold uppercase text-indigo-700 tracking-widest">Mobile Printer Relay</span>
-                                                <span className="text-[8px] text-indigo-400 font-medium uppercase tracking-tight">This phone will act as Printer Hub</span>
-                                            </div>
-                                            <div className="flex items-center gap-3">
-                                                <span className={`text-[8px] font-black uppercase tracking-widest ${relayMode ? 'text-emerald-600' : 'text-slate-400'}`}>
-                                                    {relayMode ? 'Active' : 'Off'}
-                                                </span>
-                                                <label className="relative inline-flex items-center cursor-pointer">
-                                                    <input 
-                                                        type="checkbox" 
-                                                        className="sr-only peer"
-                                                        checked={relayMode}
-                                                        onChange={e => setRelayMode(e.target.checked)}
-                                                    />
-                                                    <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
-                                                </label>
-                                            </div>
-                                        </label>
+                                        {business.printerSettings?.enablePrinterRelay && (
+                                            <label className="flex items-center justify-between p-4 bg-indigo-50 border-2 border-indigo-100 rounded-2xl cursor-pointer hover:border-indigo-200 transition-all">
+                                                <div className="flex flex-col">
+                                                    <span className="text-[10px] font-bold uppercase text-indigo-700 tracking-widest">Mobile Printer Relay</span>
+                                                    <span className="text-[8px] text-indigo-400 font-medium uppercase tracking-tight">Enable background hub for this device</span>
+                                                </div>
+                                                <div className="flex items-center gap-3">
+                                                    <span className={`text-[8px] font-black uppercase tracking-widest ${relayMode ? 'text-emerald-600' : 'text-slate-400'}`}>
+                                                        {relayMode ? 'Active' : 'Off'}
+                                                    </span>
+                                                    <label className="relative inline-flex items-center cursor-pointer">
+                                                        <input 
+                                                            type="checkbox" 
+                                                            className="sr-only peer"
+                                                            checked={relayMode}
+                                                            onChange={e => setRelayMode(e.target.checked)}
+                                                        />
+                                                        <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                                                    </label>
+                                                </div>
+                                            </label>
+                                        )}
 
-                                        <label className="flex items-center justify-between p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl cursor-pointer hover:border-slate-200 transition-all">
-                                            <div className="flex flex-col">
-                                                <span className="text-[10px] font-bold uppercase text-slate-700 tracking-widest">Auto Mark Done on Print</span>
-                                                <span className="text-[8px] text-slate-400 font-medium uppercase tracking-tight">KOT প্রিন্ট হলে অর্ডার অটোমেটিক ডান হবে</span>
-                                            </div>
-                                            <input 
-                                                type="checkbox" 
-                                                className="w-5 h-5 rounded border-slate-300 text-slate-900 focus:ring-slate-900"
-                                                checked={autoMarkReadyOnPrint}
-                                                onChange={e => setAutoMarkReadyOnPrint(e.target.checked)}
-                                            />
-                                        </label>
+                                        {business.printerSettings?.autoMarkReadyOnPrint && (
+                                            <label className="flex items-center justify-between p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl">
+                                                <div className="flex flex-col">
+                                                    <span className="text-[10px] font-bold uppercase text-slate-700 tracking-widest">Auto Mark Done on Print</span>
+                                                    <span className="text-[8px] text-slate-400 font-medium uppercase tracking-tight">Status: Active</span>
+                                                </div>
+                                                <div className={`w-5 h-5 rounded border-2 border-slate-300 flex items-center justify-center bg-indigo-600 border-indigo-600`}>
+                                                    <Check size={12} className="text-white" />
+                                                </div>
+                                            </label>
+                                        )}
 
-                                        <label className="flex items-center justify-between p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl cursor-pointer hover:border-slate-200 transition-all">
-                                            <span className="text-[10px] font-bold uppercase text-slate-700 tracking-widest">Show Logo on Receipt</span>
-                                            <input 
-                                                type="checkbox" 
-                                                className="w-5 h-5 rounded border-slate-300 text-slate-900 focus:ring-slate-900"
-                                                checked={showLogo}
-                                                onChange={e => setShowLogo(e.target.checked)}
-                                            />
-                                        </label>
-                                        <label className="flex items-center justify-between p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl cursor-pointer hover:border-slate-200 transition-all">
-                                            <span className="text-[10px] font-bold uppercase text-slate-700 tracking-widest">Auto-print KOT on Order</span>
-                                            <input 
-                                                type="checkbox" 
-                                                className="w-5 h-5 rounded border-slate-300 text-slate-900 focus:ring-slate-900"
-                                                checked={autoPrintKOT}
-                                                onChange={e => setAutoPrintKOT(e.target.checked)}
-                                            />
-                                        </label>
+                                        {business.printerSettings?.showLogo && (
+                                            <label className="flex items-center justify-between p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl">
+                                                <span className="text-[10px] font-bold uppercase text-slate-700 tracking-widest">Show Logo on Receipt</span>
+                                                <div className={`w-5 h-5 rounded border-2 border-slate-300 flex items-center justify-center bg-indigo-600 border-indigo-600`}>
+                                                    <Check size={12} className="text-white" />
+                                                </div>
+                                            </label>
+                                        )}
+                                        {business.printerSettings?.autoPrintKOT && (
+                                            <label className="flex items-center justify-between p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl">
+                                                <span className="text-[10px] font-bold uppercase text-slate-700 tracking-widest">Auto-print KOT on Order</span>
+                                                <div className={`w-5 h-5 rounded border-2 border-slate-300 flex items-center justify-center bg-indigo-600 border-indigo-600`}>
+                                                    <Check size={12} className="text-white" />
+                                                </div>
+                                            </label>
+                                        )}
                                     </div>
                                 </div>
 
                                 <div className="md:col-span-2">
                                     <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Receipt Header (Custom Text)</label>
-                                    <textarea 
-                                        value={receiptHeader}
-                                        onChange={e => setReceiptHeader(e.target.value)}
-                                        placeholder="e.g. Welcome to our restaurant!&#10;Open 24/7"
-                                        rows={2}
-                                        className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-slate-900 outline-none font-bold text-sm transition-all resize-none shadow-sm"
-                                    />
+                                    <div className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold text-sm text-slate-500 italic">
+                                        {receiptHeader || '(No header set by admin)'}
+                                    </div>
+                                    <p className="text-[8px] text-slate-400 mt-1 uppercase font-bold pl-1">Note: This content is managed by platform support</p>
                                 </div>
 
                                 <div className="md:col-span-2">
                                     <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Receipt Footer (Custom Text)</label>
-                                    <textarea 
-                                        value={receiptFooter}
-                                        onChange={e => setReceiptFooter(e.target.value)}
-                                        placeholder="e.g. Thank you for your visit!&#10;Follow us on Instagram @resto"
-                                        rows={2}
-                                        className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-slate-900 outline-none font-bold text-sm transition-all resize-none shadow-sm"
-                                    />
+                                    <div className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold text-sm text-slate-500 italic">
+                                        {receiptFooter || '(No footer set by admin)'}
+                                    </div>
+                                    <p className="text-[8px] text-slate-400 mt-1 uppercase font-bold pl-1">Note: This content is managed by platform support</p>
                                 </div>
                             </div>
                         </div>

@@ -18,7 +18,7 @@ export const ApprovedBills = () => {
   }
 
   const approvedBills = monthlyBills.filter(bill => 
-    bill.status === BillStatus.APPROVED &&
+    (bill.status === BillStatus.APPROVED || bill.status === BillStatus.PAID) &&
     (bill.tenantName.toLowerCase().includes(searchTerm.toLowerCase()) || 
      bill.month.toLowerCase().includes(searchTerm.toLowerCase()))
   );
@@ -83,9 +83,16 @@ export const ApprovedBills = () => {
                       {bill.approvedAt ? new Date(bill.approvedAt).toLocaleDateString() : 'N/A'}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-emerald-100 text-emerald-700">
-                        Paid
-                      </span>
+                      <div className="flex flex-col items-end gap-1">
+                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                          bill.status === BillStatus.PAID ? 'bg-blue-100 text-blue-700' : 'bg-emerald-100 text-emerald-700'
+                        }`}>
+                          {bill.status === BillStatus.PAID ? 'Paid Online' : 'Manual Approved'}
+                        </span>
+                        {bill.txnId && (
+                          <span className="text-[8px] font-bold text-slate-400">TXN: {bill.txnId}</span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))

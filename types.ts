@@ -32,6 +32,7 @@ export interface PrinterSettings {
   pairedPrinterId?: string;
   enablePrintAgent?: boolean;
   autoMarkReadyOnPrint?: boolean;
+  enablePrinterRelay?: boolean;
 }
 
 export enum InventoryMode {
@@ -182,6 +183,7 @@ export interface Table {
 
 export enum BillStatus {
   PENDING = 'PENDING',
+  PAID = 'PAID',
   APPROVED = 'APPROVED',
 }
 
