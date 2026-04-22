@@ -211,25 +211,35 @@ export class BluetoothPrinterService {
           if (existingDevice) {
             console.log('[PrinterService] Found existing device permission for:', deviceId);
             this.device = existingDevice;
-            this.server = await this.device.gatt.connect();
             
-            const services = await this.server.getPrimaryServices();
-            for (const service of services) {
-              const characteristics = await service.getCharacteristics();
-              for (const char of characteristics) {
-                if (char.properties.write || char.properties.writeWithoutResponse) {
-                  this.characteristic = char;
-                  return { success: true, device: this.device };
+            // Try connection
+            try {
+              this.server = await this.device.gatt.connect();
+              
+              const services = await this.server.getPrimaryServices();
+              for (const service of services) {
+                const characteristics = await service.getCharacteristics();
+                for (const char of characteristics) {
+                  if (char.properties.write || char.properties.writeWithoutResponse) {
+                    this.characteristic = char;
+                    return { success: true, device: this.device };
+                  }
                 }
+              }
+            } catch (connErr: any) {
+              console.warn('[PrinterService] GATT connection failed:', connErr);
+              // If we are in silent mode and connection failed (not permission), return failed
+              if (silent) {
+                return { success: false, error: 'failed' };
               }
             }
           }
         } catch (err) {
-          console.warn('[PrinterService] Silent reconnection failed:', err);
+          console.warn('[PrinterService] Silent reconnection permission check failed:', err);
         }
       }
 
-      // 3. If silent mode is on, don't show the picker
+      // 3. If silent mode is on AND we haven't succeeded (meaning no device found or permission lost)
       if (silent) {
         return { success: false, error: 'gesture_required' };
       }

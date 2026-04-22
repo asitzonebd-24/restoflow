@@ -123,6 +123,7 @@ export const Settings = () => {
                 nextCustomerToken,
                 inventoryMode,
                 printerSettings: {
+                    ...business.printerSettings,
                     receiptHeader,
                     receiptFooter,
                     paperWidth,

@@ -94,7 +94,15 @@ export const PrinterRelay: React.FC = () => {
                         }
 
                         // Use a silent connect to avoid background picker errors
-                        const connection = await BluetoothPrinterService.connect(pairedPrinterId, true);
+                        let connection = await BluetoothPrinterService.connect(pairedPrinterId, true);
+                        
+                        // If it fails with 'failed' (likely printer booting), retry once after 2 seconds
+                        if (!connection.success && connection.error === 'failed') {
+                            console.log('[PrinterRelay] Connection failed, retrying in 2s...');
+                            await new Promise(resolve => setTimeout(resolve, 2000));
+                            connection = await BluetoothPrinterService.connect(pairedPrinterId, true);
+                        }
+
                         if (!connection.success) {
                             console.error('[PrinterRelay] Failed to connect to printer:', connection.error);
                             
@@ -104,8 +112,8 @@ export const PrinterRelay: React.FC = () => {
                             } else if (connection.error === 'unsupported') {
                                 toast.error('Relay: Bluetooth is not supported on this device.');
                             } else {
-                                // This is usually "failed" - likely the printer is off
-                                toast.error('Relay: Printer off or out of range.');
+                                // Only show "Printer off" toast if it is the first failure in a while to avoid spamming
+                                toast.error('Relay: Printer off or disconnected. Please check your device.');
                             }
                             break;
                         }
