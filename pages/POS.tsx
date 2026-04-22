@@ -554,6 +554,7 @@ export const POS = () => {
         setCart([]);
         setOrderNote('');
         setNewTableNum('');
+        setNewTokenNum('');
         setOrderType('Dine In');
         setSelectedDeliveryStaffId('');
         setDeliveryAddress('');
@@ -604,6 +605,7 @@ export const POS = () => {
         setCart([]);
         setOrderNote('');
         setNewTableNum('');
+        setNewTokenNum('');
         setOrderType('Dine In');
         setSelectedDeliveryStaffId('');
         setDeliveryAddress('');
@@ -1084,13 +1086,15 @@ export const POS = () => {
               <>
                 <div className="flex items-center gap-2 md:gap-3 bg-indigo-50 px-3 md:px-4 py-2 md:py-2.5 rounded-xl md:rounded-2xl border-2 border-indigo-500 w-full">
                   <span className="text-[10px] md:text-[11px] text-indigo-800 font-black uppercase tracking-widest">Token:</span>
-                  <input 
-                    type="text" 
-                    value={newTokenNum}
-                    onChange={(e) => setNewTokenNum(e.target.value)}
-                    className={`flex-1 min-w-0 w-full text-center border-b-2 bg-transparent font-black text-sm md:text-lg outline-none transition-all ${isTokenDuplicate ? 'border-rose-500 text-rose-600' : 'border-indigo-500 text-indigo-900'}`}
-                  />
-                  {isTokenDuplicate && <AlertCircle className="text-rose-500 shrink-0" size={14} />}
+                  <div className="flex-1 text-center font-black text-sm md:text-lg text-indigo-900 bg-transparent flex items-center justify-center gap-2">
+                    <span>#{newTokenNum || '--'}</span>
+                    {isTokenDuplicate && (
+                      <div className="flex items-center gap-1 text-[8px] text-rose-500 animate-pulse">
+                        <AlertCircle size={10} />
+                        <span>DUP</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
                 
                 <div className="relative w-full">

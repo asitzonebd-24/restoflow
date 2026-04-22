@@ -2080,27 +2080,33 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const getNextToken = useCallback((prefix?: string) => {
     const timezone = business?.timezone || 'UTC';
     const now = new Date();
-    const todayFormat = new Intl.DateTimeFormat('en-US', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' });
+    // Using en-CA for stable YYYY-MM-DD format
+    const todayFormat = new Intl.DateTimeFormat('en-CA', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' });
     const today = todayFormat.format(now);
     
     const allTodayOrders = orders.filter(o => {
+        if (!o.createdAt || !o.tokenNumber) return false;
         const orderDate = new Date(o.createdAt);
         const orderDay = todayFormat.format(orderDate);
-        const matchesPrefix = prefix ? o.tokenNumber.startsWith(prefix) : !o.tokenNumber.includes('-'); // POS tokens usually don't have hyphens
+        
+        // Match prefix if provided, otherwise ensure it's a standard POS token (no hyphens usually)
+        const matchesPrefix = prefix ? o.tokenNumber.startsWith(prefix) : !o.tokenNumber.includes('-');
+        
+        // To ensure "no gaps", we exclude CANCELLED orders from "taken" list 
+        // so their numbers can be reused to fill the sequence.
         return orderDay === today && matchesPrefix && o.status !== OrderStatus.CANCELLED;
     });
     
     const takenTokens = allTodayOrders.map(o => {
-        if (prefix) {
-            const parts = o.tokenNumber.split('-');
-            const lastPart = parts[parts.length - 1];
-            return parseInt(lastPart);
-        }
-        return parseInt(o.tokenNumber);
+        // Extract the numeric part of the token
+        const match = o.tokenNumber.match(/\d+/);
+        return match ? parseInt(match[0], 10) : NaN;
     }).filter(n => !isNaN(n));
     
+    // Find the smallest missing positive integer to ensure no gaps
     let nextToken = 1;
-    while (takenTokens.includes(nextToken)) {
+    const tokenSet = new Set(takenTokens);
+    while (tokenSet.has(nextToken)) {
         nextToken++;
     }
     
