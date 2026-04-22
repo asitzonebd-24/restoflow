@@ -117,6 +117,7 @@ interface AppContextType {
   addMenuCategory: (catName: string) => void;
   renameMenuCategory: (oldName: string, newName: string) => void;
   deleteMenuCategory: (catName: string) => void;
+  updateMenuCategories: (categories: string[]) => void;
   addExpenseCategory: (catName: string) => void;
   renameExpenseCategory: (oldName: string, newName: string) => void;
   deleteExpenseCategory: (catName: string) => void;
@@ -589,7 +590,12 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     return allMenu.filter(m => String(m.tenantId || '01') === String(targetId));
   }, [allMenu, business.id]);
 
-  const categories = useMemo(() => ['All', ...Array.from(new Set(menu.map(m => m.category)))], [menu]);
+  const categories = useMemo(() => {
+    if (business.menuCategories && business.menuCategories.length > 0) {
+      return ['All', ...business.menuCategories];
+    }
+    return ['All', ...Array.from(new Set(menu.map(m => m.category)))];
+  }, [menu, business.menuCategories]);
 
   const users = useMemo(() => {
     let baseUsers = [];
@@ -1544,6 +1550,18 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       handleFirestoreError(error, OperationType.UPDATE, `tenants/${tenantId}`);
     }
   };
+  
+  const updateMenuCategories = async (newCategories: string[]) => {
+    const tenantId = resolvedTenantId || '';
+    if (!tenantId) return;
+
+    try {
+      const tenantRef = doc(db, 'tenants', tenantId);
+      await updateDoc(tenantRef, { menuCategories: newCategories });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `tenants/${tenantId}`);
+    }
+  };
 
   const addExpenseCategory = async (catName: string) => {
     const tenantId = resolvedTenantId || '';
@@ -2117,6 +2135,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       addMenuCategory,
       renameMenuCategory,
       deleteMenuCategory,
+      updateMenuCategories,
       addExpenseCategory,
       renameExpenseCategory,
       deleteExpenseCategory,

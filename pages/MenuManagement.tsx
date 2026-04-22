@@ -1,11 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
 import { MenuItem } from '../types';
-import { Plus, Edit2, Trash2, X, Save, Utensils, Sparkles, Search, ImageOff, ListTree, ChevronDown, ChevronRight } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Save, Utensils, Sparkles, Search, ImageOff, ListTree, ChevronDown, ChevronRight, ArrowUp, ArrowDown } from 'lucide-react';
 import { generateMenuDescription } from '../services/geminiService';
 
 export const MenuManagement = () => {
-  const { menu, business, addMenuItem, updateMenuItem, deleteMenuItem, addMenuCategory, renameMenuCategory, deleteMenuCategory } = useApp();
+  const { menu, business, addMenuItem, updateMenuItem, deleteMenuItem, addMenuCategory, renameMenuCategory, deleteMenuCategory, updateMenuCategories } = useApp();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
@@ -110,6 +110,16 @@ export const MenuManagement = () => {
     if (window.confirm(`Delete category "${catName}"? This will move all associated items to "Uncategorized".`)) {
       deleteMenuCategory(catName);
     }
+  };
+
+  const moveCategory = (index: number, direction: 'up' | 'down') => {
+    const newCategories = [...categories];
+    const newIndex = direction === 'up' ? index - 1 : index + 1;
+    if (newIndex < 0 || newIndex >= newCategories.length) return;
+    
+    // Swap
+    [newCategories[index], newCategories[newIndex]] = [newCategories[newIndex], newCategories[index]];
+    updateMenuCategories(newCategories);
   };
 
   const handleMagicDescribe = async () => {
@@ -489,9 +499,27 @@ export const MenuManagement = () => {
                 </div>
 
                 <div className="space-y-3 max-h-80 overflow-y-auto pr-2 no-scrollbar">
-                  {categories.map(cat => (
+                  {categories.map((cat, index) => (
                     <div key={cat} className="flex items-center justify-between p-5 bg-slate-50 rounded-2xl border-2 border-black group hover:bg-white hover:border-slate-700 transition-all">
-                      <span className="font-bold text-slate-700">{cat}</span>
+                      <div className="flex items-center gap-3">
+                        <div className="flex flex-col gap-1 opacity-100 group-hover:opacity-100 transition-all">
+                          <button 
+                            disabled={index === 0}
+                            onClick={() => moveCategory(index, 'up')}
+                            className="text-slate-400 hover:text-black disabled:opacity-20 transition-colors"
+                          >
+                            <ArrowUp size={14} />
+                          </button>
+                          <button 
+                            disabled={index === categories.length - 1}
+                            onClick={() => moveCategory(index, 'down')}
+                            className="text-slate-400 hover:text-black disabled:opacity-20 transition-colors"
+                          >
+                            <ArrowDown size={14} />
+                          </button>
+                        </div>
+                        <span className="font-bold text-slate-700">{cat}</span>
+                      </div>
                       <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
                         <button 
                           onClick={() => handleRenameCategory(cat)}
