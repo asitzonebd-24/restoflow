@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 export const PrinterRelay: React.FC = () => {
     const { business, relayMode } = useApp();
     const processingRef = useRef<boolean>(false);
-    const lastProcessedId = useRef<string | null>(null);
+    const processedIds = useRef<Set<string>>(new Set());
     const wakeLockRef = useRef<any>(null);
     const sessionStartTime = useRef<number>(Date.now());
     
@@ -50,7 +50,10 @@ export const PrinterRelay: React.FC = () => {
     }, [relayMode]);
 
     useEffect(() => {
-        if (!relayMode || !business?.id) return;
+        if (!relayMode || !business?.id) {
+            if (!relayMode) processedIds.current.clear();
+            return;
+        }
 
         console.log('[PrinterRelay] Starting listener for tenant:', business.id);
         
@@ -59,7 +62,7 @@ export const PrinterRelay: React.FC = () => {
             collection(db, 'print_requests'),
             where('tenantId', '==', business.id),
             orderBy('createdAt', 'asc'),
-            limit(5)
+            limit(10)
         );
 
         const unsubscribe = onSnapshot(q, async (snapshot) => {
@@ -67,113 +70,101 @@ export const PrinterRelay: React.FC = () => {
 
             processingRef.current = true;
             
-            for (const change of snapshot.docChanges()) {
-                if (change.type === 'added') {
-                    const printData = { id: change.doc.id, ...change.doc.data() } as any;
-                    
-                    // 1. Backlog Protection: Ignore requests created more than 2 minutes before this session started
-                    // This prevents "printing everything that was missed" when first turning on relay
-                    const requestTime = printData.createdAt ? new Date(printData.createdAt).getTime() : Date.now();
-                    if (requestTime < sessionStartTime.current - 120000) { // 2 minutes grace
-                        console.log('[PrinterRelay] Skipping old backlog request:', printData.id);
-                        // Optional: Delete these old requests? For now just skip
-                        continue;
-                    }
-
-                    // Avoid duplicate processing if multiple snapshots fire
-                    if (lastProcessedId.current === printData.id) continue;
-                    
-                    try {
-                        console.log('[PrinterRelay] Processing job:', printData.id, 'Type:', printData.type);
+            try {
+                for (const change of snapshot.docChanges()) {
+                    if (change.type === 'added') {
+                        const printData = { id: change.doc.id, ...change.doc.data() } as any;
                         
-                        // 1. Ensure we are connected to the printer
-                        const pairedPrinterId = business.printerSettings?.pairedPrinterId;
-                        if (!pairedPrinterId) {
-                            toast.error('Relay active but no printer paired in Settings!');
-                            break;
+                        // 1. Avoid duplicate processing in-memory
+                        if (processedIds.current.has(printData.id)) continue;
+
+                        // 2. Backlog Protection: Ignore requests created more than 2 minutes before this session started
+                        const requestTime = printData.createdAt ? (printData.createdAt.toMillis ? printData.createdAt.toMillis() : new Date(printData.createdAt).getTime()) : Date.now();
+                        if (requestTime < sessionStartTime.current - 120000) { 
+                            console.log('[PrinterRelay] Skipping old backlog request:', printData.id);
+                            processedIds.current.add(printData.id);
+                            continue;
                         }
 
-                        // Use a silent connect to avoid background picker errors
-                        let connection = await BluetoothPrinterService.connect(pairedPrinterId, true);
-                        
-                        // If it fails with 'failed' (likely printer booting), retry once after 2 seconds
-                        if (!connection.success && connection.error === 'failed') {
-                            console.log('[PrinterRelay] Connection failed, retrying in 2s...');
-                            await new Promise(resolve => setTimeout(resolve, 2000));
-                            connection = await BluetoothPrinterService.connect(pairedPrinterId, true);
-                        }
-
-                        if (!connection.success) {
-                            console.error('[PrinterRelay] Failed to connect to printer:', connection.error);
+                        try {
+                            console.log('[PrinterRelay] Processing job:', printData.id, 'Type:', printData.type);
                             
-                            if (connection.error === 'gesture_required') {
-                                // This means the browser lost the permission and needs a manual click
-                                toast.error('Relay: Printer needs re-pairing. Please go to Settings and click Connect.');
-                            } else if (connection.error === 'unsupported') {
-                                toast.error('Relay: Bluetooth is not supported on this device.');
-                            } else {
-                                // Only show "Printer off" toast if it is the first failure in a while to avoid spamming
-                                toast.error('Relay: Printer off or disconnected. Please check your device.');
+                            // 3. Ensure we are connected to the printer
+                            const pairedPrinterId = business.printerSettings?.pairedPrinterId;
+                            if (!pairedPrinterId) {
+                                toast.error('Relay: No printer paired in Settings!');
+                                break;
                             }
-                            break;
-                        }
 
-                        // 2. Perform the print based on type
-                        if (printData.type === 'kot') {
-                            await BluetoothPrinterService.printKOT(business, printData);
-                        } else {
-                            // For invoice, we might need more details. 
-                            // printInvoice takes (business, order, transaction)
-                            // We pass printData as order and transaction info
-                            await BluetoothPrinterService.printInvoice(business, printData, {
-                                creatorName: printData.creatorName,
-                                discount: printData.discount || 0
-                            });
-                        }
+                            let connection = await BluetoothPrinterService.connect(pairedPrinterId, true);
+                            
+                            // If it fails with 'failed', retry once after 1s
+                            if (!connection.success && connection.error === 'failed') {
+                                await new Promise(resolve => setTimeout(resolve, 1000));
+                                connection = await BluetoothPrinterService.connect(pairedPrinterId, true);
+                            }
 
-                        // 3. Mark as READY if requested
-                        if (printData.autoMarkReady && printData.orderId) {
-                            try {
+                            if (!connection.success) {
+                                console.error('[PrinterRelay] Connection failed:', connection.error);
+                                if (connection.error === 'gesture_required') {
+                                    toast.error('Relay: Printer needs re-pairing. Go to Settings and Connect.');
+                                } else if (connection.error === 'unsupported') {
+                                    toast.error('Relay: Bluetooth unsupported.');
+                                } else {
+                                    toast.error('Relay: Print device connection error. Check Printer.');
+                                }
+                                break; // Stop loop if connection fails
+                            }
+
+                            // 4. Perform the print
+                            if (printData.type === 'kot') {
+                                await BluetoothPrinterService.printKOT(business, printData);
+                            } else {
+                                await BluetoothPrinterService.printInvoice(business, printData, {
+                                    creatorName: printData.creatorName,
+                                    discount: printData.discount || 0
+                                });
+                            }
+
+                            // 5. Build-in success notification
+                            toast.success(`Printed ${printData.type === 'kot' ? 'KOT' : 'Invoice'} #${printData.tokenNumber}`);
+
+                            // 6. Mark as READY if requested
+                            if (printData.autoMarkReady && printData.orderId) {
                                 const orderRef = doc(db, 'orders', printData.orderId);
                                 const orderSnap = await getDoc(orderRef);
                                 if (orderSnap.exists()) {
                                     const orderData = orderSnap.data();
                                     const updatedItems = orderData.items.map((item: any) => {
                                         const printedItem = printData.items?.find((pi: any) => pi.rowId === item.rowId);
-                                        if (printedItem && item.status === 'PENDING') {
-                                            return { ...item, status: 'READY' };
-                                        }
+                                        if (printedItem && item.status === 'PENDING') return { ...item, status: 'READY' };
                                         return item;
                                     });
-
-                                    const allReady = updatedItems.every((i: any) => 
-                                        ['READY', 'COMPLETED', 'CANCELLED'].includes(i.status)
-                                    );
-
+                                    const allReady = updatedItems.every((i: any) => ['READY', 'COMPLETED', 'CANCELLED'].includes(i.status));
                                     await updateDoc(orderRef, {
                                         items: updatedItems,
                                         status: allReady ? 'READY' : orderData.status
                                     });
-                                    console.log('[PrinterRelay] Order updated to READY for items in:', printData.id);
                                 }
-                            } catch (updateErr) {
-                                console.error('[PrinterRelay] Error updating order status:', updateErr);
                             }
-                        }
 
-                        // 4. Delete the request after successful print
-                        await deleteDoc(doc(db, 'print_requests', printData.id));
-                        lastProcessedId.current = printData.id;
-                        console.log('[PrinterRelay] Job completed and deleted:', printData.id);
-                        
-                    } catch (error) {
-                        console.error('[PrinterRelay] Error processing print job:', error);
-                        toast.error('Relay: Error while printing. Check device connection.');
+                            // 7. Done! Delete the request
+                            await deleteDoc(doc(db, 'print_requests', printData.id));
+                            processedIds.current.add(printData.id);
+                            
+                        } catch (error) {
+                            console.error('[PrinterRelay] Print error:', error);
+                            // If it's a real print error, we might want to skip this job to avoid infinite loops
+                            // but still show an error.
+                            toast.error(`Relay: Error printing token #${printData.tokenNumber}`);
+                            // Mark as processed in-memory so we don't try again until refresh
+                            processedIds.current.add(printData.id);
+                        }
                     }
                 }
+            } finally {
+                processingRef.current = false;
             }
-            
-            processingRef.current = false;
         }, (error) => {
             console.error('[PrinterRelay] Listener error:', error);
             processingRef.current = false;
@@ -183,7 +174,7 @@ export const PrinterRelay: React.FC = () => {
             console.log('[PrinterRelay] Stopping listener');
             unsubscribe();
         };
-    }, [relayMode, business]);
+    }, [relayMode, business?.id]);
 
     if (!relayMode) return null;
 
