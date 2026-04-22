@@ -409,7 +409,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     }
 
     const isSuperAdmin = currentUser?.role === Role.SUPER_ADMIN;
-    const rawTenantId = currentUser?.tenantId || currentTenantId;
+    const rawTenantId = currentTenantId || currentUser?.tenantId;
 
     let tenantsQuery = query(collection(db, 'tenants'), limit(100));
     if (!isSuperAdmin) {

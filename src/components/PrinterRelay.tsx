@@ -11,7 +11,8 @@ export const PrinterRelay: React.FC = () => {
     const processingRef = useRef<boolean>(false);
     const lastProcessedId = useRef<string | null>(null);
     const wakeLockRef = useRef<any>(null);
-
+    const sessionStartTime = useRef<number>(Date.now());
+    
     // Function to keep screen on
     const requestWakeLock = async () => {
         try {
@@ -70,6 +71,15 @@ export const PrinterRelay: React.FC = () => {
                 if (change.type === 'added') {
                     const printData = { id: change.doc.id, ...change.doc.data() } as any;
                     
+                    // 1. Backlog Protection: Ignore requests created more than 2 minutes before this session started
+                    // This prevents "printing everything that was missed" when first turning on relay
+                    const requestTime = printData.createdAt ? new Date(printData.createdAt).getTime() : Date.now();
+                    if (requestTime < sessionStartTime.current - 120000) { // 2 minutes grace
+                        console.log('[PrinterRelay] Skipping old backlog request:', printData.id);
+                        // Optional: Delete these old requests? For now just skip
+                        continue;
+                    }
+
                     // Avoid duplicate processing if multiple snapshots fire
                     if (lastProcessedId.current === printData.id) continue;
                     
@@ -77,19 +87,26 @@ export const PrinterRelay: React.FC = () => {
                         console.log('[PrinterRelay] Processing job:', printData.id, 'Type:', printData.type);
                         
                         // 1. Ensure we are connected to the printer
-                        // If no printer ID is saved, we can't do much
                         const pairedPrinterId = business.printerSettings?.pairedPrinterId;
                         if (!pairedPrinterId) {
                             toast.error('Relay active but no printer paired in Settings!');
                             break;
                         }
 
-                        const connection = await BluetoothPrinterService.connect(pairedPrinterId);
+                        // Use a silent connect to avoid background picker errors
+                        const connection = await BluetoothPrinterService.connect(pairedPrinterId, true);
                         if (!connection.success) {
-                            console.error('[PrinterRelay] Failed to connect to printer');
-                            // We don't delete the doc so another attempt (or another device) can try
-                            // But we stop processing for now to avoid multiple toasts
-                            toast.error('Relay: Failed to connect to Bluetooth printer.');
+                            console.error('[PrinterRelay] Failed to connect to printer:', connection.error);
+                            
+                            if (connection.error === 'gesture_required') {
+                                // This means the browser lost the permission and needs a manual click
+                                toast.error('Relay: Printer needs re-pairing. Please go to Settings and click Connect.');
+                            } else if (connection.error === 'unsupported') {
+                                toast.error('Relay: Bluetooth is not supported on this device.');
+                            } else {
+                                // This is usually "failed" - likely the printer is off
+                                toast.error('Relay: Printer off or out of range.');
+                            }
                             break;
                         }
 

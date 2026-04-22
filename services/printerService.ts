@@ -185,7 +185,7 @@ export class BluetoothPrinterService {
     }
   }
 
-  static async connect(deviceId?: string): Promise<{ success: boolean; device?: any; error?: 'cancelled' | 'failed' | 'unsupported' }> {
+  static async connect(deviceId?: string, silent: boolean = false): Promise<{ success: boolean; device?: any; error?: 'cancelled' | 'failed' | 'unsupported' | 'gesture_required' }> {
     try {
       // 0. Check if Bluetooth is supported and allowed
       if (!navigator || !(navigator as any).bluetooth) {
@@ -209,6 +209,7 @@ export class BluetoothPrinterService {
           const existingDevice = devices.find((d: any) => d.id === deviceId);
           
           if (existingDevice) {
+            console.log('[PrinterService] Found existing device permission for:', deviceId);
             this.device = existingDevice;
             this.server = await this.device.gatt.connect();
             
@@ -224,11 +225,16 @@ export class BluetoothPrinterService {
             }
           }
         } catch (err) {
-          console.warn('Silent reconnection failed:', err);
+          console.warn('[PrinterService] Silent reconnection failed:', err);
         }
       }
 
-      // 3. Show the browser's device picker
+      // 3. If silent mode is on, don't show the picker
+      if (silent) {
+        return { success: false, error: 'gesture_required' };
+      }
+
+      // 4. Show the browser's device picker
       const options: any = {
         acceptAllDevices: true,
         optionalServices: [

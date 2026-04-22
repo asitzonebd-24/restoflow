@@ -16,6 +16,7 @@ export const TenantLanding = () => {
       setCurrentTenantId(tenantId);
       
       // Auto-logout if user is logged into a different restaurant
+      // OR Auto-redirect to dashboard if already logged into this restaurant
       if (currentUser && currentUser.role !== Role.SUPER_ADMIN) {
         const targetTenant = tenants.find(t => t.id === tenantId || t.slug === tenantId);
         const targetId = targetTenant?.id || tenantId;
@@ -27,10 +28,21 @@ export const TenantLanding = () => {
             currentUserTenant: currentUser.tenantId
           });
           logout();
+        } else {
+          // User is already logged into this tenant! 
+          // If they have Dashboard or POS permission, redirect them automatically
+          const permissions = currentUser.permissions || [];
+          if (permissions.includes('Dashboard')) {
+            console.log('[TenantLanding] User already logged in to this tenant. Redirecting to Dashboard.');
+            navigate(`/${targetId}/dashboard`, { replace: true });
+          } else if (permissions.includes('POS')) {
+            console.log('[TenantLanding] User already logged in to this tenant. Redirecting to POS.');
+            navigate(`/${targetId}/pos`, { replace: true });
+          }
         }
       }
     }
-  }, [tenantId, setCurrentTenantId, currentUser, logout, tenants]);
+  }, [tenantId, setCurrentTenantId, currentUser, logout, tenants, navigate]);
 
   const tenant = tenants.find(t => t.id === tenantId || t.slug === tenantId);
   const actualTenantId = tenant?.id || tenantId;

@@ -340,16 +340,30 @@ const ProtectedLayout = ({ children, allowedRoles }: { children?: React.ReactNod
     tenantId === business.slug
   );
 
-  if (tenantId && currentUser.role !== Role.SUPER_ADMIN && !isCorrectTenant) {
-    console.log('[ProtectedLayout] Tenant mismatch. URL:', tenantId, 'User Tenant:', currentUser.tenantId);
+    if (tenantId && currentUser.role !== Role.SUPER_ADMIN && !isCorrectTenant) {
+    console.warn('[ProtectedLayout] Tenant mismatch detected!', {
+      urlTenant: tenantId,
+      userTenant: currentUser.tenantId,
+      businessId: business.id,
+      businessSlug: business.slug
+    });
+    
     if (!currentUser.tenantId) {
+      console.error('[ProtectedLayout] User has no tenantId. Redirecting to root.');
       return <Navigate to="/" replace />;
     }
-    // Prevent infinite loop if we're already trying to go to the user's tenant
-    if (tenantId === String(currentUser.tenantId)) {
+    
+    // Avoid redirecting to the same mismatched path to prevent loops
+    const currentPath = location.pathname;
+    const redirectPath = `/${currentUser.tenantId}/dashboard`;
+    
+    if (currentPath === redirectPath) {
+      console.error('[ProtectedLayout] Already at target redirect path but still mismatched. Falling back to root.');
       return <Navigate to="/" replace />;
     }
-    return <Navigate to={`/${currentUser.tenantId}/dashboard`} replace />;
+    
+    console.log('[ProtectedLayout] Redirecting to user\'s own tenant dashboard:', redirectPath);
+    return <Navigate to={redirectPath} replace />;
   }
   
   if (allowedRoles && !allowedRoles.includes(currentUser.role)) {
@@ -499,6 +513,10 @@ const AppContent = () => {
     const reservedWords = ['login', 'portal', 'order', 'pending-bills', 'approved-bills', 'platform-expenses', 'global-reports', 'dashboard', 'pos', 'kitchen', 'menu', 'inventory', 'billing', 'transactions', 'expenses', 'reports', 'users', 'settings'];
     
     const tenantId = searchParams.get('tenantId') || (pathTenantId && !reservedWords.includes(pathTenantId) ? pathTenantId : null);
+    
+    if (tenantId) {
+      console.log('[AppContent] Identified tenantId:', tenantId, 'from path:', pathTenantId);
+    }
     
     // Auto-logout if user is logged into a different restaurant and tries to access login page
     if (tenantId && currentUser && currentUser.role !== Role.SUPER_ADMIN && location.pathname.includes('/login')) {
