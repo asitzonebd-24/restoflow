@@ -289,8 +289,8 @@ function generateReceiptHtml(order, requestId) {
     </style></head><body><div class="container">
     ${isInvoice ? `
         <div class="header">
-            <div class="business-name">${order.businessName || 'RestoKeep'}</div>
-            ${order.receiptHeader ? `<div style="font-size: 8pt;">${order.receiptHeader}</div>` : `
+            <div class="business-name">${order.businessName || 'Restaurant'}</div>
+            ${order.receiptHeader ? `<div style="font-size: 8pt; white-space: pre-line;">${order.receiptHeader.replace(/\n/g, '<br/>')}</div>` : `
                 <div style="font-size: 8pt;">${order.businessAddress || ''}</div>
                 ${order.businessPhone ? `<div style="font-size: 8pt;">Tel: ${order.businessPhone}</div>` : ''}
             `}
@@ -302,7 +302,7 @@ function generateReceiptHtml(order, requestId) {
     <div class="date-time-row"><span>Date: ${dateStr}</span><span>Time: ${timeStr}</span></div>
     <div style="width: 100%; text-align: left;">${itemsHtml}</div>
     ${order.note ? `<div style="margin-top: 8px; padding: 4px; border: 1px dashed #000; font-style: italic; font-size: 10pt; text-align: left; font-weight: bold; background: #f9f9f9;">Note: ${order.note}</div>` : ''}
-    <div class="footer ${isInvoice ? 'footer-invoice' : ''}">${isInvoice ? (order.receiptFooter || 'Thank You! Come Again.') : '--- Kitchen Copy ---'}</div>
+    <div class="footer ${isInvoice ? 'footer-invoice' : ''}">${isInvoice ? (order.receiptFooter ? order.receiptFooter.replace(/\n/g, '<br/>') : 'Thank You! Come Again.') : '--- Kitchen Copy ---'}</div>
     </div></body></html>`;
 }
 

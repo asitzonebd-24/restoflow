@@ -777,7 +777,14 @@ export const Billing = () => {
                 )}
                 <h2 className="font-bold text-black tracking-tight mb-1 text-center whitespace-normal break-words" style={{ fontSize: '14pt' }}>{currentTenant?.name}</h2>
                 {currentTenant?.printerSettings?.receiptHeader ? (
-                  <p className="text-black font-bold whitespace-pre-line mb-2">{currentTenant.printerSettings.receiptHeader}</p>
+                  <div className="text-black font-bold whitespace-pre-line mb-2" style={{ fontSize: '10pt' }}>
+                    {currentTenant.printerSettings.receiptHeader.split('\n').map((line, i) => (
+                      <React.Fragment key={i}>
+                        {line}
+                        <br />
+                      </React.Fragment>
+                    ))}
+                  </div>
                 ) : (
                   <>
                     <p className="text-black font-bold capitalize">{currentTenant?.address}</p>
@@ -868,9 +875,14 @@ export const Billing = () => {
               </div>
               
               <div className="text-center mt-4 pt-2 border-t border-dashed border-black">
-                <p className="text-black font-bold whitespace-pre-line mb-1">
-                  {currentTenant?.printerSettings?.receiptFooter || 'Thank You! Come Again.'}
-                </p>
+                <div className="text-black font-bold whitespace-pre-line mb-1" style={{ fontSize: '10pt' }}>
+                  {(currentTenant?.printerSettings?.receiptFooter || 'Thank You! Come Again.').split('\n').map((line, i) => (
+                    <React.Fragment key={i}>
+                      {line}
+                      <br />
+                    </React.Fragment>
+                  ))}
+                </div>
               </div>
             </div>
 
