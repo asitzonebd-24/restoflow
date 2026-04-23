@@ -865,12 +865,12 @@ export const Billing = () => {
                 {currentTenant?.printerSettings?.receiptFooter ? (
                   <p className="text-black font-bold whitespace-pre-line mb-1">{currentTenant.printerSettings.receiptFooter}</p>
                 ) : (
-                  <p className="font-bold text-black capitalize mb-1">ধন্যবাদ! আবার আসবেন</p>
+                  <p className="font-bold text-black capitalize mb-1">Thank You! Come Again.</p>
                 )}
                 <div className="flex flex-col items-center justify-center gap-0">
                   <p className="font-bold text-black">Powered By: RestoKeep</p>
                   <p className="font-bold text-black">Web: www.restokeep.app</p>
-                  <p className="font-bold text-black">Mob: 01303565316</p>
+                  <p className="font-bold text-black">Mob: 01303565315</p>
                 </div>
               </div>
             </div>

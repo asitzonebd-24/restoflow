@@ -302,12 +302,12 @@ function generateReceiptHtml(order, requestId) {
     <div class="date-time-row"><span>Date: ${dateStr}</span><span>Time: ${timeStr}</span></div>
     <div style="width: 100%; text-align: left;">${itemsHtml}</div>
     ${order.note ? `<div style="margin-top: 8px; padding: 4px; border: 1px dashed #000; font-style: italic; font-size: 10pt; text-align: left; font-weight: bold; background: #f9f9f9;">Note: ${order.note}</div>` : ''}
-    <div class="footer ${isInvoice ? 'footer-invoice' : ''}">${isInvoice ? (order.receiptFooter || 'Thanks! Come Again') : '--- Kitchen Copy ---'}</div>
+    <div class="footer ${isInvoice ? 'footer-invoice' : ''}">${isInvoice ? (order.receiptFooter || 'Thank You! Come Again.') : '--- Kitchen Copy ---'}</div>
     ${isInvoice ? `
         <div style="font-size: 8pt; margin-top: 15px; text-align: center; border-top: 1px dashed #000; padding-top: 8px; font-weight: bold;">
             <div>Powered by: RestoKeep</div>
-            <div style="font-size: 7pt; margin-top: 2px;">Web: restokeep.app</div>
-            <div style="font-size: 7pt;">Mob: 01303565316</div>
+            <div style="font-size: 7pt; margin-top: 2px;">Web: www.restokeep.app</div>
+            <div style="font-size: 7pt;">Mob: 01303565315</div>
         </div>
     ` : ''}
     </div></body></html>`;
