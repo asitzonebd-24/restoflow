@@ -69,6 +69,24 @@ export interface Business {
   monthlyBill: number;
   createdAt: string;
   printerSettings?: PrinterSettings;
+  subscription?: {
+    packageId: string;
+    packageName: string;
+    startDate: string;
+    expiryDate: string;
+    allowedPages: string[];
+    status: 'active' | 'expired' | 'trial';
+  };
+}
+
+export interface SubscriptionPackage {
+  id: string;
+  name: string;
+  price: number;
+  durationMonths: number;
+  allowedPages: string[];
+  isActive: boolean;
+  createdAt: string;
 }
 
 export interface User {

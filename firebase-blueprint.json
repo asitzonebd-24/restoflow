@@ -45,9 +45,28 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "tenantId", "items", "totalAmount", "status"]
+    },
+    "SubscriptionPackage": {
+      "title": "Subscription Package",
+      "description": "A subscription plan defined by super admin",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "price": { "type": "number" },
+        "durationMonths": { "type": "number" },
+        "allowedPages": { "type": "array", "items": { "type": "string" } },
+        "isActive": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "price", "durationMonths", "allowedPages"]
     }
   },
   "firestore": {
+    "/subscription_packages/{packageId}": {
+      "schema": "SubscriptionPackage",
+      "description": "System-wide subscription plans"
+    },
     "/tenants/{tenantId}": {
       "schema": "Business",
       "description": "Restaurant details"

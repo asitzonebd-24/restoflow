@@ -1,21 +1,30 @@
 
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import { Business, Role, BillStatus, InventoryMode } from '../types';
-import { Plus, Building2, User, Mail, Phone, Globe, MapPin, Search, ExternalLink, Calendar, Power, PowerOff, Edit3, Save, X as CloseIcon, AlertTriangle, Copy, Check, Wallet, Trash2, ChevronDown, Printer, Settings2 } from 'lucide-react';
+import { Business, Role, BillStatus, InventoryMode, SubscriptionPackage } from '../types';
+import { Plus, Building2, User, Mail, Phone, Globe, MapPin, Search, ExternalLink, Calendar, Power, PowerOff, Edit3, Save, X as CloseIcon, AlertTriangle, Copy, Check, Wallet, Trash2, ChevronDown, Printer, Settings2, Package } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
+import { APP_MODULES } from '../constants';
 
 export const SuperAdmin = () => {
-  const { tenants, createBusiness, currentUser, toggleBusinessStatus, updateTenant, deleteTenant, allUsers, updateUser, currentTenant, monthlyBills, setCurrentTenantId } = useApp();
+  const { 
+    tenants, createBusiness, currentUser, toggleBusinessStatus, updateTenant, deleteTenant, 
+    allUsers, updateUser, currentTenant, monthlyBills, setCurrentTenantId,
+    subscriptionPackages, addSubscriptionPackage, updateSubscriptionPackage, deleteSubscriptionPackage
+  } = useApp();
   const navigate = useNavigate();
   
   React.useEffect(() => {
     setCurrentTenantId(null);
   }, [setCurrentTenantId]);
+
+  const [activeTab, setActiveTab] = useState<'restaurants' | 'packages'>('restaurants');
   const [showModal, setShowModal] = useState(false);
   const [editingTenant, setEditingTenant] = useState<Business | null>(null);
+  const [showPackageModal, setShowPackageModal] = useState(false);
+  const [editingPackage, setEditingPackage] = useState<SubscriptionPackage | null>(null);
   const [duplicateSourceId, setDuplicateSourceId] = useState<string | null>(null);
   const [editingBill, setEditingBill] = useState<string | null>(null);
   const [billAmount, setBillAmount] = useState<number>(0);
@@ -58,6 +67,14 @@ export const SuperAdmin = () => {
     maintenanceMessage: '',
     maintenanceTime: '',
     inventoryMode: InventoryMode.SIMPLE,
+  });
+
+  const [newPackage, setNewPackage] = useState<Omit<SubscriptionPackage, 'id' | 'createdAt'>>({
+    name: '',
+    durationMonths: 1,
+    price: 0,
+    allowedPages: [],
+    isActive: true
   });
 
   const [newOwner, setNewOwner] = useState({
@@ -195,6 +212,43 @@ export const SuperAdmin = () => {
     setEditingBill(null);
   };
 
+  const handlePackageSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      if (editingPackage) {
+        await updateSubscriptionPackage(editingPackage.id, newPackage);
+      } else {
+        await addSubscriptionPackage(newPackage);
+      }
+      setShowPackageModal(false);
+      setEditingPackage(null);
+      setNewPackage({ name: '', durationMonths: 1, price: 0, allowedPages: [], isActive: true });
+    } catch (err) {
+      toast.error('Failed to save package');
+    }
+  };
+
+  const handleEditPackage = (pkg: SubscriptionPackage) => {
+    setEditingPackage(pkg);
+    setNewPackage({
+      name: pkg.name,
+      durationMonths: pkg.durationMonths,
+      price: pkg.price,
+      allowedPages: pkg.allowedPages || [],
+      isActive: pkg.isActive
+    });
+    setShowPackageModal(true);
+  };
+
+  const toggleModule = (moduleId: string) => {
+    setNewPackage(prev => ({
+      ...prev,
+      allowedPages: prev.allowedPages.includes(moduleId)
+        ? prev.allowedPages.filter(id => id !== moduleId)
+        : [...prev.allowedPages, moduleId]
+    }));
+  };
+
   const resetForm = () => {
     setShowModal(false);
     setEditingTenant(null);
@@ -251,20 +305,37 @@ export const SuperAdmin = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Portal Administration</h1>
-          <p className="text-slate-500">Manage all restaurant businesses and billing</p>
+          <p className="text-slate-500">Manage all restaurant businesses and system packages</p>
         </div>
         <div className="flex items-center gap-3">
+          <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
+            <button 
+              onClick={() => setActiveTab('restaurants')}
+              className={`px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'restaurants' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+            >
+              Restaurants
+            </button>
+            <button 
+              onClick={() => setActiveTab('packages')}
+              className={`px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${activeTab === 'packages' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
+            >
+              Packages
+            </button>
+          </div>
+          
           <button 
-            onClick={() => setShowModal(true)}
+            onClick={() => activeTab === 'restaurants' ? setShowModal(true) : setShowPackageModal(true)}
             className="flex items-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 transition shadow-lg shadow-indigo-200"
           >
             <Plus size={20} />
-            Add New Restaurant
+            {activeTab === 'restaurants' ? 'Add Restaurant' : 'Create Package'}
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      {activeTab === 'restaurants' ? (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <div className="bg-white p-6 rounded-2xl border-2 border-indigo-500 shadow-lg shadow-indigo-100 transition-all hover:scale-105">
           <p className="text-slate-500 text-sm font-medium mb-1">Total Restaurants</p>
           <h3 className="text-3xl font-bold text-slate-900">{tenants.length}</h3>
@@ -648,6 +719,176 @@ export const SuperAdmin = () => {
             </div>
           </div>
         </div>
+
+        </>
+      ) : (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {subscriptionPackages.length === 0 ? (
+              <div className="md:col-span-3 bg-white border-2 border-dashed border-slate-200 rounded-[2rem] p-12 text-center">
+                <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Package className="text-slate-300" size={40} />
+                </div>
+                <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-2">No Packages Ready</h3>
+                <p className="text-slate-500 max-w-sm mx-auto mb-8 font-medium">Create your first subscription plan to start onboarding restaurants.</p>
+                <button 
+                  onClick={() => setShowPackageModal(true)}
+                  className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-indigo-700 transition shadow-lg"
+                >
+                  Create Package Now
+                </button>
+              </div>
+            ) : (
+              subscriptionPackages.map((pkg) => (
+                <div key={pkg.id} className="bg-white border-2 border-black rounded-[2rem] p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] relative group overflow-hidden">
+                  <div className={`absolute top-0 right-0 px-4 py-1 text-[8px] font-black uppercase tracking-widest text-white ${pkg.isActive ? 'bg-emerald-500' : 'bg-rose-500'}`}>
+                    {pkg.isActive ? 'Active' : 'Draft'}
+                  </div>
+
+                  <div className="mb-6">
+                    <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tighter mb-1">{pkg.name}</h3>
+                    <p className="text-indigo-600 font-black text-3xl">
+                      {currentTenant?.currency || '৳'}{pkg.price}
+                      <span className="text-xs text-slate-400 font-bold ml-1 uppercase">/ {pkg.durationMonths} Months</span>
+                    </p>
+                  </div>
+
+                  <div className="space-y-3 mb-8">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-b-2 border-slate-50 pb-2">Included Modules</p>
+                    <div className="flex flex-wrap gap-2">
+                      {pkg.allowedPages.map(pageId => {
+                        const module = APP_MODULES.find(m => m.id === pageId);
+                        return (
+                          <span key={pageId} className="px-2 py-1 bg-slate-50 border border-slate-200 rounded-lg text-[9px] font-bold text-slate-600 uppercase">
+                            {module?.label || pageId}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-6 border-t-2 border-slate-50">
+                    <button 
+                      onClick={() => handleEditPackage(pkg)}
+                      className="flex-1 flex items-center justify-center gap-2 py-3 bg-slate-900 text-white rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-indigo-600 transition-all border-2 border-black"
+                    >
+                      <Edit3 size={14} /> Edit
+                    </button>
+                    <button 
+                      onClick={() => {
+                        if (confirm('Are you sure you want to delete this package?')) {
+                          deleteSubscriptionPackage(pkg.id);
+                        }
+                      }}
+                      className="w-12 h-12 flex items-center justify-center bg-white text-rose-500 border-2 border-black rounded-xl hover:bg-rose-50 transition-all"
+                    >
+                      <Trash2 size={20} />
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {showPackageModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[110]">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-[2.5rem] border-[3px] border-black shadow-2xl w-full max-w-xl overflow-hidden"
+          >
+            <div className="p-6 border-b-[3px] border-black bg-slate-50 flex items-center justify-between">
+              <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">
+                {editingPackage ? 'Edit Package' : 'Create New Package'}
+              </h2>
+              <button 
+                onClick={() => { setShowPackageModal(false); setEditingPackage(null); }}
+                className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-slate-200 text-slate-400 hover:text-black transition-colors border-2 border-transparent hover:border-black"
+              >
+                <CloseIcon size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handlePackageSubmit} className="p-8 space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="col-span-2">
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Package Name</label>
+                  <input 
+                    required
+                    type="text" 
+                    className="w-full px-4 py-3 rounded-2xl border-2 border-black focus:ring-4 focus:ring-indigo-100 outline-none font-bold text-sm transition-all"
+                    placeholder="e.g. Starter Plan"
+                    value={newPackage.name}
+                    onChange={(e) => setNewPackage({...newPackage, name: e.target.value})}
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Duration (Months)</label>
+                  <input 
+                    required
+                    type="number" 
+                    className="w-full px-4 py-3 rounded-2xl border-2 border-black focus:ring-4 focus:ring-indigo-100 outline-none font-bold text-sm transition-all"
+                    value={newPackage.durationMonths}
+                    onChange={(e) => setNewPackage({...newPackage, durationMonths: parseInt(e.target.value)})}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Price ({currentTenant?.currency || '৳'})</label>
+                  <input 
+                    required
+                    type="number" 
+                    className="w-full px-4 py-3 rounded-2xl border-2 border-black focus:ring-4 focus:ring-indigo-100 outline-none font-bold text-sm transition-all"
+                    value={newPackage.price}
+                    onChange={(e) => setNewPackage({...newPackage, price: parseFloat(e.target.value)})}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4 ml-1">Select Modules Included</label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {APP_MODULES.map(module => (
+                    <button
+                      key={module.id}
+                      type="button"
+                      onClick={() => toggleModule(module.id)}
+                      className={`px-3 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest border-2 transition-all text-center ${
+                        newPackage.allowedPages.includes(module.id)
+                          ? 'bg-indigo-600 text-white border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]'
+                          : 'bg-white text-slate-400 border-slate-100 opacity-60'
+                      }`}
+                    >
+                      {module.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 p-4 bg-slate-50 border-2 border-black rounded-2xl">
+                <input 
+                  type="checkbox" 
+                  id="pkgActive"
+                  className="w-5 h-5 rounded border-2 border-black text-indigo-600 focus:ring-indigo-500"
+                  checked={newPackage.isActive}
+                  onChange={(e) => setNewPackage({...newPackage, isActive: e.target.checked})}
+                />
+                <label htmlFor="pkgActive" className="text-[10px] font-black uppercase text-slate-900 tracking-widest cursor-pointer">Live / Active</label>
+              </div>
+
+              <button 
+                type="submit"
+                className="w-full py-4 bg-black text-white rounded-2xl font-black uppercase tracking-[0.2em] text-xs hover:bg-indigo-600 transition-all shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:shadow-none translate-y-0 active:translate-y-1"
+              >
+                {editingPackage ? 'Update Package' : 'Launch Package'}
+              </button>
+            </form>
+          </motion.div>
+        </div>
+      )}
 
       {showModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-0 md:p-4 z-[100] overflow-y-auto">

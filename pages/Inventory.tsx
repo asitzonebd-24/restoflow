@@ -47,30 +47,30 @@ const ListManagerModal = ({
           initial={{ scale: 0.95, opacity: 0, y: 20 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.95, opacity: 0, y: 20 }}
-          className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden border border-slate-100 flex flex-col max-h-[80vh]"
+          className="bg-white w-full max-w-md md:rounded-[2rem] rounded-t-[2rem] shadow-2xl overflow-hidden border border-slate-100 flex flex-col max-h-[90vh] self-end md:self-center"
         >
-          <div className="p-8 md:p-10 border-b border-slate-100">
+          <div className="p-6 md:p-10 border-b border-slate-100">
             <div className="flex justify-between items-center">
               <div>
-                <h2 className="text-2xl font-bold text-slate-900 tracking-tight">{title}</h2>
-                <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-2 opacity-80">Manage your predefined list</p>
+                <h2 className="text-xl md:text-2xl font-bold text-slate-900 tracking-tight">{title}</h2>
+                <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1 opacity-80">Manage your list</p>
               </div>
               <button 
                 onClick={onClose}
-                className="w-12 h-12 bg-slate-50 text-slate-400 rounded-2xl flex items-center justify-center hover:bg-slate-100 hover:text-slate-600 transition-all active:scale-95"
+                className="w-10 h-10 md:w-12 md:h-12 bg-slate-50 text-slate-400 rounded-2xl flex items-center justify-center hover:bg-slate-100 hover:text-slate-600 transition-all active:scale-95"
               >
                 <X size={20} />
               </button>
             </div>
           </div>
 
-          <div className="p-8 md:p-10 overflow-y-auto flex-1">
-            <form onSubmit={handleSubmit} className="mb-8 flex gap-4">
+          <div className="p-6 md:p-10 overflow-y-auto flex-1 no-scrollbar">
+            <form onSubmit={handleSubmit} className="mb-6 md:mb-8 flex gap-3 md:gap-4">
               <input 
                 type="text" 
                 value={newItem}
                 onChange={(e) => setNewItem(e.target.value)}
-                className="flex-1 px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                className="flex-1 px-4 md:px-6 py-3 md:py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                 placeholder={placeholder}
               />
               <button 
@@ -1014,15 +1014,15 @@ export const Inventory = () => {
             className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
           >
             <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden"
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="bg-white w-full max-w-md md:rounded-[2rem] rounded-t-[2rem] shadow-2xl overflow-hidden self-end md:self-center max-h-[90vh]"
             >
-              <div className="px-8 py-6 bg-slate-50/50 border-b-2 border-slate-100 flex justify-between items-center">
+              <div className="px-6 py-5 md:px-8 md:py-6 bg-slate-50/50 border-b-2 border-slate-100 flex justify-between items-center shrink-0">
                 <div>
-                  <h2 className="text-xl font-bold text-slate-900">Manage Due</h2>
-                  <p className="text-sm text-slate-500 font-medium mt-1">{selectedSupplier}</p>
+                  <h2 className="text-lg md:text-xl font-bold text-slate-900">Manage Due</h2>
+                  <p className="text-xs md:text-sm text-slate-500 font-medium mt-0.5">{selectedSupplier}</p>
                 </div>
                 <button 
                   onClick={() => {
@@ -1036,22 +1036,22 @@ export const Inventory = () => {
                 </button>
               </div>
 
-              <form onSubmit={handleDueSubmit} className="p-8">
+              <form onSubmit={handleDueSubmit} className="p-6 md:p-8 overflow-y-auto no-scrollbar">
                 <div className="space-y-6">
                   <div>
                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Action</label>
-                    <div className="flex gap-4">
+                    <div className="flex gap-3 md:gap-4">
                       <button
                         type="button"
                         onClick={() => setDueAction('pay')}
-                        className={`flex-1 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${dueAction === 'pay' ? 'bg-emerald-50 text-emerald-600 border-2 border-emerald-200' : 'bg-slate-50 text-slate-400 border-2 border-transparent hover:bg-slate-100'}`}
+                        className={`flex-1 py-3 rounded-xl text-[10px] md:text-xs font-bold uppercase tracking-widest transition-all ${dueAction === 'pay' ? 'bg-emerald-50 text-emerald-600 border-2 border-emerald-200' : 'bg-slate-50 text-slate-400 border-2 border-transparent hover:bg-slate-100'}`}
                       >
                         Pay Due
                       </button>
                       <button
                         type="button"
                         onClick={() => setDueAction('add')}
-                        className={`flex-1 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${dueAction === 'add' ? 'bg-rose-50 text-rose-600 border-2 border-rose-200' : 'bg-slate-50 text-slate-400 border-2 border-transparent hover:bg-slate-100'}`}
+                        className={`flex-1 py-3 rounded-xl text-[10px] md:text-xs font-bold uppercase tracking-widest transition-all ${dueAction === 'add' ? 'bg-rose-50 text-rose-600 border-2 border-rose-200' : 'bg-slate-50 text-slate-400 border-2 border-transparent hover:bg-slate-100'}`}
                       >
                         Add Due
                       </button>
@@ -1059,7 +1059,7 @@ export const Inventory = () => {
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Amount ({currentTenant?.currency})</label>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Amount ({currentTenant?.currency})</label>
                     <input 
                       type="number" 
                       min="0"
@@ -1076,7 +1076,7 @@ export const Inventory = () => {
                 <div className="mt-8">
                   <button 
                     type="submit"
-                    className="w-full py-4 bg-slate-900 text-white rounded-xl text-xs font-bold uppercase tracking-widest hover:bg-slate-800 transition-all active:scale-95"
+                    className="w-full py-4 bg-slate-900 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-slate-800 transition-all active:scale-95"
                   >
                     Confirm {dueAction === 'pay' ? 'Payment' : 'Addition'}
                   </button>
@@ -1448,27 +1448,29 @@ export const Inventory = () => {
               initial={{ scale: 0.95, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.95, opacity: 0, y: 20 }}
-              className="bg-white rounded-[2rem] shadow-2xl w-full max-w-md overflow-hidden border border-slate-100"
+              className="bg-white w-full max-w-md md:rounded-[2rem] rounded-t-[2rem] shadow-2xl overflow-hidden border border-slate-100 self-end md:self-center max-h-[90vh] flex flex-col"
             >
-              <div className="p-8 md:p-10">
-                <div className="flex justify-between items-center mb-8">
+              <div className="p-6 md:p-10 border-b border-slate-100 shrink-0">
+                <div className="flex justify-between items-center">
                   <div>
-                    <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Add Stock</h2>
-                    <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-2 opacity-80">Restock {restockItem.name}</p>
+                    <h2 className="text-xl md:text-2xl font-bold text-slate-900 tracking-tight">Add Stock</h2>
+                    <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1 opacity-80">Restock {restockItem.name}</p>
                   </div>
                   <button 
                     onClick={() => setRestockItem(null)}
-                    className="w-12 h-12 bg-slate-50 text-slate-400 rounded-2xl flex items-center justify-center hover:bg-slate-100 hover:text-slate-600 transition-all active:scale-95"
+                    className="w-10 h-10 md:w-12 md:h-12 bg-slate-50 text-slate-400 rounded-2xl flex items-center justify-center hover:bg-slate-100 hover:text-slate-600 transition-all active:scale-95"
                   >
                     <X size={20} />
                   </button>
                 </div>
+              </div>
 
-                <div className="mb-8 space-y-6">
-                  <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
-                    <div className="mb-4">
+              <div className="p-6 md:p-10 overflow-y-auto flex-1 no-scrollbar">
+                <div className="mb-6 space-y-6">
+                  <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100">
+                    <div>
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Supplier</p>
-                      <p className="text-sm font-medium text-slate-900">{restockItem.supplier || 'N/A'}</p>
+                      <p className="text-sm font-bold text-slate-900">{restockItem.supplier || 'N/A'}</p>
                     </div>
                   </div>
                 </div>
@@ -1483,7 +1485,7 @@ export const Inventory = () => {
                       step="0.01"
                       value={restockQuantity}
                       onChange={(e) => setRestockQuantity(parseFloat(e.target.value))}
-                      className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                      className="w-full px-5 py-3.5 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                     />
                   </div>
 
@@ -1523,7 +1525,7 @@ export const Inventory = () => {
                     </button>
                     <button 
                       type="submit"
-                      className="flex-[2] py-4 rounded-2xl font-bold text-white uppercase tracking-widest text-[10px] bg-indigo-600 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/30 active:scale-95 flex items-center justify-center gap-3"
+                      className="flex-[2] py-4 rounded-2xl font-bold text-white uppercase tracking-widest text-[10px] bg-slate-900 hover:bg-slate-800 transition-all shadow-lg active:scale-95 flex items-center justify-center gap-3"
                     >
                       <RefreshCw size={16} />
                       Add Stock

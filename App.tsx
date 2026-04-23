@@ -3,6 +3,7 @@ import React, { useState, useMemo } from 'react';
 import { auth, db } from './src/firebase';
 import { BrowserRouter as Router, Routes, Route, Navigate, NavLink, useLocation, useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'sonner';
 import { AppProvider, useApp } from './context/AppContext';
 import { Login } from './pages/Login';
 import { Landing } from './pages/Landing';
@@ -94,6 +95,11 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
   };
 
   const permissions = currentUser.permissions || [];
+  const activeSubscription = business?.subscription;
+  const allowedBySubscription = (moduleId: string) => {
+    if (!activeSubscription) return true; // Default to true if legacy or not yet set
+    return activeSubscription.allowedPages.includes(moduleId);
+  };
 
   return (
     <div 
@@ -147,13 +153,13 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
               </>
             ) : (
               <>
-                {permissions.includes('Dashboard') && (
+                {permissions.includes('Dashboard') && allowedBySubscription('dashboard') && (
                   <NavLink to={`/${tId}/dashboard`} onClick={() => onClose()} className={navItemClass('/dashboard')} title="Dashboard">
                     <LayoutDashboard size={22} />
                   </NavLink>
                 )}
                 
-                {permissions.includes('POS') && (
+                {permissions.includes('POS') && allowedBySubscription('pos') && (
                   <NavLink to={`/${tId}/pos`} onClick={() => onClose()} className={navItemClass('/pos')} title="Terminal">
                     <UtensilsCrossed size={22} />
                     {activeOrdersCount > 0 && (
@@ -164,7 +170,7 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
                   </NavLink>
                 )}
 
-                {permissions.includes('Kitchen') && (
+                {permissions.includes('Kitchen') && allowedBySubscription('kitchen') && (
                   <NavLink to={`/${tId}/kitchen`} onClick={() => onClose()} className={navItemClass('/kitchen')} title="Kitchen">
                     <ChefHat size={22} />
                     {activeOrdersCount > 0 && (
@@ -175,37 +181,37 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
                   </NavLink>
                 )}
 
-                {permissions.includes('Billing') && (
+                {permissions.includes('Billing') && allowedBySubscription('billing') && (
                   <NavLink to={`/${tId}/billing`} onClick={() => onClose()} className={navItemClass('/billing')} title="Billing">
                     <Receipt size={22} />
                   </NavLink>
                 )}
 
-                {permissions.includes('Transactions') && (
+                {permissions.includes('Transactions') && allowedBySubscription('billing') && (
                   <NavLink to={`/${tId}/transactions`} onClick={() => onClose()} className={navItemClass('/transactions')} title="History">
                     <History size={22} />
                   </NavLink>
                 )}
 
-                {permissions.includes('Menu') && (
+                {permissions.includes('Menu') && allowedBySubscription('menu') && (
                   <NavLink to={`/${tId}/menu`} onClick={() => onClose()} className={navItemClass('/menu')} title="Menu">
                     <MenuIcon size={22} />
                   </NavLink>
                 )}
 
-                {permissions.includes('Inventory') && (
+                {permissions.includes('Inventory') && allowedBySubscription('inventory') && (
                   <NavLink to={`/${tId}/inventory`} onClick={() => onClose()} className={navItemClass('/inventory')} title="Inventory">
                     <Package size={22} />
                   </NavLink>
                 )}
 
-                {permissions.includes('Inventory') && (
+                {permissions.includes('Inventory') && allowedBySubscription('inventory') && (
                   <NavLink to={`/${tId}/sales-items`} onClick={() => onClose()} className={navItemClass('/sales-items')} title="Sales Items">
                     <ShoppingBag size={22} />
                   </NavLink>
                 )}
 
-                {permissions.includes('Reports') && (
+                {permissions.includes('Reports') && allowedBySubscription('reports') && (
                   <NavLink to={`/${tId}/reports`} onClick={() => onClose()} className={navItemClass('/reports')} title="Reports">
                     <PieChart size={22} />
                   </NavLink>
@@ -223,37 +229,10 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
                   </NavLink>
                 )}
 
-                {permissions.includes('Users') && (
+                {permissions.includes('Users') && allowedBySubscription('users') && (
                   <NavLink to={`/${tId}/users`} onClick={() => onClose()} className={navItemClass('/users')} title="Users">
                     <UsersIcon size={22} />
                   </NavLink>
-                )}
-
-                {currentUser.role === Role.CUSTOMER && (
-                  <>
-                    <NavLink to={`/${tId}/order`} onClick={() => onClose()} className={navItemClass('/order')} title="Digital Menu">
-                      <Utensils size={22} />
-                    </NavLink>
-                    <NavLink to={`/${tId}/order/panel`} onClick={() => onClose()} className={navItemClass('/order/panel')} title="My Tokens">
-                      <Timer size={22} />
-                    </NavLink>
-                    <NavLink to={`/${tId}/order/history`} onClick={() => onClose()} className={navItemClass('/order/history')} title="History">
-                      <History size={22} />
-                    </NavLink>
-                    <div className="w-full px-2 mt-4">
-                      <select 
-                        className="w-full bg-white/10 text-white text-[10px] p-2 rounded-lg border border-white/20"
-                        value={activeCategory}
-                        onChange={(e) => {
-                          setActiveCategory(e.target.value);
-                          if (!location.pathname.includes('/order')) navigate(`/${tId}/order`);
-                        }}
-                      >
-                        <option value="All">All</option>
-                        {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
-                      </select>
-                    </div>
-                  </>
                 )}
 
                 {currentUser.role === Role.SUPER_ADMIN && (
@@ -379,6 +358,7 @@ const ProtectedLayout = ({ children, allowedRoles }: { children?: React.ReactNod
   if (currentUser.role !== Role.SUPER_ADMIN && currentUser.role !== Role.CUSTOMER) {
     const path = location.pathname;
     const permissions = currentUser.permissions || [];
+    const activeSubscription = business?.subscription;
     
     const permissionMap: { [key: string]: string } = {
       'dashboard': 'Dashboard',
@@ -391,12 +371,32 @@ const ProtectedLayout = ({ children, allowedRoles }: { children?: React.ReactNod
       'reports': 'Reports',
       'global-reports': 'Reports',
       'users': 'Users',
-      'expenses': 'Expenses'
+      'expenses': 'Expenses',
+      'accounting': 'Accounting',
+      'sales-items': 'Inventory',
+      'tables': 'Dashboard'
     };
 
     const currentPathSegment = path.split('/').pop();
     const requiredPermission = currentPathSegment ? permissionMap[currentPathSegment] : null;
 
+    // 1. Check Subscription Access
+    if (activeSubscription && currentPathSegment && !['subscription', 'settings'].includes(currentPathSegment)) {
+      // Find the module ID in APP_MODULES that matches this path
+      // Most IDs match (pos, menu, inventory, etc)
+      let moduleId = currentPathSegment;
+      if (moduleId === 'sales-items') moduleId = 'inventory';
+      if (moduleId === 'transactions') moduleId = 'billing';
+      
+      const isAllowedBySubscription = activeSubscription.allowedPages.includes(moduleId);
+      
+      if (!isAllowedBySubscription) {
+        toast.error('This module is not included in your current subscription plan.');
+        return <Navigate to={`/${tenantId}/subscription`} replace />;
+      }
+    }
+
+    // 2. Check User Permissions
     if (requiredPermission && !permissions.includes(requiredPermission)) {
       // Redirect to the first available permission or login
       if (permissions.length > 0) {
@@ -501,7 +501,7 @@ const ProtectedLayout = ({ children, allowedRoles }: { children?: React.ReactNod
 };
 
 const AppContent = () => {
-  const { currentUser, isLoading, business, currentTenantId, setCurrentTenantId, getDefaultRedirect, logout, tenants } = useApp();
+  const { currentUser, isLoading, isAuthReady, business, currentTenantId, setCurrentTenantId, getDefaultRedirect, logout, tenants } = useApp();
   const location = useLocation();
 
   React.useEffect(() => {
@@ -518,18 +518,18 @@ const AppContent = () => {
       console.log('[AppContent] Identified tenantId:', tenantId, 'from path:', pathTenantId);
     }
     
-    // Auto-logout if user is logged into a different restaurant and tries to access login page
+    // Warn if user is logged into a different restaurant and tries to access login page
     if (tenantId && currentUser && currentUser.role !== Role.SUPER_ADMIN && location.pathname.includes('/login')) {
       const targetTenant = tenants.find(t => t.id === tenantId || t.slug === tenantId);
       const targetId = targetTenant?.id || tenantId;
       
       if (targetId !== currentUser.tenantId) {
-        console.log('[AppContent] Tenant mismatch. Logging out previous session.', {
+        console.warn('[AppContent] Tenant mismatch detected on login page.', {
           urlTenant: tenantId,
           targetId,
           currentUserTenant: currentUser.tenantId
         });
-        logout();
+        toast.error(`You are already logged in to another restaurant. Please log out if you wish to switch.`);
         return;
       }
     }
@@ -621,7 +621,7 @@ const AppContent = () => {
     };
   }, [business.name, business.logo, location.pathname, location.search, location.hash]);
 
-  if (isLoading) {
+  if (isLoading || !isAuthReady) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">

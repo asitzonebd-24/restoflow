@@ -1,18 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { BillStatus, MonthlyBill } from '../types';
-import { CreditCard, CheckCircle, Clock, Wallet, FileText } from 'lucide-react';
+import { BillStatus, MonthlyBill, SubscriptionPackage } from '../types';
+import { CreditCard, CheckCircle, Clock, Wallet, FileText, Package, Calendar } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'sonner';
 
 export const Subscription = () => {
-  const { business, monthlyBills, currentUser, markBillAsPaid } = useApp();
+  const { business, monthlyBills, currentUser, markBillAsPaid, subscriptionPackages, subscribeBusinessToPackage } = useApp();
   const [searchParams, setSearchParams] = useSearchParams();
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showPackages, setShowPackages] = useState(false);
 
   const myBills = monthlyBills.filter(b => b.tenantId === business?.id)
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  const activeSubscription = business?.subscription;
 
   useEffect(() => {
     const status = searchParams.get('status');
@@ -64,31 +67,117 @@ export const Subscription = () => {
     }
   };
 
+  const handleSubscribe = async (pkg: SubscriptionPackage) => {
+    if (!business?.id) return;
+    if (confirm(`Do you want to subscribe to the ${pkg.name}?`)) {
+      await subscribeBusinessToPackage(business.id, pkg.id);
+      setShowPackages(false);
+    }
+  };
+
   return (
     <div className="p-4 md:p-10 h-full overflow-y-auto no-scrollbar bg-slate-50">
-      <div className="max-w-4xl mx-auto">
-        <div className="mb-8 md:mb-10">
-          <h1 className="text-2xl md:text-3xl font-black text-slate-900 flex items-center gap-4">
-            <Wallet className="text-indigo-600" size={32} /> Subscription & Billing
-          </h1>
-          <p className="text-slate-400 text-[10px] md:text-xs font-medium uppercase tracking-[0.2em] mt-2 opacity-80">Manage your software subscription and payments</p>
+      <div className="max-w-4xl mx-auto pb-20">
+        <div className="mb-8 md:mb-10 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-black text-slate-900 flex items-center gap-4">
+              <Wallet className="text-indigo-600" size={32} /> Subscription & Billing
+            </h1>
+            <p className="text-slate-400 text-[10px] md:text-xs font-medium uppercase tracking-[0.2em] mt-2 opacity-80">Manage your software subscription and payments</p>
+          </div>
+          <button 
+            onClick={() => setShowPackages(!showPackages)}
+            className={`px-6 py-3 rounded-xl font-black uppercase tracking-widest text-[10px] transition-all border-2 border-black flex items-center gap-2 ${showPackages ? 'bg-white text-black' : 'bg-indigo-600 text-white shadow-lg'}`}
+          >
+            {showPackages ? 'Close Plans' : 'Browse Plans'} <Package size={16} />
+          </button>
         </div>
 
-        {/* Subscription Summary Card */}
-        <div className="bg-white border-2 border-black rounded-[2rem] p-8 md:p-10 mb-8 shadow-xl shadow-slate-200/50 flex flex-col md:flex-row justify-between items-center gap-8">
-          <div className="text-center md:text-left">
-            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Current Plan</span>
-            <h2 className="text-3xl md:text-4xl font-black text-indigo-600 mt-2 mb-2">RestoKeep Pro</h2>
-            <p className="text-slate-500 text-sm font-medium">Monthly Subscription: <span className="text-slate-900 font-black">{business?.currency}{business?.monthlyBill}/mo</span></p>
-          </div>
-          <div className="flex flex-col items-center gap-4">
-            <div className="bg-emerald-50 border-2 border-emerald-500 px-8 py-3 rounded-2xl flex items-center gap-3 shadow-lg shadow-emerald-100">
-              <CheckCircle className="text-emerald-500" size={20} />
-              <span className="text-xs font-black uppercase text-emerald-700 tracking-[0.1em]">Account Active</span>
+        {showPackages ? (
+          <div className="animate-in fade-in slide-in-from-top-4 duration-300">
+            <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight flex items-center gap-3 mb-6">
+              <Package size={24} className="text-indigo-600" /> Available Plans
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+              {subscriptionPackages.filter(p => p.isActive).map((pkg) => (
+                <div key={pkg.id} className={`bg-white border-2 border-black rounded-[2rem] p-6 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] relative overflow-hidden transition-all hover:-translate-y-1 ${activeSubscription?.packageId === pkg.id ? 'bg-indigo-50/10' : ''}`}>
+                  {activeSubscription?.packageId === pkg.id && (
+                    <div className="absolute top-0 right-0 bg-indigo-600 text-white px-4 py-1 text-[8px] font-black uppercase tracking-widest">
+                      Active
+                    </div>
+                  )}
+
+                  <div className="mb-6">
+                    <h4 className="text-xl font-black text-slate-900 uppercase tracking-tighter mb-1">{pkg.name}</h4>
+                    <p className="text-indigo-600 font-black text-3xl">
+                      {business?.currency}{pkg.price}
+                      <span className="text-xs text-slate-400 font-bold ml-1 uppercase">/ {pkg.durationMonths}m</span>
+                    </p>
+                  </div>
+
+                  <div className="space-y-4 mb-8">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] border-b-2 border-slate-50 pb-2">Includes access to:</p>
+                    <ul className="space-y-2">
+                        {pkg.allowedPages.slice(0, 5).map(pageId => (
+                          <li key={pageId} className="flex items-center gap-2 text-[10px] font-bold text-slate-600 uppercase">
+                            <CheckCircle size={10} className="text-emerald-500" /> {pageId}
+                          </li>
+                        ))}
+                        {pkg.allowedPages.length > 5 && (
+                          <li className="text-[9px] font-bold text-slate-400 uppercase italic">+ {pkg.allowedPages.length - 5} more modules</li>
+                        )}
+                    </ul>
+                  </div>
+
+                  <button 
+                    disabled={activeSubscription?.packageId === pkg.id}
+                    onClick={() => handleSubscribe(pkg)}
+                    className={`w-full py-3 rounded-xl font-black uppercase tracking-widest text-[10px] border-2 border-black transition-all ${
+                      activeSubscription?.packageId === pkg.id 
+                        ? 'bg-slate-100 text-slate-400 cursor-not-allowed' 
+                        : 'bg-indigo-600 text-white hover:bg-black active:shadow-none'
+                    }`}
+                  >
+                    {activeSubscription?.packageId === pkg.id ? 'Current Plan' : 'Subscribe Now'}
+                  </button>
+                </div>
+              ))}
             </div>
-            <p className="text-[10px] font-bold text-slate-400 italic">Next billing: 1st of next month</p>
           </div>
-        </div>
+        ) : (
+          /* Subscription Summary Card */
+          <div className="bg-white border-2 border-black rounded-[2rem] p-8 md:p-10 mb-8 shadow-xl shadow-slate-200/50 flex flex-col md:flex-row justify-between items-center gap-8 animate-in fade-in duration-300">
+            <div className="text-center md:text-left">
+              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Your Active Plan</span>
+              <h2 className="text-3xl md:text-4xl font-black text-indigo-600 mt-2 mb-2">
+                {activeSubscription?.packageName || 'No Active Plan'}
+              </h2>
+              {activeSubscription && (
+                <div className="space-y-1">
+                  <p className="text-slate-500 text-sm font-medium flex items-center justify-center md:justify-start gap-2">
+                    <Calendar size={14} /> Expire: <span className="text-slate-900 font-black">{new Date(activeSubscription.expiryDate).toLocaleDateString()}</span>
+                  </p>
+                  <p className="text-slate-500 text-sm font-medium">Monthly Bill: <span className="text-slate-900 font-black">{business?.currency}{business?.monthlyBill}/mo</span></p>
+                </div>
+              )}
+            </div>
+            <div className="flex flex-col items-center gap-4">
+              <div className={`px-8 py-3 rounded-2xl flex items-center gap-3 shadow-lg border-2 ${activeSubscription?.status === 'active' ? 'bg-emerald-50 border-emerald-500 shadow-emerald-100' : 'bg-rose-50 border-rose-500 shadow-rose-100'}`}>
+                {activeSubscription?.status === 'active' ? (
+                  <CheckCircle className="text-emerald-500" size={20} />
+                ) : (
+                  <Clock className="text-rose-500" size={20} />
+                )}
+                <span className={`text-xs font-black uppercase tracking-[0.1em] ${activeSubscription?.status === 'active' ? 'text-emerald-700' : 'text-rose-700'}`}>
+                  {activeSubscription?.status === 'active' ? 'Account Active' : 'Account Inactive'}
+                </span>
+              </div>
+              {!activeSubscription && (
+                <p className="text-[10px] font-bold text-indigo-600 animate-pulse">Subscribe to a plan to activate your account</p>
+              )}
+            </div>
+          </div>
+        )}
 
         <div className="space-y-6">
           <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight flex items-center gap-3">

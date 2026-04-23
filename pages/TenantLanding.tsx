@@ -4,6 +4,7 @@ import { useParams, useNavigate, Navigate, Link } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { Utensils, ShieldCheck, User, ArrowRight, Store, Globe, MapPin, Phone, ShoppingBag, AlertTriangle } from 'lucide-react';
 import { Role } from '../types';
+import { toast } from 'sonner';
 
 export const TenantLanding = () => {
   const { tenantId } = useParams<{ tenantId: string }>();
@@ -22,12 +23,14 @@ export const TenantLanding = () => {
         const targetId = targetTenant?.id || tenantId;
         
         if (targetId !== currentUser.tenantId) {
-          console.log('[TenantLanding] Tenant mismatch. Logging out previous session.', {
+          console.warn('[TenantLanding] Tenant mismatch detected.', {
             urlTenant: tenantId,
             targetId,
             currentUserTenant: currentUser.tenantId
           });
-          logout();
+          toast.error(`You are already logged in to another restaurant. Please log out if you wish to switch.`);
+          // Optionally redirect them back to their own dashboard
+          // navigate(`/${currentUser.tenantId}/dashboard`); 
         } else {
           // User is already logged into this tenant! 
           // If they have Dashboard or POS permission, redirect them automatically

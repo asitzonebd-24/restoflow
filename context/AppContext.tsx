@@ -1,7 +1,7 @@
 
 import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect, useCallback } from 'react';
-import { Role, Business, User, Order, InventoryItem, MenuItem, OrderStatus, ItemStatus, Transaction, Expense, OrderItem, MonthlyBill, BillStatus, Recipe, Table, InventoryMode } from '../types';
-import { BUSINESS_DETAILS, MOCK_USERS, INITIAL_ORDERS, MOCK_INVENTORY, MOCK_MENU, MOCK_EXPENSES, DEFAULT_MENU_IMAGE, DEFAULT_AVATAR, DEFAULT_BUSINESS_LOGO } from '../constants';
+import { Role, Business, User, Order, InventoryItem, MenuItem, OrderStatus, ItemStatus, Transaction, Expense, OrderItem, MonthlyBill, BillStatus, Recipe, Table, InventoryMode, SubscriptionPackage } from '../types';
+import { BUSINESS_DETAILS, MOCK_USERS, INITIAL_ORDERS, MOCK_INVENTORY, MOCK_MENU, MOCK_EXPENSES, DEFAULT_MENU_IMAGE, DEFAULT_AVATAR, DEFAULT_BUSINESS_LOGO, APP_MODULES } from '../constants';
 import { auth, secondaryAuth, db, googleProvider } from '../src/firebase';
 import { 
   signOut,
@@ -152,8 +152,14 @@ interface AppContextType {
   generateMonthlyBills: (month: string) => Promise<number>;
   approveBill: (billId: string) => Promise<void>;
   markBillAsPaid: (billId: string, txnId: string) => Promise<void>;
+  subscriptionPackages: SubscriptionPackage[];
+  addSubscriptionPackage: (pkg: Omit<SubscriptionPackage, 'id' | 'createdAt'>) => Promise<void>;
+  updateSubscriptionPackage: (id: string, pkg: Partial<SubscriptionPackage>) => Promise<void>;
+  deleteSubscriptionPackage: (id: string) => Promise<void>;
+  subscribeBusinessToPackage: (tenantId: string, packageId: string) => Promise<void>;
   allUsers: User[];
   isLoading: boolean;
+  isAuthReady: boolean;
   getDefaultRedirect: () => string;
   activeCategory: string;
   setActiveCategory: (category: string) => void;
@@ -206,6 +212,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [allRecipes, setAllRecipes] = useState<Recipe[]>([]);
   const [allTables, setAllTables] = useState<Table[]>([]);
   const [monthlyBills, setMonthlyBills] = useState<MonthlyBill[]>([]);
+  const [subscriptionPackages, setSubscriptionPackages] = useState<SubscriptionPackage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthReady, setIsAuthReady] = useState(false);
 
@@ -226,7 +233,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         }
         return current;
       });
-    }, 5000);
+    }, 10000); // Increased to 10s for slower connections
     return () => clearTimeout(timer);
   }, []);
 
@@ -262,20 +269,46 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       try {
         if (user) {
-          // Fetch user profile from Firestore
-          const userDoc = await getDoc(doc(db, 'users', user.uid));
-          if (userDoc.exists()) {
+          // Fetch user profile from Firestore with retries
+          let retries = 0;
+          const maxRetries = 2;
+          let userDoc = null;
+
+          while (retries <= maxRetries) {
+            try {
+              userDoc = await getDoc(doc(db, 'users', user.uid));
+              break;
+            } catch (err) {
+              retries++;
+              if (retries > maxRetries) throw err;
+              await new Promise(res => setTimeout(res, 1000));
+            }
+          }
+
+          if (userDoc && userDoc.exists()) {
             const userData = { id: userDoc.id, ...convertFirestoreData(userDoc.data()) } as User;
             setCurrentUser(userData);
             localStorage.setItem('resto_keep_user', JSON.stringify(userData));
           } else {
-            // If no user doc exists, clear local state and sign out
-            console.warn('User authenticated but no profile found in Firestore. Signing out...');
-            setCurrentUser(null);
-            localStorage.removeItem('resto_keep_user');
-            await signOut(auth);
+            // Profile not found in Firestore. 
+            // Check if we already have a user in state (maybe from localStorage)
+            // and only log out if it's definitely a different UID or if we're sure it's an orphan auth account.
+            const savedUser = localStorage.getItem('resto_keep_user');
+            const parsedSavedUser = savedUser ? JSON.parse(savedUser) : null;
+            
+            if (!parsedSavedUser || parsedSavedUser.id !== user.uid) {
+              console.warn('User authenticated but no profile found in Firestore. Signing out...');
+              setCurrentUser(null);
+              localStorage.removeItem('resto_keep_user');
+              await signOut(auth);
+            } else {
+              console.warn('Firestore profile fetch failed but UID matches saved user. Retaining session for now.');
+            }
           }
         } else {
+          // Firebase says user is null.
+          // Only clear if we are sure we are not in a transient disconnect state
+          // but usually onAuthStateChanged null means signed out.
           setCurrentUser(null);
           localStorage.removeItem('resto_keep_user');
         }
@@ -484,7 +517,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
     const collections: { name: string, setter: (data: any) => void }[] = [
       { name: 'users', setter: setAllUsers },
-      { name: 'monthly_bills', setter: setMonthlyBills }
+      { name: 'monthly_bills', setter: setMonthlyBills },
+      { name: 'subscription_packages', setter: setSubscriptionPackages }
     ];
 
     if (!isSuperAdmin || currentTenantId) {
@@ -502,7 +536,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     collections.forEach(({ name, setter }) => {
       let q;
       // If we have a selected tenant (or if non-admin), always filter by tenantId to prevent massive data fetch
-      if (effectiveTenantId) {
+      if (effectiveTenantId && !['subscription_packages', 'tenants', 'users'].includes(name)) {
         q = query(collection(db, name), where('tenantId', '==', String(effectiveTenantId)));
       } else if (isSuperAdmin) {
         // Only if no tenant is selected, Super Admin fetches latest data with a strict limit
@@ -514,6 +548,10 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
       if (name === 'orders') {
         q = query(collection(db, name), ...(effectiveTenantId ? [where('tenantId', '==', String(effectiveTenantId))] : []), limit(500));
+      }
+
+      if (name === 'subscription_packages') {
+        q = query(collection(db, name), limit(100));
       }
 
       if (['transactions', 'expenses', 'monthly_bills'].includes(name)) {
@@ -1440,6 +1478,63 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     }
   };
 
+  const addSubscriptionPackage = async (pkg: Omit<SubscriptionPackage, 'id' | 'createdAt'>) => {
+    try {
+      await addDoc(collection(db, 'subscription_packages'), {
+        ...pkg,
+        createdAt: new Date().toISOString()
+      });
+      toast.success('Subscription package created successfully');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, 'subscription_packages');
+    }
+  };
+
+  const updateSubscriptionPackage = async (id: string, pkg: Partial<SubscriptionPackage>) => {
+    try {
+      const docRef = doc(db, 'subscription_packages', id);
+      await updateDoc(docRef, cleanObject(pkg));
+      toast.success('Subscription package updated successfully');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `subscription_packages/${id}`);
+    }
+  };
+
+  const deleteSubscriptionPackage = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'subscription_packages', id));
+      toast.success('Subscription package deleted successfully');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `subscription_packages/${id}`);
+    }
+  };
+
+  const subscribeBusinessToPackage = async (tenantId: string, packageId: string) => {
+    try {
+      const pkg = subscriptionPackages.find(p => p.id === packageId);
+      if (!pkg) throw new Error('Package not found');
+
+      const startDate = new Date();
+      const expiryDate = new Date();
+      expiryDate.setMonth(expiryDate.getMonth() + pkg.durationMonths);
+
+      const tenantRef = doc(db, 'tenants', tenantId);
+      await updateDoc(tenantRef, {
+        subscription: {
+          packageId,
+          packageName: pkg.name,
+          startDate: startDate.toISOString(),
+          expiryDate: expiryDate.toISOString(),
+          allowedPages: pkg.allowedPages,
+          status: 'active'
+        }
+      });
+      toast.success(`Successfully subscribed to ${pkg.name}`);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `tenants/${tenantId}`);
+    }
+  };
+
   const addMenuItem = async (item: Omit<MenuItem, 'tenantId'>) => {
     const tenantId = resolvedTenantId || '';
     const newItem = { ...item, tenantId } as MenuItem;
@@ -2216,8 +2311,14 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       generateMonthlyBills,
       approveBill,
       markBillAsPaid,
+      subscriptionPackages,
+      addSubscriptionPackage,
+      updateSubscriptionPackage,
+      deleteSubscriptionPackage,
+      subscribeBusinessToPackage,
       allUsers,
       isLoading,
+      isAuthReady,
       getDefaultRedirect,
       activeCategory,
       setActiveCategory,

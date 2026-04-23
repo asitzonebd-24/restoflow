@@ -67,13 +67,28 @@ service cloud.firestore {
     }
 
     // ===============================================================
+    // Subscription Packages
+    // ===============================================================
+    match /subscription_packages/{packageId} {
+      // Anyone authenticated can read packages to browse them
+      allow read: if isAuthenticated();
+      // Only super admins can manage packages
+      allow write: if isSuperAdmin();
+    }
+
+    // ===============================================================
     // Tenants Collection
     // ===============================================================
     match /tenants/{tenantId} {
       // Anyone authenticated can read tenants (needed for login and routing)
       allow read: if isAuthenticated();
-      // Only super admins can write tenants
-      allow write: if isSuperAdmin();
+      // Only super admins or owners can update their own subscription
+      allow write: if isSuperAdmin() || (
+        isAuthenticated() && 
+        getUserData() != null && 
+        getUserData().role == 'OWNER' && 
+        (getUserData().tenantId == tenantId || ('tenantIds' in getUserData() && tenantId in getUserData().tenantIds))
+      );
     }
 
     // ===============================================================

@@ -27,6 +27,20 @@ export const BUSINESS_DETAILS: Business = {
   createdAt: new Date().toISOString()
 };
 
+export const APP_MODULES = [
+  { id: 'dashboard', label: 'Dashboard' },
+  { id: 'pos', label: 'POS Hub' },
+  { id: 'orders', label: 'Orders' },
+  { id: 'menu', label: 'Menu Management' },
+  { id: 'inventory', label: 'Inventory' },
+  { id: 'expenses', label: 'Expenses' },
+  { id: 'reports', label: 'Reports' },
+  { id: 'users', label: 'Staff Management' },
+  { id: 'tables', label: 'Table Management' },
+  { id: 'accounting', label: 'Accounting' },
+  { id: 'settings', label: 'Settings' },
+];
+
 const ALL_PERMISSIONS = ['Dashboard', 'POS', 'Kitchen', 'Menu', 'Billing', 'Transactions', 'Expenses', 'Reports', 'Inventory', 'Users', 'Settings'];
 
 export const MOCK_USERS: User[] = [
