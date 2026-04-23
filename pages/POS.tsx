@@ -1272,8 +1272,8 @@ export const POS = () => {
 
       {/* KOT Print Content (Hidden normally, visible during print) */}
       <div id="kot-content" className="hidden print:block p-4 font-sans print-visible text-black">
-        <div className="text-center border-b-2 border-black pb-2 mb-2">
-          <div className="text-[12pt] font-bold">Kitchen Token: #{isCreatingNew ? newTokenNum : orders.find(o => o.id === selectedOrderId)?.tokenNumber}</div>
+        <div className="text-center pb-2 mb-2">
+          <div className="text-[14pt] font-bold">Kitchen Token: #{isCreatingNew ? newTokenNum : orders.find(o => o.id === selectedOrderId)?.tokenNumber}</div>
           <div className="text-[12pt] font-bold">Table No: {isCreatingNew ? (isDelivery ? 'Delivery' : (isTakeAway ? 'Take Away' : newTableNum)) : orders.find(o => o.id === selectedOrderId)?.tableNumber}</div>
           <div className="text-[12pt] font-bold">Ordered by: {isCreatingNew ? currentUser?.name : getWaiterName(orders.find(o => o.id === selectedOrderId)?.createdBy || '')}</div>
           <div className="flex justify-between text-[10pt] font-bold mt-2 border-t border-black pt-1">
@@ -1295,7 +1295,7 @@ export const POS = () => {
           <p className="text-[12pt] font-black italic text-black kot-note">{orderNote}</p>
         </div>
 
-        <div className="text-center border-t-2 border-black pt-4">
+        <div className="text-center pt-4">
           <p className="text-[10pt] font-bold text-black">--- Kitchen Copy ---</p>
         </div>
       </div>
