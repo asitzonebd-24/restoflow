@@ -1,5 +1,7 @@
 // --- CONFIGURATION ---
 const MY_TENANT_ID = process.argv[2] || '01'; 
+const AUTH_EMAIL = process.argv[3];
+const AUTH_PASSWORD = process.argv[4];
 
 // Firebase Configuration
 const firebaseConfig = {
@@ -14,6 +16,7 @@ const firebaseConfig = {
 
 const { initializeApp } = require('firebase/app');
 const { getFirestore, collection, query, where, onSnapshot, orderBy, limit, doc, deleteDoc, updateDoc, getDoc } = require('firebase/firestore');
+const { getAuth, signInWithEmailAndPassword } = require('firebase/auth');
 const { exec } = require('child_process');
 const fs = require('fs');
 const path = require('path');
@@ -27,6 +30,20 @@ if (!fs.existsSync(PROFILE_DIR)) fs.mkdirSync(PROFILE_DIR, { recursive: true });
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+const auth = getAuth(app);
+
+// Authentication Logic
+if (AUTH_EMAIL && AUTH_PASSWORD) {
+    console.log(`[AUTH] Attempting login for ${AUTH_EMAIL}...`);
+    signInWithEmailAndPassword(auth, AUTH_EMAIL, AUTH_PASSWORD)
+        .then(() => console.log('[AUTH] Login successful! Agent is now authorized.'))
+        .catch(err => {
+            console.error('[AUTH] Login failed:', err.message);
+            console.log('[AUTH] Continuing as unauthenticated (Status updates may fail).');
+        });
+} else {
+    console.log('[AUTH] No credentials provided. Running in unauthenticated mode.');
+}
 
 console.log(`\n\n[${new Date().toLocaleTimeString()}] --- RestoKeep Automatic Printer Agent Starting ---`);
 console.log(`Target Restaurant ID: ${MY_TENANT_ID}`);
