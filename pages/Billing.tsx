@@ -636,42 +636,42 @@ export const Billing = () => {
               </button>
             </div>
 
-            <div className="p-5 md:p-6 space-y-3">
-              {/* Vertical Stack Grid */}
-              <div className="grid grid-cols-1 gap-2 mx-auto max-w-[280px]">
-                {/* Order Total */}
-                <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100 text-center shadow-sm">
-                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Bill Amount</p>
-                  <div className="text-xl font-black text-slate-900 tracking-tighter">
+            <div className="p-3 md:p-4 space-y-3">
+              {/* Horizontal Compact Grid */}
+              <div className="grid grid-cols-3 gap-2">
+                {/* Order Total - Indigo/Blue theme */}
+                <div className="bg-indigo-50/50 p-2 rounded-xl border border-indigo-100 text-center flex flex-col justify-center min-h-[70px]">
+                  <p className="text-[8px] font-bold text-indigo-400 uppercase tracking-widest mb-0.5 leading-tight">Total Bill</p>
+                  <div className="text-sm md:text-base font-black text-indigo-900 tracking-tighter">
                     {currentTenant?.currency}{calculateTotal(paymentOrder, (paymentOrder as any).discount || 0).total.toFixed(2)}
                   </div>
                 </div>
 
-                {/* Received Input Box */}
-                <div className="bg-white p-3 rounded-2xl border-2 border-black text-center shadow-md ring-4 ring-emerald-50">
-                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1">Received Amount</p>
+                {/* Received Input Box - Slate/Gray theme */}
+                <div className="bg-white p-2 rounded-xl border border-slate-900 text-center flex flex-col justify-center min-h-[70px] shadow-sm ring-2 ring-slate-50">
+                  <p className="text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-0.5 leading-tight">Received</p>
                   <div className="relative inline-flex items-center justify-center">
-                    <span className="text-lg font-black text-slate-300 mr-1">{currentTenant?.currency}</span>
+                    <span className="text-[10px] font-black text-slate-300 mr-0.5">{currentTenant?.currency}</span>
                     <input 
                       type="number"
                       autoFocus
                       value={receivedAmount}
                       onChange={(e) => setReceivedAmount(e.target.value)}
                       placeholder="0.00"
-                      className="w-32 py-0 text-xl font-black bg-transparent outline-none text-center placeholder:text-slate-100"
+                      className="w-full py-0 text-sm md:text-base font-black bg-transparent outline-none text-center placeholder:text-slate-200"
                     />
                   </div>
                 </div>
 
-                {/* Calculation Result - Always Visible */}
-                <div className={`p-3 rounded-2xl border text-center transition-all duration-300 shadow-sm ${
+                {/* Calculation Result - Multi-color theme */}
+                <div className={`p-2 rounded-xl border text-center flex flex-col justify-center min-h-[70px] transition-all duration-300 ${
                   (!receivedAmount || parseFloat(receivedAmount) === 0) 
                   ? 'bg-slate-50 border-slate-100' 
                   : parseFloat(receivedAmount) >= calculateTotal(paymentOrder, (paymentOrder as any).discount || 0).total
                     ? 'bg-amber-50 border-amber-200'
                     : 'bg-rose-50 border-rose-200'
                 }`}>
-                  <p className={`text-[9px] font-bold uppercase tracking-widest mb-1 ${
+                  <p className={`text-[8px] font-bold uppercase tracking-widest mb-0.5 leading-tight ${
                     (!receivedAmount || parseFloat(receivedAmount) === 0)
                     ? 'text-slate-400'
                     : parseFloat(receivedAmount) >= calculateTotal(paymentOrder, (paymentOrder as any).discount || 0).total
@@ -679,10 +679,10 @@ export const Billing = () => {
                       : 'text-rose-600'
                   }`}>
                     {(!receivedAmount || parseFloat(receivedAmount) === 0 || parseFloat(receivedAmount) >= calculateTotal(paymentOrder, (paymentOrder as any).discount || 0).total) 
-                      ? 'Change To Return' 
-                      : 'Short Amount'}
+                      ? 'Return' 
+                      : 'Short'}
                   </p>
-                  <div className={`text-xl font-black tracking-tighter ${
+                  <div className={`text-sm md:text-base font-black tracking-tighter ${
                     (!receivedAmount || parseFloat(receivedAmount) === 0)
                     ? 'text-slate-300'
                     : parseFloat(receivedAmount) >= calculateTotal(paymentOrder, (paymentOrder as any).discount || 0).total
@@ -695,18 +695,18 @@ export const Billing = () => {
               </div>
             </div>
 
-            <div className="p-5 md:p-6 border-t border-slate-50 bg-slate-50 mt-auto">
+            <div className="p-4 border-t border-slate-50 bg-slate-50 mt-auto">
               <button 
                 disabled={isProcessing}
                 onClick={async () => {
                   await handlePayment(paymentOrder);
                   setPaymentOrder(null);
                 }}
-                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-emerald-500 text-white hover:bg-emerald-600 transition-all font-black uppercase tracking-widest text-[10px] shadow-lg active:scale-95 border-2 border-emerald-700"
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-emerald-500 text-white hover:bg-emerald-600 transition-all font-black uppercase tracking-widest text-[9px] shadow-lg active:scale-95 border-b-4 border-emerald-700"
               >
                 {isProcessing ? 'Processing...' : (
                   <>
-                    <CheckCheck size={18} /> Collect & Complete
+                    <CheckCheck size={16} /> Collect & Complete
                   </>
                 )}
               </button>
