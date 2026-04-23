@@ -7,7 +7,7 @@ import { BluetoothPrinterService } from '../services/printerService';
 import { Pagination } from '../components/Pagination';
 
 export const Billing = () => {
-  const { orders, currentTenant, currentUser, updateOrderStatus, updateOrderItems, updateOrderPaymentStatus, addTransaction, users } = useApp();
+  const { orders, currentTenant, currentUser, updateOrderStatus, updateOrderItems, updateOrderPaymentStatus, addTransaction, users, createPrintRequest } = useApp();
   const [invoiceOrder, setInvoiceOrder] = useState<Order | null>(null);
   const [paymentOrder, setPaymentOrder] = useState<Order | null>(null);
   const [receivedAmount, setReceivedAmount] = useState<string>('');
@@ -122,11 +122,7 @@ export const Billing = () => {
       
       // Auto-print invoice if enabled
       if (currentTenant?.printerSettings?.autoPrintInvoice) {
-        setInvoiceOrder({ ...order, discount } as any);
-        setTimeout(() => {
-          const printBtn = document.getElementById('print-invoice-btn');
-          if (printBtn) printBtn.click();
-        }, 500);
+        handleQuickPrint(order);
       }
 
       // Invoice preview not required
@@ -134,6 +130,36 @@ export const Billing = () => {
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  const handleQuickPrint = async (order: Order) => {
+    const discount = discounts[order.id] || 0;
+    const orderWithDiscount = { ...order, discount } as any;
+
+    if (currentTenant?.printerSettings?.enablePrintAgent) {
+      try {
+        const creator = getCreator(order.createdBy);
+        const orderData = { 
+          ...orderWithDiscount, 
+          creatorName: creator?.name || 'Staff'
+        };
+        await createPrintRequest(orderData, 'invoice');
+        return;
+      } catch (error) {
+        console.error('Quick cloud print failed:', error);
+      }
+    }
+
+    // Fallback: Open modal and trigger print
+    setInvoiceOrder(orderWithDiscount);
+    setTimeout(() => {
+      const printBtn = document.getElementById('print-invoice-btn');
+      if (printBtn) {
+        printBtn.click();
+        // Automatically close modal after browser print dialog is handled
+        setTimeout(() => setInvoiceOrder(null), 1000);
+      }
+    }, 500);
   };
 
   const handleBulkPayment = () => {
@@ -230,8 +256,26 @@ export const Billing = () => {
   };
 
   const printInvoice = async () => {
-    // If a bluetooth printer is paired, try to print directly
-    if (currentTenant?.printerSettings?.pairedPrinterId && invoiceOrder) {
+    if (!invoiceOrder) return;
+
+    // 1. Try Cloud Print Agent if enabled
+    if (currentTenant?.printerSettings?.enablePrintAgent) {
+      try {
+        const creator = getCreator(invoiceOrder.createdBy);
+        const orderData = { 
+          ...invoiceOrder, 
+          creatorName: creator?.name || 'Staff',
+          discount: discounts[invoiceOrder.id] || 0
+        };
+        await createPrintRequest(orderData as any, 'invoice');
+        return; // Skip other methods if cloud print is handled
+      } catch (error) {
+        console.error('Cloud print failed:', error);
+      }
+    }
+
+    // 2. Fallback to Bluetooth if configured
+    if (currentTenant?.printerSettings?.pairedPrinterId) {
       try {
         const result = await BluetoothPrinterService.connect(currentTenant.printerSettings.pairedPrinterId);
         if (result.success) {
@@ -242,19 +286,18 @@ export const Billing = () => {
             creatorName: creator?.name || 'Unknown'
           });
           return; // Skip system print if bluetooth worked
-        } else if (result.error === 'unsupported') {
-          console.warn('Bluetooth is not supported or blocked in this environment.');
         }
       } catch (error) {
-        console.error('Bluetooth print failed, falling back to system print:', error);
+        console.error('Bluetooth print failed:', error);
       }
     }
 
+    // 3. Last Fallback: System Print (Browser)
     const printContent = document.getElementById('invoice-content');
     if (!printContent) return;
 
     const originalTitle = document.title;
-    document.title = `${currentTenant?.name || 'Invoice'} - #${invoiceOrder?.tokenNumber}`;
+    document.title = `${currentTenant?.name || 'Invoice'} - #${invoiceOrder.tokenNumber}`;
     
     // Create a temporary container for printing
     const printContainer = document.createElement('div');
@@ -269,11 +312,11 @@ export const Billing = () => {
     document.body.appendChild(printContainer);
 
     window.focus();
-    window.print();
-    
-    // Clean up
-    document.body.removeChild(printContainer);
-    document.title = originalTitle;
+    setTimeout(() => {
+      window.print();
+      document.body.removeChild(printContainer);
+      document.title = originalTitle;
+    }, 100);
   };
 
   return (
@@ -434,14 +477,7 @@ export const Billing = () => {
                             />
                           </div>
                           <button 
-                            onClick={() => {
-                              const discount = discounts[order.id] || 0;
-                              setInvoiceOrder({ ...order, discount } as any);
-                              setTimeout(() => {
-                                const printBtn = document.getElementById('print-invoice-btn');
-                                if (printBtn) printBtn.click();
-                              }, 500);
-                            }}
+                            onClick={() => handleQuickPrint(order)}
                             className="p-2 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-100 transition-all border-2 border-black shadow-sm"
                             title="Quick Print Invoice"
                           >
@@ -571,14 +607,7 @@ export const Billing = () => {
                       />
                     </div>
                     <button 
-                      onClick={() => {
-                        const discount = discounts[order.id] || 0;
-                        setInvoiceOrder({ ...order, discount } as any);
-                        setTimeout(() => {
-                          const printBtn = document.getElementById('print-invoice-btn');
-                          if (printBtn) printBtn.click();
-                        }, 500);
-                      }}
+                      onClick={() => handleQuickPrint(order)}
                       className="h-10 w-10 flex-shrink-0 bg-white text-indigo-600 rounded-xl border-2 border-black flex items-center justify-center shadow-sm active:scale-95 transition-all"
                       title="Quick Print"
                     >
