@@ -875,7 +875,7 @@ export const POS = () => {
                   <div className="relative z-10 flex flex-col h-full p-6 pt-10">
                     {/* Token Number Pill */}
                     <div className="flex justify-center mb-6 relative">
-                      <div className={`w-11 h-11 rounded-full border-2 border-black flex items-center justify-center font-black text-lg text-white shadow-xl ${statusStyles.topBorder}`}>
+                      <div className={`w-11 h-11 rounded-full border-2 border-black flex items-center justify-center font-black ${order.tokenNumber.length > 3 ? 'text-[10px]' : (order.tokenNumber.length > 2 ? 'text-sm' : 'text-lg')} text-white shadow-xl ${statusStyles.topBorder}`}>
                         {order.tokenNumber}
                       </div>
                       {(order.tableNumber || order.deliveryStaffName) && (

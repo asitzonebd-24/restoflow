@@ -1664,6 +1664,23 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     const tenantId = (user as User).tenantId || resolvedTenantId || '';
     
     try {
+      // 1. Check for duplicate mobile number across entire system
+      // We check Firestore directly to ensure we catch duplicates across all tenants even if not loaded in local state
+      const mobileQuery = query(collection(db, 'users'), where('mobile', '==', user.mobile), limit(1));
+      const mobileSnapshot = await getDocs(mobileQuery);
+      if (!mobileSnapshot.empty) {
+        toast.error('Mobile number is already registered by another user.');
+        throw new Error('Mobile number already exists');
+      }
+
+      // 2. Check for duplicate email across entire system
+      const emailQuery = query(collection(db, 'users'), where('email', '==', user.email.toLowerCase()), limit(1));
+      const emailSnapshot = await getDocs(emailQuery);
+      if (!emailSnapshot.empty) {
+        toast.error('Email is already registered. Please use a different one.');
+        throw new Error('Email already exists');
+      }
+
       // Create user in Firebase Auth using secondary app to avoid signing out current user
       const userCredential = await createUserWithEmailAndPassword(secondaryAuth, user.email, user.password);
       
@@ -1693,6 +1710,25 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
   const updateUser = async (userId: string, updates: Partial<User>) => {
     try {
+      // If mobile or email is being updated, check for uniqueness across the system
+      if (updates.mobile) {
+        const mobileQuery = query(collection(db, 'users'), where('mobile', '==', updates.mobile), limit(1));
+        const mobileSnapshot = await getDocs(mobileQuery);
+        if (!mobileSnapshot.empty && mobileSnapshot.docs[0].id !== userId) {
+          toast.error('This mobile number is already used by another user.');
+          return;
+        }
+      }
+
+      if (updates.email) {
+        const emailQuery = query(collection(db, 'users'), where('email', '==', updates.email.toLowerCase()), limit(1));
+        const emailSnapshot = await getDocs(emailQuery);
+        if (!emailSnapshot.empty && emailSnapshot.docs[0].id !== userId) {
+          toast.error('This email is already used by another user.');
+          return;
+        }
+      }
+
       const userRef = doc(db, 'users', userId);
       await setDoc(userRef, cleanObject(updates), { merge: true });
       setAllUsers(prev => prev.map(u => u.id === userId ? { ...u, ...updates } : u));
@@ -1830,8 +1866,15 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     let existingOwner: User | null = null;
     
     const existingUser = allUsers.find(u => u.email.toLowerCase() === ownerData.email?.toLowerCase());
+    const existingUserByMobile = allUsers.find(u => u.mobile === ownerData.mobile);
+
+    if (existingUserByMobile && (!existingUser || existingUser.id !== existingUserByMobile.id)) {
+      toast.error('This mobile number is already registered for another account.');
+      return '';
+    }
+
     if (existingUser) {
-      if (existingUser.role !== Role.OWNER) {
+      if (existingUser.role !== Role.OWNER && existingUser.role !== Role.SUPER_ADMIN) {
         toast.error('This email is already registered for a non-owner account.');
         return '';
       }

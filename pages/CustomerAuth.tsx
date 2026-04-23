@@ -4,6 +4,7 @@ import { useApp } from '../context/AppContext';
 import { Role, User } from '../types';
 import { ArrowRight, Lock, User as UserIcon, Phone, Mail, Utensils, MapPin } from 'lucide-react';
 import { useNavigate, useSearchParams, Navigate, useParams } from 'react-router-dom';
+import { toast } from 'sonner';
 
 export const CustomerAuth = () => {
   const { business, login, addUser, setCurrentUser, setCurrentTenantId } = useApp();
@@ -69,9 +70,15 @@ export const CustomerAuth = () => {
           setLoading(false);
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Auth error:", error);
-      alert("An error occurred during authentication.");
+      if (error.message === 'Mobile number already exists') {
+        toast.error("This mobile number is already registered.");
+      } else if (error.message === 'Email already exists') {
+        toast.error("This email is already registered.");
+      } else {
+        toast.error(error.message || "An error occurred during authentication.");
+      }
       setLoading(false);
     }
   };

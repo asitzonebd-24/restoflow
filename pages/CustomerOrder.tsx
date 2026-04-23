@@ -101,13 +101,13 @@ export const CustomerOrder = () => {
 
     setIsSubmitting(true);
     try {
-      const prefix = business.customerTokenPrefix || 'WEB';
-      const tokenNumber = getNextToken(prefix);
+      const tokenNumber = getNextToken();
 
       const newOrder = {
         id: `cust-ord-${Date.now()}`,
         tenantId: tenantId || business.id,
         tokenNumber: tokenNumber,
+        tableNumber: 'Online',
         items: cart,
         status: OrderStatus.PENDING,
         createdAt: new Date().toISOString(),

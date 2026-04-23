@@ -105,9 +105,16 @@ export const Users = () => {
         setError(null);
 
         // Check for duplicate email globally
-        const isDuplicate = allUsers.some(u => u.email.toLowerCase() === formData.email.toLowerCase() && u.id !== editingUserId);
-        if (isDuplicate) {
+        const isEmailDuplicate = allUsers.some(u => u.email.toLowerCase() === formData.email.toLowerCase() && u.id !== editingUserId);
+        if (isEmailDuplicate) {
             setError('This email is already registered in the system.');
+            return;
+        }
+
+        // Check for duplicate mobile globally
+        const isMobileDuplicate = allUsers.some(u => u.mobile === formData.mobile && u.id !== editingUserId);
+        if (isMobileDuplicate) {
+            setError('This mobile number is already registered in the system.');
             return;
         }
 
