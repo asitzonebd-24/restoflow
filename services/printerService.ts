@@ -162,6 +162,17 @@ export class BluetoothPrinterService {
   }
 
   public static async printTextLine(text: string, width: number, options: any = {}) {
+    // Split by newline to ensure line breaks are handled correctly on all printers
+    const lines = text.split(/\r?\n/);
+    if (lines.length > 1) {
+      for (const line of lines) {
+        if (line.trim() || line === '') {
+          await this.printTextLine(line, width, options);
+        }
+      }
+      return;
+    }
+
     if (this.containsBangla(text)) {
       const canvas = await this.renderTextToCanvas(text, width, options);
       await this.printCanvas(canvas);
@@ -459,12 +470,9 @@ export class BluetoothPrinterService {
     if (business.printerSettings?.receiptFooter) {
       await this.printTextLine(business.printerSettings.receiptFooter, pixelWidth, { align: 'center' });
     } else {
-      await this.printTextLine('ধন্যবাদ! আবার আসবেন', pixelWidth, { align: 'center' });
+      await this.printTextLine('Thank You! Come Again.', pixelWidth, { align: 'center' });
     }
     
-    await this.printTextLine('Powered By: RestoKeep', pixelWidth, { align: 'center', fontSize: 18 });
-    await this.printTextLine('Web: www.restokeep.app', pixelWidth, { align: 'center', fontSize: 14 });
-    await this.printTextLine('Mob: 01303565316', pixelWidth, { align: 'center', fontSize: 14 });
     await this.printRaw(new Uint8Array([...Array(2).fill(0x0A), ...this.COMMANDS.CUT]));
   }
 

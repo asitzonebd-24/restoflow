@@ -616,16 +616,9 @@ export const Transactions = () => {
                             </div>
                             
                             <div className="text-center mt-4 pt-2 border-t border-dashed border-black">
-                                {currentTenant?.printerSettings?.receiptFooter ? (
-                                    <p className="text-black font-bold whitespace-pre-line mb-1">{currentTenant.printerSettings.receiptFooter}</p>
-                                ) : (
-                                    <p className="font-bold text-black capitalize mb-1">Thank You! Come Again</p>
-                                )}
-                                <div className="flex flex-col items-center justify-center gap-0">
-                                    <p className="font-bold text-black">Powered by: RestoKeep</p>
-                                    <p className="font-bold text-black">www.restokeep.app</p>
-                                    <p className="font-bold text-black">Mob: 01303565316</p>
-                                </div>
+                                <p className="text-black font-bold whitespace-pre-line mb-1">
+                                  {currentTenant?.printerSettings?.receiptFooter || 'Thank You! Come Again.'}
+                                </p>
                             </div>
                         </div>
                         <div className="p-8 border-t border-slate-50 bg-slate-50 flex gap-4 print:hidden">

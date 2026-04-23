@@ -50,11 +50,6 @@ export const Dashboard = () => {
         </div>
       </div>
 
-      <div className="mt-auto pt-12 pb-4 text-center text-slate-500 text-xs font-medium space-y-1.5">
-        <p>Powered by: RestoKeep</p>
-        <p>Web: www.restokeep.app</p>
-        <p>Mob: 01303565316</p>
-      </div>
     </div>
   );
 };

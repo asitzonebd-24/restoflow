@@ -284,7 +284,7 @@ function generateReceiptHtml(order, requestId) {
     .token-line { font-size: 14pt; font-weight: bold; margin-bottom: 3px; padding-bottom: 2px; border-bottom: none; }
     .info-line { font-size: 10pt; font-weight: bold; margin: 1px 0; text-align: center; }
     .date-time-row { display: flex; justify-content: space-between; border-bottom: 1px solid #000; padding: 1px 0; margin: 4px 0; font-weight: bold; font-size: 8pt; }
-    .footer { text-align: center; margin-top: 12px; padding-top: 4px; font-weight: bold; font-size: 10pt; }
+    .footer { text-align: center; margin-top: 12px; padding-top: 4px; font-weight: bold; font-size: 10pt; white-space: pre-line; }
     .footer-invoice { border-top: 1px solid #000; }
     </style></head><body><div class="container">
     ${isInvoice ? `
@@ -303,13 +303,6 @@ function generateReceiptHtml(order, requestId) {
     <div style="width: 100%; text-align: left;">${itemsHtml}</div>
     ${order.note ? `<div style="margin-top: 8px; padding: 4px; border: 1px dashed #000; font-style: italic; font-size: 10pt; text-align: left; font-weight: bold; background: #f9f9f9;">Note: ${order.note}</div>` : ''}
     <div class="footer ${isInvoice ? 'footer-invoice' : ''}">${isInvoice ? (order.receiptFooter || 'Thank You! Come Again.') : '--- Kitchen Copy ---'}</div>
-    ${isInvoice ? `
-        <div style="font-size: 8pt; margin-top: 15px; text-align: center; border-top: 1px dashed #000; padding-top: 8px; font-weight: bold;">
-            <div>Powered by: RestoKeep</div>
-            <div style="font-size: 7pt; margin-top: 2px;">Web: www.restokeep.app</div>
-            <div style="font-size: 7pt;">Mob: 01303565315</div>
-        </div>
-    ` : ''}
     </div></body></html>`;
 }
 

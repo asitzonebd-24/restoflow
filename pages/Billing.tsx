@@ -477,9 +477,12 @@ export const Billing = () => {
                             />
                           </div>
                           <button 
-                            onClick={() => handleQuickPrint(order)}
+                            onClick={() => {
+                              const discount = discounts[order.id] || 0;
+                              setInvoiceOrder({ ...order, discount } as any);
+                            }}
                             className="p-2 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-100 transition-all border-2 border-black shadow-sm"
-                            title="Quick Print Invoice"
+                            title="Preview Invoice"
                           >
                             <Printer size={16} />
                           </button>
@@ -607,9 +610,12 @@ export const Billing = () => {
                       />
                     </div>
                     <button 
-                      onClick={() => handleQuickPrint(order)}
+                      onClick={() => {
+                        const discount = discounts[order.id] || 0;
+                        setInvoiceOrder({ ...order, discount } as any);
+                      }}
                       className="h-10 w-10 flex-shrink-0 bg-white text-indigo-600 rounded-xl border-2 border-black flex items-center justify-center shadow-sm active:scale-95 transition-all"
-                      title="Quick Print"
+                      title="Preview Invoice"
                     >
                       <Printer size={18} />
                     </button>
@@ -862,16 +868,9 @@ export const Billing = () => {
               </div>
               
               <div className="text-center mt-4 pt-2 border-t border-dashed border-black">
-                {currentTenant?.printerSettings?.receiptFooter ? (
-                  <p className="text-black font-bold whitespace-pre-line mb-1">{currentTenant.printerSettings.receiptFooter}</p>
-                ) : (
-                  <p className="font-bold text-black capitalize mb-1">Thank You! Come Again.</p>
-                )}
-                <div className="flex flex-col items-center justify-center gap-0">
-                  <p className="font-bold text-black">Powered By: RestoKeep</p>
-                  <p className="font-bold text-black">Web: www.restokeep.app</p>
-                  <p className="font-bold text-black">Mob: 01303565315</p>
-                </div>
+                <p className="text-black font-bold whitespace-pre-line mb-1">
+                  {currentTenant?.printerSettings?.receiptFooter || 'Thank You! Come Again.'}
+                </p>
               </div>
             </div>
 
