@@ -151,7 +151,7 @@ export const Kitchen = () => {
   const getCreatorName = (userId: string) => {
     if (userId === currentUser?.id) return currentUser?.name || 'Staff';
     const user = users.find(u => u.id === userId);
-    return user ? user.name : 'Staff';
+    return user ? user.name : 'Unknown';
   };
 
   const handleAddItem = async (menuItemId: string) => {
@@ -248,7 +248,7 @@ export const Kitchen = () => {
           const isAdmin = currentUser?.role === Role.OWNER || currentUser?.role === Role.MANAGER || currentUser?.role === Role.SUPER_ADMIN;
           const isKitchen = currentUser?.role === Role.KITCHEN;
           const isAllowedToUpdate = isAdmin || isKitchen;
-          const creatorName = order.creatorName || getCreatorName(order.createdBy);
+          const creatorName = getCreatorName(order.createdBy);
           
           const hasPending = order.items.some(i => i.status === OrderStatus.PENDING);
           const hasPreparing = order.items.some(i => i.status === OrderStatus.PREPARING);
@@ -285,7 +285,7 @@ export const Kitchen = () => {
                     const isDone = order.status === OrderStatus.READY;
                     const orderData = {
                       ...order,
-                      creatorName: order.creatorName || getCreatorName(order.createdBy),
+                      creatorName: getCreatorName(order.createdBy),
                       items: isDone ? order.items : order.items.filter(i => i.status === OrderStatus.PENDING || i.status === OrderStatus.PREPARING)
                     };
 
@@ -436,7 +436,7 @@ export const Kitchen = () => {
                <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <UserIcon size={12} className="text-slate-400" />
-                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-900">{(order.creatorName || getCreatorName(order.createdBy)).split(' ')[0]}</span>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-900">{getCreatorName(order.createdBy).split(' ')[0]}</span>
                   </div>
                   <div className="flex items-center gap-1 text-slate-400">
                     <Clock size={12} />

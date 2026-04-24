@@ -398,7 +398,7 @@ export const POS = () => {
   const getWaiterName = (userId: string) => {
     if (userId === currentUser?.id) return currentUser?.name || 'Staff';
     const user = users.find(u => u.id === userId);
-    return user ? user.name : 'Staff';
+    return user ? user.name : 'Unknown';
   };
 
   const getStatusStyles = (status: OrderStatus) => {
@@ -674,9 +674,9 @@ export const POS = () => {
       try {
         await createPrintRequest(orderData as any, 'kot');
         
-        // Auto-marking is now handled by the Print Agent after successful physical print
+        // Auto mark as ready if setting enabled
         if (currentTenant.printerSettings?.autoMarkReadyOnPrint && currentId) {
-          console.log('[POS] Print request sent. Order status will be updated by Agent upon success.');
+          await updateOrderStatus(currentId, OrderStatus.READY);
         }
         
         return;
@@ -939,14 +939,14 @@ export const POS = () => {
                     <div className="mt-auto flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <UserIcon size={14} className="text-slate-400" />
-                        <span className="text-[11px] font-black uppercase tracking-widest text-slate-900">{(order.creatorName || getWaiterName(order.createdBy)).split(' ')[0]}</span>
+                        <span className="text-[11px] font-black uppercase tracking-widest text-slate-900">{getWaiterName(order.createdBy).split(' ')[0]}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         {order.status === OrderStatus.READY && (
                           <button
                             onClick={async (e) => {
                               e.stopPropagation();
-                              const orderData = { ...order, creatorName: order.creatorName || getWaiterName(order.createdBy) };
+                              const orderData = { ...order, creatorName: getWaiterName(order.createdBy) };
                               
                               if (currentTenant?.printerSettings?.enablePrintAgent) {
                                 try {
@@ -960,7 +960,7 @@ export const POS = () => {
                                   const result = await BluetoothPrinterService.connect(currentTenant.printerSettings.pairedPrinterId);
                                   if (result.success) {
                                     await BluetoothPrinterService.printInvoice(currentTenant, order, { 
-                                      creatorName: order.creatorName || getWaiterName(order.createdBy)
+                                      creatorName: getWaiterName(order.createdBy)
                                     });
                                   } else {
                                     setErrorMessage('Bluetooth printer connection failed. Please check if the printer is on and paired.');
@@ -1275,7 +1275,7 @@ export const POS = () => {
         <div className="text-center pb-2 mb-2">
           <div className="text-[14pt] font-bold">Kitchen Token: #{isCreatingNew ? newTokenNum : orders.find(o => o.id === selectedOrderId)?.tokenNumber}</div>
           <div className="text-[12pt] font-bold">Table No: {isCreatingNew ? (isDelivery ? 'Delivery' : (isTakeAway ? 'Take Away' : newTableNum)) : orders.find(o => o.id === selectedOrderId)?.tableNumber}</div>
-          <div className="text-[12pt] font-bold">Ordered by: {isCreatingNew ? currentUser?.name : (orders.find(o => o.id === selectedOrderId)?.creatorName || getWaiterName(orders.find(o => o.id === selectedOrderId)?.createdBy || ''))}</div>
+          <div className="text-[12pt] font-bold">Ordered by: {isCreatingNew ? currentUser?.name : getWaiterName(orders.find(o => o.id === selectedOrderId)?.createdBy || '')}</div>
           <div className="flex justify-between text-[10pt] font-bold mt-2 border-t border-black pt-1">
             <span>Date: {new Date().toLocaleDateString('en-GB')}</span>
             <span>Time: {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}</span>
