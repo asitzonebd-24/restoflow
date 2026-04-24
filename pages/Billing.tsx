@@ -23,7 +23,7 @@ export const Billing = () => {
   const getCreator = (userId: string) => {
     if (userId === currentUser?.id) return { ...currentUser };
     const user = users.find(u => u.id === userId);
-    return user || { name: 'Staff' } as any;
+    return user || null;
   };
 
   const calculateTotal = (order: Order, discount: number = 0) => {
@@ -808,7 +808,7 @@ export const Billing = () => {
                 </div>
                 {invoiceOrder.deliveryAddress && (
                   <div className="mt-2 space-y-1 border-t border-dashed border-black pt-2">
-                    <div className="font-bold capitalize text-black">Customer Name: {invoiceOrder.creatorName || getCreator(invoiceOrder.createdBy)?.name || 'Staff'}</div>
+                    <div className="font-bold capitalize text-black">Customer Name: {invoiceOrder.creatorName || getCreator(invoiceOrder.createdBy)?.name || 'Unknown'}</div>
                     <div className="font-bold capitalize">Address: {invoiceOrder.deliveryAddress}</div>
                     <div className="font-bold capitalize">Mobile: {getCreator(invoiceOrder.createdBy)?.mobile || 'N/A'}</div>
                     {invoiceOrder.deliveryStaffName && (
