@@ -21,8 +21,9 @@ export const Billing = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   
   const getCreator = (userId: string) => {
-    if (userId === currentUser?.id) return currentUser;
-    return users.find(u => u.id === userId);
+    if (userId === currentUser?.id) return { ...currentUser };
+    const user = users.find(u => u.id === userId);
+    return user || { name: 'Staff' } as any;
   };
 
   const calculateTotal = (order: Order, discount: number = 0) => {
@@ -113,7 +114,7 @@ export const Billing = () => {
           date: new Date().toISOString(),
           paymentMethod: 'CASH',
           itemsSummary: groupedItems.map(i => `${i.quantity}x ${i.name}`).join(', '),
-          creatorName: creator?.name || 'Unknown'
+          creatorName: order.creatorName || creator?.name || 'Unknown'
       };
       
       await addTransaction(transaction);
@@ -189,7 +190,7 @@ export const Billing = () => {
             date: new Date().toISOString(),
             paymentMethod: 'CASH',
             itemsSummary: groupedItems.map(i => `${i.quantity}x ${i.name}`).join(', '),
-            creatorName: creator?.name || 'Unknown'
+            creatorName: order.creatorName || creator?.name || 'Unknown'
         };
         
         await addTransaction(transaction);
@@ -802,12 +803,12 @@ export const Billing = () => {
                   <span>Table No: {invoiceOrder.tableNumber || 'N/A'}</span>
                   <span>Token No: #{invoiceOrder.tokenNumber}</span>
                 </div>
-                <div className="font-bold capitalize">
-                  Ordered By: {getCreator(invoiceOrder.createdBy)?.name || 'Unknown'}
+                <div className="font-bold capitalize text-black">
+                  Ordered By: {invoiceOrder.creatorName || getCreator(invoiceOrder.createdBy)?.name || 'Unknown'}
                 </div>
                 {invoiceOrder.deliveryAddress && (
                   <div className="mt-2 space-y-1 border-t border-dashed border-black pt-2">
-                    <div className="font-bold capitalize">Customer Name: {getCreator(invoiceOrder.createdBy)?.name || 'N/A'}</div>
+                    <div className="font-bold capitalize text-black">Customer Name: {invoiceOrder.creatorName || getCreator(invoiceOrder.createdBy)?.name || 'Staff'}</div>
                     <div className="font-bold capitalize">Address: {invoiceOrder.deliveryAddress}</div>
                     <div className="font-bold capitalize">Mobile: {getCreator(invoiceOrder.createdBy)?.mobile || 'N/A'}</div>
                     {invoiceOrder.deliveryStaffName && (
