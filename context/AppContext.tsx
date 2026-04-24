@@ -960,11 +960,6 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       if (business.printerSettings?.enablePrintAgent) {
         console.log('[AppContext] Print agent enabled for business:', business.id, '. Creating print request...');
         createPrintRequest(newOrder).catch(err => console.error('[AppContext] Auto-print failed:', err));
-        
-        // Auto mark as ready if setting enabled
-        if (business.printerSettings?.autoMarkReadyOnPrint) {
-          updateOrderStatus(newOrder.id, OrderStatus.READY).catch(err => console.error('[AppContext] Auto-mark failed:', err));
-        }
       } else {
         console.log('[AppContext] Print agent NOT enabled for business:', business.id);
       }
@@ -1142,11 +1137,6 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             totalAmount: newItems.reduce((sum, i) => sum + (i.price * i.quantity), 0)
           } as Order;
           createPrintRequest(printOrder).catch(err => console.error('[AppContext] Auto-print update failed:', err));
-
-          // Auto mark as ready if setting enabled
-          if (business.printerSettings?.autoMarkReadyOnPrint) {
-            updateOrderStatus(orderId, OrderStatus.READY).catch(err => console.error('[AppContext] Auto-mark update failed:', err));
-          }
         }
       }
     } catch (error) {
