@@ -1868,7 +1868,11 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   const updateBusiness = async (updates: Partial<Business>) => {
-    const tenantId = resolvedTenantId || '';
+    const tenantId = resolvedTenantId;
+    if (!tenantId) {
+      console.error('[AppContext] Cannot update business: No tenantId resolved!');
+      return; 
+    }
     try {
       const tenantRef = doc(db, 'tenants', tenantId);
       await updateDoc(tenantRef, updates);
@@ -1879,6 +1883,10 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   const updateTenant = async (tenantId: string, updates: Partial<Business>) => {
+    if (!tenantId) {
+      console.error('[AppContext] Cannot update tenant: No tenantId provided!');
+      return; 
+    }
     try {
       const tenantRef = doc(db, 'tenants', tenantId);
       await updateDoc(tenantRef, updates);
