@@ -538,9 +538,10 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       // If we have a selected tenant (or if non-admin), always filter by tenantId to prevent massive data fetch
       if (effectiveTenantId && !['subscription_packages', 'tenants', 'users'].includes(name)) {
         q = query(collection(db, name), where('tenantId', '==', String(effectiveTenantId)));
-      } else if (isSuperAdmin) {
-        // Only if no tenant is selected, Super Admin fetches latest data with a strict limit
-        q = query(collection(db, name), limit(100));
+      } else if (isSuperAdmin || name === 'users') {
+        // Super Admin fetches latest data with a strict limit
+        // Users fetch all users to allow filtering by tenant in the computed 'users' property
+        q = query(collection(db, name), limit(1000));
       } else {
         // Fallback or empty query to avoid fetching world data
         q = query(collection(db, name), limit(1));

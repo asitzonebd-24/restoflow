@@ -150,8 +150,9 @@ export const Users = () => {
     };
 
     const filteredUsers = users.filter(u => 
-        u.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        u.role.toLowerCase().includes(searchTerm.toLowerCase())
+        (u.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+         u.role.toLowerCase().includes(searchTerm.toLowerCase())) &&
+        u.role !== Role.SUPER_ADMIN
     );
 
     const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
@@ -260,12 +261,7 @@ export const Users = () => {
                                             <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Position / Role</label>
                                             <div className="relative">
                                                 <select value={formData.role} onChange={e => handleRoleChange(e.target.value as Role)} className="w-full p-4 bg-slate-50 border-2 border-slate-900 rounded-2xl outline-none font-black uppercase text-[10px] appearance-none focus:bg-white shadow-inner">
-                                                    {Object.values(Role).filter(role => {
-                                                        if (role === Role.SUPER_ADMIN) {
-                                                            return currentUser?.role === Role.SUPER_ADMIN;
-                                                        }
-                                                        return true;
-                                                    }).map(role => <option key={role} value={role}>{role}</option>)}
+                                                    {Object.values(Role).filter(role => role !== Role.SUPER_ADMIN).map(role => <option key={role} value={role}>{role}</option>)}
                                                 </select>
                                                 <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 rotate-90 text-slate-900 pointer-events-none" size={16} strokeWidth={3} />
                                             </div>
@@ -275,10 +271,10 @@ export const Users = () => {
                                     <div className="space-y-4">
                                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Permissions Override</label>
                                         <div className="flex flex-wrap gap-2 md:gap-3">
-                                            {AVAILABLE_MODULES.map(module => (
+                                            {AVAILABLE_MODULES.map((module, index) => (
                                                 <button
                                                     type="button"
-                                                    key={module}
+                                                    key={`${module}-${index}`}
                                                     onClick={() => togglePermission(module)}
                                                     className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 text-[10px] font-black uppercase tracking-widest transition-all
                                                         ${formData.permissions.includes(module) 
@@ -297,10 +293,10 @@ export const Users = () => {
                                             <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Assigned Kitchen Categories</label>
                                             <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest ml-1 mb-2">Staff will only see items from selected categories</p>
                                             <div className="flex flex-wrap gap-2 md:gap-3">
-                                                {currentTenant.menuCategories.map(category => (
+                                                {currentTenant.menuCategories.map((category, index) => (
                                                     <button
                                                         type="button"
-                                                        key={category}
+                                                        key={`${category}-${index}`}
                                                         onClick={() => toggleCategory(category)}
                                                         className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 text-[10px] font-black uppercase tracking-widest transition-all
                                                             ${(formData.assignedCategories || []).includes(category) 
@@ -373,16 +369,16 @@ export const Users = () => {
                                     </td>
                                     <td className="p-6 border-r border-black">
                                         <div className="flex flex-wrap gap-1 max-w-[240px]">
-                                            {(user.permissions || []).map(p => (
-                                                <span key={p} className="text-[8px] px-1.5 py-0.5 bg-white border border-slate-200 rounded-lg text-slate-400 font-black uppercase tracking-tighter">
+                                            {(user.permissions || []).map((p, index) => (
+                                                <span key={`${p}-${index}`} className="text-[8px] px-1.5 py-0.5 bg-white border border-slate-200 rounded-lg text-slate-400 font-black uppercase tracking-tighter">
                                                     {p}
                                                 </span>
                                             ))}
                                         </div>
                                         {user.role === Role.KITCHEN && user.assignedCategories && user.assignedCategories.length > 0 && (
                                             <div className="mt-2 flex flex-wrap gap-1 max-w-[240px]">
-                                                {user.assignedCategories.map(c => (
-                                                    <span key={c} className="text-[8px] px-1.5 py-0.5 bg-orange-50 border border-orange-100 rounded-lg text-orange-600 font-black uppercase tracking-tighter">
+                                                {user.assignedCategories.map((c, index) => (
+                                                    <span key={`${c}-${index}`} className="text-[8px] px-1.5 py-0.5 bg-orange-50 border border-orange-100 rounded-lg text-orange-600 font-black uppercase tracking-tighter">
                                                         {c}
                                                     </span>
                                                 ))}
@@ -450,8 +446,8 @@ export const Users = () => {
                                 <div className="flex justify-between items-start">
                                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Access</span>
                                     <div className="flex flex-wrap justify-end gap-1 max-w-[200px]">
-                                        {(user.permissions || []).map(p => (
-                                            <span key={p} className="text-[8px] px-1.5 py-0.5 bg-white border border-slate-200 rounded-lg text-slate-400 font-black uppercase tracking-tighter">
+                                        {(user.permissions || []).map((p, index) => (
+                                            <span key={`${p}-${index}`} className="text-[8px] px-1.5 py-0.5 bg-white border border-slate-200 rounded-lg text-slate-400 font-black uppercase tracking-tighter">
                                                 {p}
                                             </span>
                                         ))}

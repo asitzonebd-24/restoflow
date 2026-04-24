@@ -17,8 +17,8 @@ import { Transactions } from './pages/Transactions';
 import { Expenses } from './pages/Expenses';
 import { Reports } from './pages/Reports';
 import { SalesItems } from './pages/SalesItems';
-import { Subscription } from './pages/Subscription';
 import { Users as UsersPage } from './pages/Users';
+// import { Subscription } from './pages/Subscription';
 import { Settings as SettingsPage } from './pages/Settings';
 import { CustomerOrder } from './pages/CustomerOrder';
 import { CustomerAuth } from './pages/CustomerAuth';
@@ -223,13 +223,13 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
                   </NavLink>
                 )}
 
-                {currentUser.role === Role.OWNER && (
+                                {/* {currentUser.role === Role.OWNER && (
                   <NavLink to={`/${tId}/subscription`} onClick={() => onClose()} className={navItemClass('/subscription')} title="Subscription">
                     <Wallet size={22} className="text-emerald-400" />
                   </NavLink>
-                )}
+                )} */}
 
-                {permissions.includes('Users') && allowedBySubscription('users') && (
+                {permissions.includes('Users') && allowedBySubscription('users') && currentUser.role !== Role.SUPER_ADMIN && (
                   <NavLink to={`/${tId}/users`} onClick={() => onClose()} className={navItemClass('/users')} title="Users">
                     <UsersIcon size={22} />
                   </NavLink>
@@ -354,56 +354,63 @@ const ProtectedLayout = ({ children, allowedRoles }: { children?: React.ReactNod
     return <Navigate to={redirectPath} replace />;
   }
 
-  // Check permissions for business users (Super Admin bypasses)
-  if (currentUser.role !== Role.SUPER_ADMIN && currentUser.role !== Role.CUSTOMER) {
-    const path = location.pathname;
-    const permissions = currentUser.permissions || [];
-    const activeSubscription = business?.subscription;
-    
-    const permissionMap: { [key: string]: string } = {
-      'dashboard': 'Dashboard',
-      'pos': 'POS',
-      'kitchen': 'Kitchen',
-      'menu': 'Menu',
-      'billing': 'Billing',
-      'transactions': 'Transactions',
-      'inventory': 'Inventory',
-      'reports': 'Reports',
-      'global-reports': 'Reports',
-      'users': 'Users',
-      'expenses': 'Expenses',
-      'accounting': 'Accounting',
-      'sales-items': 'Inventory',
-      'tables': 'Dashboard'
-    };
-
-    const currentPathSegment = path.split('/').pop();
-    const requiredPermission = currentPathSegment ? permissionMap[currentPathSegment] : null;
-
-    // 1. Check Subscription Access
-    if (activeSubscription && currentPathSegment && !['subscription', 'settings'].includes(currentPathSegment)) {
-      // Find the module ID in APP_MODULES that matches this path
-      // Most IDs match (pos, menu, inventory, etc)
-      let moduleId = currentPathSegment;
-      if (moduleId === 'sales-items') moduleId = 'inventory';
-      if (moduleId === 'transactions') moduleId = 'billing';
-      
-      const isAllowedBySubscription = activeSubscription.allowedPages.includes(moduleId);
-      
-      if (!isAllowedBySubscription) {
-        toast.error('This module is not included in your current subscription plan.');
-        return <Navigate to={`/${tenantId}/subscription`} replace />;
+  // Check permissions for business users (Super Admin bypasses, except for Users)
+  if (currentUser.role !== Role.CUSTOMER) {
+    // SuperAdmin restriction for Users page
+    if (currentUser.role === Role.SUPER_ADMIN) {
+      if (location.pathname.includes('/users') || location.pathname.endsWith('/users')) {
+          return <Navigate to="/" replace />;
       }
-    }
+    } else {
+      const path = location.pathname;
+      const permissions = currentUser.permissions || [];
+      const activeSubscription = business?.subscription;
+      
+      const permissionMap: { [key: string]: string } = {
+        'dashboard': 'Dashboard',
+        'pos': 'POS',
+        'kitchen': 'Kitchen',
+        'menu': 'Menu',
+        'billing': 'Billing',
+        'transactions': 'Transactions',
+        'inventory': 'Inventory',
+        'reports': 'Reports',
+        'global-reports': 'Reports',
+        'users': 'Users',
+        'expenses': 'Expenses',
+        'accounting': 'Accounting',
+        'sales-items': 'Inventory',
+        'tables': 'Dashboard'
+      };
 
-    // 2. Check User Permissions
-    if (requiredPermission && !permissions.includes(requiredPermission)) {
-      // Redirect to the first available permission or login
-      if (permissions.length > 0) {
-        const firstPermission = permissions[0].toLowerCase();
-        return <Navigate to={`/${currentUser.tenantId}/${firstPermission}`} replace />;
+      const currentPathSegment = path.split('/').pop();
+      const requiredPermission = currentPathSegment ? permissionMap[currentPathSegment] : null;
+
+      // 1. Check Subscription Access
+      if (activeSubscription && currentPathSegment && !['subscription', 'settings'].includes(currentPathSegment)) {
+        // Find the module ID in APP_MODULES that matches this path
+        // Most IDs match (pos, menu, inventory, etc)
+        let moduleId = currentPathSegment;
+        if (moduleId === 'sales-items') moduleId = 'inventory';
+        if (moduleId === 'transactions') moduleId = 'billing';
+        
+        const isAllowedBySubscription = activeSubscription.allowedPages.includes(moduleId);
+        
+        if (!isAllowedBySubscription) {
+          toast.error('This module is not included in your current subscription plan.');
+          return <Navigate to={`/${tenantId}/subscription`} replace />;
+        }
       }
-      return <Navigate to="/login" replace />;
+
+      // 2. Check User Permissions
+      if (requiredPermission && !permissions.includes(requiredPermission)) {
+        // Redirect to the first available permission or login
+        if (permissions.length > 0) {
+          const firstPermission = permissions[0].toLowerCase();
+          return <Navigate to={`/${currentUser.tenantId}/${firstPermission}`} replace />;
+        }
+        return <Navigate to="/login" replace />;
+      }
     }
   }
 
@@ -676,8 +683,8 @@ const AppContent = () => {
       <Route path="/:tenantId/transactions" element={<ProtectedLayout><Transactions /></ProtectedLayout>} />
       <Route path="/:tenantId/expenses" element={<ProtectedLayout><Expenses /></ProtectedLayout>} />
       <Route path="/:tenantId/reports" element={<ProtectedLayout><Reports /></ProtectedLayout>} />
-      <Route path="/:tenantId/users" element={<ProtectedLayout><UsersPage /></ProtectedLayout>} />
-      <Route path="/:tenantId/subscription" element={<ProtectedLayout><Subscription /></ProtectedLayout>} />
+            <Route path="/:tenantId/users" element={<ProtectedLayout><UsersPage /></ProtectedLayout>} />
+      {/* <Route path="/:tenantId/subscription" element={<ProtectedLayout><Subscription /></ProtectedLayout>} /> */}
       <Route path="/:tenantId/settings" element={<ProtectedLayout><SettingsPage /></ProtectedLayout>} />
 
       {/* Legacy routes for backward compatibility or direct access */}
@@ -690,7 +697,7 @@ const AppContent = () => {
       <Route path="/transactions" element={<ProtectedLayout><Transactions /></ProtectedLayout>} />
       <Route path="/expenses" element={<ProtectedLayout><Expenses /></ProtectedLayout>} />
       <Route path="/reports" element={<ProtectedLayout><Reports /></ProtectedLayout>} />
-      <Route path="/users" element={<ProtectedLayout><UsersPage /></ProtectedLayout>} />
+            <Route path="/users" element={<ProtectedLayout><UsersPage /></ProtectedLayout>} />
       <Route path="/settings" element={<ProtectedLayout><SettingsPage /></ProtectedLayout>} />
 
       <Route path="/portal" element={<ProtectedLayout allowedRoles={[Role.SUPER_ADMIN]}><SuperAdmin /></ProtectedLayout>} />

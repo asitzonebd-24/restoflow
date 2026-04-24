@@ -26,9 +26,9 @@ export const Transactions = () => {
         return users.find(u => u.id === userId);
     };
 
-    // List of staff for the dropdown (exclude customers)
+    // List of staff for the dropdown (exclude customers and super admins)
     const staffList = useMemo(() => {
-        return users.filter(u => u.role !== Role.CUSTOMER);
+        return users.filter(u => u.role !== Role.CUSTOMER && u.role !== Role.SUPER_ADMIN);
     }, [users]);
 
     const filteredTransactions = useMemo(() => {
