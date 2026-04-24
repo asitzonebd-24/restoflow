@@ -876,10 +876,18 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     try {
       const batch = writeBatch(db);
       
+      // Handle auto-mark status before saving
+      const finalItems = business.printerSettings?.autoMarkReadyOnPrint 
+        ? newOrder.items.map(item => ({ ...item, status: OrderStatus.READY as ItemStatus }))
+        : newOrder.items;
+      const finalStatus = business.printerSettings?.autoMarkReadyOnPrint ? OrderStatus.READY : newOrder.status;
+
       // Add order
       const orderRef = doc(db, 'orders', newOrder.id);
       batch.set(orderRef, cleanObject({
         ...newOrder,
+        items: finalItems,
+        status: finalStatus,
         createdAt: serverTimestamp()
       }));
 
@@ -952,11 +960,6 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       if (business.printerSettings?.enablePrintAgent) {
         console.log('[AppContext] Print agent enabled for business:', business.id, '. Creating print request...');
         createPrintRequest(newOrder).catch(err => console.error('[AppContext] Auto-print failed:', err));
-        
-        // Auto mark as ready if setting enabled
-        if (business.printerSettings?.autoMarkReadyOnPrint) {
-          updateOrderStatus(newOrder.id, OrderStatus.READY).catch(err => console.error('[AppContext] Auto-mark failed:', err));
-        }
       } else {
         console.log('[AppContext] Print agent NOT enabled for business:', business.id);
       }
@@ -1015,11 +1018,16 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     const oldOrder = allOrders.find(o => o.id === orderId);
     if (!oldOrder) return;
 
-    const newStatus = status ?? oldOrder.status;
+    const newStatus = business.printerSettings?.autoMarkReadyOnPrint ? OrderStatus.READY : (status ?? oldOrder.status);
+
+    // Apply auto-mark status to items if enabled
+    const finalItems = business.printerSettings?.autoMarkReadyOnPrint
+      ? items.map(item => ({ ...item, status: OrderStatus.READY as ItemStatus }))
+      : items;
 
     // Calculate stock changes
     const stockChanges: { [itemId: string]: number } = {};
-    items.forEach(newItem => {
+    finalItems.forEach(newItem => {
       const oldItem = oldOrder.items.find(oi => oi.itemId === newItem.itemId);
       const oldQty = (oldItem && oldItem.status !== OrderStatus.CANCELLED) ? oldItem.quantity : 0;
       const newQty = (newItem.status !== OrderStatus.CANCELLED) ? newItem.quantity : 0;
@@ -1027,7 +1035,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       if (diff !== 0) stockChanges[newItem.itemId] = (stockChanges[newItem.itemId] || 0) + diff;
     });
     oldOrder.items.forEach(oldItem => {
-      const newItem = items.find(ni => ni.itemId === oldItem.itemId);
+      const newItem = finalItems.find(ni => ni.itemId === oldItem.itemId);
       if (!newItem && oldItem.status !== OrderStatus.CANCELLED) {
         stockChanges[oldItem.itemId] = (stockChanges[oldItem.itemId] || 0) - oldItem.quantity;
       }
@@ -1038,7 +1046,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       
       const orderRef = doc(db, 'orders', orderId);
       batch.update(orderRef, cleanObject({
-        items,
+        items: finalItems,
         totalAmount,
         status: newStatus,
         creatorName: oldOrder.creatorName || currentUser?.name || currentUser?.email?.split('@')[0] || 'Staff',
@@ -1129,11 +1137,6 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             totalAmount: newItems.reduce((sum, i) => sum + (i.price * i.quantity), 0)
           } as Order;
           createPrintRequest(printOrder).catch(err => console.error('[AppContext] Auto-print update failed:', err));
-
-          // Auto mark as ready if setting enabled
-          if (business.printerSettings?.autoMarkReadyOnPrint) {
-            updateOrderStatus(orderId, OrderStatus.READY).catch(err => console.error('[AppContext] Auto-mark update failed:', err));
-          }
         }
       }
     } catch (error) {
