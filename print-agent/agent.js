@@ -162,14 +162,14 @@ async function performPrint(order, requestId, attempt = 1, startTime = Date.now(
                         const printSettings = order.paperWidth?.includes('58') ? 'noscale,shrink' : 'noscale';
                         const printCommand = `"${sumatraPath}" -print-to "XP-80C" -silent -print-settings "${printSettings}" "${pdfFilePath}"`;
                         
-                        exec(printCommand, { timeout: 30000 }, (fbError) => {
+                        exec(printCommand, { timeout: 30000 }, async (fbError) => {
                             console.timeEnd(`job-${requestId}`);
                             if (!fbError) {
                                 console.log(`[SUCCESS] Token: ${order.tokenNumber}`);
                                 
                                 // Auto Mark Ready logic
                                 if (order.autoMarkReady && order.orderId) {
-                                    handleAutoMarkReady(order);
+                                    await handleAutoMarkReady(order);
                                 }
 
                                 deletePrintRequest(requestId);
