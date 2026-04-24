@@ -674,9 +674,9 @@ export const POS = () => {
       try {
         await createPrintRequest(orderData as any, 'kot');
         
-        // Auto mark as ready if setting enabled
+        // Auto-marking is now handled by the Print Agent after successful physical print
         if (currentTenant.printerSettings?.autoMarkReadyOnPrint && currentId) {
-          await updateOrderStatus(currentId, OrderStatus.READY);
+          console.log('[POS] Print request sent. Order status will be updated by Agent upon success.');
         }
         
         return;

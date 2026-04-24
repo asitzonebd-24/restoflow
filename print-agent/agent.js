@@ -209,13 +209,17 @@ function handleRetry(order, requestId, attempt, resolve, startTime) {
 
 async function handleAutoMarkReady(order) {
     try {
+        console.log(`[AUTO-MARK] Attempting to mark order ${order.orderId} as READY...`);
         const orderRef = doc(db, 'orders', order.orderId);
         const orderSnap = await getDoc(orderRef);
         if (orderSnap.exists()) {
             const orderData = orderSnap.data();
             const updatedItems = orderData.items.map((item) => {
-                const printedItem = order.items?.find((pi) => pi.rowId === item.rowId);
-                if (printedItem && item.status === 'PENDING') {
+                // Find if this item was part of the printed batch
+                const printedItem = order.items?.find((pi) => pi.rowId === item.rowId || (pi.itemId === item.itemId && pi.quantity === item.quantity));
+                
+                // If it's in the printed batch and not already READY/COMPLETED, mark as READY
+                if (printedItem && (item.status === 'PENDING' || item.status === 'PREPARING')) {
                     return { ...item, status: 'READY' };
                 }
                 return item;
@@ -229,7 +233,9 @@ async function handleAutoMarkReady(order) {
                 items: updatedItems,
                 status: allReady ? 'READY' : orderData.status
             });
-            console.log(`[AUTO-MARK] Order ${order.tokenNumber} items marked as READY.`);
+            console.log(`[AUTO-MARK] SUCCESS: Order ${order.tokenNumber} status updated to ${allReady ? 'READY' : orderData.status}.`);
+        } else {
+            console.warn(`[AUTO-MARK] Order ${order.orderId} not found in Firestore.`);
         }
     } catch (err) {
         console.error('[AUTO-MARK-ERROR]:', err.message);

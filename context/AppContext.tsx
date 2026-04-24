@@ -875,88 +875,80 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
     try {
       const batch = writeBatch(db);
-      
-      // Handle auto-mark status before saving
-      const finalItems = business.printerSettings?.autoMarkReadyOnPrint 
-        ? newOrder.items.map(item => ({ ...item, status: OrderStatus.READY as ItemStatus }))
-        : newOrder.items;
-      const finalStatus = business.printerSettings?.autoMarkReadyOnPrint ? OrderStatus.READY : newOrder.status;
 
       // Add order
       const orderRef = doc(db, 'orders', newOrder.id);
       batch.set(orderRef, cleanObject({
         ...newOrder,
-        items: finalItems,
-        status: finalStatus,
         createdAt: serverTimestamp()
       }));
 
-    // Update menu item stock and validate
-    const inventoryUpdates: { [id: string]: number } = {};
-    const menuUpdates: { [id: string]: number } = {};
-    const isRecipeMode = business.inventoryMode === InventoryMode.RECIPE;
+      // Update menu item stock and validate
+      const inventoryUpdates: { [id: string]: number } = {};
+      const menuUpdates: { [id: string]: number } = {};
+      const isRecipeMode = business.inventoryMode === InventoryMode.RECIPE;
 
-    for (const item of newOrder.items) {
-      const menuItem = allMenu.find(m => m.id === item.itemId);
-      if (menuItem) {
-        // In Simple Mode, we check menu item stock
-        if (!isRecipeMode && menuItem.stock !== undefined && menuItem.stock !== null) {
-          const currentMenuStock = menuUpdates[item.itemId] !== undefined ? menuUpdates[item.itemId] : menuItem.stock;
-          if (currentMenuStock < item.quantity) {
-            throw new Error(`Insufficient stock for ${menuItem.name}`);
+      for (const item of newOrder.items) {
+        const menuItem = allMenu.find(m => m.id === item.itemId);
+        if (menuItem) {
+          // In Simple Mode, we check menu item stock
+          if (!isRecipeMode && menuItem.stock !== undefined && menuItem.stock !== null) {
+            const currentMenuStock = menuUpdates[item.itemId] !== undefined ? menuUpdates[item.itemId] : menuItem.stock;
+            if (currentMenuStock < item.quantity) {
+              throw new Error(`Insufficient stock for ${menuItem.name}`);
+            }
+            menuUpdates[item.itemId] = Math.max(0, currentMenuStock - item.quantity);
           }
-          menuUpdates[item.itemId] = Math.max(0, currentMenuStock - item.quantity);
-        }
 
-        // Handle Inventory Deductions
-        if (isRecipeMode) {
-          const recipe = recipes.find(r => r.menuItemId === item.itemId);
-          if (recipe) {
-            for (const ingredient of recipe.ingredients) {
-              const invItem = allInventory.find(i => i.id === ingredient.inventoryItemId);
-              if (invItem) {
-                const currentInvQty = inventoryUpdates[invItem.id] !== undefined ? inventoryUpdates[invItem.id] : invItem.quantity;
-                const deduction = ingredient.quantity * item.quantity;
-                if (currentInvQty < deduction) {
-                   throw new Error(`Insufficient ${invItem.name} for ${menuItem.name}`);
+          // Handle Inventory Deductions
+          if (isRecipeMode) {
+            const recipe = recipes.find(r => r.menuItemId === item.itemId);
+            if (recipe) {
+              for (const ingredient of recipe.ingredients) {
+                const invItem = allInventory.find(i => i.id === ingredient.inventoryItemId);
+                if (invItem) {
+                  const currentInvQty = inventoryUpdates[invItem.id] !== undefined ? inventoryUpdates[invItem.id] : invItem.quantity;
+                  const deduction = ingredient.quantity * item.quantity;
+                  if (currentInvQty < deduction) {
+                     throw new Error(`Insufficient ${invItem.name} for ${menuItem.name}`);
+                  }
+                  inventoryUpdates[invItem.id] = Math.max(0, currentInvQty - deduction);
                 }
-                inventoryUpdates[invItem.id] = Math.max(0, currentInvQty - deduction);
               }
             }
-          }
-        } else {
-          // Simple Mode Inventory Sync
-          const linkedInvItem = allInventory.find(inv => 
-            inv.menuItemIds?.includes(item.itemId) || 
-            (inv.menuCategory === menuItem.category && (!inv.menuItemIds || inv.menuItemIds.length === 0))
-          );
-          if (linkedInvItem) {
-            const currentInvQty = inventoryUpdates[linkedInvItem.id] !== undefined ? inventoryUpdates[linkedInvItem.id] : linkedInvItem.quantity;
-            const newInvQty = Math.max(0, currentInvQty - item.quantity);
-            inventoryUpdates[linkedInvItem.id] = newInvQty;
+          } else {
+            // Simple Mode Inventory Sync
+            const linkedInvItem = allInventory.find(inv => 
+              inv.menuItemIds?.includes(item.itemId) || 
+              (inv.menuCategory === menuItem.category && (!inv.menuItemIds || inv.menuItemIds.length === 0))
+            );
+            if (linkedInvItem) {
+              const currentInvQty = inventoryUpdates[linkedInvItem.id] !== undefined ? inventoryUpdates[linkedInvItem.id] : linkedInvItem.quantity;
+              const newInvQty = Math.max(0, currentInvQty - item.quantity);
+              inventoryUpdates[linkedInvItem.id] = newInvQty;
 
-            if (linkedInvItem.menuCategory && (!linkedInvItem.menuItemIds || linkedInvItem.menuItemIds.length === 0)) {
-              const categoryItems = allMenu.filter(m => m.category === linkedInvItem.menuCategory);
-              categoryItems.forEach(m => {
-                menuUpdates[m.id] = newInvQty;
-              });
+              if (linkedInvItem.menuCategory && (!linkedInvItem.menuItemIds || linkedInvItem.menuItemIds.length === 0)) {
+                const categoryItems = allMenu.filter(m => m.category === linkedInvItem.menuCategory);
+                categoryItems.forEach(m => {
+                  menuUpdates[m.id] = newInvQty;
+                });
+              }
             }
           }
         }
       }
-    }
 
-    // Apply updates to batch
-    for (const [id, stock] of Object.entries(menuUpdates)) {
-      batch.update(doc(db, 'menu_items', id), { stock });
-    }
-    for (const [id, quantity] of Object.entries(inventoryUpdates)) {
-      batch.update(doc(db, 'inventory_items', id), { quantity, lastUpdated: serverTimestamp() });
-    }
+      // Apply updates to batch
+      for (const [id, stock] of Object.entries(menuUpdates)) {
+        batch.update(doc(db, 'menu_items', id), { stock });
+      }
+      for (const [id, quantity] of Object.entries(inventoryUpdates)) {
+        batch.update(doc(db, 'inventory_items', id), { quantity, lastUpdated: serverTimestamp() });
+      }
 
       await batch.commit();
       
-      // Centralized Print Trigger
+      // Centralized Print Trigger - AFTER batch commit
       if (business.printerSettings?.enablePrintAgent) {
         console.log('[AppContext] Print agent enabled for business:', business.id, '. Creating print request...');
         createPrintRequest(newOrder).catch(err => console.error('[AppContext] Auto-print failed:', err));
@@ -1018,12 +1010,11 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     const oldOrder = allOrders.find(o => o.id === orderId);
     if (!oldOrder) return;
 
-    const newStatus = business.printerSettings?.autoMarkReadyOnPrint ? OrderStatus.READY : (status ?? oldOrder.status);
+    const newStatus = status ?? oldOrder.status;
 
-    // Apply auto-mark status to items if enabled
-    const finalItems = business.printerSettings?.autoMarkReadyOnPrint
-      ? items.map(item => ({ ...item, status: OrderStatus.READY as ItemStatus }))
-      : items;
+    // Filter items to ensure we don't accidentally update cancelled items status to prepping if not intended
+    // but usually status update applies to all active items
+    const finalItems = items;
 
     // Calculate stock changes
     const stockChanges: { [itemId: string]: number } = {};
