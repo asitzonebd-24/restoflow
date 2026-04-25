@@ -773,17 +773,43 @@ export const Kitchen = () => {
         </div>
       )}
 
+      {/* KOT Print Content (Hidden normally, visible during print) */}
+      <div id="kot-content" className="hidden p-4 font-sans text-black">
+        <div className="text-center mb-4 border-b-2 border-black pb-2">
+          <h2 className="font-bold text-[16pt] uppercase kot-token">Kitchen Token: #0</h2>
+          <p className="text-[12pt] kot-table font-bold">Table No: Delivery</p>
+        </div>
+        <div className="kot-items-container space-y-2 mb-4">
+          {/* Items will be injected here */}
+        </div>
+        <div className="kot-note-container hidden border-t border-black pt-2 italic">
+          <p className="text-[10pt]">Note: <span className="kot-note"></span></p>
+        </div>
+        <div className="mt-4 border-t border-black pt-2 flex justify-between">
+          <span className="text-[10pt] kot-waiter">Ordered by: Staff</span>
+          <span className="text-[10pt]">{new Date().toLocaleTimeString()}</span>
+        </div>
+      </div>
+
       {/* Invoice Print Content (Hidden normally, visible during print) */}
       <div id="invoice-content" className="hidden p-4 font-sans text-black">
         <div className="text-center mb-4 border-b border-black pb-2">
           <h2 className="font-bold text-[14pt]">{currentTenant?.name}</h2>
           <p className="text-[10pt] whitespace-pre-line">{currentTenant?.address}</p>
           <p className="text-[10pt]">Tel: {currentTenant?.phone}</p>
+          <div className="mt-2 text-center">
+            <h3 className="font-bold text-[12pt] invoice-token">Invoice: #0</h3>
+            <p className="text-[10pt] invoice-table">Table: Delivery</p>
+          </div>
         </div>
         <div className="invoice-items-container space-y-1 mb-4">
           {/* Items will be injected here */}
         </div>
-        <div className="text-center pt-4">
+        <div className="mt-4 pt-2 border-t border-black">
+          <p className="text-[10pt] invoice-waiter">Staff: Staff</p>
+          <p className="text-[10pt]">{new Date().toLocaleString()}</p>
+        </div>
+        <div className="text-center pt-4 border-t border-black mt-4">
           <p className="text-[10pt] font-bold">Thank You! Come Again.</p>
         </div>
       </div>

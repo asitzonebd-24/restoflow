@@ -681,6 +681,82 @@ export const POS = () => {
     }
   };
 
+  const handleSystemPrint = async (order: any, type: 'kot' | 'invoice') => {
+    const printContentId = type === 'kot' ? 'kot-content' : 'invoice-content';
+    const printContent = document.getElementById(printContentId);
+    if (!printContent) {
+      console.error(`Print content element #${printContentId} not found`);
+      return;
+    }
+
+    const originalTitle = document.title;
+    document.title = `${type.toUpperCase()} - #${order.tokenNumber}`;
+    
+    // Create a temporary container for printing
+    const printContainer = document.createElement('div');
+    printContainer.id = 'print-container';
+    
+    // Apply paper width setting
+    const paperWidth = currentTenant?.printerSettings?.paperWidth || '80mm';
+    printContainer.style.width = paperWidth;
+    printContainer.style.margin = '0 auto';
+    
+    // Update the DOM elements inside the template with current order data
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = printContent.innerHTML;
+    
+    const tokenEl = tempDiv.querySelector('.kot-token') || tempDiv.querySelector('.invoice-token');
+    if (tokenEl) tokenEl.textContent = `${type === 'kot' ? 'Kitchen Token' : 'Invoice'}: #${order.tokenNumber}`;
+    
+    const tableEl = tempDiv.querySelector('.kot-table') || tempDiv.querySelector('.invoice-table');
+    if (tableEl) tableEl.textContent = `Table No: ${order.tableNumber || 'Delivery'}`;
+    
+    const creatorNameForPrint = order.creatorName || getWaiterName(order.createdBy);
+    const waiterEl = tempDiv.querySelector('.kot-waiter') || tempDiv.querySelector('.invoice-waiter');
+    if (waiterEl) waiterEl.textContent = `Ordered by: ${creatorNameForPrint}`;
+
+    const itemsContainer = tempDiv.querySelector('.kot-items-container') || tempDiv.querySelector('.invoice-items-container');
+    if (itemsContainer) {
+      itemsContainer.innerHTML = '';
+      const grouped = groupItems(order.items);
+      grouped.forEach((item: any) => {
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'flex justify-between items-start text-xl font-black border-b border-dashed border-black pb-1';
+        itemDiv.innerHTML = `<span>${item.quantity} x ${item.name}</span> <span>${currentTenant?.currency}${(item.price * item.quantity).toFixed(0)}</span>`;
+        if (type === 'kot') {
+            itemDiv.innerHTML = `<span>${item.quantity} x ${item.name}</span>`;
+        }
+        itemsContainer.appendChild(itemDiv);
+      });
+    }
+
+    if (type === 'kot') {
+      const noteContainer = tempDiv.querySelector('.kot-note-container') as HTMLElement;
+      if (noteContainer) {
+        if (order.note) {
+          noteContainer.style.display = 'block';
+          const noteEl = noteContainer.querySelector('.kot-note');
+          if (noteEl) noteEl.textContent = order.note;
+        } else {
+          noteContainer.style.display = 'none';
+        }
+      }
+    }
+    
+    printContainer.innerHTML = tempDiv.innerHTML;
+    document.body.appendChild(printContainer);
+
+    // Wait briefly to allow DOM to update, then trigger print
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    window.focus();
+    window.print();
+    
+    // Clean up
+    document.body.removeChild(printContainer);
+    document.title = originalTitle;
+  };
+
   const filteredMenu = useMemo(() => {
     if (!activeCategory || activeCategory === 'Select Categories') return [];
     return menu.filter(m => {
@@ -734,100 +810,24 @@ export const POS = () => {
       try {
         const result = await BluetoothPrinterService.connect(currentTenant.printerSettings.pairedPrinterId);
         if (result.success) {
-          const btOrderData = {
-            tokenNumber: token || '000',
-            tableNumber: table,
-            items: itemsToPrint,
-            note: noteToPrint,
-            createdAt: new Date().toISOString(),
-            creatorName: creatorName
-          };
-          await BluetoothPrinterService.printKOT(currentTenant, btOrderData as any);
+          await BluetoothPrinterService.printKOT(currentTenant, orderData as any);
           
           if (currentTenant.printerSettings?.autoMarkReadyOnPrint && currentId) {
             updateOrderStatus(currentId, OrderStatus.READY);
           }
           
           return; // Skip system print if bluetooth worked
-        } else if (result.error === 'unsupported') {
-          console.warn('Bluetooth is not supported or blocked in this environment. Using automatic printer agent instead.');
-          // We don't show an error message here because the automatic agent will handle it
         } else if (result.error === 'failed') {
-           setErrorMessage('Bluetooth connection failed. Using system print fallback.');
-           window.print();
-         }
+          setErrorMessage('Bluetooth connection failed. Using system print fallback.');
+        }
       } catch (error) {
         console.error('Bluetooth KOT print failed, falling back to system print:', error);
       }
     }
 
-    // Note: System print might need adjustment to handle overrideItems if it relies on DOM
-    const printContent = document.getElementById('kot-content');
-    if (!printContent) return;
-
-    const originalTitle = document.title;
-    document.title = `KOT - #${token}`;
+    // Fallback: System Print
+    await handleSystemPrint(orderData, 'kot');
     
-    // Create a temporary container for printing
-    const printContainer = document.createElement('div');
-    printContainer.id = 'print-container';
-    
-    // Apply paper width setting
-    const paperWidth = currentTenant?.printerSettings?.paperWidth || '80mm';
-    printContainer.style.width = paperWidth;
-    printContainer.style.margin = '0 auto';
-    
-    // Update the DOM elements with the correct values before printing
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = printContent.innerHTML;
-    
-    const tokenEl = tempDiv.querySelector('.kot-token');
-    if (tokenEl) tokenEl.textContent = `Token: #${token}`;
-    
-    const tableEl = tempDiv.querySelector('.kot-table');
-    if (tableEl) tableEl.textContent = `Table: ${table}`;
-    
-    const waiterEl = tempDiv.querySelector('.kot-waiter');
-    if (waiterEl) waiterEl.textContent = `Waiter: ${creatorName}`;
-
-    // Update note dynamically
-    const noteContainerEl = tempDiv.querySelector('.kot-note-container') as HTMLElement;
-    const noteContentEl = tempDiv.querySelector('.kot-note');
-    if (noteContainerEl && noteContentEl) {
-        if (noteToPrint) {
-            noteContainerEl.style.display = 'block';
-            noteContentEl.textContent = noteToPrint;
-        } else {
-            noteContainerEl.style.display = 'none';
-        }
-    }
-
-    // Overwrite items list dynamically to prevent stale data
-    const itemsContainer = tempDiv.querySelector('.kot-items-container');
-        if (itemsContainer && itemsToPrint) {
-            itemsContainer.innerHTML = '';
-            const grouped = groupItems(itemsToPrint as any);
-            grouped.forEach((item: any) => {
-                const itemDiv = document.createElement('div');
-                itemDiv.className = 'flex justify-between items-start text-xl font-black';
-                itemDiv.innerHTML = `<span class="text-black">x${item.quantity} ${item.name}</span>`;
-                itemsContainer.appendChild(itemDiv);
-            });
-        }
-
-    printContainer.innerHTML = tempDiv.innerHTML;
-    document.body.appendChild(printContainer);
-
-    // Wait briefly to allow DOM to update, then trigger print
-    await new Promise(resolve => setTimeout(resolve, 100));
-
-    window.focus();
-    window.print();
-    
-    // Clean up
-    document.body.removeChild(printContainer);
-    document.title = originalTitle;
-
     // Auto mark as ready if setting enabled
     if (currentTenant.printerSettings?.autoMarkReadyOnPrint && currentId) {
       await updateOrderStatus(currentId, OrderStatus.READY);
@@ -999,7 +999,8 @@ export const POS = () => {
                                 } catch (error) {
                                   console.error('Print Agent failed:', error);
                                    setErrorMessage('Cloud print failed. Falling back to system print.');
-                                   window.print();
+                                   const creator1 = getWaiterName(order.createdBy);
+                                   await handleSystemPrint({ ...order, creatorName: creator1 }, 'invoice');
                                 }
                               } else if (currentTenant?.printerSettings?.pairedPrinterId) {
                                 try {
@@ -1010,16 +1011,18 @@ export const POS = () => {
                                     });
                                   } else {
                                     setErrorMessage('Bluetooth connection failed. Using system print.');
-                                     window.print();
+                                    const creator2 = getWaiterName(order.createdBy);
+                                    await handleSystemPrint({ ...order, creatorName: creator2 }, 'invoice');
                                   }
                                 } catch (error) {
                                   console.error('Bluetooth print failed:', error);
                                    setErrorMessage('Bluetooth print failed. Using system print.');
-                                   window.print();
+                                   const creator3 = getWaiterName(order.createdBy);
+                                   await handleSystemPrint({ ...order, creatorName: creator3 }, 'invoice');
                                 }
                               } else {
                                 setErrorMessage('Handled by system print.');
-                                 window.print();
+                                await handleSystemPrint({ ...order, creatorName: getWaiterName(order.createdBy) }, 'invoice');
                               }
                             }}
                             className="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-lg shadow-emerald-100 hover:bg-emerald-600 transition-all active:scale-90"
@@ -1585,6 +1588,24 @@ export const POS = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* KOT Print Content (Hidden normally, visible during print) */}
+      <div id="kot-content" className="hidden p-4 font-sans text-black">
+        <div className="text-center mb-4 border-b-2 border-black pb-2">
+          <h2 className="font-bold text-[16pt] uppercase kot-token">Kitchen Token: #0</h2>
+          <p className="text-[12pt] kot-table font-bold">Table No: Delivery</p>
+        </div>
+        <div className="kot-items-container space-y-2 mb-4">
+          {/* Items will be injected here */}
+        </div>
+        <div className="kot-note-container hidden border-t border-black pt-2 italic">
+          <p className="text-[10pt]">Note: <span className="kot-note"></span></p>
+        </div>
+        <div className="mt-4 border-t border-black pt-2 flex justify-between">
+          <span className="text-[10pt] kot-waiter">Ordered by: Staff</span>
+          <span className="text-[10pt]">{new Date().toLocaleTimeString()}</span>
+        </div>
+      </div>
 
       {/* Invoice Print Content (Hidden normally, visible during print) */}
       <div id="invoice-content" className="hidden p-4 font-sans text-black">
