@@ -148,6 +148,101 @@ export const Kitchen = () => {
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
+  const groupItems = (items: OrderItem[]) => {
+    const grouped = items.reduce((acc, item) => {
+      if (item.status === OrderStatus.CANCELLED) return acc;
+      const existing = acc.find(i => i.itemId === item.itemId);
+      if (existing) {
+        existing.quantity += item.quantity;
+      } else {
+        acc.push({ ...item });
+      }
+      return acc;
+    }, [] as OrderItem[]);
+    return grouped;
+  };
+
+  const handleSystemPrint = async (order: Order, type: 'kot' | 'invoice') => {
+    const printContentId = type === 'kot' ? 'kot-content' : 'invoice-content';
+    const printContent = document.getElementById(printContentId);
+    if (!printContent) {
+      console.error(`Print content element #${printContentId} not found`);
+      return;
+    }
+
+    const originalTitle = document.title;
+    document.title = `${type.toUpperCase()} - #${order.tokenNumber}`;
+    
+    // Create a temporary container for printing
+    const printContainer = document.createElement('div');
+    printContainer.id = 'print-container';
+    
+    // Apply paper width setting
+    const paperWidth = currentTenant?.printerSettings?.paperWidth || '80mm';
+    printContainer.style.width = paperWidth;
+    printContainer.style.margin = '0 auto';
+    
+    // Update the DOM elements inside the template with current order data
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = printContent.innerHTML;
+    
+    const tokenEl = tempDiv.querySelector('.kot-token') || tempDiv.querySelector('.invoice-token');
+    if (tokenEl) tokenEl.textContent = `${type === 'kot' ? 'Kitchen Token' : 'Invoice'}: #${order.tokenNumber}`;
+    
+    const tableEl = tempDiv.querySelector('.kot-table') || tempDiv.querySelector('.invoice-table');
+    if (tableEl) tableEl.textContent = `Table No: ${order.tableNumber || 'Delivery'}`;
+    
+    const creatorName = order.creatorName || getCreatorName(order.createdBy);
+    const waiterEl = tempDiv.querySelector('.kot-waiter') || tempDiv.querySelector('.invoice-waiter');
+    if (waiterEl) waiterEl.textContent = `Ordered by: ${creatorName}`;
+
+    const itemsContainer = tempDiv.querySelector('.kot-items-container') || tempDiv.querySelector('.invoice-items-container');
+    if (itemsContainer) {
+      itemsContainer.innerHTML = '';
+      const grouped = groupItems(order.items);
+      grouped.forEach((item: any) => {
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'flex justify-between items-start text-xl font-black border-b border-dashed border-black pb-1';
+        itemDiv.innerHTML = `<span>${item.quantity} x ${item.name}</span> <span>${currentTenant?.currency}${(item.price * item.quantity).toFixed(0)}</span>`;
+        if (type === 'kot') {
+            itemDiv.innerHTML = `<span>${item.quantity} x ${item.name}</span>`;
+        }
+        itemsContainer.appendChild(itemDiv);
+      });
+    }
+
+    if (type === 'kot') {
+      const noteContainer = tempDiv.querySelector('.kot-note-container') as HTMLElement;
+      if (noteContainer) {
+        if (order.note) {
+          noteContainer.style.display = 'block';
+          const noteEl = noteContainer.querySelector('.kot-note');
+          if (noteEl) noteEl.textContent = order.note;
+        } else {
+          noteContainer.style.display = 'none';
+        }
+      }
+    }
+    
+    printContainer.innerHTML = tempDiv.innerHTML;
+    document.body.appendChild(printContainer);
+
+    // Wait briefly to allow DOM to update, then trigger print
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    window.focus();
+    window.print();
+    
+    // Clean up
+    document.body.removeChild(printContainer);
+    document.title = originalTitle;
+
+    // Auto mark as ready if setting enabled for KOT
+    if (type === 'kot' && currentTenant?.printerSettings?.autoMarkReadyOnPrint) {
+      updateOrderStatus(order.id, OrderStatus.READY);
+    }
+  };
+
   const canMoveToReady = (userRole: Role) => {
     return [Role.OWNER, Role.MANAGER, Role.WAITER, Role.KITCHEN].includes(userRole);
   };
@@ -303,7 +398,7 @@ export const Kitchen = () => {
                         }
                       } catch (error) {
                         console.error('Print Agent failed:', error);
-                        alert('Cloud print failed. please check Print Agent status.');
+                        await handleSystemPrint(order, isDone ? 'invoice' : 'kot');
                       }
                     } else if (currentTenant?.printerSettings?.pairedPrinterId) {
                       try {
@@ -320,14 +415,14 @@ export const Kitchen = () => {
                             }
                           }
                         } else {
-                          alert('Failed to connect to printer.');
+                          await handleSystemPrint(order, isDone ? 'invoice' : 'kot');
                         }
                       } catch (error) {
                         console.error('Bluetooth print failed:', error);
-                        alert('Failed to print. Please check printer connection.');
+                        await handleSystemPrint(order, isDone ? 'invoice' : 'kot');
                       }
                     } else {
-                      alert('No printer configured. Enable Print Agent or pair a Bluetooth printer in Settings.');
+                      await handleSystemPrint(order, isDone ? 'invoice' : 'kot');
                     }
                   }}
                   className="absolute -top-2 -left-2 bg-indigo-600 text-white p-1.5 rounded-full border-2 border-white shadow-lg hover:bg-indigo-700 transition-all"
@@ -494,7 +589,8 @@ export const Kitchen = () => {
                            return;
                          } catch (error) {
                            console.error('Print Agent failed:', error);
-                           alert('Cloud print failed. Please check Print Agent status.');
+                           alert('Cloud print failed. Falling back to system print.');
+                            await handleSystemPrint(order, 'invoice');
                          }
                        }
                        if (currentTenant?.printerSettings?.pairedPrinterId) {
@@ -507,10 +603,12 @@ export const Kitchen = () => {
                            }
                          } catch (error) {
                            console.error('Bluetooth print failed:', error);
-                           alert('Failed to print invoice. Please check printer connection.');
+                           alert('Bluetooth print failed. Falling back to system print.');
+                            await handleSystemPrint(order, 'invoice');
                          }
                        } else {
-                         alert('No printer configured. Enable Print Agent or pair a Bluetooth printer in Settings.');
+                         alert('No printer configured. Fallback to PC printer.');
+                          await handleSystemPrint(order, 'invoice');
                        }
                      }}
                      className="w-full py-4 rounded-[1.5rem] font-black text-white transition-all transform active:scale-95 hover:brightness-110 shadow-xl text-xs uppercase tracking-[0.2em] flex items-center justify-center gap-3 bg-emerald-600"
@@ -674,6 +772,21 @@ export const Kitchen = () => {
           </div>
         </div>
       )}
+
+      {/* Invoice Print Content (Hidden normally, visible during print) */}
+      <div id="invoice-content" className="hidden p-4 font-sans text-black">
+        <div className="text-center mb-4 border-b border-black pb-2">
+          <h2 className="font-bold text-[14pt]">{currentTenant?.name}</h2>
+          <p className="text-[10pt] whitespace-pre-line">{currentTenant?.address}</p>
+          <p className="text-[10pt]">Tel: {currentTenant?.phone}</p>
+        </div>
+        <div className="invoice-items-container space-y-1 mb-4">
+          {/* Items will be injected here */}
+        </div>
+        <div className="text-center pt-4">
+          <p className="text-[10pt] font-bold">Thank You! Come Again.</p>
+        </div>
+      </div>
     </div>
   );
 };

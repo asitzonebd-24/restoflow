@@ -312,7 +312,31 @@ export const POS = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isAddingTableModalOpen, setIsAddingTableModalOpen] = useState(false);
+  const [isCustomOrderModalOpen, setIsCustomOrderModalOpen] = useState(false);
   const [newTableNameInput, setNewTableNameInput] = useState('');
+  const [customItemName, setCustomItemName] = useState('');
+  const [customItemQuantity, setCustomItemQuantity] = useState('1');
+  const [customItemPrice, setCustomItemPrice] = useState('0');
+
+  const addCustomItemToCart = () => {
+    if (!customItemName.trim() || parseFloat(customItemPrice) <= 0) return;
+    
+    setCart(prev => [
+      ...prev,
+      {
+        rowId: `row-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        itemId: `custom-${Date.now()}`,
+        name: customItemName,
+        quantity: parseInt(customItemQuantity) || 1,
+        price: parseFloat(customItemPrice),
+        status: OrderStatus.PENDING
+      }
+    ]);
+    setCustomItemName('');
+    setCustomItemQuantity('1');
+    setCustomItemPrice('0');
+    setIsCustomOrderModalOpen(false);
+  };
 
   // Reset page when filter changes
   useEffect(() => {
@@ -729,8 +753,9 @@ export const POS = () => {
           console.warn('Bluetooth is not supported or blocked in this environment. Using automatic printer agent instead.');
           // We don't show an error message here because the automatic agent will handle it
         } else if (result.error === 'failed') {
-          setErrorMessage('Bluetooth printer connection failed. Please check if the printer is on and paired.');
-        }
+           setErrorMessage('Bluetooth connection failed. Using system print fallback.');
+           window.print();
+         }
       } catch (error) {
         console.error('Bluetooth KOT print failed, falling back to system print:', error);
       }
@@ -973,7 +998,8 @@ export const POS = () => {
                                   await createPrintRequest(orderData as any, 'invoice');
                                 } catch (error) {
                                   console.error('Print Agent failed:', error);
-                                  setErrorMessage('Cloud print failed. Please check Print Agent status.');
+                                   setErrorMessage('Cloud print failed. Falling back to system print.');
+                                   window.print();
                                 }
                               } else if (currentTenant?.printerSettings?.pairedPrinterId) {
                                 try {
@@ -983,14 +1009,17 @@ export const POS = () => {
                                       creatorName: getWaiterName(order.createdBy)
                                     });
                                   } else {
-                                    setErrorMessage('Bluetooth printer connection failed. Please check if the printer is on and paired.');
+                                    setErrorMessage('Bluetooth connection failed. Using system print.');
+                                     window.print();
                                   }
                                 } catch (error) {
                                   console.error('Bluetooth print failed:', error);
-                                  setErrorMessage('Failed to print invoice. Please check printer connection.');
+                                   setErrorMessage('Bluetooth print failed. Using system print.');
+                                   window.print();
                                 }
                               } else {
-                                setErrorMessage('No printer configured. Enable Print Agent or pair a Bluetooth printer in Settings.');
+                                setErrorMessage('Handled by system print.');
+                                 window.print();
                               }
                             }}
                             className="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-lg shadow-emerald-100 hover:bg-emerald-600 transition-all active:scale-90"
@@ -1130,30 +1159,7 @@ export const POS = () => {
                   <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 text-indigo-500 rotate-90 pointer-events-none" size={16} />
                 </div>
 
-                {orderType === 'Dine In' && (
-                  <div className="flex items-center gap-2 md:gap-3 bg-slate-50 px-3 md:px-4 py-2 md:py-2.5 rounded-xl md:rounded-2xl border-2 border-slate-900 w-full">
-                    <select 
-                      value={newTableNum}
-                      onChange={(e) => {
-                        if (e.target.value === '__ADD_NEW__') {
-                          setIsAddingTableModalOpen(true);
-                          setNewTableNum(''); // Reset temporarily while modal is open
-                        } else {
-                          setNewTableNum(e.target.value);
-                        }
-                      }}
-                      className="flex-1 min-w-0 w-full text-left bg-transparent font-black text-xs md:text-sm outline-none transition-all text-slate-900"
-                    >
-                      <option value="" disabled>Select Table</option>
-                      {tables.map(t => (
-                        <option key={t.id} value={t.name}>{t.name}</option>
-                      ))}
-                      {(currentUser?.role === Role.OWNER || currentUser?.role === Role.MANAGER || currentUser?.role === Role.SUPER_ADMIN) && (
-                        <option value="__ADD_NEW__" className="font-bold text-indigo-600">⚙ Manage Tables</option>
-                      )}
-                    </select>
-                  </div>
-                )}
+
 
                 {orderType === 'Online Delivery' && (
                   <div className="flex items-center gap-2 md:gap-3 bg-slate-50 px-3 md:px-4 py-2 md:py-2.5 rounded-xl md:rounded-2xl border-2 border-slate-900 w-full">
@@ -1172,20 +1178,44 @@ export const POS = () => {
               </>
             )}
             
-            {!isCreatingNew && (
-                <div className="relative group w-full">
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-indigo-500 transition-colors" size={14} />
-                    <input 
-                        type="text" 
-                        placeholder="Search menu..." 
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-11 pr-4 py-2.5 md:py-3 bg-white border-2 border-indigo-500 rounded-xl md:rounded-2xl text-xs font-medium focus:outline-none focus:ring-4 focus:ring-indigo-500/10 transition-all shadow-xl shadow-indigo-100"
-                    />
-                </div>
-            )
-            }
-
+            <div className="grid grid-cols-2 gap-2 mb-4">
+                <button
+                    onClick={() => setIsCustomOrderModalOpen(true)}
+                    className="flex-1 px-4 py-3 bg-white border-2 border-slate-900 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all text-slate-900 shadow-sm"
+                >
+                    Custom Order
+                </button>
+                
+                {orderType === 'Dine In' ? (
+                   <div className="flex items-center gap-2 bg-slate-50 px-3 py-2.5 rounded-xl border-2 border-slate-900">
+                     <select 
+                       value={newTableNum}
+                       onChange={(e) => {
+                         if (e.target.value === '__ADD_NEW__') {
+                           setIsAddingTableModalOpen(true);
+                           setNewTableNum('');
+                         } else {
+                           setNewTableNum(e.target.value);
+                         }
+                       }}
+                       className="w-full text-left bg-transparent font-black text-xs outline-none transition-all text-slate-900"
+                     >
+                       <option value="" disabled>Select Table</option>
+                       {tables.map(t => (
+                         <option key={t.id} value={t.name}>{t.name}</option>
+                       ))}
+                       {(currentUser?.role === Role.OWNER || currentUser?.role === Role.MANAGER || currentUser?.role === Role.SUPER_ADMIN) && (
+                         <option value="__ADD_NEW__" className="font-bold text-indigo-600">⚙ Manage</option>
+                       )}
+                     </select>
+                   </div>
+                ) : (
+                  <div className="flex items-center gap-2 bg-slate-100 px-3 py-2.5 rounded-xl border-2 border-dashed border-slate-300 opacity-50">
+                    <span className="text-[10px] font-black uppercase text-slate-400">No Table Req</span>
+                  </div>
+                )}
+            </div>
+            
             <div className="relative w-full">
               <select 
                 value={activeCategory}
@@ -1390,6 +1420,79 @@ export const POS = () => {
         )}
       </AnimatePresence>
 
+            {/* Custom Order Modal */}
+      <AnimatePresence>
+        {isCustomOrderModalOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4 bg-slate-900/60 backdrop-blur-sm"
+          >
+            <motion.div 
+              initial={{ y: 100, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 100, opacity: 0 }}
+              className="bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden"
+            >
+              <div className="p-6 sm:p-8">
+                <h3 className="text-xl font-black text-slate-900 mb-2">Custom Order</h3>
+                
+                <div className="space-y-4 mb-6">
+                    <div>
+                        <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Item Name</label>
+                        <input
+                            type="text"
+                            placeholder="e.g., Special Drink"
+                            value={customItemName}
+                            onChange={(e) => setCustomItemName(e.target.value)}
+                            className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl text-sm font-bold text-slate-900 focus:outline-none focus:border-indigo-500 transition-all"
+                        />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Quantity</label>
+                            <input
+                                type="number"
+                                value={customItemQuantity}
+                                onChange={(e) => setCustomItemQuantity(e.target.value)}
+                                className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl text-sm font-bold text-slate-900 focus:outline-none focus:border-indigo-500 transition-all"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Price</label>
+                            <input
+                                type="number"
+                                value={customItemPrice}
+                                onChange={(e) => setCustomItemPrice(e.target.value)}
+                                className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl text-sm font-bold text-slate-900 focus:outline-none focus:border-indigo-500 transition-all"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      setIsCustomOrderModalOpen(false);
+                    }}
+                    className="flex-1 px-4 py-3 bg-slate-100 text-slate-700 rounded-xl text-sm font-bold hover:bg-slate-200 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={addCustomItemToCart}
+                    className="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200"
+                  >
+                    Add to Cart
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Add Table Modal */}
       <AnimatePresence>
         {isAddingTableModalOpen && (
@@ -1482,6 +1585,21 @@ export const POS = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Invoice Print Content (Hidden normally, visible during print) */}
+      <div id="invoice-content" className="hidden p-4 font-sans text-black">
+        <div className="text-center mb-4 border-b border-black pb-2">
+          <h2 className="font-bold text-[14pt]">{currentTenant?.name}</h2>
+          <p className="text-[10pt] whitespace-pre-line">{currentTenant?.address}</p>
+          <p className="text-[10pt]">Tel: {currentTenant?.phone}</p>
+        </div>
+        <div className="invoice-items-container space-y-1 mb-4">
+          {/* Items will be injected here */}
+        </div>
+        <div className="text-center pt-4 border-t border-black">
+          <p className="text-[10pt] font-bold">Thank You! Come Again.</p>
+        </div>
+      </div>
     </div>
   );
 };
