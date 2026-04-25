@@ -162,7 +162,7 @@ export const Kitchen = () => {
     return grouped;
   };
 
-  const handleSystemPrint = async (order: Order, type: 'kot' | 'invoice') => {
+  const handleSystemPrint = async (order: any, type: 'kot' | 'invoice') => {
     const printContentId = type === 'kot' ? 'kot-content' : 'invoice-content';
     const printContent = document.getElementById(printContentId);
     if (!printContent) {
@@ -200,15 +200,27 @@ export const Kitchen = () => {
     if (itemsContainer) {
       itemsContainer.innerHTML = '';
       const grouped = groupItems(order.items);
+      let totalAmount = 0;
       grouped.forEach((item: any) => {
+        const itemTotal = item.price * item.quantity;
+        totalAmount += itemTotal;
         const itemDiv = document.createElement('div');
-        itemDiv.className = 'flex justify-between items-start text-xl font-black border-b border-dashed border-black pb-1';
-        itemDiv.innerHTML = `<span>${item.quantity} x ${item.name}</span> <span>${currentTenant?.currency}${(item.price * item.quantity).toFixed(0)}</span>`;
+        itemDiv.className = 'flex justify-between items-start text-[10pt] font-black border-b border-dashed border-black pb-1 mb-1';
         if (type === 'kot') {
             itemDiv.innerHTML = `<span>${item.quantity} x ${item.name}</span>`;
+            itemDiv.className = 'flex justify-between items-start text-xl font-black border-b border-dashed border-black pb-1 mb-1';
+        } else {
+            itemDiv.innerHTML = `<span>${item.quantity} x ${item.name}</span> <span>${currentTenant?.currency}${itemTotal.toFixed(0)}</span>`;
         }
         itemsContainer.appendChild(itemDiv);
       });
+
+      if (type === 'invoice') {
+          const totalDiv = document.createElement('div');
+          totalDiv.className = 'flex justify-between items-center text-[12pt] font-black border-t-2 border-black pt-2 mt-2';
+          totalDiv.innerHTML = `<span>Total:</span> <span>${currentTenant?.currency}${totalAmount.toFixed(0)}</span>`;
+          itemsContainer.appendChild(totalDiv);
+      }
     }
 
     if (type === 'kot') {
@@ -398,7 +410,7 @@ export const Kitchen = () => {
                         }
                       } catch (error) {
                         console.error('Print Agent failed:', error);
-                        await handleSystemPrint(order, isDone ? 'invoice' : 'kot');
+                        await handleSystemPrint(orderData as any, isDone ? 'invoice' : 'kot');
                       }
                     } else if (currentTenant?.printerSettings?.pairedPrinterId) {
                       try {
@@ -415,14 +427,14 @@ export const Kitchen = () => {
                             }
                           }
                         } else {
-                          await handleSystemPrint(order, isDone ? 'invoice' : 'kot');
+                          await handleSystemPrint(orderData as any, isDone ? 'invoice' : 'kot');
                         }
                       } catch (error) {
                         console.error('Bluetooth print failed:', error);
-                        await handleSystemPrint(order, isDone ? 'invoice' : 'kot');
+                        await handleSystemPrint(orderData as any, isDone ? 'invoice' : 'kot');
                       }
                     } else {
-                      await handleSystemPrint(order, isDone ? 'invoice' : 'kot');
+                      await handleSystemPrint(orderData as any, isDone ? 'invoice' : 'kot');
                     }
                   }}
                   className="absolute -top-2 -left-2 bg-indigo-600 text-white p-1.5 rounded-full border-2 border-white shadow-lg hover:bg-indigo-700 transition-all"
@@ -590,7 +602,7 @@ export const Kitchen = () => {
                          } catch (error) {
                            console.error('Print Agent failed:', error);
                            alert('Cloud print failed. Falling back to system print.');
-                            await handleSystemPrint(order, 'invoice');
+                           await handleSystemPrint(orderData as any, 'invoice');
                          }
                        }
                        if (currentTenant?.printerSettings?.pairedPrinterId) {
@@ -604,11 +616,11 @@ export const Kitchen = () => {
                          } catch (error) {
                            console.error('Bluetooth print failed:', error);
                            alert('Bluetooth print failed. Falling back to system print.');
-                            await handleSystemPrint(order, 'invoice');
+                           await handleSystemPrint(orderData as any, 'invoice');
                          }
                        } else {
                          alert('No printer configured. Fallback to PC printer.');
-                          await handleSystemPrint(order, 'invoice');
+                         await handleSystemPrint(orderData as any, 'invoice');
                        }
                      }}
                      className="w-full py-4 rounded-[1.5rem] font-black text-white transition-all transform active:scale-95 hover:brightness-110 shadow-xl text-xs uppercase tracking-[0.2em] flex items-center justify-center gap-3 bg-emerald-600"

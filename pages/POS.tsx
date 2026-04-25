@@ -719,15 +719,27 @@ export const POS = () => {
     if (itemsContainer) {
       itemsContainer.innerHTML = '';
       const grouped = groupItems(order.items);
+      let totalAmount = 0;
       grouped.forEach((item: any) => {
+        const itemTotal = item.price * item.quantity;
+        totalAmount += itemTotal;
         const itemDiv = document.createElement('div');
-        itemDiv.className = 'flex justify-between items-start text-xl font-black border-b border-dashed border-black pb-1';
-        itemDiv.innerHTML = `<span>${item.quantity} x ${item.name}</span> <span>${currentTenant?.currency}${(item.price * item.quantity).toFixed(0)}</span>`;
+        itemDiv.className = 'flex justify-between items-start text-[10pt] font-black border-b border-dashed border-black pb-1 mb-1';
         if (type === 'kot') {
             itemDiv.innerHTML = `<span>${item.quantity} x ${item.name}</span>`;
+            itemDiv.className = 'flex justify-between items-start text-xl font-black border-b border-dashed border-black pb-1 mb-1';
+        } else {
+            itemDiv.innerHTML = `<span>${item.quantity} x ${item.name}</span> <span>${currentTenant?.currency}${itemTotal.toFixed(0)}</span>`;
         }
         itemsContainer.appendChild(itemDiv);
       });
+
+      if (type === 'invoice') {
+          const totalDiv = document.createElement('div');
+          totalDiv.className = 'flex justify-between items-center text-[12pt] font-black border-t-2 border-black pt-2 mt-2';
+          totalDiv.innerHTML = `<span>Total:</span> <span>${currentTenant?.currency}${totalAmount.toFixed(0)}</span>`;
+          itemsContainer.appendChild(totalDiv);
+      }
     }
 
     if (type === 'kot') {
@@ -1613,11 +1625,19 @@ export const POS = () => {
           <h2 className="font-bold text-[14pt]">{currentTenant?.name}</h2>
           <p className="text-[10pt] whitespace-pre-line">{currentTenant?.address}</p>
           <p className="text-[10pt]">Tel: {currentTenant?.phone}</p>
+          <div className="mt-2 text-center">
+            <h3 className="font-bold text-[12pt] invoice-token">Invoice: #0</h3>
+            <p className="text-[10pt] invoice-table">Table: Delivery</p>
+          </div>
         </div>
         <div className="invoice-items-container space-y-1 mb-4">
           {/* Items will be injected here */}
         </div>
-        <div className="text-center pt-4 border-t border-black">
+        <div className="mt-4 pt-2 border-t border-black">
+          <p className="text-[10pt] invoice-waiter">Staff: Staff</p>
+          <p className="text-[10pt]">{new Date().toLocaleString()}</p>
+        </div>
+        <div className="text-center pt-4 border-t border-black mt-4">
           <p className="text-[10pt] font-bold">Thank You! Come Again.</p>
         </div>
       </div>
