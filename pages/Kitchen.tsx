@@ -6,7 +6,7 @@ import { Clock, CheckCircle, Flame, Timer, PlayCircle, CheckSquare, FileText, Lo
 import { BluetoothPrinterService } from '../services/printerService';
 
 export const Kitchen = () => {
-  const { orders, updateOrderStatus, updateOrderItemStatus, currentTenant, currentUser, users, menu, updateOrderItems, createPrintRequest } = useApp();
+  const { orders, updateOrderStatus, updateOrderItemStatus, currentTenant, currentUser, users, menu, updateOrderItems, createPrintRequest, updateBusiness, updateOrder } = useApp();
   const [filter, setFilter] = React.useState<'pending' | 'done'>('pending');
   const [currentPage, setCurrentPage] = useState(1);
   const [showAddItemModal, setShowAddItemModal] = useState(false);
@@ -15,6 +15,10 @@ export const Kitchen = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [error, setError] = useState<string | null>(null);
+
+  const deliveryStaff = useMemo(() => {
+    return users.filter(u => u.role === Role.WAITER);
+  }, [users]);
 
   // Reset page when filter changes
   React.useEffect(() => {
@@ -343,6 +347,26 @@ export const Kitchen = () => {
                   <p className="text-[10px] font-bold text-slate-900">{order.deliveryStaffName}</p>
                   {order.deliveryStaffMobile && <p className="text-[9px] font-medium text-slate-500">{order.deliveryStaffMobile}</p>}
                 </div>
+              </div>
+            )}
+
+            {order.orderType === 'Online Delivery' && order.status === OrderStatus.READY && (
+              <div className="mb-4">
+                  <select 
+                    className="w-full text-[10px] font-black uppercase tracking-widest p-3 bg-white border-2 border-indigo-200 rounded-2xl outline-none"
+                    value={order.deliveryStaffId || ''}
+                    onChange={(e) => {
+                        const selectedStaff = deliveryStaff.find(s => s.id === e.target.value);
+                        if (selectedStaff) {
+                            updateOrder(order.id, undefined, undefined, undefined, undefined, undefined, selectedStaff.id, selectedStaff.name, selectedStaff.mobile);
+                        }
+                    }}
+                  >
+                    <option value="">Assign Delivery Man</option>
+                    {deliveryStaff.map(s => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
               </div>
             )}
 

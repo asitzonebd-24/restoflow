@@ -89,8 +89,14 @@ const POSCartContent = ({
   isTokenDuplicate,
   isSubmitting,
   printKOT,
-  newTokenNum
+  newTokenNum,
+  deliveryStaff,
+  selectedDeliveryStaffId,
+  setSelectedDeliveryStaffId
 }: { 
+  deliveryStaff: any[],
+  selectedDeliveryStaffId: string,
+  setSelectedDeliveryStaffId: (val: string) => void,
   onClose?: () => void, 
   isEmbedded?: boolean,
   isCreatingNew: boolean,
@@ -139,7 +145,7 @@ const POSCartContent = ({
             </div>
           ) : (
             selectedOrderId && (
-              <div className="flex flex-col gap-1 mt-1 ml-8">
+              <div className="flex flex-col gap-2 mt-2">
                 <div className="flex items-center gap-4">
                   <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
                     Table: {orders.find(o => o.id === selectedOrderId)?.tableNumber || 'N/A'}
@@ -151,6 +157,20 @@ const POSCartContent = ({
                     </span>
                   </div>
                 </div>
+                {orderType === 'Online Delivery' && (
+                  <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-900 w-fit">
+                    <select 
+                      value={selectedDeliveryStaffId}
+                      onChange={(e) => setSelectedDeliveryStaffId(e.target.value)}
+                      className="text-[10px] font-black outline-none bg-transparent uppercase tracking-widest"
+                    >
+                      <option value="">Assign Delivery Man</option>
+                      {deliveryStaff.map(t => (
+                        <option key={t.id} value={t.id}>{t.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
             )
           )}
@@ -1134,6 +1154,21 @@ export const POS = () => {
                     </select>
                   </div>
                 )}
+
+                {orderType === 'Online Delivery' && (
+                  <div className="flex items-center gap-2 md:gap-3 bg-slate-50 px-3 md:px-4 py-2 md:py-2.5 rounded-xl md:rounded-2xl border-2 border-slate-900 w-full">
+                    <select 
+                      value={selectedDeliveryStaffId}
+                      onChange={(e) => setSelectedDeliveryStaffId(e.target.value)}
+                      className="flex-1 min-w-0 w-full text-left bg-transparent font-black text-xs md:text-sm outline-none transition-all text-slate-900"
+                    >
+                      <option value="">Select Delivery Man</option>
+                      {deliveryStaff.map(t => (
+                        <option key={t.id} value={t.id}>{t.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </>
             )}
             
@@ -1219,6 +1254,9 @@ export const POS = () => {
           <div className={`lg:hidden ${activeCategory !== 'Select Categories' ? 'mt-12' : 'mt-4'} mb-20`}>
             <POSCartContent 
               isEmbedded 
+              deliveryStaff={deliveryStaff}
+              selectedDeliveryStaffId={selectedDeliveryStaffId}
+              setSelectedDeliveryStaffId={setSelectedDeliveryStaffId}
               isCreatingNew={isCreatingNew}
               newTableNum={newTableNum}
               selectedOrderId={selectedOrderId}
@@ -1247,6 +1285,9 @@ export const POS = () => {
       {/* Desktop Sidebar Basket */}
       <div className="hidden lg:flex w-[400px] xl:w-[450px] bg-white flex-col shadow-2xl shrink-0">
          <POSCartContent 
+            deliveryStaff={deliveryStaff}
+            selectedDeliveryStaffId={selectedDeliveryStaffId}
+            setSelectedDeliveryStaffId={setSelectedDeliveryStaffId}
             isCreatingNew={isCreatingNew}
             newTableNum={newTableNum}
             selectedOrderId={selectedOrderId}
@@ -1320,6 +1361,9 @@ export const POS = () => {
             >
               <POSCartContent 
                 onClose={() => setIsCartOpen(false)} 
+                deliveryStaff={deliveryStaff}
+                selectedDeliveryStaffId={selectedDeliveryStaffId}
+                setSelectedDeliveryStaffId={setSelectedDeliveryStaffId}
                 isCreatingNew={isCreatingNew}
                 newTableNum={newTableNum}
                 selectedOrderId={selectedOrderId}
