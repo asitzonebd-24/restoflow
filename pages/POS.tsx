@@ -289,7 +289,8 @@ export const POS = () => {
           orderType === 'Online Delivery' ? selectedDeliveryStaffId : null,
           orderType === 'Online Delivery' && deliveryMan ? deliveryMan.name : null,
           orderType === 'Online Delivery' && deliveryMan ? deliveryMan.mobile : null,
-          orderType === 'Online Delivery' ? deliveryAddress : null
+          orderType === 'Online Delivery' ? deliveryAddress : null,
+          hasNewItems ? false : undefined
         );
 
         setSelectedOrderId(null);

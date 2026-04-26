@@ -358,7 +358,8 @@ export const Kitchen = () => {
           const targetStatus = nextStatus(order.status);
           const isAdmin = currentUser?.role === Role.OWNER || currentUser?.role === Role.MANAGER || currentUser?.role === Role.SUPER_ADMIN;
           const isKitchen = currentUser?.role === Role.KITCHEN;
-          const isAllowedToUpdate = isAdmin || isKitchen;
+          const isWaiter = currentUser?.role === Role.WAITER;
+          const isAllowedToUpdate = isAdmin || isKitchen || isWaiter;
           const creatorName = getCreatorName(order.createdBy);
           
           const hasPending = order.items.some(i => i.status === OrderStatus.PENDING);
@@ -487,17 +488,30 @@ export const Kitchen = () => {
             <div className="flex-1 mb-6 overflow-y-auto no-scrollbar rounded-2xl border border-slate-100 overflow-hidden bg-white">
               <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
                 <h4 className="text-[10px] font-black uppercase tracking-widest text-black">Edit Items</h4>
-                {isAdmin && (
-                  <button 
-                    onClick={() => {
-                      setSelectedOrderId(order.id);
-                      setShowEditItemsModal(true);
-                    }}
-                    className="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-all border border-indigo-100"
-                  >
-                    <Pen size={14} strokeWidth={3} />
-                  </button>
-                )}
+                <div className="flex gap-2">
+                  {isAllowedToUpdate && (
+                    <button 
+                      onClick={() => {
+                        setSelectedOrderId(order.id);
+                        setShowAddItemModal(true);
+                      }}
+                      className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-100 transition-all border border-emerald-100"
+                    >
+                      <Plus size={14} strokeWidth={3} />
+                    </button>
+                  )}
+                  {isAdmin && (
+                    <button 
+                      onClick={() => {
+                        setSelectedOrderId(order.id);
+                        setShowEditItemsModal(true);
+                      }}
+                      className="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 transition-all border border-indigo-100"
+                    >
+                      <Pen size={14} strokeWidth={3} />
+                    </button>
+                  )}
+                </div>
               </div>
               {(() => {
                 const groupedItems: { [key: string]: { name: string, quantity: number, status: ItemStatus, rowIds: string[] } } = {};

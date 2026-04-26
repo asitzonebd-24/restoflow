@@ -1025,7 +1025,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     deliveryStaffId?: string | null,
     deliveryStaffName?: string | null,
     deliveryStaffMobile?: string | null,
-    deliveryAddress?: string | null
+    deliveryAddress?: string | null,
+    isPaid?: boolean
   ) => {
     const oldOrder = allOrders.find(o => o.id === orderId);
     if (!oldOrder) return;
@@ -1066,7 +1067,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         deliveryStaffId: deliveryStaffId !== undefined ? deliveryStaffId : (oldOrder.deliveryStaffId ?? null),
         deliveryStaffName: deliveryStaffName !== undefined ? deliveryStaffName : (oldOrder.deliveryStaffName ?? null),
         deliveryStaffMobile: deliveryStaffMobile !== undefined ? deliveryStaffMobile : (oldOrder.deliveryStaffMobile ?? null),
-        deliveryAddress: deliveryAddress !== undefined ? deliveryAddress : (oldOrder.deliveryAddress ?? null)
+        deliveryAddress: deliveryAddress !== undefined ? deliveryAddress : (oldOrder.deliveryAddress ?? null),
+        isPaid: isPaid !== undefined ? isPaid : (oldOrder.isPaid ?? false)
       }));
 
       // Update stock in Firestore and validate
