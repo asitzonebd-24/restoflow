@@ -487,7 +487,7 @@ export const Kitchen = () => {
             <div className="flex-1 mb-6 overflow-y-auto no-scrollbar rounded-2xl border border-slate-100 overflow-hidden bg-white">
               <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
                 <h4 className="text-[10px] font-black uppercase tracking-widest text-black">Edit Items</h4>
-                {isAdmin && order.status !== OrderStatus.READY && (
+                {isAdmin && (
                   <button 
                     onClick={() => {
                       setSelectedOrderId(order.id);
@@ -745,38 +745,40 @@ export const Kitchen = () => {
             </div>
             <div className="p-6 overflow-y-auto no-scrollbar space-y-4">
               {orders.find(o => o.id === selectedOrderId)?.items.map(item => (
-                <div key={item.rowId} className="flex items-center justify-between bg-slate-50 p-4 rounded-2xl border-2 border-slate-100">
-                  <span className="font-bold text-sm w-1/2 truncate">{item.name}</span>
+                <div key={item.rowId} className="flex items-center justify-between py-2 border-b last:border-0">
+                  <span className="font-bold text-slate-900 text-sm flex-1">{item.name}</span>
                   <div className="flex items-center gap-3">
-                    <button 
-                      onClick={() => {
-                        const order = orders.find(o => o.id === selectedOrderId);
-                        if (!order) return;
-                        const updatedItems = order.items.map(i => 
-                          i.rowId === item.rowId ? { ...i, quantity: Math.max(0, i.quantity - 1) } : i
-                        ).filter(i => i.quantity > 0);
-                        const newTotal = updatedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-                        updateOrderItems(order.id, updatedItems, newTotal);
-                      }}
-                      className="w-8 h-8 flex items-center justify-center bg-white border border-slate-300 rounded-lg hover:bg-rose-50 hover:text-rose-500"
-                    >
-                      <Minus size={14} />
-                    </button>
-                    <span className="font-black text-sm w-6 text-center">{item.quantity}</span>
-                    <button 
-                      onClick={() => {
-                        const order = orders.find(o => o.id === selectedOrderId);
-                        if (!order) return;
-                        const updatedItems = order.items.map(i => 
-                          i.rowId === item.rowId ? { ...i, quantity: i.quantity + 1 } : i
-                        );
-                        const newTotal = updatedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-                        updateOrderItems(order.id, updatedItems, newTotal);
-                      }}
-                      className="w-8 h-8 flex items-center justify-center bg-white border border-slate-300 rounded-lg hover:bg-emerald-50 hover:text-emerald-500"
-                    >
-                      <Plus size={14} />
-                    </button>
+                     <div className="flex items-center border-2 border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
+                       <button 
+                        onClick={() => {
+                          const order = orders.find(o => o.id === selectedOrderId);
+                          if (!order) return;
+                          const updatedItems = order.items.map(i => 
+                            i.rowId === item.rowId ? { ...i, quantity: Math.max(0, i.quantity - 1) } : i
+                          ).filter(i => i.quantity > 0);
+                          const newTotal = updatedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                          updateOrderItems(order.id, updatedItems, newTotal);
+                        }}
+                        className="w-8 h-8 flex items-center justify-center text-rose-800 hover:bg-slate-50 border-r-2 border-slate-200 transition-colors"
+                       >
+                         <Minus size={16} strokeWidth={2.5} />
+                       </button>
+                       <div className="w-10 h-8 flex items-center justify-center font-black text-sm text-slate-900 bg-slate-50/50">{item.quantity}</div>
+                       <button 
+                        onClick={() => {
+                          const order = orders.find(o => o.id === selectedOrderId);
+                          if (!order) return;
+                          const updatedItems = order.items.map(i => 
+                            i.rowId === item.rowId ? { ...i, quantity: i.quantity + 1 } : i
+                          );
+                          const newTotal = updatedItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                          updateOrderItems(order.id, updatedItems, newTotal);
+                        }}
+                        className="w-8 h-8 flex items-center justify-center text-rose-800 hover:bg-slate-50 border-l-2 border-slate-200 transition-colors"
+                       >
+                         <Plus size={16} strokeWidth={2.5} />
+                       </button>
+                     </div>
                   </div>
                 </div>
               ))}

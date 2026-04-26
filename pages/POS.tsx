@@ -370,19 +370,14 @@ export const POS = () => {
                  </button>
                </div>
 
-               <div className="flex gap-3 w-full md:w-auto">
-                 <div className="flex-1 md:flex-none bg-rose-100 px-5 py-2.5 rounded-2xl border-2 border-rose-200 shadow-sm flex flex-col items-center justify-center min-w-[90px]">
-                    <span className="text-[7px] font-black uppercase tracking-widest text-rose-800 mb-0.5">Orders</span>
-                    <span className="text-rose-900 text-xs font-black leading-none">{filteredOrders.length}</span>
-                 </div>
+               <div className="flex flex-row gap-3 w-full md:w-auto">
+                 <button 
+                  onClick={handleNewOrder}
+                  className="bg-slate-900 text-white px-8 py-3.5 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl shadow-indigo-200 hover:bg-slate-800 transition-all transform hover:-translate-y-1 active:scale-95 flex items-center justify-center gap-3 border-2 border-indigo-500 w-full md:w-auto h-[52px] shrink-0"
+                 >
+                   <Plus size={18} /> New Order
+                 </button>
                </div>
-
-               <button 
-                onClick={handleNewOrder}
-                className="bg-slate-900 text-white px-8 py-3.5 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl shadow-indigo-200 hover:bg-slate-800 transition-all transform hover:-translate-y-1 active:scale-95 flex items-center justify-center gap-3 border-2 border-indigo-500 w-full md:w-auto h-[52px] shrink-0"
-               >
-                 <Plus size={18} /> New Order
-               </button>
              </div>
           </div>
 
@@ -557,18 +552,6 @@ export const POS = () => {
               )}
 
 
-              <div className="relative col-span-2 md:col-span-1 w-full">
-                <select 
-                  value={activeCategory} 
-                  onChange={(e) => setActiveCategory(e.target.value)}
-                  className="w-full pl-4 pr-8 py-3 bg-white border-2 border-black rounded-xl md:rounded-2xl text-xs font-bold outline-none focus:border-indigo-500 appearance-none cursor-pointer shadow-sm min-h-[52px]"
-                >
-                   <option value="Select Categories">Select Categories</option>
-                   {categories.filter(c => c !== 'All').map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-                <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 rotate-90" size={16} />
-              </div>
-
               {orderType === 'Dine In' ? (
                 <div className="flex items-center justify-center gap-2 bg-slate-50 px-4 py-3 rounded-xl md:rounded-2xl border-2 border-slate-900 w-full min-h-[52px]">
                    <select 
@@ -595,6 +578,18 @@ export const POS = () => {
                    <span className="text-[10px] font-black uppercase text-slate-400">No Table Req</span>
                 </div>
               )}
+
+              <div className="relative col-span-1 md:col-span-1 w-full">
+                <select 
+                  value={activeCategory} 
+                  onChange={(e) => setActiveCategory(e.target.value)}
+                  className="w-full pl-4 pr-8 py-3 bg-white border-2 border-black rounded-xl md:rounded-2xl text-xs font-bold outline-none focus:border-indigo-500 appearance-none cursor-pointer shadow-sm min-h-[52px]"
+                >
+                   <option value="Select Categories">Select Categories</option>
+                   {categories.filter(c => c !== 'All').map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 rotate-90" size={16} />
+              </div>
             </div>
           </div>
 
@@ -611,7 +606,7 @@ export const POS = () => {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 10 }}
                         key={item.id}
-                        className="p-2 flex flex-col gap-1 bg-white border border-black last:border-b"
+                        className="p-2 flex flex-col gap-1 bg-white border border-black/[0.5] last:border-b"
                       >
                          <div className="w-full">
                             <h4 className="font-bold text-slate-900 text-[14px] leading-tight capitalize mb-0.5">{item.name}</h4>
@@ -835,7 +830,7 @@ export const POS = () => {
                   }}
                   className="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200"
                  >
-                   Save & Print
+                   Save Order
                  </button>
               </div>
             </motion.div>
