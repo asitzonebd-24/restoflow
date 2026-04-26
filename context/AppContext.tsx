@@ -1040,18 +1040,29 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
     // Calculate stock changes
     const stockChanges: { [itemId: string]: number } = {};
-    finalItems.forEach(newItem => {
-      const oldItem = oldOrder.items.find(oi => oi.itemId === newItem.itemId);
-      const oldQty = (oldItem && oldItem.status !== OrderStatus.CANCELLED) ? oldItem.quantity : 0;
-      const newQty = (newItem.status !== OrderStatus.CANCELLED) ? newItem.quantity : 0;
-      const diff = newQty - oldQty;
-      if (diff !== 0) stockChanges[newItem.itemId] = (stockChanges[newItem.itemId] || 0) + diff;
-    });
-    oldOrder.items.forEach(oldItem => {
-      const newItem = finalItems.find(ni => ni.itemId === oldItem.itemId);
-      if (!newItem && oldItem.status !== OrderStatus.CANCELLED) {
-        stockChanges[oldItem.itemId] = (stockChanges[oldItem.itemId] || 0) - oldItem.quantity;
+    
+    // Sum existing quantities
+    const oldTotals: { [itemId: string]: number } = {};
+    oldOrder.items.forEach(item => {
+      if (item.status !== OrderStatus.CANCELLED) {
+        oldTotals[item.itemId] = (oldTotals[item.itemId] || 0) + item.quantity;
       }
+    });
+
+    // Sum new quantities
+    const newTotals: { [itemId: string]: number } = {};
+    finalItems.forEach(item => {
+      if (item.status !== OrderStatus.CANCELLED) {
+        newTotals[item.itemId] = (newTotals[item.itemId] || 0) + item.quantity;
+      }
+    });
+
+    // Find all unique Item IDs
+    const allItemIds = new Set([...Object.keys(oldTotals), ...Object.keys(newTotals)]);
+    
+    allItemIds.forEach(itemId => {
+      const diff = (newTotals[itemId] || 0) - (oldTotals[itemId] || 0);
+      if (diff !== 0) stockChanges[itemId] = diff;
     });
 
     try {

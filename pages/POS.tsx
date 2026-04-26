@@ -173,12 +173,12 @@ export const POS = () => {
     if (item.stock !== undefined && item.stock !== null && item.stock <= 0) return;
     
     setCart(prev => {
-      const idx = prev.findIndex(i => i.itemId === item.id && i.status === OrderStatus.PENDING && !(i as any).isExisting);
+      const idx = prev.findIndex(i => i.itemId === item.id && i.status === OrderStatus.PENDING);
       if (idx > -1) {
         const currentQty = prev[idx].quantity;
         if (item.stock !== undefined && item.stock !== null && currentQty >= item.stock) return prev;
         const newCart = [...prev];
-        newCart[idx] = { ...newCart[idx], quantity: currentQty + 1 };
+        newCart[idx] = { ...newCart[idx], quantity: currentQty + 1, isExisting: false };
         return newCart;
       }
       return [...prev, {
