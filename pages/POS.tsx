@@ -173,7 +173,7 @@ export const POS = () => {
     if (item.stock !== undefined && item.stock !== null && item.stock <= 0) return;
     
     setCart(prev => {
-      const idx = prev.findIndex(i => i.itemId === item.id && i.status === OrderStatus.PENDING);
+      const idx = prev.findIndex(i => i.itemId === item.id && i.status === OrderStatus.PENDING && !(i as any).isExisting);
       if (idx > -1) {
         const currentQty = prev[idx].quantity;
         if (item.stock !== undefined && item.stock !== null && currentQty >= item.stock) return prev;
@@ -621,7 +621,7 @@ export const POS = () => {
               <div className="flex flex-col bg-white rounded-[2rem] border-2 border-slate-50 overflow-hidden shadow-xl shadow-slate-200/20">
                 <AnimatePresence mode="popLayout">
                   {filteredMenu.map(item => {
-                    const cartItem = cart.find(ci => ci.itemId === item.id);
+                    const cartItem = cart.find(ci => ci.itemId === item.id && !(ci as any).isExisting);
                     return (
                       <motion.div 
                         layout
@@ -810,29 +810,42 @@ export const POS = () => {
               <div className="p-6 sm:p-8 flex-1 overflow-y-auto no-scrollbar">
                 <h3 className="text-xl font-black text-slate-900 mb-4">Order Preview</h3>
                 <div className="space-y-4">
-                  {cart.map(item => (
-                    <div key={item.rowId} className="flex items-center justify-between py-2 border-b last:border-0">
-                      <span className="font-bold text-slate-900 text-sm flex-1">{item.name}</span>
-                      <div className="flex items-center gap-3">
-                         <div className="flex items-center border-2 border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
-                           <button 
-                            onClick={() => updateQuantity(item.rowId, -1)}
-                            className="w-8 h-8 flex items-center justify-center text-rose-800 hover:bg-slate-50 border-r-2 border-slate-200 transition-colors"
-                           >
-                             <Minus size={16} strokeWidth={2.5} />
-                           </button>
-                           <div className="w-10 h-8 flex items-center justify-center font-black text-sm text-slate-900 bg-slate-50/50">{item.quantity}</div>
-                           <button 
-                            onClick={() => updateQuantity(item.rowId, 1)}
-                            className="w-8 h-8 flex items-center justify-center text-rose-800 hover:bg-slate-50 border-l-2 border-slate-200 transition-colors"
-                           >
-                             <Plus size={16} strokeWidth={2.5} />
-                           </button>
-                         </div>
-                         <span className="w-16 text-right font-black text-rose-800 text-sm">{currentTenant.currency}{(item.price * item.quantity).toFixed(0)}</span>
+                  {cart.map(item => {
+                    const isExisting = (item as any).isExisting;
+                    const isAdmin = currentUser?.role === Role.OWNER || currentUser?.role === Role.MANAGER || currentUser?.role === Role.SUPER_ADMIN;
+                    const canEdit = !isExisting || isAdmin;
+
+                    return (
+                      <div key={item.rowId} className={`flex items-center justify-between py-3 border-b last:border-0 ${isExisting ? 'opacity-70 bg-slate-50/50 -mx-4 px-4' : ''}`}>
+                        <div className="flex flex-col flex-1">
+                          <span className="font-bold text-slate-900 text-sm">{item.name}</span>
+                          {isExisting && (
+                            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600">Already Saved</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3">
+                           <div className={`flex items-center border-2 ${isExisting ? 'border-slate-100 bg-slate-100' : 'border-slate-200 bg-white'} rounded-xl overflow-hidden shadow-sm`}>
+                             <button 
+                              onClick={() => canEdit && updateQuantity(item.rowId, -1)}
+                              disabled={!canEdit}
+                              className={`w-8 h-8 flex items-center justify-center ${canEdit ? 'text-rose-800 hover:bg-slate-50' : 'text-slate-300'} border-r-2 ${isExisting ? 'border-slate-50' : 'border-slate-200'} transition-colors`}
+                             >
+                               <Minus size={16} strokeWidth={2.5} />
+                             </button>
+                             <div className={`w-10 h-8 flex items-center justify-center font-black text-sm ${isExisting ? 'text-slate-500' : 'text-slate-900'} bg-transparent`}>{item.quantity}</div>
+                             <button 
+                              onClick={() => canEdit && updateQuantity(item.rowId, 1)}
+                              disabled={!canEdit}
+                              className={`w-8 h-8 flex items-center justify-center ${canEdit ? 'text-rose-800 hover:bg-slate-50' : 'text-slate-300'} border-l-2 ${isExisting ? 'border-slate-50' : 'border-slate-200'} transition-colors`}
+                             >
+                               <Plus size={16} strokeWidth={2.5} />
+                             </button>
+                           </div>
+                           <span className="w-16 text-right font-black text-rose-800 text-sm">{currentTenant.currency}{(item.price * item.quantity).toFixed(0)}</span>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
                 <div className="border-t mt-6 pt-4 flex justify-between items-center text-lg font-black text-slate-900">
                   <span>Total Amount</span>
