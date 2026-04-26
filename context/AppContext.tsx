@@ -548,7 +548,12 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       }
 
       if (name === 'orders') {
-        q = query(collection(db, name), ...(effectiveTenantId ? [where('tenantId', '==', String(effectiveTenantId))] : []), limit(500));
+        q = query(
+          collection(db, name), 
+          ...(effectiveTenantId ? [where('tenantId', '==', String(effectiveTenantId))] : []),
+          orderBy('createdAt', 'desc'),
+          limit(500)
+        );
       }
 
       if (name === 'subscription_packages') {
@@ -556,7 +561,13 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       }
 
       if (['transactions', 'expenses', 'monthly_bills'].includes(name)) {
-        q = query(collection(db, name), ...(effectiveTenantId ? [where('tenantId', '==', String(effectiveTenantId))] : []), limit(1000));
+        const sortField = name === 'monthly_bills' ? 'createdAt' : 'date';
+        q = query(
+          collection(db, name), 
+          ...(effectiveTenantId ? [where('tenantId', '==', String(effectiveTenantId))] : []),
+          orderBy(sortField, 'desc'),
+          limit(1000)
+        );
       }
 
       const unsub = onSnapshot(q, (snapshot) => {

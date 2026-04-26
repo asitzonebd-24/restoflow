@@ -236,6 +236,7 @@ export const POS = () => {
           tableNumber: orderType === 'Online Delivery' ? 'Delivery' : (orderType === 'Take Away' ? 'Take Away' : newTableNum),
           items,
           status: OrderStatus.PENDING,
+          isPaid: false,
           createdAt: new Date().toISOString(),
           createdBy: currentUser.id,
           creatorName: currentUser.name || currentUser.email?.split('@')[0] || 'Staff',
@@ -407,20 +408,22 @@ export const POS = () => {
                          </div>
                          {(order.tableNumber || order.deliveryStaffName) && (
                             <div className="absolute -top-2 -right-2 bg-black text-white text-[10px] font-black px-3 py-1 rounded-full border-2 border-white shadow-lg">
-                              {order.deliveryStaffName ? `D-${order.deliveryStaffName.split(' ')[0]}` : order.tableNumber}
+                               {order.deliveryStaffName ? `D-${order.deliveryStaffName.split(' ')[0]}` : order.tableNumber}
                             </div>
                          )}
-                         <div className="absolute -top-2 -left-2 bg-white rounded-full border-2 border-black shadow-lg uppercase">
-                            <select 
-                              value={order.isPaid ? 'paid' : 'unpaid'}
-                              onClick={(e) => e.stopPropagation()}
-                              onChange={(e) => { e.stopPropagation(); updateOrderPaymentStatus(order.id, e.target.value === 'paid'); }}
-                              className="text-[9px] font-black px-2 py-0.5 rounded-full bg-transparent outline-none cursor-pointer"
-                            >
-                              <option value="unpaid">Unpaid</option>
-                              <option value="paid">Paid</option>
-                            </select>
-                         </div>
+                         {terminalActiveTab !== 'pending' && (
+                           <div className="absolute -top-2 -left-2 bg-white rounded-full border-2 border-black shadow-lg uppercase">
+                              <select 
+                                value={order.isPaid ? 'paid' : 'unpaid'}
+                                onClick={(e) => e.stopPropagation()}
+                                onChange={(e) => { e.stopPropagation(); updateOrderPaymentStatus(order.id, e.target.value === 'paid'); }}
+                                className="text-[9px] font-black px-2 py-0.5 rounded-full bg-transparent outline-none cursor-pointer"
+                              >
+                                <option value="unpaid">Unpaid</option>
+                                <option value="paid">Paid</option>
+                              </select>
+                           </div>
+                         )}
                        </div>
 
                        <div className="mb-4 space-y-1">
