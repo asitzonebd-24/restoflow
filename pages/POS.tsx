@@ -147,6 +147,15 @@ export const POS = () => {
     setIsCreatingNew(false);
   };
 
+  const handlePrintOrder = async (e: React.MouseEvent, order: Order) => {
+    e.stopPropagation();
+    try {
+      await createPrintRequest(order, 'invoice');
+    } catch (err) {
+      console.error('Print failed:', err);
+    }
+  };
+
   const handleNewOrder = () => {
     const nextToken = getNextToken();
     setNewTokenNum(nextToken);
@@ -452,9 +461,19 @@ export const POS = () => {
                              <User size={14} className="text-slate-400" />
                              <span className="text-[11px] font-black uppercase tracking-widest text-slate-900">{getWaiterName(order.createdBy).split(' ')[0]}</span>
                           </div>
-                          <div className="bg-black text-white px-4 py-2 rounded-full font-black text-sm flex items-center gap-1 shadow-lg">
-                             <span className="text-[10px] opacity-60">{currentTenant.currency}</span>
-                             {order.totalAmount.toFixed(0)}
+                          <div className="flex items-center gap-2">
+                             {terminalActiveTab === 'done' && (
+                               <button 
+                                 onClick={(e) => handlePrintOrder(e, order)}
+                                 className="p-2 bg-slate-100 text-slate-600 rounded-full hover:bg-slate-200 transition-colors border border-slate-200 shadow-sm"
+                               >
+                                 <Printer size={16} />
+                               </button>
+                             )}
+                             <div className="bg-black text-white px-4 py-2 rounded-full font-black text-sm flex items-center gap-1 shadow-lg">
+                                <span className="text-[10px] opacity-60">{currentTenant.currency}</span>
+                                {order.totalAmount.toFixed(0)}
+                             </div>
                           </div>
                        </div>
                     </div>
