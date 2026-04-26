@@ -2263,9 +2263,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         // Match prefix if provided, otherwise ensure it's a standard POS token (no hyphens usually)
         const matchesPrefix = prefix ? o.tokenNumber.startsWith(prefix) : !o.tokenNumber.includes('-');
         
-        // To ensure "no gaps", we exclude CANCELLED orders from "taken" list 
-        // so their numbers can be reused to fill the sequence.
-        return orderDay === today && matchesPrefix && o.status !== OrderStatus.CANCELLED;
+        // Include ALL orders to prevent duplication even if one is cancelled
+        return orderDay === today && matchesPrefix;
     });
     
     const takenTokens = allTodayOrders.map(o => {

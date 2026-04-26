@@ -209,7 +209,7 @@ export const POS = () => {
       const formatter = new Intl.DateTimeFormat('en-US', { timeZone: tenantTz, year: 'numeric', month: '2-digit', day: '2-digit' });
       const today = formatter.format(new Date());
       const orderDate = formatter.format(new Date(o.createdAt));
-      return orderDate === today && o.tokenNumber === newTokenNum && o.status !== OrderStatus.CANCELLED;
+      return orderDate === today && o.tokenNumber === newTokenNum;
     });
   }, [isCreatingNew, orders, newTokenNum, currentTenant]);
 
