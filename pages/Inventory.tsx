@@ -157,6 +157,7 @@ export const Inventory = () => {
     minThreshold: number;
     pricePerUnit: number;
     menuItemIds: string[];
+    menuItemLinks: { itemId: string; consumption: number }[];
   }>({
     name: '',
     supplier: '',
@@ -164,7 +165,8 @@ export const Inventory = () => {
     quantity: 0,
     minThreshold: 5,
     pricePerUnit: 0,
-    menuItemIds: []
+    menuItemIds: [],
+    menuItemLinks: []
   });
 
   const [restockItem, setRestockItem] = useState<InventoryItem | null>(null);
@@ -185,7 +187,7 @@ export const Inventory = () => {
     setMenuFilterCategory('');
     setIsCustomMaterial(false);
     setIsCustomSupplier(false);
-    setFormData({ name: '', supplier: '', unit: 'kg', quantity: 0, minThreshold: 5, pricePerUnit: 0, menuItemIds: [] });
+    setFormData({ name: '', supplier: '', unit: 'kg', quantity: 0, minThreshold: 5, pricePerUnit: 0, menuItemIds: [], menuItemLinks: [] });
     setIsModalOpen(true);
   };
 
@@ -203,7 +205,8 @@ export const Inventory = () => {
       quantity: item.quantity, 
       minThreshold: item.minThreshold, 
       pricePerUnit: item.pricePerUnit,
-      menuItemIds: item.menuItemIds || []
+      menuItemIds: item.menuItemIds || [],
+      menuItemLinks: item.menuItemLinks || (item.menuItemIds || []).map(id => ({ itemId: id, consumption: 1 }))
     });
     setIsModalOpen(true);
   };
@@ -224,7 +227,8 @@ export const Inventory = () => {
     const data = {
       ...formData,
       quantity: finalQuantityUI,
-      menuItemIds: formData.menuItemIds.length > 0 ? formData.menuItemIds : undefined
+      menuItemIds: formData.menuItemIds.length > 0 ? formData.menuItemIds : undefined,
+      menuItemLinks: formData.menuItemLinks.length > 0 ? formData.menuItemLinks : undefined
     };
 
     if (existingItemForForm) {
@@ -666,15 +670,25 @@ export const Inventory = () => {
                           </td>
                           <td className="px-8 py-6 border-r border-black">
                             {linkedMenus.length > 0 ? (
-                              <div className="flex flex-col gap-1">
-                                {linkedMenus.map(lm => (
-                                  <div key={lm.id} className="flex items-center gap-2">
-                                    <div className="w-6 h-6 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 shrink-0">
-                                      <ChevronRight size={14} />
+                              <div className="flex flex-col gap-2">
+                                {linkedMenus.map(lm => {
+                                  const link = item.menuItemLinks?.find(l => l.itemId === lm.id);
+                                  return (
+                                    <div key={lm.id} className="flex items-center gap-2">
+                                      <div className="w-6 h-6 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 shrink-0">
+                                        <ChevronRight size={14} />
+                                      </div>
+                                      <div className="flex flex-col">
+                                        <span className="text-xs font-bold text-slate-600">{lm.name}</span>
+                                        {link && (
+                                          <span className="text-[9px] text-indigo-500 font-bold uppercase tracking-tighter">
+                                            {link.consumption} {item.unit} / Order
+                                          </span>
+                                        )}
+                                      </div>
                                     </div>
-                                    <span className="text-xs font-bold text-slate-600">{lm.name}</span>
-                                  </div>
-                                ))}
+                                  );
+                                })}
                               </div>
                             ) : (
                               <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest italic">Not Linked</span>
@@ -785,6 +799,24 @@ export const Inventory = () => {
                       </div>
                     </div>
 
+                    {linkedMenus.length > 0 && (
+                      <div className="mb-4 p-3 bg-slate-50 rounded-xl border border-slate-100 italic">
+                        <p className="text-[8px] font-black uppercase text-slate-400 tracking-widest mb-2">Linked Menu Items & Consumption</p>
+                        <div className="flex flex-wrap gap-2">
+                          {linkedMenus.map(lm => {
+                            const link = item.menuItemLinks?.find(l => l.itemId === lm.id);
+                            return (
+                              <div key={lm.id} className="flex items-center gap-1.5 px-2 py-1 bg-white rounded-lg border border-slate-200 text-[9px] font-bold text-slate-600">
+                                <span>{lm.name}</span>
+                                {link && (
+                                  <span className="text-indigo-500">({link.consumption} {item.unit})</span>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                     <div className="flex items-center justify-between pt-4 border-t border-slate-50">
                       <div className="flex items-center gap-2">
                         <p className="text-[9px] font-black uppercase text-slate-400 tracking-widest">Supplier:</p>
@@ -1370,7 +1402,8 @@ export const Inventory = () => {
                               if (!formData.menuItemIds.includes(selectedId)) {
                                 setFormData({
                                   ...formData, 
-                                  menuItemIds: [...formData.menuItemIds, selectedId]
+                                  menuItemIds: [...formData.menuItemIds, selectedId],
+                                  menuItemLinks: [...formData.menuItemLinks, { itemId: selectedId, consumption: 1 }]
                                 });
                               }
                             }}
@@ -1386,22 +1419,50 @@ export const Inventory = () => {
                           </select>
                           
                           {formData.menuItemIds.length > 0 && (
-                            <div className="flex flex-wrap gap-2">
+                            <div className="space-y-3">
                               {formData.menuItemIds.map(id => {
                                 const menuItem = menu.find(m => m.id === id);
+                                const link = formData.menuItemLinks.find(l => l.itemId === id) || { itemId: id, consumption: 1 };
+                                
                                 return menuItem ? (
-                                  <div key={id} className="flex items-center gap-2 bg-amber-100 text-amber-800 px-3 py-1.5 rounded-xl text-xs font-bold border border-amber-200">
-                                    <span>{menuItem.name}</span>
-                                    <button
-                                      type="button"
-                                      onClick={() => setFormData({
-                                        ...formData,
-                                        menuItemIds: formData.menuItemIds.filter(mId => mId !== id)
-                                      })}
-                                      className="hover:text-amber-900 transition-colors"
-                                    >
-                                      <X size={14} />
-                                    </button>
+                                  <div key={id} className="flex flex-col md:flex-row items-start md:items-center gap-3 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+                                    <div className="flex-1">
+                                      <p className="text-xs font-bold text-slate-700">{menuItem.name}</p>
+                                      <p className="text-[10px] text-slate-400 font-medium">Category: {menuItem.category}</p>
+                                    </div>
+                                    
+                                    <div className="flex items-center gap-3 w-full md:w-auto">
+                                      <div className="flex flex-col">
+                                        <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1">Consumption</label>
+                                        <div className="flex items-center gap-2">
+                                          <input 
+                                            type="number"
+                                            value={link.consumption}
+                                            onChange={(e) => {
+                                              const newV = parseFloat(e.target.value) || 0;
+                                              setFormData({
+                                                ...formData,
+                                                menuItemLinks: formData.menuItemLinks.map(l => l.itemId === id ? { ...l, consumption: newV } : l)
+                                              });
+                                            }}
+                                            className="w-16 px-2 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-indigo-600 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                          />
+                                          <span className="text-[10px] font-bold text-slate-400 uppercase">{formData.unit}</span>
+                                        </div>
+                                      </div>
+                                      
+                                      <button
+                                        type="button"
+                                        onClick={() => setFormData({
+                                          ...formData,
+                                          menuItemIds: formData.menuItemIds.filter(mId => mId !== id),
+                                          menuItemLinks: formData.menuItemLinks.filter(l => l.itemId !== id)
+                                        })}
+                                        className="w-8 h-8 rounded-xl bg-rose-50 text-rose-500 hover:bg-rose-100 flex items-center justify-center transition-all mt-4"
+                                      >
+                                        <Trash2 size={14} />
+                                      </button>
+                                    </div>
                                   </div>
                                 ) : null;
                               })}

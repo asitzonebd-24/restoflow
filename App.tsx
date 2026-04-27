@@ -31,7 +31,7 @@ import { ApprovedBills } from './pages/ApprovedBills';
 import { PlatformExpenses } from './pages/PlatformExpenses';
 import { GlobalReports } from './pages/GlobalReports';
 import { Role, OrderStatus } from './types';
-import { LayoutDashboard, UtensilsCrossed, ChefHat, Receipt, Package, LogOut, Settings, Users as UsersIcon, History, Wallet, PieChart, Menu as MenuIcon, User as UserCircle, ShieldCheck, PowerOff, FileText, CheckCircle, Menu, X, Utensils, ShoppingBag, Timer, AlertTriangle, Globe } from 'lucide-react';
+import { LayoutDashboard, UtensilsCrossed, ChefHat, Receipt, Package, LogOut, Settings, Users as UsersIcon, History, Wallet, PieChart, Menu as MenuIcon, User as UserCircle, ShieldCheck, PowerOff, FileText, CheckCircle, Menu, X, Utensils, ShoppingBag, Timer, AlertTriangle, Globe, MoreVertical } from 'lucide-react';
 
 import { collection, addDoc } from "firebase/firestore";
 import { RestaurantSwitcher } from './components/RestaurantSwitcher';
@@ -87,7 +87,7 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
   const navItemClass = (path: string, margin = 'mb-3') => {
     const active = isActive(path);
     return `
-      flex items-center justify-center w-12 h-12 rounded-2xl transition-all duration-300 ${margin} group relative border
+      flex items-center gap-3 px-3 py-3 rounded-2xl transition-all duration-300 ${margin} group relative border w-full
       ${active 
         ? 'bg-white text-[#1a1a37] shadow-xl border-white' 
         : 'text-white/40 hover:bg-white/10 hover:text-white border-white/10 hover:border-white/20'}
@@ -101,145 +101,176 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
     return activeSubscription.allowedPages.includes(moduleId);
   };
 
-  return (
+  const NavLabel = ({ children }: { children: React.ReactNode }) => (
+    <span className="md:hidden text-xs font-bold uppercase tracking-widest">{children}</span>
+  );
+
+  const sidebarContent = (
     <div 
-      className="sticky top-0 left-0 h-screen flex flex-col items-center py-4 text-white transition-all duration-500 shrink-0 z-[70] shadow-2xl w-20 print:hidden"
+      className="h-full flex flex-col items-center py-6 text-white overflow-y-auto no-scrollbar"
       style={{ background: '#11112b' }}
     >
-      <div className="mb-4 shrink-0">
+      <div className="mb-8 shrink-0 px-4 w-full flex items-center justify-between md:justify-center">
         {(currentUser.tenantIds && currentUser.tenantIds.length > 1) || currentUser.role === Role.SUPER_ADMIN ? (
           <RestaurantSwitcher />
         ) : (
-          <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center border-2 border-white/20">
-            {business.logo ? (
-              <img src={business.logo} alt="Logo" className="w-8 h-8 object-contain rounded-full" />
-            ) : (
-              <UtensilsCrossed size={24} className="text-white/20" />
-            )}
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center border-2 border-white/20 shrink-0">
+              {business.logo ? (
+                <img src={business.logo} alt="Logo" className="w-8 h-8 object-contain rounded-full" />
+              ) : (
+                <UtensilsCrossed size={24} className="text-white/20" />
+              )}
+            </div>
+            <div className="md:hidden">
+                 <h1 className="text-sm font-black uppercase tracking-tight leading-none">{business.name || 'RestoKeep'}</h1>
+                 <p className="text-[8px] font-bold text-white/40 uppercase tracking-widest mt-1">Management</p>
+              </div>
           </div>
         )}
+        <button onClick={onClose} className="md:hidden p-2 text-white/40 hover:text-white">
+          <X size={20} />
+        </button>
       </div>
 
-      <nav className="flex-1 flex flex-col items-center overflow-y-auto w-full px-2 no-scrollbar">
+      <nav className="flex-1 flex flex-col items-center w-full px-4 no-scrollbar">
             {currentUser.role === Role.SUPER_ADMIN && !urlTenantId ? (
               <>
                 <NavLink to="/portal" onClick={() => onClose()} className={navItemClass('/portal')} title="Portal">
-                  <ShieldCheck size={22} />
+                  <ShieldCheck size={22} className="shrink-0" />
+                  <NavLabel>Portal</NavLabel>
                 </NavLink>
                 <NavLink to="/pending-bills" onClick={() => onClose()} className={navItemClass('/pending-bills')} title="Pending Bills">
-                  <FileText size={22} />
+                  <FileText size={22} className="shrink-0" />
+                  <NavLabel>Bills</NavLabel>
                 </NavLink>
                 <NavLink to="/approved-bills" onClick={() => onClose()} className={navItemClass('/approved-bills')} title="Approved Bills">
-                  <CheckCircle size={22} />
+                  <CheckCircle size={22} className="shrink-0" />
+                  <NavLabel>Approved</NavLabel>
                 </NavLink>
                 <NavLink to="/platform-expenses" onClick={() => onClose()} className={navItemClass('/platform-expenses')} title="Platform Expenses">
-                  <Wallet size={22} />
+                  <Wallet size={22} className="shrink-0" />
+                  <NavLabel>Expenses</NavLabel>
                 </NavLink>
                 <NavLink to="/global-reports" onClick={() => onClose()} className={navItemClass('/global-reports')} title="Global Reports">
-                  <Globe size={22} />
+                  <Globe size={22} className="shrink-0" />
+                  <NavLabel>Reports</NavLabel>
                 </NavLink>
               </>
             ) : currentUser.role === Role.CUSTOMER ? (
               <>
                 <NavLink to={`/${tId}/order`} onClick={() => onClose()} className={navItemClass('/order')} title="Digital Menu">
-                  <ShoppingBag size={22} />
+                  <ShoppingBag size={22} className="shrink-0" />
+                  <NavLabel>Ordering</NavLabel>
                 </NavLink>
                 <NavLink to={`/${tId}/order/panel`} onClick={() => onClose()} className={navItemClass('/order/panel')} title="My Tokens">
-                  <Timer size={22} />
+                  <Timer size={22} className="shrink-0" />
+                  <NavLabel>Token Info</NavLabel>
                 </NavLink>
                 <NavLink to={`/${tId}/order/history`} onClick={() => onClose()} className={navItemClass('/order/history')} title="History">
-                  <History size={22} />
+                  <History size={22} className="shrink-0" />
+                  <NavLabel>My Logs</NavLabel>
                 </NavLink>
               </>
             ) : (
               <>
                 {permissions.includes('Dashboard') && allowedBySubscription('dashboard') && (
                   <NavLink to={`/${tId}/dashboard`} onClick={() => onClose()} className={navItemClass('/dashboard')} title="Dashboard">
-                    <LayoutDashboard size={22} />
+                    <LayoutDashboard size={22} className="shrink-0" />
+                    <NavLabel>Overview</NavLabel>
                   </NavLink>
                 )}
                 
                 {permissions.includes('POS') && allowedBySubscription('pos') && (
                   <NavLink to={`/${tId}/pos`} onClick={() => onClose()} className={navItemClass('/pos')} title="Terminal">
-                    <UtensilsCrossed size={22} />
-                    {activeOrdersCount > 0 && (
-                        <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[9px] font-black w-5 h-5 flex items-center justify-center rounded-full border-2 border-[#11112b]">
-                          {activeOrdersCount}
-                        </span>
-                    )}
+                    <div className="relative shrink-0">
+                      <UtensilsCrossed size={22} />
+                      {activeOrdersCount > 0 && (
+                          <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[9px] font-black w-4 h-4 flex items-center justify-center rounded-full">
+                            {activeOrdersCount}
+                          </span>
+                      )}
+                    </div>
+                    <NavLabel>Terminal</NavLabel>
                   </NavLink>
                 )}
 
                 {permissions.includes('Kitchen') && allowedBySubscription('kitchen') && (
                   <NavLink to={`/${tId}/kitchen`} onClick={() => onClose()} className={navItemClass('/kitchen')} title="Kitchen">
-                    <ChefHat size={22} />
-                    {activeOrdersCount > 0 && (
-                        <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[9px] font-black w-5 h-5 flex items-center justify-center rounded-full border-2 border-[#11112b]">
-                          {activeOrdersCount}
-                        </span>
-                    )}
+                    <div className="relative shrink-0">
+                      <ChefHat size={22} />
+                      {activeOrdersCount > 0 && (
+                          <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[9px] font-black w-4 h-4 flex items-center justify-center rounded-full">
+                            {activeOrdersCount}
+                          </span>
+                      )}
+                    </div>
+                    <NavLabel>Cooking</NavLabel>
                   </NavLink>
                 )}
 
                 {permissions.includes('Billing') && allowedBySubscription('billing') && (
                   <NavLink to={`/${tId}/billing`} onClick={() => onClose()} className={navItemClass('/billing')} title="Billing">
-                    <Receipt size={22} />
+                    <Receipt size={22} className="shrink-0" />
+                    <NavLabel>Counter</NavLabel>
                   </NavLink>
                 )}
 
                 {permissions.includes('Transactions') && allowedBySubscription('billing') && (
                   <NavLink to={`/${tId}/transactions`} onClick={() => onClose()} className={navItemClass('/transactions')} title="History">
-                    <History size={22} />
+                    <History size={22} className="shrink-0" />
+                    <NavLabel>Sales Log</NavLabel>
                   </NavLink>
                 )}
 
                 {permissions.includes('Menu') && allowedBySubscription('menu') && (
                   <NavLink to={`/${tId}/menu`} onClick={() => onClose()} className={navItemClass('/menu')} title="Menu">
-                    <MenuIcon size={22} />
+                    <MenuIcon size={22} className="shrink-0" />
+                    <NavLabel>Menu</NavLabel>
                   </NavLink>
                 )}
 
                 {permissions.includes('Inventory') && allowedBySubscription('inventory') && (
                   <NavLink to={`/${tId}/inventory`} onClick={() => onClose()} className={navItemClass('/inventory')} title="Inventory">
-                    <Package size={22} />
+                    <Package size={22} className="shrink-0" />
+                    <NavLabel>Stock Items</NavLabel>
                   </NavLink>
                 )}
 
                 {permissions.includes('Inventory') && allowedBySubscription('inventory') && (
                   <NavLink to={`/${tId}/sales-items`} onClick={() => onClose()} className={navItemClass('/sales-items')} title="Sales Items">
-                    <ShoppingBag size={22} />
+                    <ShoppingBag size={22} className="shrink-0" />
+                    <NavLabel>Product List</NavLabel>
                   </NavLink>
                 )}
 
                 {permissions.includes('Reports') && allowedBySubscription('reports') && (
                   <NavLink to={`/${tId}/reports`} onClick={() => onClose()} className={navItemClass('/reports')} title="Reports">
-                    <PieChart size={22} />
+                    <PieChart size={22} className="shrink-0" />
+                    <NavLabel>Analytics</NavLabel>
                   </NavLink>
                 )}
 
                 {currentUser.role === Role.OWNER && currentUser.tenantIds && currentUser.tenantIds.length > 1 && (
                   <NavLink to="/global-reports" onClick={() => onClose()} className={navItemClass('/global-reports')} title="Global Reports">
-                    <Globe size={22} />
+                    <Globe size={22} className="shrink-0" />
+                    <NavLabel>Network Stats</NavLabel>
                   </NavLink>
                 )}
 
-                                {/* {currentUser.role === Role.OWNER && (
-                  <NavLink to={`/${tId}/subscription`} onClick={() => onClose()} className={navItemClass('/subscription')} title="Subscription">
-                    <Wallet size={22} className="text-emerald-400" />
-                  </NavLink>
-                )} */}
-
                 {permissions.includes('Users') && allowedBySubscription('users') && currentUser.role !== Role.SUPER_ADMIN && (
                   <NavLink to={`/${tId}/users`} onClick={() => onClose()} className={navItemClass('/users')} title="Users">
-                    <UsersIcon size={22} />
+                    <UsersIcon size={22} className="shrink-0" />
+                    <NavLabel>Staff List</NavLabel>
                   </NavLink>
                 )}
 
                 {currentUser.role === Role.SUPER_ADMIN && (
                   <>
-                    <div className="w-10 h-px bg-white/10 my-4 shrink-0" />
+                    <div className="w-full h-px bg-white/10 my-4 shrink-0" />
                     <NavLink to="/portal" onClick={() => onClose()} className={navItemClass('/portal')} title="Back to Portal">
-                      <ShieldCheck size={22} className="text-indigo-400" />
+                      <ShieldCheck size={22} className="text-indigo-400 shrink-0" />
+                      <NavLabel>Back Portal</NavLabel>
                     </NavLink>
                   </>
                 )}
@@ -247,21 +278,28 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
             )}
         </nav>
 
-        <div className="mt-auto pt-2 space-y-1 flex flex-col items-center shrink-0">
-            <NavLink to={currentUser.role === Role.SUPER_ADMIN && !urlTenantId ? "/settings" : `/${tId}/settings`} onClick={() => onClose()} className={navItemClass('/settings', 'mb-0')} title="Settings">
-                <Settings size={22} />
+        <div className="mt-auto pt-6 space-y-1 flex flex-col items-center shrink-0 px-4 w-full">
+            <NavLink to={currentUser.role === Role.SUPER_ADMIN && !urlTenantId ? "/settings" : `/${tId}/settings`} onClick={() => onClose()} className={navItemClass('/settings', 'mb-2')} title="Settings">
+                <Settings size={22} className="shrink-0" />
+                <NavLabel>Preferences</NavLabel>
             </NavLink>
             
-            <div className="w-10 h-10 rounded-full border-2 border-white/20 p-0.5 flex items-center justify-center overflow-hidden">
-              {currentUser.avatar ? (
-                <img 
-                  src={currentUser.avatar} 
-                  alt="User" 
-                  className="w-full h-full object-cover rounded-full" 
-                />
-              ) : (
-                <UserCircle size={24} className="text-white/40" />
-              )}
+            <div className="w-full mb-3 flex items-center gap-3 p-3 bg-white/5 rounded-2xl border border-white/10">
+              <div className="w-10 h-10 rounded-full border-2 border-white/20 p-0.5 flex items-center justify-center overflow-hidden shrink-0">
+                {currentUser.avatar ? (
+                  <img 
+                    src={currentUser.avatar} 
+                    alt="User" 
+                    className="w-full h-full object-cover rounded-full" 
+                  />
+                ) : (
+                  <UserCircle size={24} className="text-white/40" />
+                )}
+              </div>
+              <div className="md:hidden">
+                <p className="text-[10px] font-black uppercase text-white truncate max-w-[120px]">{currentUser.name}</p>
+                <p className="text-[8px] font-bold text-white/40 uppercase tracking-widest">{currentUser.role}</p>
+              </div>
             </div>
 
             <button 
@@ -274,21 +312,60 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
                   } else {
                     navigate('/login');
                   }
+                  onClose();
                 }}
-                className="w-12 h-12 flex items-center justify-center rounded-2xl text-white/40 hover:bg-rose-500/20 hover:text-rose-500 transition-all"
+                className="w-full flex items-center gap-3 px-3 py-3 rounded-2xl text-white/40 hover:bg-rose-500/20 hover:text-rose-500 transition-all border border-transparent hover:border-rose-500/30"
                 title="Logout"
             >
-                <LogOut size={22} />
+                <LogOut size={22} className="shrink-0" />
+                <NavLabel>Sign Out</NavLabel>
             </button>
         </div>
+    </div>
+  );
+
+  return (
+    <>
+      {/* Desktop Sidebar */}
+      <div 
+        className="hidden md:flex h-screen flex-col items-center py-4 text-white transition-all duration-500 shrink-0 z-[70] shadow-2xl w-20 print:hidden"
+        style={{ background: '#11112b' }}
+      >
+        {sidebarContent}
       </div>
-    );
+
+      {/* Mobile Sidebar (Overlay) */}
+      <AnimatePresence>
+        {isOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={onClose}
+              className="fixed inset-0 bg-[#0a0a1a]/80 backdrop-blur-sm z-[100] md:hidden"
+            />
+            <motion.div
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed inset-y-0 left-0 w-[280px] z-[101] md:hidden shadow-2xl overflow-hidden"
+            >
+              {sidebarContent}
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+    </>
+  );
 };
 
 const ProtectedLayout = ({ children, allowedRoles }: { children?: React.ReactNode, allowedRoles?: Role[] }) => {
-  const { currentUser, business, setCurrentTenantId, logout, getDefaultRedirect } = useApp();
+  const { currentUser, business, setCurrentTenantId, logout, getDefaultRedirect, orders, menu } = useApp();
   const { tenantId } = useParams();
   const location = useLocation();
+  const navigate = useNavigate();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
   React.useEffect(() => {
@@ -297,22 +374,47 @@ const ProtectedLayout = ({ children, allowedRoles }: { children?: React.ReactNod
     }
   }, [tenantId, setCurrentTenantId]);
 
+  const activeOrdersCount = useMemo(() => {
+    let filtered = orders.filter(o => o.status !== OrderStatus.CANCELLED);
+    
+    const isAdmin = currentUser && [Role.OWNER, Role.MANAGER, Role.SUPER_ADMIN].includes(currentUser.role);
+    const isKitchen = currentUser?.role === Role.KITCHEN;
+    const hasAssignedCats = isKitchen && currentUser?.assignedCategories && currentUser.assignedCategories.length > 0;
+    
+    if (!isAdmin && !isKitchen && currentUser) {
+      filtered = filtered.filter(o => o.createdBy === currentUser.id);
+    }
+
+    if (hasAssignedCats) {
+      filtered = filtered.filter(order => {
+        const items = order.items || [];
+        const myItems = items.filter(item => {
+          const menuItem = menu.find(m => m.id === item.itemId);
+          return menuItem && currentUser.assignedCategories?.includes(menuItem.category);
+        });
+        return myItems.some(i => i.status === OrderStatus.PENDING || i.status === OrderStatus.PREPARING);
+      });
+    } else {
+      filtered = filtered.filter(o => o.status === OrderStatus.PENDING || o.status === OrderStatus.PREPARING);
+    }
+    
+    return filtered.length;
+  }, [orders, currentUser, menu]);
+
   if (!currentUser) {
-    // Redirect to the tenant landing page if tenantId is present
     if (tenantId) {
       return <Navigate to={`/${tenantId}`} replace />;
     }
     return <Navigate to="/login" replace />;
   }
 
-  // If no tenantId in URL, redirect non-Super Admins to their tenant-specific route
+  const tId = tenantId || currentUser.tenantId || business.id;
+
   if (!tenantId && currentUser.role !== Role.SUPER_ADMIN && currentUser.tenantId) {
     const currentPath = location.pathname === '/' ? '/dashboard' : location.pathname;
     return <Navigate to={`/${currentUser.tenantId}${currentPath}`} replace />;
   }
   
-  // If tenantId is in URL, ensure it matches user's tenant (unless Super Admin)
-  // We check against both ID and Slug to support flexible URLs
   const isCorrectTenant = tenantId && (
     tenantId === currentUser.tenantId || 
     tenantId === business.id || 
@@ -320,51 +422,38 @@ const ProtectedLayout = ({ children, allowedRoles }: { children?: React.ReactNod
   );
 
     if (tenantId && currentUser.role !== Role.SUPER_ADMIN && !isCorrectTenant) {
-    console.warn('[ProtectedLayout] Tenant mismatch detected!', {
-      urlTenant: tenantId,
-      userTenant: currentUser.tenantId,
-      businessId: business.id,
-      businessSlug: business.slug
-    });
-    
     if (!currentUser.tenantId) {
-      console.error('[ProtectedLayout] User has no tenantId. Redirecting to root.');
       return <Navigate to="/" replace />;
     }
     
-    // Avoid redirecting to the same mismatched path to prevent loops
     const currentPath = location.pathname;
     const redirectPath = `/${currentUser.tenantId}/dashboard`;
     
     if (currentPath === redirectPath) {
-      console.error('[ProtectedLayout] Already at target redirect path but still mismatched. Falling back to root.');
       return <Navigate to="/" replace />;
     }
     
-    console.log('[ProtectedLayout] Redirecting to user\'s own tenant dashboard:', redirectPath);
     return <Navigate to={redirectPath} replace />;
   }
   
   if (allowedRoles && !allowedRoles.includes(currentUser.role)) {
     const redirectPath = getDefaultRedirect();
-    // Avoid infinite redirect loop if redirectPath is the same as current path
     if (redirectPath === location.pathname) {
       return <Navigate to="/" replace />;
     }
     return <Navigate to={redirectPath} replace />;
   }
 
-  // Check permissions for business users (Super Admin bypasses, except for Users)
+  const permissions = currentUser.permissions || [];
+  const activeSubscription = business?.subscription;
+
   if (currentUser.role !== Role.CUSTOMER) {
-    // SuperAdmin restriction for Users page
     if (currentUser.role === Role.SUPER_ADMIN) {
       if (location.pathname.includes('/users') || location.pathname.endsWith('/users')) {
           return <Navigate to="/" replace />;
       }
     } else {
       const path = location.pathname;
-      const permissions = currentUser.permissions || [];
-      const activeSubscription = business?.subscription;
       
       const permissionMap: { [key: string]: string } = {
         'dashboard': 'Dashboard',
@@ -386,10 +475,7 @@ const ProtectedLayout = ({ children, allowedRoles }: { children?: React.ReactNod
       const currentPathSegment = path.split('/').pop();
       const requiredPermission = currentPathSegment ? permissionMap[currentPathSegment] : null;
 
-      // 1. Check Subscription Access
       if (activeSubscription && currentPathSegment && !['subscription', 'settings'].includes(currentPathSegment)) {
-        // Find the module ID in APP_MODULES that matches this path
-        // Most IDs match (pos, menu, inventory, etc)
         let moduleId = currentPathSegment;
         if (moduleId === 'sales-items') moduleId = 'inventory';
         if (moduleId === 'transactions') moduleId = 'billing';
@@ -402,9 +488,7 @@ const ProtectedLayout = ({ children, allowedRoles }: { children?: React.ReactNod
         }
       }
 
-      // 2. Check User Permissions
       if (requiredPermission && !permissions.includes(requiredPermission)) {
-        // Redirect to the first available permission or login
         if (permissions.length > 0) {
           const firstPermission = permissions[0].toLowerCase();
           return <Navigate to={`/${currentUser.tenantId}/${firstPermission}`} replace />;
@@ -414,7 +498,6 @@ const ProtectedLayout = ({ children, allowedRoles }: { children?: React.ReactNod
     }
   }
 
-  // Check if business is active (Super Admin can always access)
   if (!business.isActive && currentUser.role !== Role.SUPER_ADMIN) {
     return (
       <div className="h-screen w-screen flex flex-col items-center justify-center bg-slate-50 p-6 text-center">
@@ -441,7 +524,6 @@ const ProtectedLayout = ({ children, allowedRoles }: { children?: React.ReactNod
     );
   }
 
-  // Check if business is in maintenance mode (Super Admin can always access)
   if (business.isMaintenanceMode && currentUser.role !== Role.SUPER_ADMIN) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-slate-900/80 backdrop-blur-md p-4 z-[999]">
@@ -491,12 +573,56 @@ const ProtectedLayout = ({ children, allowedRoles }: { children?: React.ReactNod
     );
   }
 
-  const isCustomer = currentUser.role === Role.CUSTOMER;
-  
+  const allowedBySubscription = (moduleId: string) => {
+    if (!activeSubscription) return true;
+    return activeSubscription.allowedPages.includes(moduleId);
+  };
+
   return (
-    <div className={`flex h-screen bg-slate-50 overflow-hidden flex-row`}>
-        <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
-      <main className="flex-1 overflow-auto">
+    <div className="flex h-screen bg-slate-50 overflow-hidden flex-col md:flex-row">
+      {/* Mobile Top Header */}
+      <div className="md:hidden flex items-center p-0.5 bg-[#11112b] text-white shrink-0 shadow-lg border-b border-white/5">
+        <button 
+          onClick={() => setIsSidebarOpen(true)}
+          className="p-2 hover:bg-white/10 rounded-xl transition-all"
+        >
+          <MenuIcon size={24} />
+        </button>
+
+        <div className="flex items-center gap-0.5 ml-auto">
+            {permissions.includes('POS') && allowedBySubscription('pos') && (
+            <NavLink 
+              to={`/${tId}/pos`} 
+              className={({ isActive }) => `p-2 rounded-xl transition-all relative ${isActive ? 'bg-white text-[#11112b]' : 'text-white/40 hover:bg-white/10'}`}
+            >
+              <UtensilsCrossed size={20} />
+              {activeOrdersCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[8px] font-black w-4 h-4 flex items-center justify-center rounded-full border border-[#11112b]">
+                  {activeOrdersCount}
+                </span>
+              )}
+            </NavLink>
+          )}
+          
+          {permissions.includes('Kitchen') && allowedBySubscription('kitchen') && (
+            <NavLink 
+              to={`/${tId}/kitchen`} 
+              className={({ isActive }) => `p-2 rounded-xl transition-all relative ${isActive ? 'bg-white text-[#11112b]' : 'text-white/40 hover:bg-white/10'}`}
+            >
+              <ChefHat size={20} />
+              {activeOrdersCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[8px] font-black w-4 h-4 flex items-center justify-center rounded-full border border-[#11112b]">
+                  {activeOrdersCount}
+                </span>
+              )}
+            </NavLink>
+          )}
+        </div>
+      </div>
+
+      <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+      
+      <main className="flex-1 overflow-auto relative">
         {React.Children.map(children, child => 
           React.isValidElement(child) 
             ? React.cloneElement(child, { setIsSidebarOpen } as any) 

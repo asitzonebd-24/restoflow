@@ -402,20 +402,19 @@ export class BluetoothPrinterService {
     return grouped;
   }
 
-  static async printInvoice(business: Business, order: Order, transaction?: any, elementId: string = 'invoice-content') {
-    // We prefer text-based printing because it's much more reliable on thermal printers
-    // and handles Bangla correctly by rendering only text lines to canvas when needed.
-    
-    const width = business.printerSettings?.paperWidth === '58mm' ? 32 : 48;
-    const pixelWidth = business.printerSettings?.paperWidth === '58mm' ? 384 : 576;
+  static async printInvoice(business: Business, order: Order, transaction?: any, settingsOverride?: any) {
+    // Use override settings if provided, otherwise fallback to business settings
+    const settings = settingsOverride || business.printerSettings;
+    const width = settings?.paperWidth === '58mm' ? 32 : 48;
+    const pixelWidth = settings?.paperWidth === '58mm' ? 384 : 576;
     
     await this.printRaw(new Uint8Array(this.COMMANDS.INIT));
 
     // Header
     await this.printTextLine(business.name, pixelWidth, { align: 'center', doubleSize: true, bold: true });
     
-    if (business.printerSettings?.receiptHeader) {
-      await this.printTextLine(business.printerSettings.receiptHeader, pixelWidth, { align: 'center' });
+    if (settings?.receiptHeader) {
+      await this.printTextLine(settings.receiptHeader, pixelWidth, { align: 'center' });
     } else {
       await this.printTextLine(business.address, pixelWidth, { align: 'center' });
       await this.printTextLine('Tel: ' + business.phone, pixelWidth, { align: 'center' });
@@ -467,8 +466,8 @@ export class BluetoothPrinterService {
     await this.printRaw(new Uint8Array([this.LF, this.LF]));
 
     // Footer
-    if (business.printerSettings?.receiptFooter) {
-      await this.printTextLine(business.printerSettings.receiptFooter, pixelWidth, { align: 'center' });
+    if (settings?.receiptFooter) {
+      await this.printTextLine(settings.receiptFooter, pixelWidth, { align: 'center' });
     } else {
       await this.printTextLine('Thank You! Come Again.', pixelWidth, { align: 'center' });
     }
@@ -476,9 +475,10 @@ export class BluetoothPrinterService {
     await this.printRaw(new Uint8Array([...Array(2).fill(0x0A), ...this.COMMANDS.CUT]));
   }
 
-  static async printKOT(business: Business, order: Order | any, elementId: string = 'kot-content') {
-    const width = business.printerSettings?.paperWidth === '58mm' ? 32 : 48;
-    const pixelWidth = business.printerSettings?.paperWidth === '58mm' ? 384 : 576;
+  static async printKOT(business: Business, order: Order | any, settingsOverride?: any) {
+    const settings = settingsOverride || business.printerSettings;
+    const width = settings?.paperWidth === '58mm' ? 32 : 48;
+    const pixelWidth = settings?.paperWidth === '58mm' ? 384 : 576;
     
     await this.printRaw(new Uint8Array(this.COMMANDS.INIT));
 

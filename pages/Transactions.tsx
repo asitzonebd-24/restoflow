@@ -134,12 +134,17 @@ export const Transactions = () => {
     };
 
     const printInvoice = async () => {
+      // Use personal printer settings if available
+      const settings = (currentUser?.printerSettings?.pairedPrinterId) 
+        ? currentUser.printerSettings 
+        : currentTenant?.printerSettings;
+
       // If a bluetooth printer is paired, try to print directly
-      if (currentTenant?.printerSettings?.pairedPrinterId && viewInvoice) {
+      if (settings?.pairedPrinterId && viewInvoice) {
         try {
-          const result = await BluetoothPrinterService.connect(currentTenant.printerSettings.pairedPrinterId);
+          const result = await BluetoothPrinterService.connect(settings.pairedPrinterId);
           if (result.success) {
-            await BluetoothPrinterService.printInvoice(currentTenant, viewInvoice.order, { 
+            await BluetoothPrinterService.printInvoice(currentTenant!, viewInvoice.order, { 
               discount: viewInvoice.transaction.discount,
               creatorName: viewInvoice.transaction.creatorName
             });
@@ -162,8 +167,8 @@ export const Transactions = () => {
       const printContainer = document.createElement('div');
       printContainer.id = 'print-container';
       
-      // Apply paper width setting
-      const paperWidth = currentTenant?.printerSettings?.paperWidth || '80mm';
+      // Apply personal paper width if available
+      const paperWidth = settings?.paperWidth || '80mm';
       printContainer.style.width = paperWidth;
       printContainer.style.margin = '0 auto';
       

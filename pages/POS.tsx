@@ -99,18 +99,21 @@ export const POS = () => {
   const activeOrdersCount = orders.filter(o => o.status !== OrderStatus.COMPLETED && o.status !== OrderStatus.CANCELLED).length;
 
   const filteredOrders = orders.filter(o => {
-    let matches = o.status !== OrderStatus.COMPLETED && o.status !== OrderStatus.CANCELLED;
+    let matchesCategory = true;
     if (!(currentUser?.role === Role.OWNER || currentUser?.role === Role.MANAGER || currentUser?.role === Role.SUPER_ADMIN || currentUser?.role === Role.KITCHEN)) {
-      matches = matches && o.createdBy === currentUser.id;
+      matchesCategory = o.createdBy === currentUser.id;
     }
     
+    if (!matchesCategory) return false;
+
     if (terminalActiveTab === 'pending') {
-      return matches && (o.status === OrderStatus.PENDING || o.status === OrderStatus.PREPARING) && !o.isPaid;
+      return o.status !== OrderStatus.CANCELLED && o.status !== OrderStatus.COMPLETED && (o.status === OrderStatus.PENDING || o.status === OrderStatus.PREPARING) && !o.isPaid;
     } else if (terminalActiveTab === 'done') {
-      return matches && o.status === OrderStatus.READY && !o.isPaid;
-    } else {
-      return matches && o.isPaid;
+      return o.status === OrderStatus.READY && !o.isPaid;
+    } else if (terminalActiveTab === 'paid') {
+      return o.isPaid && o.status !== OrderStatus.CANCELLED;
     }
+    return false;
   }).sort((a, b) => {
     const timeA = new Date(a.createdAt).getTime();
     const timeB = new Date(b.createdAt).getTime();
@@ -229,10 +232,9 @@ export const POS = () => {
     try {
       setErrorMessage(null);
       if (isCreatingNew) {
-        let tokenToUse = newTokenNum;
-        if (isTokenDuplicate) {
-          tokenToUse = getNextToken();
-        }
+        // Global duplicate re-check right before submission to minimize race condition
+        const latestToken = getNextToken();
+        const tokenToUse = latestToken;
         
         const total = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
         const items = cart.map(({ isExisting, ...rest }: any) => rest);
@@ -363,19 +365,22 @@ export const POS = () => {
                <div className="flex items-center gap-2 bg-white p-1.5 rounded-2xl border-2 border-slate-100 shadow-sm w-full md:w-auto">
                  <button 
                   onClick={() => setTerminalActiveTab("pending")} 
-                  className={`flex-1 px-5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${terminalActiveTab === 'pending' ? 'bg-pink-500 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
+                  className={`flex-1 px-5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest select-none ${terminalActiveTab === 'pending' ? 'bg-pink-500 text-white' : 'text-slate-400 hover:bg-slate-50'}`}
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
                  >
                    Pending
                  </button>
                  <button 
                   onClick={() => setTerminalActiveTab("done")} 
-                  className={`flex-1 px-5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${terminalActiveTab === 'done' ? 'bg-emerald-500 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
+                  className={`flex-1 px-5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest select-none ${terminalActiveTab === 'done' ? 'bg-emerald-500 text-white' : 'text-slate-400 hover:bg-slate-50'}`}
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
                  >
                    Done
                  </button>
                  <button 
                   onClick={() => setTerminalActiveTab("paid")} 
-                  className={`flex-1 px-5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${terminalActiveTab === 'paid' ? 'bg-indigo-500 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50'}`}
+                  className={`flex-1 px-5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest select-none ${terminalActiveTab === 'paid' ? 'bg-indigo-500 text-white' : 'text-slate-400 hover:bg-slate-50'}`}
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
                  >
                    Paid
                  </button>
@@ -618,56 +623,50 @@ export const POS = () => {
 
           <div className="flex-1 overflow-y-auto p-4 md:p-8 no-scrollbar pb-32">
             {activeCategory !== 'Select Categories' && (
-              <div className="flex flex-col bg-white rounded-[2rem] border-2 border-slate-50 overflow-hidden shadow-xl shadow-slate-200/20">
-                <AnimatePresence mode="popLayout">
+              <div className="flex flex-col bg-white rounded-[2rem] border-[2.5px] border-black overflow-hidden shadow-xl shadow-slate-200/20 divide-y-[2.5px] divide-black">
                   {filteredMenu.map(item => {
                     const cartItem = cart.find(ci => ci.itemId === item.id && !(ci as any).isExisting);
                     return (
-                      <motion.div 
-                        layout
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: 10 }}
+                      <div 
                         key={item.id}
-                        className="p-2 flex flex-col gap-1 bg-white border border-black/[0.5] last:border-b"
+                        className="py-0.5 px-4 flex flex-col bg-white hover:bg-slate-50 transition-colors"
                       >
                          <div className="w-full">
-                            <h4 className="font-bold text-slate-900 text-[14px] leading-tight capitalize mb-0.5">{item.name}</h4>
-                            {item.description && <p className="text-slate-400 text-[9px] font-medium leading-tight">{item.description}</p>}
+                            <h4 className="font-bold text-slate-900 text-[14px] leading-none capitalize">{item.name}</h4>
+                            {item.description && <p className="text-slate-400 text-[8px] font-medium leading-none mt-0.5">{item.description}</p>}
                          </div>
-                         <div className="flex items-center justify-between w-full">
-                            <span className="text-[14px] font-bold text-rose-800">{currentTenant.currency}{item.price.toFixed(0)}</span>
+                         <div className="flex items-center justify-between w-full -mt-1">
+                            <span className="text-[15px] font-black text-rose-800">{currentTenant.currency}{item.price.toFixed(0)}</span>
                             <div className="flex items-center shrink-0">
                               {cartItem ? (
-                                <div className="flex items-center border-2 border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
+                                 <div className="flex items-center border-2 border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
                                   <button 
                                    onClick={(e) => { e.stopPropagation(); updateQuantity(cartItem.rowId, -1); }}
                                    className="w-8 h-8 flex items-center justify-center text-rose-800 hover:bg-slate-50 border-r-2 border-slate-200 transition-colors"
                                   >
-                                    <Minus size={18} strokeWidth={2.5} />
+                                    <Minus size={16} strokeWidth={2.5} />
                                   </button>
                                   <div className="w-10 h-8 flex items-center justify-center font-black text-sm text-slate-900 bg-slate-50/50">{cartItem.quantity}</div>
                                   <button 
                                    onClick={(e) => { e.stopPropagation(); updateQuantity(cartItem.rowId, 1); }}
                                    className="w-8 h-8 flex items-center justify-center text-rose-800 hover:bg-slate-50 border-l-2 border-slate-200 transition-colors"
                                   >
-                                    <Plus size={18} strokeWidth={2.5} />
+                                    <Plus size={16} strokeWidth={2.5} />
                                   </button>
                                 </div>
                               ) : (
                                 <button 
                                  onClick={() => addToCart(item)}
-                                 className="w-10 h-10 flex items-center justify-center text-rose-800 hover:bg-rose-50 rounded-full transition-all active:scale-95 border-2 border-transparent hover:border-rose-100"
+                                 className="w-10 h-10 flex items-center justify-center text-indigo-600 hover:bg-indigo-50 rounded-full transition-all active:scale-90 border-2 border-transparent"
                                 >
                                   <PlusCircle size={28} strokeWidth={1.5} />
                                 </button>
                               )}
                             </div>
                          </div>
-                      </motion.div>
+                      </div>
                     );
                   })}
-                </AnimatePresence>
               </div>
             )}
 

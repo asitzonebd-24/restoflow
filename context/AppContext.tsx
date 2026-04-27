@@ -944,7 +944,16 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
           );
           if (linkedInvItem) {
             const currentInvQty = inventoryUpdates[linkedInvItem.id] !== undefined ? inventoryUpdates[linkedInvItem.id] : linkedInvItem.quantity;
-            const newInvQty = Math.max(0, currentInvQty - item.quantity);
+            
+            // Get consumption quantity
+            let consumption = 1;
+            if (linkedInvItem.menuItemLinks) {
+              const link = linkedInvItem.menuItemLinks.find(l => l.itemId === item.itemId);
+              if (link) consumption = link.consumption;
+            }
+            
+            const deduction = consumption * item.quantity;
+            const newInvQty = Math.max(0, currentInvQty - deduction);
             inventoryUpdates[linkedInvItem.id] = newInvQty;
 
             if (linkedInvItem.menuCategory && (!linkedInvItem.menuItemIds || linkedInvItem.menuItemIds.length === 0)) {
@@ -1124,7 +1133,16 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             );
             if (linkedInvItem) {
               const currentInvQty = inventoryUpdates[linkedInvItem.id] !== undefined ? inventoryUpdates[linkedInvItem.id] : linkedInvItem.quantity;
-              const newInvQty = Math.max(0, currentInvQty - change);
+              
+              // Get consumption quantity
+              let consumption = 1;
+              if (linkedInvItem.menuItemLinks) {
+                const link = linkedInvItem.menuItemLinks.find(l => l.itemId === itemId);
+                if (link) consumption = link.consumption;
+              }
+              
+              const deduction = consumption * change;
+              const newInvQty = Math.max(0, currentInvQty - deduction);
               inventoryUpdates[linkedInvItem.id] = newInvQty;
 
               if (linkedInvItem.menuCategory && !linkedInvItem.menuItemId) {
@@ -1256,7 +1274,16 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
               );
               if (linkedInvItem) {
                 const currentInvQty = inventoryUpdates[linkedInvItem.id] !== undefined ? inventoryUpdates[linkedInvItem.id] : linkedInvItem.quantity;
-                const newInvQty = currentInvQty + item.quantity;
+                
+                // Get consumption quantity
+                let consumption = 1;
+                if (linkedInvItem.menuItemLinks) {
+                  const link = linkedInvItem.menuItemLinks.find(l => l.itemId === item.itemId);
+                  if (link) consumption = link.consumption;
+                }
+                
+                const returnQty = consumption * item.quantity;
+                const newInvQty = currentInvQty + returnQty;
                 inventoryUpdates[linkedInvItem.id] = newInvQty;
 
                 if (linkedInvItem.menuCategory && (!linkedInvItem.menuItemIds || linkedInvItem.menuItemIds.length === 0)) {
@@ -1352,7 +1379,15 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
                 (inv.menuCategory === menuItem.category && (!inv.menuItemIds || inv.menuItemIds.length === 0))
               );
               if (linkedInvItem) {
-                const newInvQty = linkedInvItem.quantity + (itemToUpdate.quantity * multiplier);
+                // Get consumption quantity
+                let consumption = 1;
+                if (linkedInvItem.menuItemLinks) {
+                  const link = linkedInvItem.menuItemLinks.find(l => l.itemId === itemToUpdate.itemId);
+                  if (link) consumption = link.consumption;
+                }
+                
+                const totalChange = consumption * itemToUpdate.quantity * multiplier;
+                const newInvQty = linkedInvItem.quantity + totalChange;
                 const invRef = doc(db, 'inventory_items', linkedInvItem.id);
                 batch.update(invRef, { 
                   quantity: newInvQty,
@@ -2286,12 +2321,12 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         return match ? parseInt(match[0], 10) : NaN;
     }).filter(n => !isNaN(n));
     
-    // Find the smallest missing positive integer to ensure no gaps
-    let nextToken = 1;
-    const tokenSet = new Set(takenTokens);
-    while (tokenSet.has(nextToken)) {
-        nextToken++;
-    }
+    // Find the max token number and add 1
+    let maxToken = 0;
+    takenTokens.forEach(n => {
+        if (n > maxToken) maxToken = n;
+    });
+    const nextToken = maxToken + 1;
     
     const formattedToken = String(nextToken).padStart(2, '0');
     return prefix ? `${prefix}-${formattedToken}` : formattedToken;

@@ -45,6 +45,12 @@ export const Settings = () => {
     const [userPassword, setUserPassword] = useState('');
     const [userAvatar, setUserAvatar] = useState('');
 
+    // User Printer settings
+    const [userPrinterName, setUserPrinterName] = useState('');
+    const [userPrinterId, setUserPrinterId] = useState('');
+    const [userPaperWidth, setUserPaperWidth] = useState<'58mm' | '80mm'>('80mm');
+    const [isUserPrinterSearching, setIsUserPrinterSearching] = useState(false);
+
     const hasSettingsPermission = currentUser?.permissions?.includes('Settings') || currentUser?.role === Role.SUPER_ADMIN;
 
     // Load data into form on mount
@@ -83,6 +89,16 @@ export const Settings = () => {
             setUserMobile(currentUser.mobile);
             setUserPassword(currentUser.password || '');
             setUserAvatar(currentUser.avatar || '');
+            
+            if (currentUser.printerSettings) {
+                setUserPrinterName(currentUser.printerSettings.pairedPrinterName || '');
+                setUserPrinterId(currentUser.printerSettings.pairedPrinterId || '');
+                setUserPaperWidth(currentUser.printerSettings.paperWidth || '80mm');
+            } else {
+                setUserPrinterName('');
+                setUserPrinterId('');
+                setUserPaperWidth('80mm');
+            }
         }
     }, [business, currentUser]);
 
@@ -151,9 +167,64 @@ export const Settings = () => {
                 email: userEmail,
                 mobile: userMobile,
                 password: userPassword,
-                avatar: userAvatar
+                avatar: userAvatar,
+                printerSettings: {
+                    ...currentUser.printerSettings,
+                    pairedPrinterName: userPrinterName,
+                    pairedPrinterId: userPrinterId,
+                    paperWidth: userPaperWidth,
+                    autoPrintInvoice: currentUser.printerSettings?.autoPrintInvoice ?? false,
+                    autoPrintKOT: currentUser.printerSettings?.autoPrintKOT ?? false,
+                    showLogo: currentUser.printerSettings?.showLogo ?? true,
+                }
             });
-            alert('Profile updated successfully!');
+            alert('Profile and personal printer settings updated successfully!');
+        }
+    };
+
+    const handleUserPrinterPairing = async () => {
+        setIsUserPrinterSearching(true);
+        try {
+            const result = await BluetoothPrinterService.connect();
+            if (result.success && result.device) {
+                setUserPrinterName(result.device.name || 'Unknown Printer');
+                setUserPrinterId(result.device.id);
+                alert(`Personal printer "${result.device.name || 'Unknown Printer'}" paired! Click "Update Profile" to save.`);
+            } else {
+                alert('Connection failed. Please ensure Bluetooth is on and printer is in range.');
+            }
+        } catch (error) {
+            console.error('User printer pairing error:', error);
+            alert('An error occurred during pairing.');
+        } finally {
+            setIsUserPrinterSearching(false);
+        }
+    };
+
+    const handleTestUserPrint = async () => {
+        if (!userPrinterId) {
+            alert('No personal printer paired yet.');
+            return;
+        }
+        try {
+            const result = await BluetoothPrinterService.connect(userPrinterId);
+            if (!result.success) {
+                alert('Could not connect to your printer. Please ensure it is on.');
+                return;
+            }
+            
+            const pixelWidth = userPaperWidth === '58mm' ? 384 : 576;
+            await BluetoothPrinterService.printRaw(new Uint8Array([0x1B, 0x40])); // Init
+            await BluetoothPrinterService.printTextLine('Personal Printer Test', pixelWidth, { align: 'center', doubleSize: true, bold: true });
+            await BluetoothPrinterService.printTextLine(`Staff: ${userName}`, pixelWidth, { align: 'center' });
+            await BluetoothPrinterService.printTextLine(`ID: ${userPrinterId}`, pixelWidth, { align: 'center' });
+            await BluetoothPrinterService.printTextLine('--------------------------------', pixelWidth, { align: 'center' });
+            await BluetoothPrinterService.printRaw(new Uint8Array([...Array(4).fill(0x0A), 0x1D, 0x56, 0x41, 0x03])); // Feed & Cut
+            
+            alert('Test print sent to your personal printer!');
+        } catch (error) {
+            console.error('User test print error:', error);
+            alert('Test print failed.');
         }
     };
 
@@ -334,6 +405,73 @@ export const Settings = () => {
                                     className="w-full p-4 pl-12 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-slate-900 outline-none font-bold text-sm transition-all shadow-sm"
                                 />
                                 <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                            </div>
+                        </div>
+
+                        {/* Personal Printer Settings */}
+                        <div className="md:col-span-2 pt-6 border-t border-slate-100">
+                            <h3 className="text-sm font-bold text-slate-900 uppercase tracking-tight mb-4 flex items-center gap-2">
+                                <Printer size={16} />
+                                My Personal Printer
+                            </h3>
+                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-relaxed mb-6">
+                                Set up a printer only for your account. This is useful if multiple staff members use different Bluetooth printers.
+                            </p>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-4">
+                                    <div className="p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl">
+                                        <label className="block text-[8px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3">Paper Width</label>
+                                        <div className="flex gap-2">
+                                            <button 
+                                                type="button"
+                                                onClick={() => setUserPaperWidth('58mm')}
+                                                className={`flex-1 py-3 rounded-xl font-bold text-xs transition-all ${userPaperWidth === '58mm' ? 'bg-slate-900 text-white' : 'bg-white border text-slate-400 border-slate-200 hover:border-slate-300'}`}
+                                            >
+                                                58mm
+                                            </button>
+                                            <button 
+                                                type="button"
+                                                onClick={() => setUserPaperWidth('80mm')}
+                                                className={`flex-1 py-3 rounded-xl font-bold text-xs transition-all ${userPaperWidth === '80mm' ? 'bg-slate-900 text-white' : 'bg-white border text-slate-400 border-slate-200 hover:border-slate-300'}`}
+                                            >
+                                                80mm
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-col justify-end">
+                                    {userPrinterName ? (
+                                        <div className="p-4 bg-emerald-50 border-2 border-emerald-100 rounded-2xl flex items-center justify-between mb-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 bg-emerald-200 text-emerald-700 rounded-lg flex items-center justify-center">
+                                                    <Check size={14} />
+                                                </div>
+                                                <div>
+                                                    <p className="text-[10px] font-black text-emerald-700 uppercase tracking-widest leading-none mb-1">{userPrinterName}</p>
+                                                    <p className="text-[8px] font-bold text-emerald-500 uppercase tracking-widest">{userPaperWidth}</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-3">
+                                                <button onClick={handleTestUserPrint} className="text-[8px] font-black uppercase tracking-widest text-emerald-700 hover:underline">Test</button>
+                                                <button onClick={() => {setUserPrinterName(''); setUserPrinterId('');}} className="text-[8px] font-black uppercase tracking-widest text-rose-500 hover:underline">Remove</button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="p-4 bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl flex items-center justify-center mb-4">
+                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No Personal Printer Paired</p>
+                                        </div>
+                                    )}
+                                    <button 
+                                        type="button"
+                                        onClick={handleUserPrinterPairing}
+                                        disabled={isUserPrinterSearching}
+                                        className="w-full bg-slate-100 text-slate-700 py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-slate-200 transition-all active:scale-95 disabled:opacity-50"
+                                    >
+                                        {isUserPrinterSearching ? 'Searching...' : 'Pair Personal Printer'}
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>

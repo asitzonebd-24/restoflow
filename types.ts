@@ -102,6 +102,7 @@ export interface User {
   avatar: string;
   address?: string;
   assignedCategories?: string[]; // Categories assigned to kitchen staff
+  printerSettings?: PrinterSettings;
 }
 
 export interface MenuItem {
@@ -178,6 +179,7 @@ export interface InventoryItem {
   supplier: string;
   pricePerUnit: number;
   menuItemIds?: string[]; // Link to multiple menu items for auto-sync
+  menuItemLinks?: { itemId: string; consumption: number }[];
   menuCategory?: string;
 }
 

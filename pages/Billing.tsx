@@ -275,13 +275,17 @@ export const Billing = () => {
     }
 
     // 2. Fallback to Bluetooth if configured
-    if (currentTenant?.printerSettings?.pairedPrinterId) {
+    const settings = (currentUser?.printerSettings?.pairedPrinterId) 
+      ? currentUser.printerSettings 
+      : currentTenant?.printerSettings;
+
+    if (settings?.pairedPrinterId) {
       try {
-        const result = await BluetoothPrinterService.connect(currentTenant.printerSettings.pairedPrinterId);
+        const result = await BluetoothPrinterService.connect(settings.pairedPrinterId);
         if (result.success) {
           const discount = discounts[invoiceOrder.id] || 0;
           const creator = getCreator(invoiceOrder.createdBy);
-          await BluetoothPrinterService.printInvoice(currentTenant, invoiceOrder, { 
+          await BluetoothPrinterService.printInvoice(currentTenant!, invoiceOrder, { 
             discount,
             creatorName: creator?.name || 'Unknown'
           });
@@ -303,8 +307,8 @@ export const Billing = () => {
     const printContainer = document.createElement('div');
     printContainer.id = 'print-container';
     
-    // Apply paper width setting
-    const paperWidth = currentTenant?.printerSettings?.paperWidth || '80mm';
+    // Apply personal paper width if available
+    const paperWidth = settings?.paperWidth || '80mm';
     printContainer.style.width = paperWidth;
     printContainer.style.margin = '0 auto';
     
