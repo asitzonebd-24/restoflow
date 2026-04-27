@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { toast } from 'sonner';
 import { 
   ShoppingBasket, 
   Hash, 
@@ -174,7 +175,10 @@ export const POS = () => {
   };
 
   const addToCart = (item: any) => {
-    if (item.stock !== undefined && item.stock !== null && item.stock <= 0) return;
+    if (item.stock !== undefined && item.stock !== null && item.stock <= 0) {
+      toast.error(`Out of stock: ${item.name}`);
+      return;
+    }
     
     setCart(prev => {
       const idx = prev.findIndex(i => i.itemId === item.id && i.status === OrderStatus.PENDING && !(i as any).isExisting);
@@ -661,7 +665,7 @@ export const POS = () => {
                                 </div>
                               ) : (
                                 <button 
-                                 onClick={() => addToCart(item)}
+                                 onClick={() => { console.log('Adding to cart:', item.id, item.name); addToCart(item); }}
                                  className="w-10 h-10 flex items-center justify-center text-indigo-600 hover:bg-indigo-50 rounded-full transition-all active:scale-90 border-2 border-transparent"
                                 >
                                   <PlusCircle size={28} strokeWidth={1.5} />
@@ -851,9 +855,21 @@ export const POS = () => {
                     );
                   })}
                 </div>
-                <div className="border-t mt-6 pt-4 flex justify-between items-center text-lg font-black text-slate-900">
-                  <span>Total Amount</span>
-                  <span className="text-rose-600">{currentTenant.currency}{cartTotal.toFixed(0)}</span>
+                <div className="border-t mt-6 pt-4 space-y-4">
+                  <div className="flex justify-between items-center text-lg font-black text-slate-900">
+                    <span>Total Amount</span>
+                    <span className="text-rose-600">{currentTenant.currency}{cartTotal.toFixed(0)}</span>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase text-slate-400 tracking-widest pl-1">Kitchen Note</label>
+                    <textarea 
+                      value={orderNote}
+                      onChange={(e) => setOrderNote(e.target.value)}
+                      placeholder="Add special instructions for kitchen..."
+                      className="w-full p-3 bg-slate-50 border-2 border-slate-200 rounded-xl text-sm font-bold text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 transition-all"
+                      rows={2}
+                    />
+                  </div>
                 </div>
               </div>
               <div className="p-6 sm:p-8 border-t border-slate-100 bg-slate-50 flex gap-3">
