@@ -153,6 +153,7 @@ export const POS = () => {
   const handlePrintOrder = async (e: React.MouseEvent, order: Order, type: 'kot' | 'invoice' = 'invoice') => {
     e.stopPropagation();
     try {
+      console.log('handlePrintOrder called with order:', order.id, 'type:', type);
       await createPrintRequest(order, type);
     } catch (err) {
       console.error('Print failed:', err);
