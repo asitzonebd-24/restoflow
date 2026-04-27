@@ -150,10 +150,10 @@ export const POS = () => {
     setIsCreatingNew(false);
   };
 
-  const handlePrintOrder = async (e: React.MouseEvent, order: Order) => {
+  const handlePrintOrder = async (e: React.MouseEvent, order: Order, type: 'kot' | 'invoice' = 'invoice') => {
     e.stopPropagation();
     try {
-      await createPrintRequest(order, 'invoice');
+      await createPrintRequest(order, type);
     } catch (err) {
       console.error('Print failed:', err);
     }
@@ -468,10 +468,11 @@ export const POS = () => {
                              <span className="text-[11px] font-black uppercase tracking-widest text-slate-900">{getWaiterName(order.createdBy).split(' ')[0]}</span>
                           </div>
                           <div className="flex items-center gap-2">
-                             {terminalActiveTab === 'done' && (
+                             {(terminalActiveTab === 'done' || terminalActiveTab === 'pending') && (
                                <button 
-                                 onClick={(e) => handlePrintOrder(e, order)}
+                                 onClick={(e) => handlePrintOrder(e, order, terminalActiveTab === 'pending' ? 'kot' : 'invoice')}
                                  className="p-2 bg-slate-100 text-slate-600 rounded-full hover:bg-slate-200 transition-colors border border-slate-200 shadow-sm"
+                                 title={terminalActiveTab === 'pending' ? "Print KOT" : "Print Invoice"}
                                >
                                  <Printer size={16} />
                                </button>
