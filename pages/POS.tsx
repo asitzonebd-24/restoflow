@@ -112,7 +112,7 @@ export const POS = () => {
     } else if (terminalActiveTab === 'done') {
       return o.status === OrderStatus.READY && !o.isPaid;
     } else if (terminalActiveTab === 'paid') {
-      return o.isPaid && o.status !== OrderStatus.CANCELLED;
+      return o.isPaid && o.status !== OrderStatus.CANCELLED && o.status !== OrderStatus.COMPLETED;
     }
     return false;
   }).sort((a, b) => {
