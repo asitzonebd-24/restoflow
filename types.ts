@@ -181,6 +181,7 @@ export interface InventoryItem {
   menuItemIds?: string[]; // Link to multiple menu items for auto-sync
   menuItemLinks?: { itemId: string; consumption: number }[];
   menuCategory?: string;
+  history?: { date: string, action: string, change: number, newStock: number, supplier?: string, totalAmount?: number, paidAmount?: number, dueAmount?: number }[];
 }
 
 export interface Recipe {

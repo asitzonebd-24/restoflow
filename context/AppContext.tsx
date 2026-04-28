@@ -1422,7 +1422,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     }
   };
 
-  const updateInventory = async (itemId: string, quantityChange: number) => {
+  const updateInventory = async (itemId: string, quantityChange: number, historyDetails?: { supplier?: string, totalAmount?: number, paidAmount?: number, dueAmount?: number }) => {
     try {
       const item = allInventory.find(i => i.id === itemId);
       if (item) {
@@ -1431,7 +1431,14 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         const newQuantity = Math.max(0, item.quantity + quantityChange);
         batch.update(itemRef, {
           quantity: newQuantity,
-          lastUpdated: serverTimestamp()
+          lastUpdated: serverTimestamp(),
+          history: [...(item.history || []), { 
+            date: new Date().toISOString(), 
+            action: 'Update Stock', 
+            change: quantityChange, 
+            newStock: newQuantity,
+            ...historyDetails
+          }]
         });
 
         // Sync with menu item if linked (Direct link or Category link)
@@ -1462,10 +1469,15 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     try {
       const batch = writeBatch(db);
       const itemRef = doc(db, 'inventory_items', newItem.id);
-      batch.set(itemRef, cleanObject({
+      const itemData = cleanObject({
         ...newItem,
         lastUpdated: serverTimestamp()
-      }));
+      });
+      // Ensure history is set correctly, appending to any existing history
+      itemData.history = newItem.history || [];
+      
+      console.log('Adding inventory item to batch:', newItem.name, 'with history:', itemData.history);
+      batch.set(itemRef, itemData);
 
       // If linked to a menu item or category, sync initial quantity
       if (newItem.menuItemIds && newItem.menuItemIds.length > 0) {

@@ -83,7 +83,7 @@ const ListManagerModal = ({
             </form>
 
             <div className="space-y-3">
-              {items.length === 0 ? (
+              {(items || []).length === 0 ? (
                 <p className="text-center text-slate-400 text-sm py-4">No items added yet.</p>
               ) : (
                 items.map((item, idx) => (
@@ -112,7 +112,7 @@ export const Inventory = () => {
   const [isRecipeModalOpen, setIsRecipeModalOpen] = useState(false);
   const [isMaterialManagerOpen, setIsMaterialManagerOpen] = useState(false);
   const [isSupplierManagerOpen, setIsSupplierManagerOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'inventory' | 'menu' | 'recipes' | 'suppliers'>('inventory');
+  const [activeTab, setActiveTab] = useState<'inventory' | 'menu' | 'recipes' | 'suppliers' | 'history'>('inventory');
   const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
   const [filterSupplier, setFilterSupplier] = useState<string>('all');
@@ -175,7 +175,7 @@ export const Inventory = () => {
   const [newStock, setNewStock] = useState<number | ''>('');
   const [paidAmount, setPaidAmount] = useState<number | ''>('');
 
-  const existingItemForForm = editingItem || (!isCustomMaterial ? inventory.find(item => item.name === formData.name) : null);
+  const existingItemForForm = editingItem || (!isCustomMaterial ? (inventory || []).find(item => item.name === formData.name) : null);
   const finalQuantityUI = formData.quantity + (Number(newStock) || 0);
   const expenseQuantityUI = Math.max(0, finalQuantityUI - (existingItemForForm ? existingItemForForm.quantity : 0));
   const totalAmountUI = expenseQuantityUI * formData.pricePerUnit;
@@ -227,14 +227,28 @@ export const Inventory = () => {
     const data = {
       ...formData,
       quantity: finalQuantityUI,
-      menuItemIds: formData.menuItemIds.length > 0 ? formData.menuItemIds : undefined,
-      menuItemLinks: formData.menuItemLinks.length > 0 ? formData.menuItemLinks : undefined
+      menuItemIds: (formData.menuItemIds || []).length > 0 ? formData.menuItemIds : undefined,
+      menuItemLinks: (formData.menuItemLinks || []).length > 0 ? formData.menuItemLinks : undefined
     };
 
     if (existingItemForForm) {
       editInventoryItem(existingItemForForm.id, data);
     } else {
-      const newItem: InventoryItem = { id: `inv-${Date.now()}`, ...data, tenantId: currentTenant.id };
+      const newItem: InventoryItem = { 
+        id: `inv-${Date.now()}`, 
+        ...data, 
+        tenantId: currentTenant.id,
+        history: [{ 
+            date: new Date().toISOString(), 
+            action: 'Add Stock Item', 
+            change: finalQuantityUI, 
+            newStock: finalQuantityUI, 
+            supplier: formData.supplier,
+            totalAmount: totalAmountUI,
+            paidAmount: paid,
+            dueAmount: due
+        }]
+      };
       addInventoryItem(newItem);
     }
 
@@ -291,7 +305,12 @@ export const Inventory = () => {
     const paid = Number(restockPaidAmount) || 0;
     const due = totalAmount - paid;
 
-    updateInventory(restockItem.id, restockQuantity);
+    updateInventory(restockItem.id, restockQuantity, { 
+      supplier: restockItem.supplier,
+      totalAmount,
+      paidAmount: paid,
+      dueAmount: due
+    });
 
     // Handle Expense and Supplier Due
     if (restockQuantity > 0 && restockItem.supplier.trim()) {
@@ -452,7 +471,7 @@ export const Inventory = () => {
     }
   };
 
-  const totalPages = Math.ceil(filteredInventory.length / itemsPerPage);
+  const totalPages = Math.ceil((filteredInventory || []).length / itemsPerPage);
   const paginatedInventory = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     return filteredInventory.slice(startIndex, startIndex + itemsPerPage);
@@ -463,7 +482,7 @@ export const Inventory = () => {
     setCurrentPage(1);
   }, [filterSupplier, filterStatus]);
 
-  const lowStockCount = inventory.filter(i => i.quantity <= i.minThreshold).length;
+  const lowStockCount = (inventory || []).filter(i => i.quantity <= i.minThreshold).length;
 
   return (
     <div className="p-6 md:p-10 h-full overflow-y-auto bg-slate-50/50 no-scrollbar">
@@ -503,7 +522,7 @@ export const Inventory = () => {
           <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
             <div className="dot-chart">
               {Array.from({ length: 20 }).map((_, i) => (
-                <div key={i} className={`dot ${i < (inventory.length % 20) ? 'active-indigo' : ''}`} />
+                <div key={i} className={`dot ${i < ((inventory || []).length % 20) ? 'active-indigo' : ''}`} />
               ))}
             </div>
           </div>
@@ -513,7 +532,7 @@ export const Inventory = () => {
             </div>
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Items</span>
           </div>
-          <p className="text-3xl font-bold text-slate-900 tracking-tight">{inventory.length}</p>
+          <p className="text-3xl font-bold text-slate-900 tracking-tight">{(inventory || []).length}</p>
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Active materials</p>
         </div>
 
@@ -608,6 +627,12 @@ export const Inventory = () => {
         >
           Suppliers
         </button>
+        <button 
+          onClick={() => setActiveTab('history')}
+          className={`px-6 py-3 rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === 'history' ? 'bg-slate-900 text-white shadow-lg' : 'bg-white text-slate-400 hover:bg-slate-50'}`}
+        >
+          History
+        </button>
       </div>
 
       {activeTab === 'inventory' ? (
@@ -669,7 +694,7 @@ export const Inventory = () => {
                             </div>
                           </td>
                           <td className="px-8 py-6 border-r border-black">
-                            {linkedMenus.length > 0 ? (
+                            {(linkedMenus || []).length > 0 ? (
                               <div className="flex flex-col gap-2">
                                 {linkedMenus.map(lm => {
                                   const link = item.menuItemLinks?.find(l => l.itemId === lm.id);
@@ -799,7 +824,7 @@ export const Inventory = () => {
                       </div>
                     </div>
 
-                    {linkedMenus.length > 0 && (
+                    {(linkedMenus || []).length > 0 && (
                       <div className="mb-4 p-3 bg-slate-50 rounded-xl border border-slate-100 italic">
                         <p className="text-[8px] font-black uppercase text-slate-400 tracking-widest mb-2">Linked Menu Items & Consumption</p>
                         <div className="flex flex-wrap gap-2">
@@ -839,7 +864,7 @@ export const Inventory = () => {
               })}
             </div>
 
-            {filteredInventory.length === 0 && (
+            {(filteredInventory || []).length === 0 && (
               <div className="py-20 flex flex-col items-center justify-center text-slate-300">
                 <Search size={48} strokeWidth={1} className="mb-4 opacity-20" />
                 <p className="text-[10px] font-bold uppercase tracking-widest opacity-40">No items found</p>
@@ -851,7 +876,7 @@ export const Inventory = () => {
             currentPage={currentPage}
             totalPages={totalPages}
             onPageChange={setCurrentPage}
-            totalItems={filteredInventory.length}
+            totalItems={(filteredInventory || []).length}
             itemsPerPage={itemsPerPage}
           />
         </>
@@ -859,16 +884,16 @@ export const Inventory = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
           {currentTenant?.menuCategories.map(category => {
             const categoryItems = menu.filter(m => m.category === category);
-            if (categoryItems.length === 0) return null;
+            if ((categoryItems || []).length === 0) return null;
             return (
               <div key={category} className="bg-white rounded-[2rem] border-2 border-slate-100 overflow-hidden shadow-sm">
                 <div className="px-8 py-6 bg-slate-50/50 border-b-2 border-slate-100 flex justify-between items-center">
                   <h3 className="text-sm font-bold text-slate-900 uppercase tracking-widest">{category}</h3>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{categoryItems.length} Items</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{(categoryItems || []).length} Items</span>
                 </div>
                 <div className="divide-y-2 divide-slate-50">
                   {categoryItems.map(item => {
-                    const linkedInv = inventory.find(inv => 
+                    const linkedInv = (inventory || []).find(inv => 
                       inv.menuItemIds?.includes(item.id)
                     );
                     const isOutOfStock = item.stock === 0;
@@ -932,7 +957,7 @@ export const Inventory = () => {
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {recipes.length === 0 ? (
+            {(recipes || []).length === 0 ? (
               <div className="md:col-span-3 py-20 bg-white rounded-[2rem] border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-400">
                 <List size={48} className="mb-4 opacity-20" />
                 <p className="text-sm font-bold uppercase tracking-widest">No recipes created yet</p>
@@ -940,7 +965,7 @@ export const Inventory = () => {
               </div>
             ) : (
               recipes.map(recipe => {
-                const menuItem = menu.find(m => m.id === recipe.menuItemId);
+                const menuItem = (menu || []).find(m => m.id === recipe.menuItemId);
                 return (
                   <div key={recipe.id} className="bg-white p-6 rounded-[2rem] border-2 border-slate-100 shadow-sm hover:border-indigo-500 transition-all group">
                     <div className="flex justify-between items-start mb-4">
@@ -964,7 +989,7 @@ export const Inventory = () => {
                     </div>
                     <div className="space-y-2">
                       {recipe.ingredients.slice(0, 3).map((ing, idx) => {
-                        const invItem = inventory.find(i => i.id === ing.inventoryItemId);
+                        const invItem = (inventory || []).find(i => i.id === ing.inventoryItemId);
                         return (
                           <div key={idx} className="flex justify-between items-center text-xs">
                             <span className="text-slate-500 font-medium">{invItem?.name || 'Unknown'}</span>
@@ -972,8 +997,8 @@ export const Inventory = () => {
                           </div>
                         );
                       })}
-                      {recipe.ingredients.length > 3 && (
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest pt-1">+{recipe.ingredients.length - 3} more ingredients</p>
+                      {(recipe.ingredients || []).length > 3 && (
+                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest pt-1">+{(recipe.ingredients || []).length - 3} more ingredients</p>
                       )}
                     </div>
                   </div>
@@ -981,6 +1006,42 @@ export const Inventory = () => {
               })
             )}
           </div>
+        </div>
+      ) : activeTab === 'history' ? (
+        <div className="bg-white p-6 rounded-[2rem] border-2 border-slate-100 shadow-sm mb-10">
+           <h2 className="text-lg font-bold text-slate-900 mb-6 uppercase tracking-widest">Inventory History</h2>
+           <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100">
+                    <th className="pb-4">Date</th>
+                    <th className="pb-4">Item</th>
+                    <th className="pb-4">Action</th>
+                    <th className="pb-4">Supplier</th>
+                    <th className="pb-4">Change</th>
+                    <th className="pb-4">New Stock</th>
+                    <th className="pb-4">Total</th>
+                    <th className="pb-4">Paid</th>
+                    <th className="pb-4">Due</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {inventory.flatMap(item => (item.history || []).map(h => ({ ...h, itemName: item.name }))).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((hist, i) => (
+                    <tr key={i} className="text-sm">
+                      <td className="py-4 text-slate-500">{new Date(hist.date).toLocaleString()}</td>
+                      <td className="py-4 font-bold text-slate-700">{hist.itemName}</td>
+                      <td className="py-4 text-indigo-600 font-bold uppercase text-xs">{hist.action}</td>
+                      <td className="py-4 font-medium text-slate-600">{hist.supplier || 'N/A'}</td>
+                      <td className="py-4 font-bold text-slate-900">{hist.change > 0 ? '+' : ''}{hist.change}</td>
+                      <td className="py-4 font-bold text-slate-900">{hist.newStock}</td>
+                      <td className="py-4 text-slate-700">{hist.totalAmount ? `${currentTenant?.currency}${hist.totalAmount.toFixed(2)}` : '-'}</td>
+                      <td className="py-4 text-emerald-600">{hist.paidAmount ? `${currentTenant?.currency}${hist.paidAmount.toFixed(2)}` : '-'}</td>
+                      <td className="py-4 text-rose-600">{hist.dueAmount != null ? `${currentTenant?.currency}${hist.dueAmount.toFixed(2)}` : '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+           </div>
         </div>
       ) : (
         <div className="space-y-6 mb-10">
@@ -1166,7 +1227,7 @@ export const Inventory = () => {
                                   setFormData({...formData, name: '', quantity: 0});
                                 } else {
                                   const selectedName = e.target.value;
-                                  const existing = inventory.find(item => item.name === selectedName);
+                                  const existing = (inventory || []).find(item => item.name === selectedName);
                                   if (existing && !editingItem) {
                                     setFormData({
                                       name: existing.name,
@@ -1193,7 +1254,7 @@ export const Inventory = () => {
                             {(() => {
                               if (formData.name && !isCustomMaterial) {
                                 const existingItems = inventory.filter(item => item.name === formData.name);
-                                if (existingItems.length > 0) {
+                                if ((existingItems || []).length > 0) {
                                   const totalStock = existingItems.reduce((sum, item) => sum + item.quantity, 0);
                                   return (
                                     <p className="text-[10px] font-bold text-indigo-600 mt-2 ml-1">
@@ -1421,11 +1482,11 @@ export const Inventory = () => {
                               ))}
                           </select>
                           
-                          {formData.menuItemIds.length > 0 && (
+                          {(formData.menuItemIds || []).length > 0 && (
                             <div className="space-y-3">
                               {formData.menuItemIds.map(id => {
-                                const menuItem = menu.find(m => m.id === id);
-                                const link = formData.menuItemLinks.find(l => l.itemId === id) || { itemId: id, consumption: 1 };
+                                const menuItem = (menu || []).find(m => m.id === id);
+                                const link = (formData.menuItemLinks || []).find(l => l.itemId === id) || { itemId: id, consumption: 1 };
                                 
                                 return menuItem ? (
                                   <div key={id} className="flex flex-col md:flex-row items-start md:items-center gap-3 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
@@ -1704,7 +1765,7 @@ export const Inventory = () => {
                               className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                             />
                           </div>
-                          {recipeFormData.ingredients.length > 1 && (
+                          {(recipeFormData.ingredients || []).length > 1 && (
                             <button 
                               type="button"
                               onClick={() => removeIngredientField(index)}

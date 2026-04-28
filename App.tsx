@@ -87,7 +87,7 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
   const navItemClass = (path: string, margin = 'mb-3') => {
     const active = isActive(path);
     return `
-      flex items-center gap-3 px-3 py-3 rounded-2xl transition-all duration-300 ${margin} group relative border w-full
+      flex items-center gap-3 pl-3 pr-2 py-3 rounded-2xl transition-all duration-300 ${margin} group relative border w-full
       ${active 
         ? 'bg-white text-[#1a1a37] shadow-xl border-white' 
         : 'text-white hover:bg-white/10 hover:text-white border-white/10 hover:border-white/20'}
@@ -102,15 +102,15 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
   };
 
   const NavLabel = ({ children }: { children: React.ReactNode }) => (
-    <span className="md:hidden text-xs font-bold uppercase tracking-widest">{children}</span>
+    <span className="text-xs font-bold uppercase tracking-widest">{children}</span>
   );
 
   const sidebarContent = (
     <div 
-      className="h-full flex flex-col items-center py-6 text-white overflow-y-auto no-scrollbar"
+      className="h-full flex flex-col items-start py-6 text-white overflow-y-auto no-scrollbar"
       style={{ background: '#11112b' }}
     >
-      <div className="mb-8 shrink-0 px-4 w-full flex items-center justify-between md:justify-center">
+      <div className="mb-8 shrink-0 px-4 w-full flex items-center justify-between md:justify-start">
         {(currentUser.tenantIds && currentUser.tenantIds.length > 1) || currentUser.role === Role.SUPER_ADMIN ? (
           <RestaurantSwitcher />
         ) : (
@@ -133,7 +133,7 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
         </button>
       </div>
 
-      <nav className="flex-1 flex flex-col items-center w-full px-4 no-scrollbar">
+      <nav className="flex-1 flex flex-col items-start w-full px-4 no-scrollbar">
             {currentUser.role === Role.SUPER_ADMIN && !urlTenantId ? (
               <>
                 <NavLink to="/portal" onClick={() => onClose()} className={navItemClass('/portal')} title="Portal">
@@ -278,7 +278,7 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
             )}
         </nav>
 
-        <div className="mt-auto pt-6 space-y-1 flex flex-col items-center shrink-0 px-4 w-full">
+        <div className="mt-auto pt-6 space-y-1 flex flex-col items-start shrink-0 px-4 w-full">
             <NavLink to={currentUser.role === Role.SUPER_ADMIN && !urlTenantId ? "/settings" : `/${tId}/settings`} onClick={() => onClose()} className={navItemClass('/settings', 'mb-2')} title="Settings">
                 <Settings size={22} className="shrink-0" />
                 <NavLabel>Preferences</NavLabel>
@@ -328,7 +328,7 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
     <>
       {/* Desktop Sidebar */}
       <div 
-        className="hidden md:flex h-screen flex-col items-center py-4 text-white transition-all duration-500 shrink-0 z-[70] shadow-2xl w-20 print:hidden"
+        className="hidden md:flex h-screen flex-col items-start py-4 text-white transition-all duration-500 shrink-0 z-[70] shadow-2xl w-64 print:hidden"
         style={{ background: '#11112b' }}
       >
         {sidebarContent}
