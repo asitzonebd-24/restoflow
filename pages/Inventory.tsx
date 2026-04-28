@@ -723,89 +723,92 @@ export const Inventory = () => {
                 </thead>
                 <tbody className="divide-y-2 divide-black">
                   <AnimatePresence mode="popLayout">
-                    {paginatedInventory.map(item => {
-                      const isLow = item.quantity <= item.minThreshold;
-                      const linkedMenus = item.menuItemIds ? menu.filter(m => item.menuItemIds!.includes(m.id)) : [];
-                      const due = item.dueAmount || 0;
-                      return (
-                        <motion.tr 
-                          layout
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          exit={{ opacity: 0 }}
-                          key={item.id} 
-                          className="hover:bg-slate-50/30 transition-colors group"
-                        >
-                          <td className="px-8 py-6 border-r-2 border-black">
-                            <div className="flex items-center gap-4">
-                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs border-2 ${isLow ? 'bg-rose-50 text-rose-600 border-rose-200' : 'bg-slate-50 text-slate-400 border-black'}`}>
-                                {item.name.charAt(0).toUpperCase()}
-                              </div>
-                              <div>
-                                <p className="font-black text-slate-900 text-sm">{item.name}</p>
-                                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">ID: {item.id.slice(-6).toUpperCase()}</p>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-8 py-6 border-r-2 border-black">
-                            <span className="text-xs font-bold text-slate-600">{item.supplier}</span>
-                          </td>
-                          <td className="px-8 py-6 border-r-2 border-black">
-                            <div className="flex flex-col">
-                              <span className="text-sm font-bold text-slate-900">{currentTenant?.currency}{item.pricePerUnit.toFixed(2)}</span>
-                              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Per {item.unit}</span>
-                            </div>
-                          </td>
-                          <td className="px-8 py-6 border-r-2 border-black">
-                            <div className="flex items-center gap-3">
-                              <span className={`text-lg font-black ${isLow ? 'text-rose-600' : 'text-slate-900'}`}>{item.quantity}</span>
-                              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{item.unit}</span>
-                            </div>
-                          </td>
-                          <td className="px-8 py-6 border-r-2 border-black">
-                            {(linkedMenus || []).length > 0 ? (
-                              <div className="flex flex-col gap-2">
-                                {linkedMenus.map(lm => {
-                                  const link = item.menuItemLinks?.find(l => l.itemId === lm.id);
-                                  return (
-                                    <div key={lm.id} className="flex items-center gap-2">
-                                      <div className="w-6 h-6 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 shrink-0 border border-indigo-100">
-                                        <ChevronRight size={14} />
-                                      </div>
-                                      <div className="flex flex-col">
-                                        <span className="text-xs font-bold text-slate-600">{lm.name}</span>
-                                        {link && (
-                                          <span className="text-[9px] text-indigo-500 font-bold uppercase tracking-tighter">
-                                            {link.consumption} {item.unit} / Order
-                                          </span>
-                                        )}
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            ) : (
-                              <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest italic">Not Linked</span>
-                            )}
-                          </td>
-                          <td className="px-8 py-6 border-r-2 border-black text-center">
-                            {isLow ? (
-                              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-rose-50 text-rose-600 rounded-xl border-2 border-rose-200">
-                                <AlertTriangle size={12} />
-                                <span className="text-[9px] font-black uppercase tracking-widest">Low</span>
-                              </div>
-                            ) : (
-                              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-xl border-2 border-emerald-200">
-                                <CheckCircle size={12} />
-                                <span className="text-[9px] font-black uppercase tracking-widest">OK</span>
-                              </div>
-                            )}
-                          </td>
-                          <td className="px-8 py-6 border-r-2 border-black">
-                            <span className={`text-sm font-black ${due > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
-                              {currentTenant?.currency}{due.toFixed(2)}
-                            </span>
-                          </td>
+                        {paginatedInventory.map(item => {
+                          const isLow = item.quantity <= item.minThreshold;
+                          const linkedMenus = item.menuItemIds ? menu.filter(m => item.menuItemIds!.includes(m.id)) : [];
+                          
+                          // Get supplier's overall due from the business record
+                          const supplierOverallDue = currentTenant?.supplierDues?.[item.supplier] || 0;
+
+                          return (
+                            <motion.tr 
+                              layout
+                              initial={{ opacity: 0 }}
+                              animate={{ opacity: 1 }}
+                              exit={{ opacity: 0 }}
+                              key={item.id} 
+                              className="hover:bg-slate-50/30 transition-colors group"
+                            >
+                              <td className="px-8 py-6 border-r-2 border-black">
+                                <div className="flex items-center gap-4">
+                                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs border-2 ${isLow ? 'bg-rose-50 text-rose-600 border-rose-200' : 'bg-slate-50 text-slate-400 border-black'}`}>
+                                    {item.name.charAt(0).toUpperCase()}
+                                  </div>
+                                  <div>
+                                    <p className="font-black text-slate-900 text-sm">{item.name}</p>
+                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">ID: {item.id.slice(-6).toUpperCase()}</p>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-8 py-6 border-r-2 border-black">
+                                <span className="text-xs font-bold text-slate-600">{item.supplier}</span>
+                              </td>
+                              <td className="px-8 py-6 border-r-2 border-black">
+                                <div className="flex flex-col">
+                                  <span className="text-sm font-bold text-slate-900">{currentTenant?.currency}{item.pricePerUnit.toFixed(2)}</span>
+                                  <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Per {item.unit}</span>
+                                </div>
+                              </td>
+                              <td className="px-8 py-6 border-r-2 border-black">
+                                <div className="flex items-center gap-3">
+                                  <span className={`text-lg font-black ${isLow ? 'text-rose-600' : 'text-slate-900'}`}>{item.quantity}</span>
+                                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{item.unit}</span>
+                                </div>
+                              </td>
+                              <td className="px-8 py-6 border-r-2 border-black">
+                                {(linkedMenus || []).length > 0 ? (
+                                  <div className="flex flex-col gap-2">
+                                    {linkedMenus.map(lm => {
+                                      const link = item.menuItemLinks?.find(l => l.itemId === lm.id);
+                                      return (
+                                        <div key={lm.id} className="flex items-center gap-2">
+                                          <div className="w-6 h-6 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 shrink-0 border border-indigo-100">
+                                            <ChevronRight size={14} />
+                                          </div>
+                                          <div className="flex flex-col">
+                                            <span className="text-xs font-bold text-slate-600">{lm.name}</span>
+                                            {link && (
+                                              <span className="text-[9px] text-indigo-500 font-bold uppercase tracking-tighter">
+                                                {link.consumption} {item.unit} / Order
+                                              </span>
+                                            )}
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                ) : (
+                                  <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest italic">Not Linked</span>
+                                )}
+                              </td>
+                              <td className="px-8 py-6 border-r-2 border-black text-center">
+                                {isLow ? (
+                                  <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-rose-50 text-rose-600 rounded-xl border-2 border-rose-200">
+                                    <AlertTriangle size={12} />
+                                    <span className="text-[9px] font-black uppercase tracking-widest">Low</span>
+                                  </div>
+                                ) : (
+                                  <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-xl border-2 border-emerald-200">
+                                    <CheckCircle size={12} />
+                                    <span className="text-[9px] font-black uppercase tracking-widest">OK</span>
+                                  </div>
+                                )}
+                              </td>
+                              <td className="px-8 py-6 border-r-2 border-black">
+                                <span className={`text-sm font-black ${supplierOverallDue > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                                  {currentTenant?.currency}{supplierOverallDue.toFixed(2)}
+                                </span>
+                              </td>
                           <td className="px-8 py-6 text-right">
                             <div className="flex justify-end gap-2 transition-all">
                               <button 

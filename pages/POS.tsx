@@ -121,6 +121,17 @@ export const POS = () => {
     return terminalActiveTab === 'pending' ? timeA - timeB : timeB - timeA;
   });
 
+  const totals = useMemo(() => {
+    const isAdmin = currentUser?.role === Role.OWNER || currentUser?.role === Role.MANAGER || currentUser?.role === Role.SUPER_ADMIN || currentUser?.role === Role.KITCHEN;
+    
+    const baseOrders = orders.filter(o => isAdmin || o.createdBy === currentUser?.id);
+    
+    const pendingTotal = baseOrders.filter(o => o.status !== OrderStatus.CANCELLED && o.status !== OrderStatus.COMPLETED && (o.status === OrderStatus.PENDING || o.status === OrderStatus.PREPARING) && !o.isPaid).reduce((acc, o) => acc + (o.totalAmount || 0), 0);
+    const doneTotal = baseOrders.filter(o => o.status === OrderStatus.READY && !o.isPaid).reduce((acc, o) => acc + (o.totalAmount || 0), 0);
+    const paidTotal = baseOrders.filter(o => o.isPaid && o.status !== OrderStatus.CANCELLED && o.status !== OrderStatus.COMPLETED).reduce((acc, o) => acc + (o.totalAmount || 0), 0);
+    return { pending: pendingTotal, done: doneTotal, paid: paidTotal };
+  }, [orders, currentUser]);
+
   const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
   const paginatedOrders = filteredOrders.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
@@ -366,39 +377,60 @@ export const POS = () => {
                 </div>
              </div>
 
-             <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto ml-1 md:ml-0">
-               <div className="flex items-center gap-2 bg-white p-1.5 rounded-2xl border-2 border-slate-100 shadow-sm w-full md:w-auto">
-                 <button 
-                  onClick={() => setTerminalActiveTab("pending")} 
-                  className={`flex-1 px-5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest select-none ${terminalActiveTab === 'pending' ? 'bg-pink-500 text-white' : 'text-slate-400 hover:bg-slate-50'}`}
-                  style={{ WebkitTapHighlightColor: 'transparent' }}
-                 >
-                   Pending
-                 </button>
-                 <button 
-                  onClick={() => setTerminalActiveTab("done")} 
-                  className={`flex-1 px-5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest select-none ${terminalActiveTab === 'done' ? 'bg-emerald-500 text-white' : 'text-slate-400 hover:bg-slate-50'}`}
-                  style={{ WebkitTapHighlightColor: 'transparent' }}
-                 >
-                   Done
-                 </button>
-                 <button 
-                  onClick={() => setTerminalActiveTab("paid")} 
-                  className={`flex-1 px-5 py-2 rounded-xl text-[9px] font-black uppercase tracking-widest select-none ${terminalActiveTab === 'paid' ? 'bg-indigo-500 text-white' : 'text-slate-400 hover:bg-slate-50'}`}
-                  style={{ WebkitTapHighlightColor: 'transparent' }}
-                 >
-                   Paid
-                 </button>
-               </div>
+             <div className="flex flex-col gap-4 w-full md:w-[480px] ml-1 md:ml-auto">
+                {/* Top Row: Terminal Status Tabs */}
+                <div className="flex items-center gap-2 bg-white p-1.5 rounded-2xl border-2 border-slate-100 shadow-sm w-full h-[54px]">
+                  <button 
+                    onClick={() => setTerminalActiveTab("pending")} 
+                    className={`flex-1 px-5 h-full rounded-xl text-xs font-black uppercase tracking-widest transition-all select-none ${terminalActiveTab === 'pending' ? 'bg-pink-500 text-white shadow-md' : 'text-black hover:bg-slate-50'}`}
+                    style={{ WebkitTapHighlightColor: 'transparent' }}
+                  >
+                    Pending
+                  </button>
+                  <button 
+                    onClick={() => setTerminalActiveTab("done")} 
+                    className={`flex-1 px-5 h-full rounded-xl text-xs font-black uppercase tracking-widest transition-all select-none ${terminalActiveTab === 'done' ? 'bg-emerald-500 text-white shadow-md' : 'text-black hover:bg-slate-50'}`}
+                    style={{ WebkitTapHighlightColor: 'transparent' }}
+                  >
+                    Done
+                  </button>
+                  <button 
+                    onClick={() => setTerminalActiveTab("paid")} 
+                    className={`flex-1 px-5 h-full rounded-xl text-xs font-black uppercase tracking-widest transition-all select-none ${terminalActiveTab === 'paid' ? 'bg-indigo-500 text-white shadow-md' : 'text-black hover:bg-slate-50'}`}
+                    style={{ WebkitTapHighlightColor: 'transparent' }}
+                  >
+                    Paid
+                  </button>
+                </div>
 
-               <div className="flex flex-row gap-3 w-full md:w-auto">
-                 <button 
-                  onClick={handleNewOrder}
-                  className="bg-slate-900 text-white px-8 py-3.5 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl shadow-indigo-200 hover:bg-slate-800 transition-all transform hover:-translate-y-1 active:scale-95 flex items-center justify-center gap-3 border-2 border-indigo-500 w-full md:w-auto h-[52px] shrink-0"
-                 >
-                   <Plus size={18} /> New Order
-                 </button>
-               </div>
+                {/* Bottom Row: Total Amount (Left) & New Order (Right) */}
+                <div className="flex items-center gap-4 w-full">
+                  {terminalActiveTab === 'pending' ? (
+                    <button 
+                      onClick={handleNewOrder}
+                      className="w-full bg-slate-900 text-white px-8 py-3.5 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl shadow-indigo-200 hover:bg-slate-800 transition-all transform hover:-translate-y-1 active:scale-95 flex items-center justify-center gap-3 border-2 border-indigo-500 h-[54px] shrink-0"
+                    >
+                      <Plus size={20} /> New Order
+                    </button>
+                  ) : (
+                    <>
+                      <div className="flex-1 h-[54px]">
+                        <div className="h-full bg-emerald-600 px-6 flex items-center justify-between rounded-2xl border-2 border-slate-900 shadow-lg">
+                          <span className="text-xs font-black uppercase tracking-widest text-white">Total</span>
+                          <span className="text-lg font-black text-white">
+                            {currentTenant.currency}{(totals as any)[terminalActiveTab].toLocaleString()}
+                          </span>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={handleNewOrder}
+                        className="flex-1 bg-slate-900 text-white px-8 py-3.5 rounded-2xl font-black uppercase tracking-widest text-xs shadow-xl shadow-indigo-200 hover:bg-slate-800 transition-all transform hover:-translate-y-1 active:scale-95 flex items-center justify-center gap-3 border-2 border-indigo-500 h-[54px] shrink-0"
+                      >
+                        <Plus size={20} /> New Order
+                      </button>
+                    </>
+                  )}
+                </div>
              </div>
           </div>
 

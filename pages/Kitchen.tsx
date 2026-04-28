@@ -389,6 +389,21 @@ export const Kitchen = () => {
     );
   }, [menu, searchTerm]);
 
+  const totals = useMemo(() => {
+    const isAdmin = currentUser && [Role.OWNER, Role.MANAGER, Role.SUPER_ADMIN].includes(currentUser.role);
+    const isKitchen = currentUser?.role === Role.KITCHEN;
+    
+    let filteredOrders = orders.filter(o => o.status !== OrderStatus.CANCELLED);
+    if (!isAdmin && !isKitchen && currentUser) {
+      filteredOrders = filteredOrders.filter(o => o.createdBy === currentUser.id);
+    }
+
+    const pendingTotal = filteredOrders.filter(o => o.status === OrderStatus.PENDING || o.status === OrderStatus.PREPARING).reduce((acc, o) => acc + (o.totalAmount || 0), 0);
+    const doneTotal = filteredOrders.filter(o => o.status === OrderStatus.READY).reduce((acc, o) => acc + (o.totalAmount || 0), 0);
+    
+    return { pending: pendingTotal, done: doneTotal };
+  }, [orders, currentUser]);
+
   const itemsPerPage = 10;
   const totalPages = Math.ceil(activeOrders.length / itemsPerPage);
   const paginatedOrders = activeOrders.slice(
@@ -414,20 +429,22 @@ export const Kitchen = () => {
         </div>
 
         <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
-          <div className="flex items-center gap-3 bg-white p-1.5 rounded-2xl border-2 border-slate-100 shadow-sm w-full md:w-72">
+          <div className="flex items-center gap-3 bg-white p-1.5 rounded-2xl border-2 border-slate-100 shadow-sm w-full md:w-80">
             <button
               onClick={() => setFilter("pending")}
-              className={`flex-1 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest select-none ${filter === "pending" ? "bg-pink-500 text-white" : "text-slate-400 hover:bg-slate-50"}`}
+              className={`flex-1 px-4 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all select-none ${filter === "pending" ? "bg-pink-500 text-white shadow-md" : "text-slate-400 hover:bg-slate-50"}`}
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
-              Pending
+              Pending <br/>
+              <span className="text-[7px] opacity-70">{currentTenant?.currency}{totals.pending.toFixed(0)}</span>
             </button>
             <button
               onClick={() => setFilter("done")}
-              className={`flex-1 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest select-none ${filter === "done" ? "bg-emerald-500 text-white" : "text-slate-400 hover:bg-slate-50"}`}
+              className={`flex-1 px-4 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all select-none ${filter === "done" ? "bg-emerald-500 text-white shadow-md" : "text-slate-400 hover:bg-slate-50"}`}
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
-              Done
+              Done <br/>
+              <span className="text-[7px] opacity-70">{currentTenant?.currency}{totals.done.toFixed(0)}</span>
             </button>
           </div>
 

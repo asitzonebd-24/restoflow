@@ -1136,8 +1136,8 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
           } else {
             // Simple Mode Inventory Sync
             const linkedInvItem = allInventory.find(inv => 
-              inv.menuItemId === itemId || 
-              (inv.menuCategory === menuItem.category && !inv.menuItemId)
+              inv.menuItemIds?.includes(itemId) || 
+              (inv.menuCategory === menuItem.category && (!inv.menuItemIds || inv.menuItemIds.length === 0))
             );
             if (linkedInvItem) {
               const currentInvQty = inventoryUpdates[linkedInvItem.id] !== undefined ? inventoryUpdates[linkedInvItem.id] : linkedInvItem.quantity;
