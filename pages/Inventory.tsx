@@ -175,6 +175,50 @@ export const Inventory = () => {
   const [newStock, setNewStock] = useState<number | ''>('');
   const [paidAmount, setPaidAmount] = useState<number | ''>('');
 
+  const [historySearchItem, setHistorySearchItem] = useState('all');
+  const [historySearchSupplier, setHistorySearchSupplier] = useState('all');
+  const [historySearchAction, setHistorySearchAction] = useState('all');
+  const [historyDateRange, setHistoryDateRange] = useState('all');
+  const [historySearchDate, setHistorySearchDate] = useState('');
+
+  useEffect(() => {
+    console.log('[DEBUG] current inventory:', inventory);
+  }, [inventory]);
+
+  const allHistory = (inventory || []).flatMap(item => (item.history || []).map(h => ({ ...h, itemName: item.name })))
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+  const filteredHistory = allHistory.filter(h => {
+    const matchesItem = historySearchItem === 'all' || h.itemName === historySearchItem;
+    const matchesSupplier = historySearchSupplier === 'all' || (h.supplier || 'N/A') === historySearchSupplier;
+    const matchesAction = historySearchAction === 'all' || h.action === historySearchAction;
+    
+    let matchesDate = true;
+    const recordDate = new Date(h.date);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (historyDateRange === 'today') {
+      matchesDate = recordDate.toDateString() === new Date().toDateString();
+    } else if (historyDateRange === '7days') {
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      matchesDate = recordDate >= sevenDaysAgo;
+    } else if (historyDateRange === '30days') {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      matchesDate = recordDate >= thirtyDaysAgo;
+    } else if (historyDateRange === 'custom') {
+      matchesDate = !historySearchDate || recordDate.toLocaleDateString() === new Date(historySearchDate).toLocaleDateString();
+    }
+    
+    return matchesItem && matchesSupplier && matchesAction && matchesDate;
+  });
+
+  const uniqueHistoryActions = Array.from(new Set(allHistory.map(h => h.action)));
+  const uniqueItems = Array.from(new Set(allHistory.map(h => h.itemName)));
+  const historyUniqueSuppliers = Array.from(new Set(allHistory.map(h => h.supplier || 'N/A')));
+
   const existingItemForForm = editingItem || (!isCustomMaterial ? (inventory || []).find(item => item.name === formData.name) : null);
   const finalQuantityUI = formData.quantity + (Number(newStock) || 0);
   const expenseQuantityUI = Math.max(0, finalQuantityUI - (existingItemForForm ? existingItemForForm.quantity : 0));
@@ -232,12 +276,33 @@ export const Inventory = () => {
     };
 
     if (existingItemForForm) {
-      editInventoryItem(existingItemForForm.id, data);
+      editInventoryItem(existingItemForForm.id, {
+        ...data,
+        totalAmount: (existingItemForForm.totalAmount || 0) + totalAmountUI,
+        paidAmount: (existingItemForForm.paidAmount || 0) + paid,
+        dueAmount: (existingItemForForm.dueAmount || 0) + due,
+        history: [
+          ...(existingItemForForm.history || []),
+          { 
+            date: new Date().toISOString(), 
+            action: 'Update Stock', 
+            change: Number(newStock) || 0,
+            newStock: finalQuantityUI, 
+            supplier: formData.supplier,
+            totalAmount: totalAmountUI,
+            paidAmount: paid,
+            dueAmount: due
+          }
+        ]
+      });
     } else {
       const newItem: InventoryItem = { 
         id: `inv-${Date.now()}`, 
         ...data, 
         tenantId: currentTenant.id,
+        totalAmount: totalAmountUI,
+        paidAmount: paid,
+        dueAmount: due,
         history: [{ 
             date: new Date().toISOString(), 
             action: 'Add Stock Item', 
@@ -494,22 +559,22 @@ export const Inventory = () => {
           </h1>
           <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-2 opacity-80">Track stock levels, suppliers and replenishment</p>
         </div>
-        <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto">
+        <div className="flex flex-col md:flex-row gap-3 md:gap-4 w-full md:w-auto">
           <button 
             onClick={() => setIsMaterialManagerOpen(true)}
-            className="w-full md:w-auto bg-white text-slate-600 border border-slate-200 px-6 py-4 rounded-2xl text-[10px] font-bold uppercase tracking-widest shadow-sm hover:bg-slate-50 transition-all flex items-center justify-center gap-3 active:scale-95"
+            className="w-full md:w-auto bg-white text-slate-600 border border-slate-200 px-4 md:px-6 py-3 md:py-4 rounded-2xl text-[10px] font-bold uppercase tracking-widest shadow-sm hover:bg-slate-50 transition-all flex items-center justify-center gap-3 active:scale-95"
           >
             <List size={18} /> Materials
           </button>
           <button 
             onClick={() => setIsSupplierManagerOpen(true)}
-            className="w-full md:w-auto bg-white text-slate-600 border border-slate-200 px-6 py-4 rounded-2xl text-[10px] font-bold uppercase tracking-widest shadow-sm hover:bg-slate-50 transition-all flex items-center justify-center gap-3 active:scale-95"
+            className="w-full md:w-auto bg-white text-slate-600 border border-slate-200 px-4 md:px-6 py-3 md:py-4 rounded-2xl text-[10px] font-bold uppercase tracking-widest shadow-sm hover:bg-slate-50 transition-all flex items-center justify-center gap-3 active:scale-95"
           >
             <Truck size={18} /> Suppliers
           </button>
           <button 
             onClick={openAddModal}
-            className="w-full md:w-auto bg-slate-900 text-white px-8 py-4 rounded-2xl text-[10px] font-bold uppercase tracking-widest shadow-xl hover:bg-slate-800 transition-all flex items-center justify-center gap-3 active:scale-95"
+            className="w-full md:w-auto bg-slate-900 text-white px-6 md:px-8 py-3 md:py-4 rounded-2xl text-[10px] font-bold uppercase tracking-widest shadow-xl hover:bg-slate-800 transition-all flex items-center justify-center gap-3 active:scale-95"
           >
             <Plus size={18} /> Add Stock Item
           </button>
@@ -517,7 +582,7 @@ export const Inventory = () => {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
         <div className="bg-white p-6 rounded-[2rem] border-2 border-indigo-500 shadow-xl shadow-indigo-100 relative overflow-hidden group transition-all duration-300 hover:scale-105">
           <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
             <div className="dot-chart">
@@ -576,7 +641,7 @@ export const Inventory = () => {
       </div>
 
       {/* Filters */}
-      <div className="mb-8 flex flex-col md:flex-row gap-4">
+      <div className="mb-8 flex flex-col sm:flex-row gap-4">
         <select 
           value={filterSupplier}
           onChange={(e) => setFilterSupplier(e.target.value)}
@@ -599,65 +664,69 @@ export const Inventory = () => {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-4 mb-8">
-        <button 
-          onClick={() => setActiveTab('inventory')}
-          className={`px-6 py-3 rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === 'inventory' ? 'bg-slate-900 text-white shadow-lg' : 'bg-white text-slate-400 hover:bg-slate-50'}`}
-        >
-          Raw Materials
-        </button>
-        {!isRecipeMode ? (
+      <div className="sticky top-0 z-30 bg-slate-50/80 backdrop-blur-md -mx-6 md:-mx-10 px-6 md:px-10 mb-8 py-4 border-b border-slate-200">
+        <div className="grid grid-cols-2 md:flex md:flex-row gap-2 md:gap-4 pt-1 px-1">
           <button 
-            onClick={() => setActiveTab('menu')}
-            className={`px-6 py-3 rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === 'menu' ? 'bg-slate-900 text-white shadow-lg' : 'bg-white text-slate-400 hover:bg-slate-50'}`}
+            onClick={() => setActiveTab('inventory')}
+            className={`px-4 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border-2 ${activeTab === 'inventory' ? 'bg-slate-900 text-white border-slate-900 shadow-lg' : 'bg-white text-slate-400 border-slate-100 hover:border-slate-900 hover:text-slate-900'}`}
           >
-            Menu Stock Sync
+            Raw Materials
           </button>
-        ) : (
+          {!isRecipeMode ? (
+            <button 
+              onClick={() => setActiveTab('menu')}
+              className={`px-4 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border-2 ${activeTab === 'menu' ? 'bg-slate-900 text-white border-slate-900 shadow-lg' : 'bg-white text-slate-400 border-slate-100 hover:border-slate-900 hover:text-slate-900'}`}
+            >
+              Menu Stock Sync
+            </button>
+          ) : (
+            <button 
+              onClick={() => setActiveTab('recipes')}
+              className={`px-4 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border-2 ${activeTab === 'recipes' ? 'bg-slate-900 text-white border-slate-900 shadow-lg' : 'bg-white text-slate-400 border-slate-100 hover:border-slate-900 hover:text-slate-900'}`}
+            >
+              Recipes
+            </button>
+          )}
           <button 
-            onClick={() => setActiveTab('recipes')}
-            className={`px-6 py-3 rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === 'recipes' ? 'bg-slate-900 text-white shadow-lg' : 'bg-white text-slate-400 hover:bg-slate-50'}`}
+            onClick={() => setActiveTab('suppliers')}
+            className={`px-4 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border-2 ${activeTab === 'suppliers' ? 'bg-slate-900 text-white border-slate-900 shadow-lg' : 'bg-white text-slate-400 border-slate-100 hover:border-slate-900 hover:text-slate-900'}`}
           >
-            Recipes
+            Suppliers
           </button>
-        )}
-        <button 
-          onClick={() => setActiveTab('suppliers')}
-          className={`px-6 py-3 rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === 'suppliers' ? 'bg-slate-900 text-white shadow-lg' : 'bg-white text-slate-400 hover:bg-slate-50'}`}
-        >
-          Suppliers
-        </button>
-        <button 
-          onClick={() => setActiveTab('history')}
-          className={`px-6 py-3 rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === 'history' ? 'bg-slate-900 text-white shadow-lg' : 'bg-white text-slate-400 hover:bg-slate-50'}`}
-        >
-          History
-        </button>
+          <button 
+            onClick={() => setActiveTab('history')}
+            className={`px-4 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border-2 ${activeTab === 'history' ? 'bg-slate-900 text-white border-slate-900 shadow-lg' : 'bg-white text-slate-400 border-slate-100 hover:border-slate-900 hover:text-slate-900'}`}
+          >
+            History
+          </button>
+        </div>
       </div>
 
       {activeTab === 'inventory' ? (
         <>
           {/* Inventory Table */}
-          <div className="bg-white rounded-[2rem] border border-black shadow-xl shadow-indigo-100 overflow-hidden mb-10">
+          <div className="bg-white rounded-[2rem] border-2 border-black shadow-xl shadow-indigo-100 overflow-hidden mb-10">
             {/* Desktop Table View */}
             <div className="hidden md:block overflow-x-auto no-scrollbar">
-              <table className="w-full text-left border-collapse min-w-[900px]">
+              <table className="w-full text-left border-collapse min-w-[900px] border-b border-black">
                 <thead>
-                  <tr className="bg-slate-50/80 border-b border-black">
-                    <th className="px-8 py-6 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-r border-black">Material Details</th>
-                    <th className="px-8 py-6 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-r border-black">Supplier</th>
-                    <th className="px-8 py-6 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-r border-black">Unit Price</th>
-                    <th className="px-8 py-6 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-r border-black">Current Stock</th>
-                    <th className="px-8 py-6 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-r border-black">Linked Menu Item</th>
-                    <th className="px-8 py-6 text-[10px] font-bold text-slate-500 uppercase tracking-widest border-r border-black">Status</th>
-                    <th className="px-8 py-6 text-[10px] font-bold text-slate-500 uppercase tracking-widest text-right">Actions</th>
+                  <tr className="bg-slate-50/80 border-b-2 border-black">
+                    <th className="px-8 py-6 text-[10px] font-black text-black uppercase tracking-widest border-r-2 border-black">Material Details</th>
+                    <th className="px-8 py-6 text-[10px] font-black text-black uppercase tracking-widest border-r-2 border-black">Supplier</th>
+                    <th className="px-8 py-6 text-[10px] font-black text-black uppercase tracking-widest border-r-2 border-black">Unit Price</th>
+                    <th className="px-8 py-6 text-[10px] font-black text-black uppercase tracking-widest border-r-2 border-black">Current Stock</th>
+                    <th className="px-8 py-6 text-[10px] font-black text-black uppercase tracking-widest border-r-2 border-black">Linked Menu</th>
+                    <th className="px-8 py-6 text-[10px] font-black text-black uppercase tracking-widest border-r-2 border-black">Status</th>
+                    <th className="px-8 py-6 text-[10px] font-black text-rose-600 uppercase tracking-widest border-r-2 border-black">Due Amount</th>
+                    <th className="px-8 py-6 text-[10px] font-black text-black uppercase tracking-widest text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-black">
+                <tbody className="divide-y-2 divide-black">
                   <AnimatePresence mode="popLayout">
                     {paginatedInventory.map(item => {
                       const isLow = item.quantity <= item.minThreshold;
                       const linkedMenus = item.menuItemIds ? menu.filter(m => item.menuItemIds!.includes(m.id)) : [];
+                      const due = item.dueAmount || 0;
                       return (
                         <motion.tr 
                           layout
@@ -667,40 +736,40 @@ export const Inventory = () => {
                           key={item.id} 
                           className="hover:bg-slate-50/30 transition-colors group"
                         >
-                          <td className="px-8 py-6 border-r border-black">
+                          <td className="px-8 py-6 border-r-2 border-black">
                             <div className="flex items-center gap-4">
-                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs ${isLow ? 'bg-rose-50 text-rose-600' : 'bg-slate-50 text-slate-400'}`}>
+                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs border-2 ${isLow ? 'bg-rose-50 text-rose-600 border-rose-200' : 'bg-slate-50 text-slate-400 border-black'}`}>
                                 {item.name.charAt(0).toUpperCase()}
                               </div>
                               <div>
-                                <p className="font-bold text-slate-900 text-sm">{item.name}</p>
+                                <p className="font-black text-slate-900 text-sm">{item.name}</p>
                                 <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">ID: {item.id.slice(-6).toUpperCase()}</p>
                               </div>
                             </div>
                           </td>
-                          <td className="px-8 py-6 border-r border-black">
+                          <td className="px-8 py-6 border-r-2 border-black">
                             <span className="text-xs font-bold text-slate-600">{item.supplier}</span>
                           </td>
-                          <td className="px-8 py-6 border-r border-black">
+                          <td className="px-8 py-6 border-r-2 border-black">
                             <div className="flex flex-col">
                               <span className="text-sm font-bold text-slate-900">{currentTenant?.currency}{item.pricePerUnit.toFixed(2)}</span>
                               <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Per {item.unit}</span>
                             </div>
                           </td>
-                          <td className="px-8 py-6 border-r border-black">
+                          <td className="px-8 py-6 border-r-2 border-black">
                             <div className="flex items-center gap-3">
-                              <span className={`text-lg font-bold ${isLow ? 'text-rose-600' : 'text-slate-900'}`}>{item.quantity}</span>
-                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{item.unit}</span>
+                              <span className={`text-lg font-black ${isLow ? 'text-rose-600' : 'text-slate-900'}`}>{item.quantity}</span>
+                              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{item.unit}</span>
                             </div>
                           </td>
-                          <td className="px-8 py-6 border-r border-black">
+                          <td className="px-8 py-6 border-r-2 border-black">
                             {(linkedMenus || []).length > 0 ? (
                               <div className="flex flex-col gap-2">
                                 {linkedMenus.map(lm => {
                                   const link = item.menuItemLinks?.find(l => l.itemId === lm.id);
                                   return (
                                     <div key={lm.id} className="flex items-center gap-2">
-                                      <div className="w-6 h-6 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 shrink-0">
+                                      <div className="w-6 h-6 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600 shrink-0 border border-indigo-100">
                                         <ChevronRight size={14} />
                                       </div>
                                       <div className="flex flex-col">
@@ -719,24 +788,29 @@ export const Inventory = () => {
                               <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest italic">Not Linked</span>
                             )}
                           </td>
-                          <td className="px-8 py-6 border-r border-black">
+                          <td className="px-8 py-6 border-r-2 border-black text-center">
                             {isLow ? (
-                              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-rose-50 text-rose-600 rounded-xl border border-rose-100">
+                              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-rose-50 text-rose-600 rounded-xl border-2 border-rose-200">
                                 <AlertTriangle size={12} />
-                                <span className="text-[9px] font-bold uppercase tracking-widest">Low Stock</span>
+                                <span className="text-[9px] font-black uppercase tracking-widest">Low</span>
                               </div>
                             ) : (
-                              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-xl border border-emerald-100">
+                              <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-xl border-2 border-emerald-200">
                                 <CheckCircle size={12} />
-                                <span className="text-[9px] font-bold uppercase tracking-widest">Healthy</span>
+                                <span className="text-[9px] font-black uppercase tracking-widest">OK</span>
                               </div>
                             )}
+                          </td>
+                          <td className="px-8 py-6 border-r-2 border-black">
+                            <span className={`text-sm font-black ${due > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                              {currentTenant?.currency}{due.toFixed(2)}
+                            </span>
                           </td>
                           <td className="px-8 py-6 text-right">
                             <div className="flex justify-end gap-2 transition-all">
                               <button 
                                 onClick={() => openEditModal(item)}
-                                className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 hover:text-indigo-600 shadow-sm border border-slate-100 transition-all"
+                                className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 hover:text-indigo-600 shadow-sm border-2 border-black hover:bg-slate-50 transition-all active:scale-95"
                                 title="Edit Item"
                               >
                                 <Edit2 size={16} />
@@ -746,14 +820,14 @@ export const Inventory = () => {
                                   setRestockItem(item);
                                   setRestockQuantity(1);
                                 }}
-                                className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 hover:text-emerald-500 shadow-sm border border-slate-100 transition-all"
+                                className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 hover:text-emerald-500 shadow-sm border-2 border-black hover:bg-slate-50 transition-all active:scale-95"
                                 title="Add Stock"
                               >
                                 <RefreshCw size={16} />
                               </button>
                               <button 
                                 onClick={() => handleDelete(item.id)}
-                                className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 hover:text-rose-500 shadow-sm border border-slate-100 transition-all"
+                                className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 hover:text-rose-500 shadow-sm border-2 border-black hover:bg-slate-50 transition-all active:scale-95"
                                 title="Delete Item"
                               >
                                 <Trash2 size={16} />
@@ -769,7 +843,7 @@ export const Inventory = () => {
             </div>
 
             {/* Mobile Card View */}
-            <div className="md:hidden divide-y divide-black">
+            <div className="md:hidden divide-y-2 divide-black">
               {paginatedInventory.map(item => {
                 const isLow = item.quantity <= item.minThreshold;
                 const linkedMenus = item.menuItemIds ? menu.filter(m => item.menuItemIds!.includes(m.id)) : [];
@@ -777,7 +851,7 @@ export const Inventory = () => {
                   <div key={item.id} className="p-6 hover:bg-slate-50/30 transition-colors group">
                     <div className="flex justify-between items-start mb-4">
                       <div className="flex items-center gap-4">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs ${isLow ? 'bg-rose-50 text-rose-600' : 'bg-slate-50 text-slate-400'}`}>
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs border-2 ${isLow ? 'bg-rose-50 text-rose-600 border-rose-200' : 'bg-slate-50 text-slate-400 border-black'}`}>
                           {item.name.charAt(0).toUpperCase()}
                         </div>
                         <div>
@@ -788,7 +862,7 @@ export const Inventory = () => {
                       <div className="flex gap-2">
                         <button 
                           onClick={() => openEditModal(item)}
-                          className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-slate-400 hover:text-indigo-600 shadow-sm border border-slate-100"
+                          className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-slate-400 hover:text-indigo-600 shadow-sm border-2 border-black"
                         >
                           <Edit2 size={14} />
                         </button>
@@ -797,13 +871,13 @@ export const Inventory = () => {
                             setRestockItem(item);
                             setRestockQuantity(1);
                           }}
-                          className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-slate-400 hover:text-emerald-500 shadow-sm border border-slate-100"
+                          className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-slate-400 hover:text-emerald-500 shadow-sm border-2 border-black"
                         >
                           <RefreshCw size={14} />
                         </button>
                         <button 
                           onClick={() => handleDelete(item.id)}
-                          className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-slate-400 hover:text-rose-500 shadow-sm border border-slate-100"
+                          className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-slate-400 hover:text-rose-500 shadow-sm border-2 border-black"
                         >
                           <Trash2 size={14} />
                         </button>
@@ -886,12 +960,12 @@ export const Inventory = () => {
             const categoryItems = menu.filter(m => m.category === category);
             if ((categoryItems || []).length === 0) return null;
             return (
-              <div key={category} className="bg-white rounded-[2rem] border-2 border-slate-100 overflow-hidden shadow-sm">
-                <div className="px-8 py-6 bg-slate-50/50 border-b-2 border-slate-100 flex justify-between items-center">
-                  <h3 className="text-sm font-bold text-slate-900 uppercase tracking-widest">{category}</h3>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{(categoryItems || []).length} Items</span>
+              <div key={category} className="bg-white rounded-[2rem] border-2 border-black overflow-hidden shadow-sm">
+                <div className="px-8 py-6 bg-slate-50/50 border-b-2 border-black flex justify-between items-center">
+                  <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest">{category}</h3>
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{(categoryItems || []).length} Items</span>
                 </div>
-                <div className="divide-y-2 divide-slate-50">
+                <div className="divide-y-2 divide-black">
                   {categoryItems.map(item => {
                     const linkedInv = (inventory || []).find(inv => 
                       inv.menuItemIds?.includes(item.id)
@@ -900,7 +974,7 @@ export const Inventory = () => {
                     return (
                       <div key={item.id} className="px-8 py-6 flex items-center justify-between group hover:bg-slate-50/30 transition-colors">
                         <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-xl bg-slate-100 overflow-hidden flex-shrink-0">
+                          <div className="w-12 h-12 rounded-xl bg-slate-100 overflow-hidden flex-shrink-0 border-2 border-black">
                             {item.image ? (
                               <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
                             ) : (
@@ -910,30 +984,30 @@ export const Inventory = () => {
                             )}
                           </div>
                           <div>
-                            <p className="font-bold text-slate-900 text-sm">{item.name}</p>
+                            <p className="font-black text-slate-900 text-sm tracking-tight">{item.name}</p>
                             <div className="flex items-center gap-2 mt-1">
                               {linkedInv ? (
                                 <div className="flex items-center gap-1 text-emerald-600">
                                   <RefreshCw size={10} />
-                                  <span className="text-[9px] font-bold uppercase tracking-widest">
+                                  <span className="text-[9px] font-black uppercase tracking-widest">
                                     Synced with {linkedInv.name}
                                   </span>
                                 </div>
                               ) : (
-                                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest italic">Manual Stock</span>
+                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest italic">Manual Stock</span>
                               )}
                             </div>
                           </div>
                         </div>
                         <div className="text-right">
                           <div className="flex items-center justify-end gap-3 mb-1">
-                            <span className={`text-lg font-bold ${isOutOfStock ? 'text-rose-600' : 'text-slate-900'}`}>
+                            <span className={`text-lg font-black ${isOutOfStock ? 'text-rose-600' : 'text-slate-900'}`}>
                               {item.stock ?? 0}
                             </span>
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">In Stock</span>
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">In Stock</span>
                           </div>
                           {isOutOfStock && (
-                            <span className="text-[9px] font-bold text-rose-500 uppercase tracking-widest">Out of Stock</span>
+                            <span className="text-[9px] font-black text-rose-500 uppercase tracking-widest">Out of Stock</span>
                           )}
                         </div>
                       </div>
@@ -958,19 +1032,19 @@ export const Inventory = () => {
           
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {(recipes || []).length === 0 ? (
-              <div className="md:col-span-3 py-20 bg-white rounded-[2rem] border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-400">
+              <div className="md:col-span-3 py-20 bg-white rounded-[2rem] border-2 border-dashed border-black flex flex-col items-center justify-center text-slate-400">
                 <List size={48} className="mb-4 opacity-20" />
-                <p className="text-sm font-bold uppercase tracking-widest">No recipes created yet</p>
-                <button onClick={openAddRecipeModal} className="mt-4 text-indigo-600 text-[10px] font-bold uppercase tracking-widest hover:underline">Add your first recipe</button>
+                <p className="text-sm font-black uppercase tracking-widest">No recipes created yet</p>
+                <button onClick={openAddRecipeModal} className="mt-4 text-indigo-600 text-[10px] font-black uppercase tracking-widest hover:underline">Add your first recipe</button>
               </div>
             ) : (
               recipes.map(recipe => {
                 const menuItem = (menu || []).find(m => m.id === recipe.menuItemId);
                 return (
-                  <div key={recipe.id} className="bg-white p-6 rounded-[2rem] border-2 border-slate-100 shadow-sm hover:border-indigo-500 transition-all group">
+                  <div key={recipe.id} className="bg-white p-6 rounded-[2rem] border-2 border-black shadow-sm hover:bg-slate-50 transition-all group">
                     <div className="flex justify-between items-start mb-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400">
+                        <div className="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 border-2 border-black overflow-hidden">
                           {menuItem?.image ? (
                             <img src={menuItem.image} alt={menuItem.name} className="w-full h-full object-cover rounded-xl" />
                           ) : (
@@ -978,8 +1052,8 @@ export const Inventory = () => {
                           )}
                         </div>
                         <div>
-                          <h3 className="font-bold text-slate-900">{menuItem?.name || 'Unknown Item'}</h3>
-                          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{recipe.ingredients.length} Ingredients</p>
+                          <h3 className="font-black text-slate-900 tracking-tight">{menuItem?.name || 'Unknown Item'}</h3>
+                          <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest">{recipe.ingredients.length} Ingredients</p>
                         </div>
                       </div>
                       <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -987,18 +1061,18 @@ export const Inventory = () => {
                         <button onClick={() => { if(window.confirm('Delete recipe?')) deleteRecipe(recipe.id) }} className="p-2 text-slate-400 hover:text-rose-500 transition-colors"><Trash2 size={16} /></button>
                       </div>
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-2 pt-4 border-t-2 border-black">
                       {recipe.ingredients.slice(0, 3).map((ing, idx) => {
                         const invItem = (inventory || []).find(i => i.id === ing.inventoryItemId);
                         return (
                           <div key={idx} className="flex justify-between items-center text-xs">
-                            <span className="text-slate-500 font-medium">{invItem?.name || 'Unknown'}</span>
-                            <span className="text-slate-900 font-bold">{ing.quantity} {invItem?.unit}</span>
+                            <span className="text-slate-500 font-bold">{invItem?.name || 'Unknown'}</span>
+                            <span className="text-slate-900 font-black">{ing.quantity} {invItem?.unit}</span>
                           </div>
                         );
                       })}
                       {(recipe.ingredients || []).length > 3 && (
-                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest pt-1">+{(recipe.ingredients || []).length - 3} more ingredients</p>
+                        <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest pt-1">+{(recipe.ingredients || []).length - 3} more ingredients</p>
                       )}
                     </div>
                   </div>
@@ -1008,73 +1082,209 @@ export const Inventory = () => {
           </div>
         </div>
       ) : activeTab === 'history' ? (
-        <div className="bg-white p-6 rounded-[2rem] border-2 border-slate-100 shadow-sm mb-10">
-           <h2 className="text-lg font-bold text-slate-900 mb-6 uppercase tracking-widest">Inventory History</h2>
-           <div className="overflow-x-auto">
-              <table className="w-full text-left">
+        <div className="bg-white p-6 rounded-[2rem] border-2 border-black shadow-xl shadow-indigo-100 overflow-hidden mb-10">
+           <h2 className="text-lg font-black text-slate-900 mb-6 uppercase tracking-widest px-2">Inventory History</h2>
+           
+           <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8 px-2">
+              <div className="col-span-2 md:col-span-1">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Item Name</label>
+                <select
+                  value={historySearchItem}
+                  onChange={(e) => setHistorySearchItem(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border-2 border-black text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 outline-none bg-slate-50/50"
+                >
+                  <option value="all">All Items</option>
+                  {uniqueItems.map(name => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Supplier</label>
+                <select
+                  value={historySearchSupplier}
+                  onChange={(e) => setHistorySearchSupplier(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border-2 border-black text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 outline-none bg-slate-50/50"
+                >
+                  <option value="all">All Suppliers</option>
+                  {historyUniqueSuppliers.map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Status</label>
+                <select
+                  value={historySearchAction}
+                  onChange={(e) => setHistorySearchAction(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border-2 border-black text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 outline-none bg-slate-50/50"
+                >
+                  <option value="all">All Status</option>
+                  {uniqueHistoryActions.map(action => (
+                    <option key={action} value={action}>{action}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Range</label>
+                <select
+                  value={historyDateRange}
+                  onChange={(e) => setHistoryDateRange(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border-2 border-black text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 outline-none bg-slate-50/50"
+                >
+                  <option value="all">All Time</option>
+                  <option value="today">Today</option>
+                  <option value="7days">7 Days</option>
+                  <option value="30days">30 Days</option>
+                  <option value="custom">Custom</option>
+                </select>
+              </div>
+              {historyDateRange === 'custom' && (
+                <div className="col-span-2 md:col-span-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Select Date</label>
+                  <input
+                    type="date"
+                    value={historySearchDate}
+                    onChange={(e) => setHistorySearchDate(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl border-2 border-black text-sm font-bold focus:ring-4 focus:ring-indigo-500/10 outline-none bg-slate-50/50"
+                  />
+                </div>
+              )}
+           </div>
+
+           <div className="overflow-x-auto no-scrollbar border-2 border-black rounded-[2rem]">
+              <table className="w-full text-left border-collapse min-w-[1000px] border-b-2 border-black">
                 <thead>
-                  <tr className="text-[10px] font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100">
-                    <th className="pb-4">Date</th>
-                    <th className="pb-4">Item</th>
-                    <th className="pb-4">Action</th>
-                    <th className="pb-4">Supplier</th>
-                    <th className="pb-4">Change</th>
-                    <th className="pb-4">New Stock</th>
-                    <th className="pb-4">Total</th>
-                    <th className="pb-4">Paid</th>
-                    <th className="pb-4">Due</th>
+                  <tr className="bg-slate-50/80 border-b-2 border-black">
+                    <th className="px-6 py-4 text-[10px] font-black text-black uppercase tracking-widest border-r-2 border-black">Date</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-black uppercase tracking-widest border-r-2 border-black">Item</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-black uppercase tracking-widest border-r-2 border-black">Action</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-black uppercase tracking-widest border-r-2 border-black">Supplier</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-black uppercase tracking-widest border-r-2 border-black">Change</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-black uppercase tracking-widest border-r-2 border-black">New Stock</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-black uppercase tracking-widest border-r-2 border-black">Total</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-black uppercase tracking-widest border-r-2 border-black">Paid</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-black uppercase tracking-widest">Due</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {inventory.flatMap(item => (item.history || []).map(h => ({ ...h, itemName: item.name }))).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map((hist, i) => (
-                    <tr key={i} className="text-sm">
-                      <td className="py-4 text-slate-500">{new Date(hist.date).toLocaleString()}</td>
-                      <td className="py-4 font-bold text-slate-700">{hist.itemName}</td>
-                      <td className="py-4 text-indigo-600 font-bold uppercase text-xs">{hist.action}</td>
-                      <td className="py-4 font-medium text-slate-600">{hist.supplier || 'N/A'}</td>
-                      <td className="py-4 font-bold text-slate-900">{hist.change > 0 ? '+' : ''}{hist.change}</td>
-                      <td className="py-4 font-bold text-slate-900">{hist.newStock}</td>
-                      <td className="py-4 text-slate-700">{hist.totalAmount ? `${currentTenant?.currency}${hist.totalAmount.toFixed(2)}` : '-'}</td>
-                      <td className="py-4 text-emerald-600">{hist.paidAmount ? `${currentTenant?.currency}${hist.paidAmount.toFixed(2)}` : '-'}</td>
-                      <td className="py-4 text-rose-600">{hist.dueAmount != null ? `${currentTenant?.currency}${hist.dueAmount.toFixed(2)}` : '-'}</td>
+                <tbody className="divide-y-2 divide-black">
+                  {filteredHistory.length > 0 ? filteredHistory.map((hist, i) => (
+                    <tr key={i} className="text-sm hover:bg-slate-50/30 transition-colors">
+                      <td className="px-6 py-4 text-black border-r-2 border-black font-medium">{new Date(hist.date).toLocaleString()}</td>
+                      <td className="px-6 py-4 font-black text-black border-r-2 border-black">{hist.itemName}</td>
+                      <td className="px-6 py-4 text-black font-black uppercase text-xs border-r-2 border-black">
+                        <span className="px-2 py-1 bg-slate-100 rounded-lg">{hist.action}</span>
+                      </td>
+                      <td className="px-6 py-4 font-bold text-black border-r-2 border-black">{hist.supplier || 'N/A'}</td>
+                      <td className="px-6 py-4 font-black text-black border-r-2 border-black">
+                        <span className={hist.change > 0 ? 'text-emerald-600' : 'text-rose-600'}>
+                          {hist.change > 0 ? '+' : ''}{hist.change}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 font-black text-black border-r-2 border-black">{hist.newStock}</td>
+                      <td className="px-6 py-4 text-black border-r-2 border-black font-bold">{hist.totalAmount ? `${currentTenant?.currency}${hist.totalAmount.toFixed(2)}` : '-'}</td>
+                      <td className="px-6 py-4 text-black border-r-2 border-black font-black text-emerald-600">{hist.paidAmount ? `${currentTenant?.currency}${hist.paidAmount.toFixed(2)}` : '-'}</td>
+                      <td className="px-6 py-4 text-rose-600 font-black whitespace-nowrap">{hist.dueAmount != null ? `${currentTenant?.currency}${hist.dueAmount.toFixed(2)}` : '-'}</td>
                     </tr>
-                  ))}
+                  )) : (
+                    <tr>
+                      <td colSpan={9} className="px-6 py-20 text-center text-slate-400 font-black uppercase tracking-widest text-[10px]">
+                        No history records found for current filters
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
            </div>
+
+           {/* Mobile Card View for History */}
+           <div className="md:hidden space-y-4 pt-8">
+              <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-2">Detailed Records</h3>
+              {filteredHistory.length > 0 ? filteredHistory.map((hist, i) => (
+                <div key={i} className="p-5 bg-white rounded-[2rem] border-2 border-black space-y-4 shadow-sm">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="font-black text-slate-900 text-sm tracking-tight">{hist.itemName}</p>
+                      <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest mt-1">{new Date(hist.date).toLocaleString()}</p>
+                    </div>
+                    <span className="px-3 py-1 bg-slate-900 text-white rounded-xl text-[8px] font-black uppercase tracking-widest">
+                      {hist.action}
+                    </span>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4 pt-4 border-t-2 border-slate-100">
+                    <div>
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Supplier</p>
+                      <p className="text-xs font-black text-slate-700">{hist.supplier || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">Stock Change</p>
+                      <p className={`text-xs font-black ${hist.change > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                        {hist.change > 0 ? '+' : ''}{hist.change} <span className="text-slate-400">(New: {hist.newStock})</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 pt-4 border-t-2 border-slate-100">
+                    <div className="p-2 bg-slate-50 rounded-xl border border-slate-100">
+                      <p className="text-[7px] font-black text-slate-400 uppercase tracking-widest mb-1">Total</p>
+                      <p className="text-[10px] font-black text-slate-900">{hist.totalAmount ? `${currentTenant?.currency}${hist.totalAmount.toFixed(2)}` : '-'}</p>
+                    </div>
+                    <div className="p-2 bg-emerald-50 rounded-xl border border-emerald-100 text-emerald-600">
+                      <p className="text-[7px] font-black text-emerald-400 uppercase tracking-widest mb-1">Paid</p>
+                      <p className="text-[10px] font-black">{hist.paidAmount ? `${currentTenant?.currency}${hist.paidAmount.toFixed(2)}` : '-'}</p>
+                    </div>
+                    <div className="p-2 bg-rose-50 rounded-xl border border-rose-100 text-rose-600">
+                      <p className="text-[7px] font-black text-rose-400 uppercase tracking-widest mb-1">Due</p>
+                      <p className="text-[10px] font-black">{hist.dueAmount != null ? `${currentTenant?.currency}${hist.dueAmount.toFixed(2)}` : '-'}</p>
+                    </div>
+                  </div>
+                </div>
+              )) : (
+                <div className="py-10 text-center text-slate-400 text-[10px] font-black uppercase tracking-widest border-2 border-dashed border-slate-200 rounded-[2rem]">
+                  No history records found
+                </div>
+              )}
+           </div>
         </div>
-      ) : (
+      ) : activeTab === 'suppliers' ? (
         <div className="space-y-6 mb-10">
-          <div className="flex justify-between items-center">
-            <h2 className="text-xl font-bold text-slate-900">Supplier Dues</h2>
+          <div className="flex justify-between items-center px-2">
+            <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">Supplier Dues</h2>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {(!currentTenant?.suppliers || currentTenant.suppliers.length === 0) ? (
-              <div className="md:col-span-3 py-20 bg-white rounded-[2rem] border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-400">
-                <Users size={48} className="mb-4 opacity-20" />
-                <p className="text-sm font-bold uppercase tracking-widest">No suppliers added yet</p>
-                <p className="mt-2 text-[10px] text-slate-400">Add suppliers when creating inventory items</p>
+              <div className="md:col-span-3 py-20 bg-white rounded-[2rem] border-2 border-dashed border-black flex flex-col items-center justify-center text-slate-400">
+                <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+                  <Users size={32} className="opacity-20" />
+                </div>
+                <p className="text-sm font-black uppercase tracking-widest text-center px-4 text-slate-900">No suppliers added yet</p>
+                <p className="mt-2 text-[10px] text-slate-400 text-center px-4 font-bold uppercase tracking-widest">Add suppliers when creating inventory items</p>
               </div>
             ) : (
               currentTenant.suppliers.map(supplier => {
                 const dueAmount = currentTenant.supplierDues?.[supplier] || 0;
                 return (
-                  <div key={supplier} className="bg-white p-6 rounded-[2rem] border-2 border-slate-100 shadow-sm hover:border-indigo-500 transition-all group">
-                    <div className="flex justify-between items-start mb-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400">
-                          <Users size={24} />
+                  <div key={supplier} className="bg-white p-8 rounded-[2rem] border-2 border-black shadow-xl shadow-indigo-50/50 hover:bg-slate-50 transition-all group relative overflow-hidden">
+                    <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                      <Users size={80} />
+                    </div>
+                    <div className="flex justify-between items-start mb-6 relative z-10">
+                      <div className="flex items-center gap-4">
+                        <div className="w-14 h-14 rounded-2xl bg-slate-900 flex items-center justify-center text-white shadow-lg">
+                          <Users size={28} />
                         </div>
                         <div>
-                          <h3 className="font-bold text-slate-900">{supplier}</h3>
+                          <h3 className="font-black text-slate-900 text-lg tracking-tight">{supplier}</h3>
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Active Supplier</p>
                         </div>
                       </div>
                     </div>
-                    <div className="pt-4 border-t-2 border-slate-50">
-                      <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Due Amount</p>
-                      <div className="flex items-center justify-between">
-                        <span className={`text-2xl font-bold ${dueAmount > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                    <div className="pt-6 border-t-2 border-black relative z-10">
+                      <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2">Total Outstanding Due</p>
+                      <div className="flex flex-col gap-4">
+                        <span className={`text-4xl font-black tracking-tighter ${dueAmount > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
                           {currentTenant.currency}{dueAmount.toFixed(2)}
                         </span>
                         <button
@@ -1083,9 +1293,9 @@ export const Inventory = () => {
                             setDueAction('pay');
                             setIsDueModalOpen(true);
                           }}
-                          className="px-4 py-2 bg-slate-900 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-slate-800 transition-all"
+                          className="w-full px-6 py-4 bg-slate-900 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-800 transition-all active:scale-95 shadow-xl shadow-slate-900/20"
                         >
-                          Manage Due
+                          Manage Balance
                         </button>
                       </div>
                     </div>
@@ -1095,7 +1305,7 @@ export const Inventory = () => {
             )}
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* Supplier Due Modal */}
       <AnimatePresence>

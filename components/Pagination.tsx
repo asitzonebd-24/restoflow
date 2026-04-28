@@ -36,7 +36,7 @@ export const Pagination: React.FC<PaginationProps> = ({
           <ChevronLeft size={18} strokeWidth={3} />
         </button>
         
-        <div className="flex items-center gap-1">
+        <div className="hidden min-[400px]:flex items-center gap-1">
           {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
             // Logic to show only a few page numbers if there are many
             if (
@@ -46,7 +46,11 @@ export const Pagination: React.FC<PaginationProps> = ({
               Math.abs(page - currentPage) > 1
             ) {
               if (Math.abs(page - currentPage) === 2) {
-                return <span key={page} className="px-1 text-slate-300">...</span>;
+                return (
+                  <span key={page} className="px-1 text-slate-300 hidden sm:block">
+                    ...
+                  </span>
+                );
               }
               return null;
             }
@@ -59,12 +63,16 @@ export const Pagination: React.FC<PaginationProps> = ({
                   currentPage === page
                     ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-100'
                     : 'bg-white border-slate-100 text-slate-400 hover:border-slate-900 hover:text-slate-900'
-                }`}
+                } ${Math.abs(page - currentPage) > 1 && page !== 1 && page !== totalPages ? 'hidden sm:flex items-center justify-center' : 'flex items-center justify-center'}`}
               >
                 {page}
               </button>
             );
           })}
+        </div>
+
+        <div className="min-[400px]:hidden px-4 py-2 bg-slate-50 rounded-xl text-[10px] font-black text-slate-900 border border-slate-100">
+          Page {currentPage} / {totalPages}
         </div>
 
         <button

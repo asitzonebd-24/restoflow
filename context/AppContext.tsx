@@ -179,11 +179,19 @@ const ENHANCED_MOCK_USERS: User[] = [
   ...MOCK_USERS
 ];
 
-const cleanObject = (obj: any) => {
+const cleanObject = (obj: any): any => {
+  if (obj === null || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(cleanObject);
+  
   const newObj = { ...obj };
   Object.keys(newObj).forEach(key => {
-    if (newObj[key] === undefined) {
+    const val = newObj[key];
+    if (val === undefined || val === null) {
       delete newObj[key];
+    } else if (typeof val === 'number' && isNaN(val)) {
+      newObj[key] = 0;
+    } else if (typeof val === 'object' && !(val instanceof Date) && !val._methodName) {
+      newObj[key] = cleanObject(val);
     }
   });
   return newObj;
@@ -1429,8 +1437,16 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         const batch = writeBatch(db);
         const itemRef = doc(db, 'inventory_items', itemId);
         const newQuantity = Math.max(0, item.quantity + quantityChange);
-        batch.update(itemRef, {
+        
+        const totalAmount = (item.totalAmount || 0) + (historyDetails?.totalAmount || 0);
+        const paidAmount = (item.paidAmount || 0) + (historyDetails?.paidAmount || 0);
+        const dueAmount = (item.dueAmount || 0) + (historyDetails?.dueAmount || 0);
+
+        batch.update(itemRef, cleanObject({
           quantity: newQuantity,
+          totalAmount,
+          paidAmount,
+          dueAmount,
           lastUpdated: serverTimestamp(),
           history: [...(item.history || []), { 
             date: new Date().toISOString(), 
@@ -1439,7 +1455,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
             newStock: newQuantity,
             ...historyDetails
           }]
-        });
+        }));
 
         // Sync with menu item if linked (Direct link or Category link)
         if (item.menuItemIds && item.menuItemIds.length > 0) {
@@ -1469,14 +1485,15 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     try {
       const batch = writeBatch(db);
       const itemRef = doc(db, 'inventory_items', newItem.id);
+      
       const itemData = cleanObject({
         ...newItem,
+        totalAmount: isNaN(newItem.totalAmount!) ? 0 : newItem.totalAmount,
+        paidAmount: isNaN(newItem.paidAmount!) ? 0 : newItem.paidAmount,
+        dueAmount: isNaN(newItem.dueAmount!) ? 0 : newItem.dueAmount,
         lastUpdated: serverTimestamp()
       });
-      // Ensure history is set correctly, appending to any existing history
-      itemData.history = newItem.history || [];
-      
-      console.log('Adding inventory item to batch:', newItem.name, 'with history:', itemData.history);
+      console.log('Adding inventory item to batch:', newItem.name, 'with history:', itemData.history, 'full itemData:', itemData);
       batch.set(itemRef, itemData);
 
       // If linked to a menu item or category, sync initial quantity

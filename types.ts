@@ -178,6 +178,9 @@ export interface InventoryItem {
   minThreshold: number;
   supplier: string;
   pricePerUnit: number;
+  totalAmount?: number;
+  paidAmount?: number;
+  dueAmount?: number;
   menuItemIds?: string[]; // Link to multiple menu items for auto-sync
   menuItemLinks?: { itemId: string; consumption: number }[];
   menuCategory?: string;
