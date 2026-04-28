@@ -355,7 +355,7 @@ export const POS = () => {
     <div className="flex flex-col h-full bg-slate-50/50">
       {!selectedOrderId && !isCreatingNew ? (
         <div className="p-4 md:p-10 h-full overflow-y-auto no-scrollbar">
-          <div className="flex flex-col md:flex-row md:items-center gap-10 mb-8 md:mb-12">
+          <div className="flex flex-col md:flex-row md:items-center gap-4 mb-4 md:mb-12">
              <div className="flex items-center gap-5">
                 <div className="w-12 h-12 rounded-2xl bg-[#1a1a37] flex items-center justify-center shadow-xl shrink-0">
                    <LayoutGrid className="text-indigo-500" size={24} />

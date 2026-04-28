@@ -1283,7 +1283,10 @@ export const Inventory = () => {
                           className="w-full px-5 py-3.5 bg-white border-[0.5px] border-black rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-black transition-all appearance-none shadow-sm"
                         >
                           <option value="kg">Kilograms (kg)</option>
+                          <option value="g">Grams (g)</option>
+                          <option value="mg">Milligrams (mg)</option>
                           <option value="ltr">Liters (ltr)</option>
+                          <option value="ml">Milliliters (ml)</option>
                           <option value="pcs">Pieces (pcs)</option>
                           <option value="box">Boxes (box)</option>
                           <option value="pkt">Packets (pkt)</option>

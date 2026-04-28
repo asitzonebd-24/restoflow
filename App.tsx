@@ -90,7 +90,7 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
       flex items-center gap-3 px-3 py-3 rounded-2xl transition-all duration-300 ${margin} group relative border w-full
       ${active 
         ? 'bg-white text-[#1a1a37] shadow-xl border-white' 
-        : 'text-white/40 hover:bg-white/10 hover:text-white border-white/10 hover:border-white/20'}
+        : 'text-white hover:bg-white/10 hover:text-white border-white/10 hover:border-white/20'}
     `;
   };
 
@@ -589,11 +589,11 @@ const ProtectedLayout = ({ children, allowedRoles }: { children?: React.ReactNod
           <MenuIcon size={24} />
         </button>
 
-        <div className="flex items-center gap-0.5 ml-auto">
+        <div className="flex items-center gap-4 pl-2">
             {permissions.includes('POS') && allowedBySubscription('pos') && (
             <NavLink 
               to={`/${tId}/pos`} 
-              className={({ isActive }) => `p-2 rounded-xl transition-all relative ${isActive ? 'bg-white text-[#11112b]' : 'text-white/40 hover:bg-white/10'}`}
+              className={({ isActive }) => `p-2 rounded-xl transition-all relative ${isActive ? 'bg-white text-[#11112b]' : 'text-white hover:bg-white/10'}`}
             >
               <UtensilsCrossed size={20} />
               {activeOrdersCount > 0 && (
@@ -607,7 +607,7 @@ const ProtectedLayout = ({ children, allowedRoles }: { children?: React.ReactNod
           {permissions.includes('Kitchen') && allowedBySubscription('kitchen') && (
             <NavLink 
               to={`/${tId}/kitchen`} 
-              className={({ isActive }) => `p-2 rounded-xl transition-all relative ${isActive ? 'bg-white text-[#11112b]' : 'text-white/40 hover:bg-white/10'}`}
+              className={({ isActive }) => `p-2 rounded-xl transition-all relative ${isActive ? 'bg-white text-[#11112b]' : 'text-white hover:bg-white/10'}`}
             >
               <ChefHat size={20} />
               {activeOrdersCount > 0 && (
