@@ -156,7 +156,9 @@ export const POS = () => {
     setSelectedOrderId(order.id);
     setCart(order.items.map(item => ({ ...item, isExisting: true } as any)));
     setOrderNote(order.note || "");
-    setOrderType(order.deliveryStaffId ? "Online Delivery" : (order.tableNumber === "Take Away" ? "Take Away" : "Dine In"));
+    const type = order.deliveryStaffId ? "Online Delivery" : (order.tableNumber === "Take Away" ? "Take Away" : "Dine In");
+    setOrderType(type);
+    setNewTableNum(order.tableNumber && order.tableNumber !== "Take Away" && order.tableNumber !== "Delivery" ? order.tableNumber : "");
     setSelectedDeliveryStaffId(order.deliveryStaffId || "");
     setDeliveryAddress(order.deliveryAddress || "");
     setIsCreatingNew(false);
@@ -183,6 +185,7 @@ export const POS = () => {
     setOrderType("Dine In");
     setSelectedDeliveryStaffId("");
     setDeliveryAddress("");
+    setActiveCategory('Select Categories');
   };
 
   const addToCart = (item: any) => {
@@ -242,7 +245,18 @@ export const POS = () => {
   }, [isCreatingNew, orders, newTokenNum, currentTenant]);
 
   const createAndSubmitOrder = async () => {
-    if (cart.length === 0 || isSubmitting) return;
+    if (cart.length === 0 || isSubmitting) return false;
+    
+    // Validation: Require table number for Dine In and delivery staff for Online Delivery
+    if (orderType === "Dine In" && !newTableNum) {
+      toast.error("Please select a table number for Dine In orders");
+      return false;
+    }
+    if (orderType === "Online Delivery" && !selectedDeliveryStaffId) {
+      toast.error("Please select a delivery staff for Online Delivery orders");
+      return false;
+    }
+
     setIsSubmitting(true);
     
     try {
@@ -287,10 +301,12 @@ export const POS = () => {
         setOrderType("Dine In");
         setSelectedDeliveryStaffId("");
         setDeliveryAddress("");
+        setActiveCategory('Select Categories');
         
         if (!currentTenant?.printerSettings?.enablePrintAgent && currentTenant?.printerSettings?.autoPrintKOT) {
            // Auto print logic here if needed
         }
+        return true;
         
       } else if (selectedOrderId) {
         const total = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
@@ -320,7 +336,10 @@ export const POS = () => {
         setOrderType("Dine In");
         setSelectedDeliveryStaffId("");
         setDeliveryAddress("");
+        setActiveCategory('Select Categories');
+        return true;
       }
+      return false;
     } catch (err: any) {
       console.error("Failed to submit order:", err);
       let msg = "Unknown error";
@@ -330,6 +349,7 @@ export const POS = () => {
         msg = err.message || "Unknown error";
       }
       setErrorMessage(msg);
+      return false;
     } finally {
       setIsSubmitting(false);
     }
@@ -913,8 +933,8 @@ export const POS = () => {
                  </button>
                  <button 
                   onClick={async () => {
-                    await createAndSubmitOrder();
-                    setIsPreviewModalOpen(false);
+                    const success = await createAndSubmitOrder();
+                    if (success) setIsPreviewModalOpen(false);
                   }}
                   className="flex-1 px-4 py-3 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200"
                  >
