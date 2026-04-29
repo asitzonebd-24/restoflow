@@ -289,6 +289,7 @@ export const Billing = () => {
             discount,
             creatorName: creator?.name || 'Unknown'
           });
+          await BluetoothPrinterService.disconnect();
           return; // Skip system print if bluetooth worked
         }
       } catch (error) {

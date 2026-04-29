@@ -215,16 +215,18 @@ export class BluetoothPrinterService {
 
       // 2. If deviceId is provided, try to reconnect without showing the picker
       if (deviceId && (navigator as any).bluetooth.getDevices) {
-        try {
-          const devices = await (navigator as any).bluetooth.getDevices();
-          const existingDevice = devices.find((d: any) => d.id === deviceId);
-          
-          if (existingDevice) {
-            console.log('[PrinterService] Found existing device permission for:', deviceId);
-            this.device = existingDevice;
+        let attempts = 0;
+        const maxAttempts = 3;
+
+        while (attempts < maxAttempts) {
+          try {
+            const devices = await (navigator as any).bluetooth.getDevices();
+            const existingDevice = devices.find((d: any) => d.id === deviceId);
             
-            // Try connection
-            try {
+            if (existingDevice) {
+              console.log(`[PrinterService] Reconnecting to: ${deviceId} (Attempt ${attempts + 1})`);
+              this.device = existingDevice;
+              
               this.server = await this.device.gatt.connect();
               
               const services = await this.server.getPrimaryServices();
@@ -237,16 +239,17 @@ export class BluetoothPrinterService {
                   }
                 }
               }
-            } catch (connErr: any) {
-              console.warn('[PrinterService] GATT connection failed:', connErr);
-              // If we are in silent mode and connection failed (not permission), return failed
-              if (silent) {
-                return { success: false, error: 'failed' };
-              }
+            }
+            break; // Device not found in permissions
+          } catch (connErr: any) {
+            attempts++;
+            console.warn(`[PrinterService] GATT connection attempt ${attempts} failed:`, connErr);
+            if (attempts < maxAttempts) {
+              await new Promise(resolve => setTimeout(resolve, 800)); // Wait before retry
+            } else if (silent) {
+              return { success: false, error: 'failed' };
             }
           }
-        } catch (err) {
-          console.warn('[PrinterService] Silent reconnection permission check failed:', err);
         }
       }
 

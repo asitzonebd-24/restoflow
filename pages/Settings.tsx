@@ -7,7 +7,7 @@ import { BluetoothPrinterService } from '../services/printerService';
 import { QRCodeModal } from '../components/QRCodeModal';
 
 export const Settings = () => {
-    const { business, updateBusiness, currentUser, updateUser, relayMode, setRelayMode } = useApp();
+    const { business, updateBusiness, currentUser, updateUser } = useApp();
     
     // Business Settings state
     const [name, setName] = useState('');
@@ -31,7 +31,6 @@ export const Settings = () => {
     const [autoPrintKOT, setAutoPrintKOT] = useState(false);
     const [autoPrintInvoice, setAutoPrintInvoice] = useState(false);
     const [enablePrintAgent, setEnablePrintAgent] = useState(false);
-    const [enablePrinterRelay, setEnablePrinterRelay] = useState(false);
     const [showLogo, setShowLogo] = useState(true);
     const [pairedPrinterName, setPairedPrinterName] = useState('');
     const [pairedPrinterId, setPairedPrinterId] = useState('');
@@ -76,7 +75,6 @@ export const Settings = () => {
                 setAutoPrintKOT(business.printerSettings.autoPrintKOT || false);
                 setAutoPrintInvoice(business.printerSettings.autoPrintInvoice || false);
                 setEnablePrintAgent(business.printerSettings.enablePrintAgent || false);
-                setEnablePrinterRelay(business.printerSettings.enablePrinterRelay || false);
                 setShowLogo(business.printerSettings.showLogo ?? true);
                 setPairedPrinterName(business.printerSettings.pairedPrinterName || '');
                 setPairedPrinterId(business.printerSettings.pairedPrinterId || '');
@@ -148,7 +146,6 @@ export const Settings = () => {
                     autoPrintKOT,
                     autoPrintInvoice,
                     enablePrintAgent,
-                    enablePrinterRelay,
                     autoMarkReadyOnPrint,
                     showLogo,
                     pairedPrinterName,
@@ -220,6 +217,7 @@ export const Settings = () => {
             await BluetoothPrinterService.printTextLine(`ID: ${userPrinterId}`, pixelWidth, { align: 'center' });
             await BluetoothPrinterService.printTextLine('--------------------------------', pixelWidth, { align: 'center' });
             await BluetoothPrinterService.printRaw(new Uint8Array([...Array(4).fill(0x0A), 0x1D, 0x56, 0x41, 0x03])); // Feed & Cut
+            await BluetoothPrinterService.disconnect();
             
             alert('Test print sent to your personal printer!');
         } catch (error) {
@@ -267,14 +265,9 @@ export const Settings = () => {
                 return;
             }
             
-            // Send a simple test print
-            const encoder = new TextEncoder();
-            
-            // We use the service's printTextLine logic for the test print too
             const pixelWidth = business.printerSettings?.paperWidth === '58mm' ? 384 : 576;
             
             await BluetoothPrinterService.printRaw(new Uint8Array([0x1B, 0x40])); // Init
-            
             await BluetoothPrinterService.printTextLine('RestoKeep Test Print', pixelWidth, { align: 'center', doubleSize: true, bold: true });
             await BluetoothPrinterService.printTextLine('--------------------------------', pixelWidth, { align: 'center' });
             await BluetoothPrinterService.printTextLine('বাংলা ফন্ট টেস্ট (Bangla Test)', pixelWidth, { align: 'center' });
@@ -282,8 +275,8 @@ export const Settings = () => {
             await BluetoothPrinterService.printTextLine('Status: Working Correctly', pixelWidth, { align: 'center' });
             await BluetoothPrinterService.printTextLine('Date: ' + new Date().toLocaleString(), pixelWidth, { align: 'center' });
             await BluetoothPrinterService.printTextLine('--------------------------------', pixelWidth, { align: 'center' });
-            
             await BluetoothPrinterService.printRaw(new Uint8Array([...Array(4).fill(0x0A), 0x1D, 0x56, 0x41, 0x03])); // Feed & Cut
+            await BluetoothPrinterService.disconnect();
             
             alert('Test print sent!');
         } catch (error) {
@@ -311,7 +304,7 @@ export const Settings = () => {
             </div>
 
             <div className="space-y-8 pb-12">
-                {/* User Profile Section - Visible to EVERYONE */}
+                {/* User Profile Section */}
                 <div className="bg-white p-8 rounded-[2rem] border-2 border-slate-900 shadow-xl shadow-slate-100 hover:scale-[1.01] transition-all duration-300">
                     <div className="flex items-center justify-between mb-8">
                         <div className="flex items-center gap-3">
@@ -414,63 +407,45 @@ export const Settings = () => {
                                 <Printer size={16} />
                                 My Personal Printer
                             </h3>
-                            <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-relaxed mb-6">
-                                Set up a printer only for your account. This is useful if multiple staff members use different Bluetooth printers.
-                            </p>
-                            
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div className="space-y-4">
-                                    <div className="p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl">
-                                        <label className="block text-[8px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3">Paper Width</label>
-                                        <div className="flex gap-2">
-                                            <button 
-                                                type="button"
-                                                onClick={() => setUserPaperWidth('58mm')}
-                                                className={`flex-1 py-3 rounded-xl font-bold text-xs transition-all ${userPaperWidth === '58mm' ? 'bg-slate-900 text-white' : 'bg-white border text-slate-400 border-slate-200 hover:border-slate-300'}`}
-                                            >
-                                                58mm
-                                            </button>
-                                            <button 
-                                                type="button"
-                                                onClick={() => setUserPaperWidth('80mm')}
-                                                className={`flex-1 py-3 rounded-xl font-bold text-xs transition-all ${userPaperWidth === '80mm' ? 'bg-slate-900 text-white' : 'bg-white border text-slate-400 border-slate-200 hover:border-slate-300'}`}
-                                            >
-                                                80mm
-                                            </button>
-                                        </div>
+                                <div className="p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl">
+                                    <label className="block text-[8px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3">Paper Width</label>
+                                    <div className="flex gap-2">
+                                        <button 
+                                            type="button"
+                                            onClick={() => setUserPaperWidth('58mm')}
+                                            className={`flex-1 py-3 rounded-xl font-bold text-xs transition-all ${userPaperWidth === '58mm' ? 'bg-slate-900 text-white' : 'bg-white border text-slate-400 border-slate-200 hover:border-slate-300'}`}
+                                        >
+                                            58mm
+                                        </button>
+                                        <button 
+                                            type="button"
+                                            onClick={() => setUserPaperWidth('80mm')}
+                                            className={`flex-1 py-3 rounded-xl font-bold text-xs transition-all ${userPaperWidth === '80mm' ? 'bg-slate-900 text-white' : 'bg-white border text-slate-400 border-slate-200 hover:border-slate-300'}`}
+                                        >
+                                            80mm
+                                        </button>
                                     </div>
                                 </div>
-
                                 <div className="flex flex-col justify-end">
                                     {userPrinterName ? (
                                         <div className="p-4 bg-emerald-50 border-2 border-emerald-100 rounded-2xl flex items-center justify-between mb-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 bg-emerald-200 text-emerald-700 rounded-lg flex items-center justify-center">
-                                                    <Check size={14} />
-                                                </div>
-                                                <div>
-                                                    <p className="text-[10px] font-black text-emerald-700 uppercase tracking-widest leading-none mb-1">{userPrinterName}</p>
-                                                    <p className="text-[8px] font-bold text-emerald-500 uppercase tracking-widest">{userPaperWidth}</p>
-                                                </div>
-                                            </div>
+                                            <span className="text-[10px] font-black text-emerald-700 uppercase tracking-widest">{userPrinterName}</span>
                                             <div className="flex gap-3">
-                                                <button onClick={handleTestUserPrint} className="text-[8px] font-black uppercase tracking-widest text-emerald-700 hover:underline">Test</button>
-                                                <button onClick={() => {setUserPrinterName(''); setUserPrinterId('');}} className="text-[8px] font-black uppercase tracking-widest text-rose-500 hover:underline">Remove</button>
+                                                <button onClick={handleTestUserPrint} className="text-[8px] font-black uppercase text-emerald-700 underline">Test</button>
+                                                <button onClick={() => {setUserPrinterName(''); setUserPrinterId('');}} className="text-[8px] font-black uppercase text-rose-500 underline">Remove</button>
                                             </div>
                                         </div>
                                     ) : (
-                                        <div className="p-4 bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl flex items-center justify-center mb-4">
-                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No Personal Printer Paired</p>
-                                        </div>
+                                        <button 
+                                            type="button"
+                                            onClick={handleUserPrinterPairing}
+                                            disabled={isUserPrinterSearching}
+                                            className="w-full bg-slate-100 text-slate-700 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-200 disabled:opacity-50"
+                                        >
+                                            {isUserPrinterSearching ? 'Searching...' : 'Pair Personal Printer'}
+                                        </button>
                                     )}
-                                    <button 
-                                        type="button"
-                                        onClick={handleUserPrinterPairing}
-                                        disabled={isUserPrinterSearching}
-                                        className="w-full bg-slate-100 text-slate-700 py-4 rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] hover:bg-slate-200 transition-all active:scale-95 disabled:opacity-50"
-                                    >
-                                        {isUserPrinterSearching ? 'Searching...' : 'Pair Personal Printer'}
-                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -488,431 +463,128 @@ export const Settings = () => {
                                     </div>
                                     <h2 className="text-lg font-bold text-slate-900 tracking-tight">Restaurant Profile</h2>
                                 </div>
-                                <div className="flex items-center gap-3">
-                                    <button 
-                                        onClick={handleBusinessSubmit}
-                                        className="bg-indigo-600 text-white px-6 py-2 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-indigo-700 transition-all flex items-center gap-2"
-                                    >
-                                        <Save size={16} />
-                                        Save Business
-                                    </button>
-                                </div>
+                                <button 
+                                    onClick={handleBusinessSubmit}
+                                    className="bg-indigo-600 text-white px-6 py-2 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-indigo-700 transition-all flex items-center gap-2"
+                                >
+                                    <Save size={16} />
+                                    Save Business
+                                </button>
                             </div>
                             
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="md:col-span-2 flex flex-col md:flex-row items-center gap-8 mb-4">
                                     <div className="relative group">
                                         <div className="w-32 h-32 rounded-[2rem] overflow-hidden border-4 border-slate-100 shadow-inner bg-slate-50 flex items-center justify-center group-hover:border-indigo-500/20 transition-all">
-                                            {logo ? (
-                                                <img 
-                                                    src={logo} 
-                                                    alt="Business Logo" 
-                                                    className="w-full h-full object-cover" 
-                                                />
-                                            ) : (
-                                                <Store size={40} className="text-slate-200" />
-                                            )}
+                                            {logo ? <img src={logo} alt="Logo" className="w-full h-full object-cover" /> : <Store size={40} className="text-slate-200" />}
                                         </div>
-                                        <label className="absolute -bottom-2 -right-2 bg-slate-900 text-white p-2.5 rounded-xl shadow-lg cursor-pointer hover:bg-indigo-600 transition-all active:scale-90">
+                                        <label className="absolute -bottom-2 -right-2 bg-slate-900 text-white p-2.5 rounded-xl shadow-lg cursor-pointer hover:bg-indigo-600">
                                             <Upload size={16} />
                                             <input type="file" className="hidden" accept="image/*" onChange={handleLogoUpload} />
                                         </label>
                                     </div>
-                                    <div className="flex-1 space-y-2">
+                                    <div className="flex-1">
                                         <h3 className="text-sm font-bold text-slate-900 uppercase tracking-tight">Business Logo</h3>
-                                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-relaxed">
-                                            Upload your restaurant's logo. This will appear on the login screen, sidebar, and customer app.
-                                        </p>
+                                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Appear on receipts and app sidebar.</p>
                                     </div>
                                 </div>
 
                                 <div className="md:col-span-2">
                                     <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Business Name</label>
-                                    <input 
-                                        type="text" 
-                                        value={name || ''}
-                                        onChange={e => setName(e.target.value)}
-                                        className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-indigo-500 outline-none font-bold text-sm transition-all shadow-sm"
-                                    />
+                                    <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 outline-none font-bold text-sm shadow-sm" />
                                 </div>
                                 <div>
                                     <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Official Phone</label>
-                                    <input 
-                                        type="text" 
-                                        value={phone || ''}
-                                        onChange={e => setPhone(e.target.value)}
-                                        className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-indigo-500 outline-none font-bold text-sm transition-all shadow-sm"
-                                    />
+                                    <input type="text" value={phone} onChange={e => setPhone(e.target.value)} className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 outline-none font-bold text-sm shadow-sm" />
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Brand Theme Color</label>
+                                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Theme Color</label>
                                     <div className="flex gap-3">
-                                        <input 
-                                            type="color" 
-                                            value={themeColor || ''}
-                                            onChange={e => setThemeColor(e.target.value)}
-                                            className="h-14 w-14 border-2 border-slate-100 rounded-2xl cursor-pointer p-1.5 bg-white shadow-sm"
-                                        />
-                                        <input 
-                                            type="text" 
-                                            value={themeColor || ''}
-                                            onChange={e => setThemeColor(e.target.value)}
-                                            className="flex-1 p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-indigo-500 outline-none font-bold text-sm uppercase transition-all shadow-sm"
-                                        />
-                                    </div>
-                                </div>
-                                <div className="md:col-span-2">
-                                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Physical Address</label>
-                                    <textarea 
-                                        value={address || ''}
-                                        onChange={e => setAddress(e.target.value)}
-                                        rows={2}
-                                        className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-indigo-500 outline-none font-bold text-sm transition-all resize-none shadow-sm"
-                                    />
-                                </div>
-                                <div className="md:col-span-2">
-                                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Inventory Management Mode</label>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <button 
-                                            type="button"
-                                            onClick={() => setInventoryMode(InventoryMode.SIMPLE)}
-                                            className={`p-4 rounded-2xl border-2 text-left transition-all ${inventoryMode === InventoryMode.SIMPLE ? 'border-indigo-600 bg-indigo-50 shadow-md' : 'border-slate-100 bg-slate-50 hover:border-slate-200'}`}
-                                        >
-                                            <div className="flex items-center gap-3 mb-1">
-                                                <div className={`w-2 h-2 rounded-full ${inventoryMode === InventoryMode.SIMPLE ? 'bg-indigo-600' : 'bg-slate-300'}`}></div>
-                                                <span className="text-xs font-bold text-slate-900 uppercase tracking-widest">Simple Mode</span>
-                                            </div>
-                                            <p className="text-[10px] text-slate-500 font-medium leading-relaxed">
-                                                Directly track stock for each menu item. Best for small restaurants.
-                                            </p>
-                                        </button>
-                                        <button 
-                                            type="button"
-                                            onClick={() => setInventoryMode(InventoryMode.RECIPE)}
-                                            className={`p-4 rounded-2xl border-2 text-left transition-all ${inventoryMode === InventoryMode.RECIPE ? 'border-indigo-600 bg-indigo-50 shadow-md' : 'border-slate-100 bg-slate-50 hover:border-slate-200'}`}
-                                        >
-                                            <div className="flex items-center gap-3 mb-1">
-                                                <div className={`w-2 h-2 rounded-full ${inventoryMode === InventoryMode.RECIPE ? 'bg-indigo-600' : 'bg-slate-300'}`}></div>
-                                                <span className="text-xs font-bold text-slate-900 uppercase tracking-widest">Recipe Mode</span>
-                                            </div>
-                                            <p className="text-[10px] text-slate-500 font-medium leading-relaxed">
-                                                Track raw materials and link them to recipes. Stock updates automatically on sale.
-                                            </p>
-                                        </button>
+                                        <input type="color" value={themeColor} onChange={e => setThemeColor(e.target.value)} className="h-14 w-14 border-2 border-slate-100 rounded-2xl p-1.5 bg-white" />
+                                        <input type="text" value={themeColor} onChange={e => setThemeColor(e.target.value)} className="flex-1 p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold text-sm uppercase" />
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        {/* Regional & Tax Section */}
+                        {/* Tax & Regional Section */}
                         <div className="bg-white p-8 rounded-[2rem] border-2 border-emerald-500 shadow-xl shadow-emerald-100 hover:scale-[1.01] transition-all duration-300">
-                            <div className="flex items-center gap-3 mb-8">
+                             <div className="flex items-center gap-3 mb-8">
                                 <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center border border-emerald-100">
                                     <Percent size={20} />
                                 </div>
-                                <h2 className="text-lg font-bold text-slate-900 tracking-tight">Tax & Regional Settings</h2>
+                                <h2 className="text-lg font-bold text-slate-900 tracking-tight">Tax & Regional</h2>
                             </div>
-
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                 <div>
                                     <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Currency Symbol</label>
-                                    <div className="relative group">
-                                        <select
-                                            value={currency || ''}
-                                            onChange={e => setCurrency(e.target.value)}
-                                            className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-indigo-500 outline-none font-bold text-sm transition-all appearance-none shadow-sm"
-                                        >
-                                            <option value="$">USD ($)</option>
-                                            <option value="£">GBP (£)</option>
-                                            <option value="€">EUR (€)</option>
-                                            <option value="₹">INR (₹)</option>
-                                            <option value="৳">BDT (৳)</option>
-                                            <option value="د.إ">AED (د.إ)</option>
-                                            <option value="﷼">SAR (﷼)</option>
-                                        </select>
-                                        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 group-focus-within:text-indigo-500 transition-colors">
-                                            <Globe size={16} />
-                                        </div>
-                                    </div>
+                                    <select value={currency} onChange={e => setCurrency(e.target.value)} className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold text-sm">
+                                        <option value="$">USD ($)</option>
+                                        <option value="৳">BDT (৳)</option>
+                                        <option value="₹">INR (₹)</option>
+                                    </select>
                                 </div>
-                                <div className="space-y-4">
-                                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Billing Tax (VAT)</label>
-                                    <div className="flex items-center justify-between p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl shadow-sm">
-                                        <div className="flex items-center gap-3">
-                                            <div className={`w-2 h-2 rounded-full ${includeVat ? 'bg-emerald-500' : 'bg-slate-300'}`}></div>
-                                            <span className="text-xs font-bold text-slate-700 uppercase tracking-widest">
-                                                {includeVat ? 'VAT Enabled' : 'VAT Disabled'}
-                                            </span>
-                                        </div>
-                                        <label className="relative inline-flex items-center cursor-pointer">
-                                            <input 
-                                                type="checkbox" 
-                                                className="sr-only peer"
-                                                checked={includeVat}
-                                                onChange={e => setIncludeVat(e.target.checked)}
-                                            />
-                                            <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-slate-900"></div>
-                                        </label>
-                                    </div>
-                                    
-                                    {includeVat && (
-                                        <div className="animate-in slide-in-from-top-2 duration-300">
-                                            <label className="block text-[8px] font-bold text-slate-400 uppercase tracking-widest mb-1 ml-1">VAT Rate (%)</label>
-                                            <input 
-                                                type="number" 
-                                                value={vatRate}
-                                                min="0"
-                                                step="0.1"
-                                                onChange={e => setVatRate(Number(e.target.value))}
-                                                className="w-full p-4 bg-white border-2 border-slate-100 rounded-2xl focus:border-indigo-500 outline-none font-bold text-sm transition-all shadow-sm"
-                                            />
-                                        </div>
-                                    )}
+                                <div>
+                                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">VAT Rate (%)</label>
+                                    <input type="number" value={vatRate} onChange={e => setVatRate(Number(e.target.value))} className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold text-sm" />
                                 </div>
                             </div>
                         </div>
 
-                        {/* Customer App Section */}
-                        <div className="bg-white p-8 rounded-[2rem] border-2 border-blue-500 shadow-xl shadow-blue-100 hover:scale-[1.01] transition-all duration-300">
-                            <div className="flex items-center gap-3 mb-8">
-                                <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-xl flex items-center justify-center border border-blue-100">
-                                    <Globe size={20} />
-                                </div>
-                                <h2 className="text-lg font-bold text-slate-900 tracking-tight">Customer App & Token Settings</h2>
+                        {/* Printer & Receipt Section */}
+                        <div className="bg-white p-8 rounded-[2rem] border-2 border-slate-900 shadow-xl shadow-slate-100">
+                            <div className="flex items-center justify-between mb-8">
+                                <h2 className="text-lg font-bold text-slate-900 tracking-tight">Printer Setup</h2>
+                                <button onClick={handleBusinessSubmit} className="bg-slate-900 text-white px-6 py-2 rounded-xl font-bold text-xs uppercase tracking-widest">Save Printer</button>
                             </div>
                             
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                                <div>
-                                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Order Token Prefix</label>
-                                    <input 
-                                        type="text" 
-                                        value={customerTokenPrefix}
-                                        onChange={e => setCustomerTokenPrefix(e.target.value.toUpperCase())}
-                                        placeholder="e.g. WEB"
-                                        className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-indigo-500 outline-none font-bold text-sm uppercase transition-all shadow-sm"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Next Token Number</label>
-                                    <input 
-                                        type="number" 
-                                        value={nextCustomerToken}
-                                        onChange={e => setNextCustomerToken(Number(e.target.value))}
-                                        className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl focus:bg-white focus:border-indigo-500 outline-none font-bold text-sm transition-all shadow-sm"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="p-6 bg-slate-50 border-2 border-slate-100 rounded-3xl flex items-center justify-between shadow-sm">
-                                <div>
-                                    <h3 className="text-sm font-bold text-slate-900 uppercase tracking-tight">Enable Customer Ordering Portal</h3>
-                                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">
-                                        Allow customers to access the ordering app from the login screen.
-                                    </p>
-                                </div>
-                                <div className="flex items-center gap-4">
-                                    <span className="text-[10px] font-bold uppercase text-slate-900 tracking-widest">
-                                        {customerAppEnabled ? 'Enabled' : 'Disabled'}
-                                    </span>
-                                    <label className="relative inline-flex items-center cursor-pointer">
-                                        <input 
-                                            type="checkbox" 
-                                            className="sr-only peer"
-                                            checked={customerAppEnabled}
-                                            onChange={e => setCustomerAppEnabled(e.target.checked)}
-                                        />
-                                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                                    </label>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Printer & Receipt Settings Section */}
-                        <div className="bg-white p-8 rounded-[2rem] border-2 border-slate-900 shadow-xl shadow-slate-100 hover:scale-[1.01] transition-all duration-300">
-                            <div className="flex items-center justify-between mb-8">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-10 h-10 bg-slate-50 text-slate-900 rounded-xl flex items-center justify-center border border-slate-100">
-                                        <ImageIcon size={20} />
-                                    </div>
-                                    <h2 className="text-lg font-bold text-slate-900 tracking-tight">Printer & Receipt Setup</h2>
-                                </div>
-                                <button 
-                                    onClick={handleBusinessSubmit}
-                                    className="bg-slate-900 text-white px-6 py-2 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-slate-800 transition-all flex items-center gap-2"
-                                >
-                                    <Save size={16} />
-                                    Save Printer Settings
-                                </button>
-                            </div>
-
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                                <div className="md:col-span-2 space-y-4">
-                                    <div className="p-6 bg-slate-50 border-2 border-slate-100 rounded-3xl">
-                                        <h3 className="text-sm font-bold text-slate-900 uppercase tracking-tight mb-4 flex items-center gap-2">
-                                            <Store size={16} />
-                                            Bluetooth Printer Connection
-                                        </h3>
-                                        <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest leading-relaxed mb-4">
-                                            To use a Bluetooth thermal printer directly from the browser, ensure your printer is paired with your device. 
-                                            <br/>
-                                            <span className="text-indigo-600">Note: For the best results, open this app in a new tab.</span>
-                                        </p>
-                                        
-                                        {pairedPrinterName && (
-                                            <div className="mb-4 p-4 bg-emerald-50 border-2 border-emerald-100 rounded-2xl flex items-center justify-between">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="w-10 h-10 bg-emerald-100 text-emerald-600 rounded-xl flex items-center justify-center">
-                                                        <Printer size={20} />
-                                                    </div>
-                                                    <div>
-                                                        <p className="text-[8px] font-bold text-emerald-600 uppercase tracking-widest mb-1">Paired Printer</p>
-                                                        <p className="text-sm font-bold text-slate-900">{pairedPrinterName}</p>
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-center gap-4">
-                                                    <button 
-                                                        onClick={handleTestPrint}
-                                                        className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest hover:text-emerald-700 underline underline-offset-4"
-                                                    >
-                                                        Test Print
-                                                    </button>
-                                                    <button 
-                                                        onClick={async () => {
-                                                            await BluetoothPrinterService.disconnect();
-                                                            setPairedPrinterName('');
-                                                            setPairedPrinterId('');
-                                                            if (business) {
-                                                                updateBusiness({
-                                                                    printerSettings: {
-                                                                        receiptHeader,
-                                                                        receiptFooter,
-                                                                        paperWidth,
-                                                                        autoPrintKOT,
-                                                                        autoPrintInvoice,
-                            enablePrintAgent,
-                                                                        showLogo,
-                                                                        pairedPrinterName: '',
-                                                                        pairedPrinterId: ''
-                                                                    }
-                                                                });
-                                                            }
-                                                        }}
-                                                        className="text-[10px] font-bold text-rose-500 uppercase tracking-widest hover:text-rose-600"
-                                                    >
-                                                        Remove
-                                                    </button>
-                                                </div>
+                                <div className="md:col-span-2 p-6 bg-slate-50 border-2 border-slate-100 rounded-3xl">
+                                    {pairedPrinterName ? (
+                                        <div className="flex items-center justify-between">
+                                            <span className="font-bold text-slate-900">{pairedPrinterName}</span>
+                                            <div className="flex gap-4">
+                                                <button onClick={handleTestPrint} className="text-emerald-600 underline text-xs font-bold uppercase tracking-widest">Test Print</button>
+                                                <button onClick={() => {setPairedPrinterId(''); setPairedPrinterName('');}} className="text-rose-500 underline text-xs font-bold uppercase tracking-widest">Remove</button>
                                             </div>
-                                        )}
-
-                                        <button 
-                                            onClick={handleAddBluetoothPrinter}
-                                            disabled={isBluetoothSearching}
-                                            className={`w-full md:w-auto bg-white border-2 border-slate-900 text-slate-900 px-8 py-3 rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-slate-50 transition-all active:scale-95 flex items-center justify-center gap-3 shadow-sm ${isBluetoothSearching ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                        >
-                                            <Globe size={18} className={isBluetoothSearching ? 'animate-spin' : ''} />
+                                        </div>
+                                    ) : (
+                                        <button onClick={handleAddBluetoothPrinter} disabled={isBluetoothSearching} className="bg-white border-2 border-slate-900 text-slate-900 px-8 py-3 rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-slate-50 transition-all flex items-center justify-center gap-3">
                                             {isBluetoothSearching ? 'Searching...' : 'Add Bluetooth Printer'}
                                         </button>
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Paper Width</label>
-                                    <div className="flex gap-3">
-                                        <button 
-                                            type="button"
-                                            onClick={() => setPaperWidth('58mm')}
-                                            className={`flex-1 p-4 rounded-2xl border-2 font-bold text-sm transition-all ${paperWidth === '58mm' ? 'border-slate-900 bg-slate-900 text-white shadow-lg' : 'border-slate-100 bg-slate-50 text-slate-400 hover:border-slate-200'}`}
-                                        >
-                                            58mm
-                                        </button>
-                                        <button 
-                                            type="button"
-                                            onClick={() => setPaperWidth('80mm')}
-                                            className={`flex-1 p-4 rounded-2xl border-2 font-bold text-sm transition-all ${paperWidth === '80mm' ? 'border-slate-900 bg-slate-900 text-white shadow-lg' : 'border-slate-100 bg-slate-50 text-slate-400 hover:border-slate-200'}`}
-                                        >
-                                            80mm
-                                        </button>
-                                    </div>
+                                    )}
                                 </div>
 
                                 <div className="space-y-4">
-                                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Print Options</label>
+                                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Print Options</label>
                                     <div className="grid grid-cols-1 gap-3">
-                                        <label className="flex items-center justify-between p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl cursor-pointer hover:border-slate-200 transition-all">
-                                            <div className="flex flex-col">
-                                                <span className="text-[10px] font-bold uppercase text-slate-700 tracking-widest">Enable Print Agent</span>
-                                                <span className="text-[8px] text-slate-400 font-medium uppercase tracking-tight">Status: {enablePrintAgent ? 'Active' : 'Disabled'}</span>
-                                            </div>
-                                            <div className={`w-5 h-5 rounded border-2 ${enablePrintAgent ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300'} flex items-center justify-center transition-colors`} onClick={() => setEnablePrintAgent(!enablePrintAgent)}>
+                                        <label className="flex items-center justify-between p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl cursor-pointer" onClick={() => setEnablePrintAgent(!enablePrintAgent)}>
+                                            <span className="text-[10px] font-bold uppercase text-slate-700 tracking-widest">Enable Print Agent</span>
+                                            <div className={`w-5 h-5 rounded border-2 ${enablePrintAgent ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300'} flex items-center justify-center`}>
                                                 <Check size={12} className="text-white" />
                                             </div>
                                         </label>
-
-                                        <label className="flex items-center justify-between p-4 bg-indigo-50 border-2 border-indigo-100 rounded-2xl cursor-pointer hover:border-indigo-200 transition-all">
-                                            <div className="flex flex-col">
-                                                <span className="text-[10px] font-bold uppercase text-indigo-700 tracking-widest">Mobile Printer Relay</span>
-                                                <span className="text-[8px] text-indigo-400 font-medium uppercase tracking-tight">Enable background hub for this device</span>
-                                            </div>
-                                            <div className="flex items-center gap-3">
-                                                <span className={`text-[8px] font-black uppercase tracking-widest ${enablePrinterRelay ? 'text-emerald-600' : 'text-slate-400'}`}>
-                                                    {enablePrinterRelay ? 'Active' : 'Off'}
-                                                </span>
-                                                <div className="relative inline-flex items-center cursor-pointer">
-                                                    <input 
-                                                        type="checkbox" 
-                                                        className="sr-only peer"
-                                                        checked={enablePrinterRelay}
-                                                        onChange={e => setEnablePrinterRelay(e.target.checked)}
-                                                    />
-                                                    <div className="w-10 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
-                                                </div>
-                                            </div>
-                                        </label>
-
-                                        <label className="flex items-center justify-between p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl cursor-pointer hover:border-slate-200 transition-all">
-                                            <div className="flex flex-col">
-                                                <span className="text-[10px] font-bold uppercase text-slate-700 tracking-widest">Auto Mark Done on Print</span>
-                                                <span className="text-[8px] text-slate-400 font-medium uppercase tracking-tight">Status: {autoMarkReadyOnPrint ? 'Active' : 'Disabled'}</span>
-                                            </div>
-                                            <div className={`w-5 h-5 rounded border-2 ${autoMarkReadyOnPrint ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300'} flex items-center justify-center transition-colors`} onClick={() => setAutoMarkReadyOnPrint(!autoMarkReadyOnPrint)}>
+                                        <label className="flex items-center justify-between p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl cursor-pointer" onClick={() => setAutoMarkReadyOnPrint(!autoMarkReadyOnPrint)}>
+                                            <span className="text-[10px] font-bold uppercase text-slate-700 tracking-widest">Auto Mark Done on Print</span>
+                                            <div className={`w-5 h-5 rounded border-2 ${autoMarkReadyOnPrint ? 'bg-indigo-600 border-indigo-600' : 'border-slate-300'} flex items-center justify-center`}>
                                                 <Check size={12} className="text-white" />
                                             </div>
                                         </label>
+                                    </div>
+                                </div>
 
-                                        {business.printerSettings?.showLogo && (
-                                            <label className="flex items-center justify-between p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl">
-                                                <span className="text-[10px] font-bold uppercase text-slate-700 tracking-widest">Show Logo on Receipt</span>
-                                                <div className={`w-5 h-5 rounded border-2 border-slate-300 flex items-center justify-center bg-indigo-600 border-indigo-600`}>
-                                                    <Check size={12} className="text-white" />
-                                                </div>
-                                            </label>
-                                        )}
-                                        {business.printerSettings?.autoPrintKOT && (
-                                            <label className="flex items-center justify-between p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl">
-                                                <span className="text-[10px] font-bold uppercase text-slate-700 tracking-widest">Auto-print KOT on Order</span>
-                                                <div className={`w-5 h-5 rounded border-2 border-slate-300 flex items-center justify-center bg-indigo-600 border-indigo-600`}>
-                                                    <Check size={12} className="text-white" />
-                                                </div>
-                                            </label>
-                                        )}
+                                <div>
+                                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Paper Width</label>
+                                    <div className="flex gap-3">
+                                        {['58mm', '80mm'].map(w => (
+                                            <button key={w} onClick={() => setPaperWidth(w as any)} className={`flex-1 p-4 rounded-2xl border-2 font-bold text-sm ${paperWidth === w ? 'bg-slate-900 text-white' : 'bg-slate-50'}`}>{w}</button>
+                                        ))}
                                     </div>
                                 </div>
 
                                 <div className="md:col-span-2">
-                                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Receipt Header (Custom Text)</label>
-                                    <div className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold text-sm text-slate-500 italic">
-                                        {receiptHeader || '(No header set by admin)'}
-                                    </div>
-                                    <p className="text-[8px] text-slate-400 mt-1 uppercase font-bold pl-1">Note: This content is managed by platform support</p>
-                                </div>
-
-                                <div className="md:col-span-2">
-                                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Receipt Footer (Custom Text)</label>
-                                    <div className="w-full p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold text-sm text-slate-500 italic">
-                                        {receiptFooter || '(No footer set by admin)'}
-                                    </div>
-                                    <p className="text-[8px] text-slate-400 mt-1 uppercase font-bold pl-1">Note: This content is managed by platform support</p>
+                                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Receipt Header</label>
+                                    <div className="p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-sm italic text-slate-500">{receiptHeader || 'No header set'}</div>
                                 </div>
                             </div>
                         </div>

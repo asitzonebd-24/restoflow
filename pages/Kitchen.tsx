@@ -435,16 +435,14 @@ export const Kitchen = () => {
               className={`flex-1 px-4 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all select-none ${filter === "pending" ? "bg-pink-500 text-white shadow-md" : "text-slate-400 hover:bg-slate-50"}`}
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
-              Pending <br/>
-              <span className="text-[7px] opacity-70">{currentTenant?.currency}{totals.pending.toFixed(0)}</span>
+              Pending
             </button>
             <button
               onClick={() => setFilter("done")}
               className={`flex-1 px-4 py-2.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all select-none ${filter === "done" ? "bg-emerald-500 text-white shadow-md" : "text-slate-400 hover:bg-slate-50"}`}
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
-              Done <br/>
-              <span className="text-[7px] opacity-70">{currentTenant?.currency}{totals.done.toFixed(0)}</span>
+              Done
             </button>
           </div>
 
@@ -524,12 +522,12 @@ export const Kitchen = () => {
                   {/* Centered Token Number Pill with Table Number Badge */}
                   <div className="flex justify-center mb-6 relative">
                     <div
-                      className={`w-11 h-11 rounded-full border-2 border-black flex items-center justify-center font-black text-lg text-white shadow-xl ${statusColors.bg}`}
+                      className={`w-14 h-14 rounded-full border-2 border-black flex items-center justify-center font-black text-2xl text-white shadow-xl ${statusColors.bg}`}
                     >
                       {order.tokenNumber}
                     </div>
                     {(order.tableNumber || order.deliveryStaffName) && (
-                      <div className="absolute -top-2 -right-2 bg-black text-white text-[10px] font-black px-3 py-1 rounded-full border-2 border-white shadow-lg">
+                      <div className="absolute -top-2 -right-2 bg-black text-white text-xs font-black px-4 py-1.5 rounded-full border-2 border-white shadow-lg">
                         {order.deliveryStaffName
                           ? `D-${order.deliveryStaffName.split(" ")[0]}`
                           : order.tableNumber}
@@ -611,6 +609,7 @@ export const Kitchen = () => {
                                     );
                                   }
                                 }
+                                await BluetoothPrinterService.disconnect();
                               } else {
                                 await handleSystemPrint(
                                   orderData as any,
@@ -794,16 +793,16 @@ export const Kitchen = () => {
                           return (
                             <div
                               key={key}
-                              className={`flex items-center justify-between px-3 py-1.5 transition-colors ${itemStatusColors.lightBg} border-2 ${itemStatusColors.border} rounded-lg mb-2`}
+                              className={`flex items-center justify-between px-3 py-2.5 transition-colors ${itemStatusColors.lightBg} border-2 ${itemStatusColors.border} rounded-lg mb-2`}
                             >
-                              <div className="flex items-center gap-3">
+                              <div className="flex items-center gap-4">
                                 <span
-                                  className={`text-sm font-black ${itemStatusColors.text}`}
+                                  className={`text-xl font-black ${itemStatusColors.text}`}
                                 >
                                   {group.quantity}x
                                 </span>
                                 <h4
-                                  className={`text-xs font-black capitalize tracking-tight ${group.status === OrderStatus.CANCELLED ? "text-red-600 line-through" : group.status === OrderStatus.READY ? "text-slate-300 line-through" : itemStatusColors.text}`}
+                                  className={`text-lg font-black capitalize tracking-tight ${group.status === OrderStatus.CANCELLED ? "text-red-600 line-through" : group.status === OrderStatus.READY ? "text-slate-300 line-through" : itemStatusColors.text}`}
                                 >
                                   {group.name}
                                 </h4>
@@ -1084,10 +1083,6 @@ export const Kitchen = () => {
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-black text-indigo-600">
-                        {currentTenant?.currency}
-                        {item.price}
-                      </p>
                       <Plus
                         size={16}
                         className="text-slate-300 group-hover:text-indigo-500 ml-auto mt-1"
