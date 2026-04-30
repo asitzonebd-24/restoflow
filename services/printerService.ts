@@ -501,7 +501,7 @@ export class BluetoothPrinterService {
 
     const groupedItems = this.groupItems(order.items);
     for (const item of groupedItems) {
-      await this.printTextLine(`${item.quantity} x ${item.name}`, pixelWidth, { align: 'left', fontSize: 14 });
+      await this.printTextLine(`${item.quantity} x ${item.name}`, pixelWidth, { align: 'left', fontSize: 25 });
     }
 
     if (order.note) {
