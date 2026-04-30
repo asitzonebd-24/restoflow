@@ -1958,7 +1958,17 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       }
 
       // Clean updates and prepare for Firestore
-      const cleanedUpdates = cleanObject(updates);
+      let finalUpdates = { ...updates };
+      
+      // If we are updating printerSettings, merge with existing carefully
+      if (updates.printerSettings && existingUser?.printerSettings) {
+        finalUpdates.printerSettings = {
+          ...existingUser.printerSettings,
+          ...updates.printerSettings
+        };
+      }
+      
+      const cleanedUpdates = cleanObject(finalUpdates);
       const userRef = doc(db, 'users', userId);
       
       console.log(`[AppContext] Calling setDoc for ${userId} with:`, JSON.stringify(cleanedUpdates));
