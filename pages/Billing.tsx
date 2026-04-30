@@ -286,7 +286,15 @@ export const Billing = () => {
 
     if (settings?.pairedPrinterId) {
       try {
-        const result = await BluetoothPrinterService.connect(settings.pairedPrinterId);
+        // Bluetooth printer logic
+        // Try silent connect first
+        let result = await BluetoothPrinterService.connect(settings.pairedPrinterId, true);
+        
+        // Fallback to non-silent if it failed
+        if (!result.success) {
+          result = await BluetoothPrinterService.connect(settings.pairedPrinterId, false);
+        }
+        
         if (result.success) {
           const discount = discounts[invoiceOrder.id] || 0;
           const creator = getCreator(invoiceOrder.createdBy);
@@ -294,7 +302,7 @@ export const Billing = () => {
             discount,
             creatorName: creator?.name || 'Unknown'
           });
-                    await BluetoothPrinterService.disconnect();
+          await BluetoothPrinterService.disconnect();
           return; // Skip system print if bluetooth worked
         }
       } catch (error) {

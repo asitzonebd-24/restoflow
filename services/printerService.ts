@@ -206,14 +206,10 @@ export class BluetoothPrinterService {
 
       // 1. Check if already connected in memory
       if (this.characteristic && this.device?.gatt?.connected) {
-        try {
-          return { success: true, device: this.device };
-        } catch (e) {
-          this.characteristic = null;
-        }
+        return { success: true, device: this.device };
       }
 
-      // 2. If deviceId is provided, try to reconnect without showing the picker
+      // 2. Try to reconnect to an EXISTING (granted) device silently first
       if (deviceId && (navigator as any).bluetooth.getDevices) {
         try {
           const devices = await (navigator as any).bluetooth.getDevices();
@@ -245,11 +241,12 @@ export class BluetoothPrinterService {
           }
         } catch (connErr: any) {
           console.warn('[PrinterService] Silent reconnection failed:', connErr);
+          // If silent is requested, we stop here.
           if (silent) return { success: false, error: 'failed' };
         }
       }
 
-      // 3. If silent mode is on AND we haven't succeeded
+      // 3. If silent mode is on AND we haven't succeeded, fail
       if (silent) {
         return { success: false, error: 'gesture_required' };
       }

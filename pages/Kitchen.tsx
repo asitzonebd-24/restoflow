@@ -579,10 +579,21 @@ export const Kitchen = () => {
 
                           if (settings?.pairedPrinterId) {
                             try {
-                              const result =
-                                await BluetoothPrinterService.connect(
+                              // Bluetooth printer logic
+                              // Try silent connect first
+                              let result = await BluetoothPrinterService.connect(
                                   settings.pairedPrinterId,
+                                  true
+                              );
+                              
+                              // Fallback if failed
+                              if (!result.success) {
+                                result = await BluetoothPrinterService.connect(
+                                  settings.pairedPrinterId,
+                                  false
                                 );
+                              }
+                              
                               if (result.success) {
                                 if (isDone) {
                                   await BluetoothPrinterService.printInvoice(

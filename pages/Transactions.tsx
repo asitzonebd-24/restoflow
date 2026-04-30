@@ -142,14 +142,21 @@ export const Transactions = () => {
       // If a bluetooth printer is paired, try to print directly
       if (settings?.pairedPrinterId && viewInvoice) {
         try {
-          const result = await BluetoothPrinterService.connect(settings.pairedPrinterId);
+          // Bluetooth printer logic
+          // Try silent connect first
+          let result = await BluetoothPrinterService.connect(settings.pairedPrinterId, true);
+          
+          // Fallback to non-silent if it failed
+          if (!result.success) {
+            result = await BluetoothPrinterService.connect(settings.pairedPrinterId, false);
+          }
           if (result.success) {
             await BluetoothPrinterService.printInvoice(currentTenant!, viewInvoice.order, { 
               discount: viewInvoice.transaction.discount,
               creatorName: viewInvoice.transaction.creatorName
             });
-                        await BluetoothPrinterService.disconnect();
-            return; // Skip system print if bluetooth worked
+            await BluetoothPrinterService.disconnect();
+            return;
           } else if (result.error === 'unsupported') {
             console.warn('Bluetooth is not supported or blocked in this environment.');
           }
