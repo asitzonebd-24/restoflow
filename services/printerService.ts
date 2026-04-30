@@ -215,50 +215,46 @@ export class BluetoothPrinterService {
 
       // 2. If deviceId is provided, try to reconnect without showing the picker
       if (deviceId && (navigator as any).bluetooth.getDevices) {
-        let attempts = 0;
-        const maxAttempts = 3;
-
-        while (attempts < maxAttempts) {
-          try {
-            const devices = await (navigator as any).bluetooth.getDevices();
-            const existingDevice = devices.find((d: any) => d.id === deviceId);
+        try {
+          const devices = await (navigator as any).bluetooth.getDevices();
+          const existingDevice = devices.find((d: any) => d.id === deviceId);
+          
+          if (existingDevice) {
+            console.log(`[PrinterService] Silently reconnecting to: ${deviceId}`);
+            this.device = existingDevice;
             
-            if (existingDevice) {
-              console.log(`[PrinterService] Reconnecting to: ${deviceId} (Attempt ${attempts + 1})`);
-              this.device = existingDevice;
-              
-              this.server = await this.device.gatt.connect();
-              
-              const services = await this.server.getPrimaryServices();
-              for (const service of services) {
-                const characteristics = await service.getCharacteristics();
-                for (const char of characteristics) {
-                  if (char.properties.write || char.properties.writeWithoutResponse) {
-                    this.characteristic = char;
-                    return { success: true, device: this.device };
-                  }
+            // Add disconnection listener
+            this.device.addEventListener('gattserverdisconnected', () => {
+              console.log('[PrinterService] Bluetooth device disconnected.');
+              this.server = null;
+              this.characteristic = null;
+            });
+
+            this.server = await this.device.gatt.connect();
+            
+            const services = await this.server.getPrimaryServices();
+            for (const service of services) {
+              const characteristics = await service.getCharacteristics();
+              for (const char of characteristics) {
+                if (char.properties.write || char.properties.writeWithoutResponse) {
+                  this.characteristic = char;
+                  return { success: true, device: this.device };
                 }
               }
             }
-            break; // Device not found in permissions
-          } catch (connErr: any) {
-            attempts++;
-            console.warn(`[PrinterService] GATT connection attempt ${attempts} failed:`, connErr);
-            if (attempts < maxAttempts) {
-              await new Promise(resolve => setTimeout(resolve, 800)); // Wait before retry
-            } else if (silent) {
-              return { success: false, error: 'failed' };
-            }
           }
+        } catch (connErr: any) {
+          console.warn('[PrinterService] Silent reconnection failed:', connErr);
+          if (silent) return { success: false, error: 'failed' };
         }
       }
 
-      // 3. If silent mode is on AND we haven't succeeded (meaning no device found or permission lost)
+      // 3. If silent mode is on AND we haven't succeeded
       if (silent) {
         return { success: false, error: 'gesture_required' };
       }
 
-      // 4. Show the browser's device picker
+      // 4. Show the browser's device picker (Requires User Gesture)
       const options: any = {
         acceptAllDevices: true,
         optionalServices: [
@@ -273,6 +269,14 @@ export class BluetoothPrinterService {
       };
 
       this.device = await (navigator as any).bluetooth.requestDevice(options);
+      
+      // Add disconnection listener
+      this.device.addEventListener('gattserverdisconnected', () => {
+        console.log('[PrinterService] Bluetooth device disconnected.');
+        this.server = null;
+        this.characteristic = null;
+      });
+
       this.server = await this.device.gatt.connect();
       
       const services = await this.server.getPrimaryServices();

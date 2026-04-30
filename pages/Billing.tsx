@@ -195,6 +195,11 @@ export const Billing = () => {
         await addTransaction(transaction);
         await updateOrderStatus(order.id, OrderStatus.COMPLETED, discount);
         await updateOrderPaymentStatus(order.id, true);
+
+        // Auto-print invoice if enabled
+        if (currentTenant?.printerSettings?.autoPrintInvoice) {
+          handleQuickPrint(order);
+        }
       }
 
       setSelectedOrderIds([]);
@@ -708,25 +713,27 @@ export const Billing = () => {
                   (!receivedAmount || parseFloat(receivedAmount) === 0) 
                   ? 'bg-slate-50 border-slate-100' 
                   : parseFloat(receivedAmount) >= calculateTotal(paymentOrder, (paymentOrder as any).discount || 0).total
-                    ? 'bg-amber-50 border-amber-200'
+                    ? 'bg-emerald-50 border-emerald-200'
                     : 'bg-rose-50 border-rose-200'
                 }`}>
                   <p className={`text-[8px] font-bold uppercase tracking-widest mb-0.5 leading-tight ${
                     (!receivedAmount || parseFloat(receivedAmount) === 0)
                     ? 'text-slate-400'
                     : parseFloat(receivedAmount) >= calculateTotal(paymentOrder, (paymentOrder as any).discount || 0).total
-                      ? 'text-amber-600'
+                      ? 'text-emerald-600'
                       : 'text-rose-600'
                   }`}>
-                    {(!receivedAmount || parseFloat(receivedAmount) === 0 || parseFloat(receivedAmount) >= calculateTotal(paymentOrder, (paymentOrder as any).discount || 0).total) 
-                      ? 'Return' 
-                      : 'Short'}
+                    {(!receivedAmount || parseFloat(receivedAmount) === 0) 
+                      ? 'Balance' 
+                      : parseFloat(receivedAmount) >= calculateTotal(paymentOrder, (paymentOrder as any).discount || 0).total
+                        ? 'Change to Return' 
+                        : 'Remaining Due'}
                   </p>
                   <div className={`text-sm md:text-base font-black tracking-tighter ${
                     (!receivedAmount || parseFloat(receivedAmount) === 0)
                     ? 'text-slate-300'
                     : parseFloat(receivedAmount) >= calculateTotal(paymentOrder, (paymentOrder as any).discount || 0).total
-                      ? 'text-amber-700'
+                      ? 'text-emerald-700'
                       : 'text-rose-700'
                   }`}>
                     {currentTenant?.currency}{receivedAmount ? Math.abs(parseFloat(receivedAmount) - calculateTotal(paymentOrder, (paymentOrder as any).discount || 0).total).toFixed(2) : '0.00'}
