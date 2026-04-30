@@ -1926,8 +1926,15 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
   const updateUser = async (userId: string, updates: Partial<User>) => {
     try {
+      console.log(`[AppContext] Updating user ${userId}:`, updates);
+      
       // Find the user to get current values for comparison
-      const existingUser = allUsers.find(u => u.id === userId);
+      // If allUsers is empty, we try to use currentUser if it's the same ID
+      const existingUser = allUsers.find(u => u.id === userId) || (currentUser?.id === userId ? currentUser : null);
+
+      if (!existingUser && userId === currentUser?.id) {
+        console.warn(`[AppContext] User ${userId} not found in allUsers, but is currentUser. Using currentUser data.`);
+      }
 
       // If mobile or email is being updated, check for uniqueness across the system
       if (updates.mobile && updates.mobile !== existingUser?.mobile) {
@@ -1939,7 +1946,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         }
       }
 
-      if (updates.email && updates.email.toLowerCase() !== existingUser?.email.toLowerCase()) {
+      if (updates.email && updates.email.toLowerCase() !== (existingUser?.email || '').toLowerCase()) {
         const emailQuery = query(collection(db, 'users'), where('email', '==', updates.email.toLowerCase()), limit(1));
         const emailSnapshot = await getDocs(emailQuery);
         if (!emailSnapshot.empty && emailSnapshot.docs[0].id !== userId) {
@@ -1948,10 +1955,31 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         }
       }
 
+      // Clean updates and prepare for Firestore
+      const cleanedUpdates = cleanObject(updates);
       const userRef = doc(db, 'users', userId);
-      await setDoc(userRef, cleanObject(updates), { merge: true });
-      setAllUsers(prev => prev.map(u => u.id === userId ? { ...u, ...updates } : u));
+      
+      await setDoc(userRef, cleanedUpdates, { merge: true });
+      
+      // Update local state immediately for better UI response
+      setAllUsers(prev => {
+        const updated = prev.map(u => u.id === userId ? { ...u, ...updates } : u);
+        // If user wasn't in list (e.g. initial load), add them
+        if (!updated.some(u => u.id === userId) && existingUser) {
+          updated.push({ ...existingUser, ...updates } as User);
+        }
+        return updated;
+      });
+
+      if (userId === currentUser?.id) {
+        const updatedUser = { ...currentUser, ...updates } as User;
+        setCurrentUser(updatedUser);
+        localStorage.setItem('resto_keep_user', JSON.stringify(updatedUser));
+      }
+      
+      console.log(`[AppContext] User ${userId} updated successfully.`);
     } catch (error) {
+      console.error(`[AppContext] Error updating user ${userId}:`, error);
       handleFirestoreError(error, OperationType.UPDATE, `users/${userId}`);
     }
   };

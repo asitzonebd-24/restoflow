@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { Settings as SettingsIcon, Save, Store, Globe, Percent, Upload, Image as ImageIcon, User as UserIcon, Lock, Mail, Phone, Printer, QrCode, Check, X } from 'lucide-react';
-import { Role, InventoryMode } from '../types';
+import { Role, InventoryMode, User } from '../types';
 import { BluetoothPrinterService } from '../services/printerService';
 import { QRCodeModal } from '../components/QRCodeModal';
 
@@ -162,11 +162,9 @@ export const Settings = () => {
         e.preventDefault();
         if (currentUser) {
             try {
-                await updateUser(currentUser.id, {
+                const updates: Partial<User> = {
                     name: userName,
-                    email: userEmail,
                     mobile: userMobile,
-                    password: userPassword,
                     avatar: userAvatar,
                     printerSettings: {
                         ...currentUser.printerSettings,
@@ -177,7 +175,19 @@ export const Settings = () => {
                         autoPrintKOT: currentUser.printerSettings?.autoPrintKOT ?? false,
                         showLogo: currentUser.printerSettings?.showLogo ?? true,
                     }
-                });
+                };
+
+                // Only send email if it's actually different
+                if (userEmail.toLowerCase().trim() !== currentUser.email.toLowerCase().trim()) {
+                    updates.email = userEmail.toLowerCase().trim();
+                }
+
+                // Only update password if user entered something new
+                if (userPassword && userPassword !== currentUser.password) {
+                    updates.password = userPassword;
+                }
+
+                await updateUser(currentUser.id, updates);
                 alert('Profile and personal printer settings updated successfully!');
             } catch (err) {
                 console.error('Profile update failed:', err);
@@ -647,6 +657,17 @@ export const Settings = () => {
                                             } else {
                                                 setUserPrinterName(newName);
                                                 setUserPrinterId(newId);
+                                                // Auto-save for personal printer too
+                                                if (currentUser) {
+                                                    await updateUser(currentUser.id, {
+                                                        printerSettings: {
+                                                            ...currentUser.printerSettings,
+                                                            pairedPrinterName: newName,
+                                                            pairedPrinterId: newId,
+                                                            paperWidth: userPaperWidth
+                                                        }
+                                                    });
+                                                }
                                             }
                                             
                                             alert(`Printer "${newName}" Paired Successfully!`);
