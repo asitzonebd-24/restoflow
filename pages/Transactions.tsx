@@ -148,7 +148,7 @@ export const Transactions = () => {
               discount: viewInvoice.transaction.discount,
               creatorName: viewInvoice.transaction.creatorName
             });
-            await BluetoothPrinterService.disconnect();
+                        await BluetoothPrinterService.disconnect();
             return; // Skip system print if bluetooth worked
           } else if (result.error === 'unsupported') {
             console.warn('Bluetooth is not supported or blocked in this environment.');

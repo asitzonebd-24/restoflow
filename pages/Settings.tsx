@@ -224,8 +224,6 @@ export const Settings = () => {
             await BluetoothPrinterService.printTextLine('--------------------------------', pixelWidth, { align: 'center' });
             await BluetoothPrinterService.printRaw(new Uint8Array([...Array(4).fill(0x0A), 0x1D, 0x56, 0x41, 0x03])); // Feed & Cut
             await BluetoothPrinterService.disconnect();
-            
-            alert('Test print sent to your personal printer!');
         } catch (error) {
             console.error('User test print error:', error);
             alert('Test print failed.');
@@ -257,8 +255,6 @@ export const Settings = () => {
             await BluetoothPrinterService.printTextLine('--------------------------------', pixelWidth, { align: 'center' });
             await BluetoothPrinterService.printRaw(new Uint8Array([...Array(4).fill(0x0A), 0x1D, 0x56, 0x41, 0x03])); // Feed & Cut
             await BluetoothPrinterService.disconnect();
-            
-            alert('Test print sent!');
         } catch (error) {
             console.error('Test print error:', error);
             alert('Test print failed. Check console for details.');

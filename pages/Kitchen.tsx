@@ -609,7 +609,7 @@ export const Kitchen = () => {
                                     );
                                   }
                                 }
-                                await BluetoothPrinterService.disconnect();
+                                                                await BluetoothPrinterService.disconnect();
                               } else {
                                 await handleSystemPrint(
                                   orderData as any,
