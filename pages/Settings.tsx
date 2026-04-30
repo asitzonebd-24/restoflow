@@ -56,6 +56,7 @@ export const Settings = () => {
 
     // Load data into form on mount
     useEffect(() => {
+        console.log('[Settings] Component mounted/updated. currentUser:', currentUser);
         if (business) {
             setName(business.name);
             setAddress(business.address);
@@ -84,6 +85,7 @@ export const Settings = () => {
             }
         }
         if (currentUser) {
+            console.log('[Settings] Form initialization - currentUser printer settings:', currentUser.printerSettings);
             setUserName(currentUser.name);
             setUserEmail(currentUser.email);
             setUserMobile(currentUser.mobile);
@@ -95,6 +97,7 @@ export const Settings = () => {
                 setUserPrinterId(currentUser.printerSettings.pairedPrinterId || '');
                 setUserPaperWidth(currentUser.printerSettings.paperWidth || '80mm');
             } else {
+                console.log('[Settings] No printer settings found in currentUser.');
                 setUserPrinterName('');
                 setUserPrinterId('');
                 setUserPaperWidth('80mm');

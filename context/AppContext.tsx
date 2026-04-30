@@ -307,6 +307,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
           if (userDoc && userDoc.exists()) {
             const userData = { id: userDoc.id, ...convertFirestoreData(userDoc.data()) } as User;
+            console.log('[AppContext] onAuthStateChanged: Loaded user data from Firestore:', userData.printerSettings);
             setCurrentUser(userData);
             localStorage.setItem('resto_keep_user', JSON.stringify(userData));
           } else {
@@ -1927,6 +1928,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const updateUser = async (userId: string, updates: Partial<User>) => {
     try {
       console.log(`[AppContext] Updating user ${userId}:`, updates);
+      console.log(`[AppContext] updateUser called for ${userId}. Updates:`, JSON.stringify(updates));
       
       // Find the user to get current values for comparison
       // If allUsers is empty, we try to use currentUser if it's the same ID
@@ -1959,7 +1961,9 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       const cleanedUpdates = cleanObject(updates);
       const userRef = doc(db, 'users', userId);
       
+      console.log(`[AppContext] Calling setDoc for ${userId} with:`, JSON.stringify(cleanedUpdates));
       await setDoc(userRef, cleanedUpdates, { merge: true });
+      console.log(`[AppContext] setDoc completed for ${userId}.`);
       
       // Update local state immediately for better UI response
       setAllUsers(prev => {
@@ -1973,6 +1977,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
       if (userId === currentUser?.id) {
         const updatedUser = { ...currentUser, ...updates } as User;
+        console.log(`[AppContext] Updating currentUser and localStorage for ${userId}. New printerSettings:`, updatedUser.printerSettings);
         setCurrentUser(updatedUser);
         localStorage.setItem('resto_keep_user', JSON.stringify(updatedUser));
       }
