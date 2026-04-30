@@ -158,26 +158,31 @@ export const Settings = () => {
         }
     };
 
-    const handleProfileSubmit = (e: React.FormEvent) => {
+    const handleProfileSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (currentUser) {
-            updateUser(currentUser.id, {
-                name: userName,
-                email: userEmail,
-                mobile: userMobile,
-                password: userPassword,
-                avatar: userAvatar,
-                printerSettings: {
-                    ...currentUser.printerSettings,
-                    pairedPrinterName: userPrinterName,
-                    pairedPrinterId: userPrinterId,
-                    paperWidth: userPaperWidth,
-                    autoPrintInvoice: currentUser.printerSettings?.autoPrintInvoice ?? false,
-                    autoPrintKOT: currentUser.printerSettings?.autoPrintKOT ?? false,
-                    showLogo: currentUser.printerSettings?.showLogo ?? true,
-                }
-            });
-            alert('Profile and personal printer settings updated successfully!');
+            try {
+                await updateUser(currentUser.id, {
+                    name: userName,
+                    email: userEmail,
+                    mobile: userMobile,
+                    password: userPassword,
+                    avatar: userAvatar,
+                    printerSettings: {
+                        ...currentUser.printerSettings,
+                        pairedPrinterName: userPrinterName,
+                        pairedPrinterId: userPrinterId,
+                        paperWidth: userPaperWidth,
+                        autoPrintInvoice: currentUser.printerSettings?.autoPrintInvoice ?? false,
+                        autoPrintKOT: currentUser.printerSettings?.autoPrintKOT ?? false,
+                        showLogo: currentUser.printerSettings?.showLogo ?? true,
+                    }
+                });
+                alert('Profile and personal printer settings updated successfully!');
+            } catch (err) {
+                console.error('Profile update failed:', err);
+                alert('Failed to update profile. Please check if you have permission.');
+            }
         }
     };
 

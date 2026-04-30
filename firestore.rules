@@ -48,7 +48,7 @@ service cloud.firestore {
         ))
       );
       
-      // Only super admins or users with OWNER/MANAGER role in the same tenant can create/update users
+      // Only super admins or users with OWNER/MANAGER role in the same tenant can create users
       allow create: if isAuthenticated() && (
         isSuperAdmin() || 
         (getUserData() != null && (getUserData().role == 'OWNER' || getUserData().role == 'MANAGER') && (
@@ -57,7 +57,16 @@ service cloud.firestore {
         ))
       );
       
-      allow update, delete: if isAuthenticated() && (
+      allow update: if isAuthenticated() && (
+        isSuperAdmin() || 
+        request.auth.uid == userId ||
+        (getUserData() != null && (getUserData().role == 'OWNER' || getUserData().role == 'MANAGER') && (
+          getUserData().tenantId == resource.data.tenantId ||
+          ('tenantIds' in getUserData() && getUserData().tenantIds != null && resource.data.tenantId in getUserData().tenantIds)
+        ))
+      );
+
+      allow delete: if isAuthenticated() && (
         isSuperAdmin() || 
         (getUserData() != null && (getUserData().role == 'OWNER' || getUserData().role == 'MANAGER') && (
           getUserData().tenantId == resource.data.tenantId ||
