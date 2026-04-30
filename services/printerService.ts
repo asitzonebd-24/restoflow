@@ -213,6 +213,7 @@ export class BluetoothPrinterService {
       if (deviceId && (navigator as any).bluetooth.getDevices) {
         try {
           const devices = await (navigator as any).bluetooth.getDevices();
+          console.log('[PrinterService] Found granted devices:', devices.map(d => ({ id: d.id, name: d.name })));
           const existingDevice = devices.find((d: any) => d.id === deviceId);
           
           if (existingDevice) {
@@ -500,7 +501,7 @@ export class BluetoothPrinterService {
 
     const groupedItems = this.groupItems(order.items);
     for (const item of groupedItems) {
-      await this.printTextLine(`${item.quantity} x ${item.name}`, pixelWidth, { align: 'left', bold: true });
+      await this.printTextLine(`${item.quantity} x ${item.name}`, pixelWidth, { align: 'left', fontSize: 14 });
     }
 
     if (order.note) {

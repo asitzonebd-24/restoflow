@@ -280,7 +280,7 @@ export const Kitchen = () => {
         if (type === "kot") {
           itemDiv.innerHTML = `<span>${item.quantity} x ${item.name}</span>`;
           itemDiv.className =
-            "flex justify-between items-start text-xl font-black border-b border-dashed border-black pb-1 mb-1";
+            "flex justify-between items-start text-[14px] font-normal border-b border-dashed border-black pb-1 mb-1";
         } else {
           itemDiv.innerHTML = `<span>${item.quantity} x ${item.name}</span> <span>${currentTenant?.currency}${itemTotal.toFixed(0)}</span>`;
         }
@@ -808,12 +808,12 @@ export const Kitchen = () => {
                             >
                               <div className="flex items-center gap-4">
                                 <span
-                                  className={`text-xl font-black ${itemStatusColors.text}`}
+                                  className={`text-[14px] font-normal ${itemStatusColors.text}`}
                                 >
                                   {group.quantity}x
                                 </span>
                                 <h4
-                                  className={`text-lg font-black capitalize tracking-tight ${group.status === OrderStatus.CANCELLED ? "text-red-600 line-through" : group.status === OrderStatus.READY ? "text-slate-300 line-through" : itemStatusColors.text}`}
+                                  className={`text-[14px] font-normal capitalize tracking-tight ${group.status === OrderStatus.CANCELLED ? "text-red-600 line-through" : group.status === OrderStatus.READY ? "text-slate-300 line-through" : itemStatusColors.text}`}
                                 >
                                   {group.name}
                                 </h4>
