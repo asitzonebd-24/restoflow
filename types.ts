@@ -66,6 +66,7 @@ export interface Business {
   maintenanceMessage?: string;
   maintenanceTime?: string;
   inventoryMode: InventoryMode;
+  menuCardImages?: string[];
   monthlyBill: number;
   createdAt: string;
   printerSettings?: PrinterSettings;
@@ -220,4 +221,45 @@ export interface MonthlyBill {
   status: BillStatus;
   createdAt: string;
   approvedAt?: string;
+}
+
+export interface Promotion {
+  id: string;
+  tenantId: string;
+  title: string;
+  message: string;
+  image?: string;
+  discountPercentage?: number;
+  promoCode?: string;
+  expiryDate: string;
+  createdAt: string;
+  isActive: boolean;
+}
+
+export interface Attendance {
+  id: string;
+  tenantId: string;
+  userId: string;
+  userName: string;
+  date: string; // YYYY-MM-DD
+  checkIn: string; // ISO string
+  checkOut?: string; // ISO string
+  status: 'present' | 'absent' | 'late';
+  note?: string;
+}
+
+export interface Payroll {
+  id: string;
+  tenantId: string;
+  userId: string;
+  userName: string;
+  month: string; // YYYY-MM
+  baseSalary: number;
+  bonus: number;
+  deductions: number;
+  netSalary: number;
+  status: 'pending' | 'paid';
+  paidAt?: string;
+  attendanceCount: number;
+  createdAt: string;
 }

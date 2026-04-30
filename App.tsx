@@ -24,14 +24,17 @@ import { CustomerOrder } from './pages/CustomerOrder';
 import { CustomerAuth } from './pages/CustomerAuth';
 import { CustomerPanel } from './pages/CustomerPanel';
 import { CustomerHistory } from './pages/CustomerHistory';
+import { Promotions } from './pages/Promotions';
+import { AttendancePage } from './pages/Attendance';
+import { PayrollPage } from './pages/Payroll';
 import { SuperAdmin } from './pages/SuperAdmin';
 import { TenantLanding } from './pages/TenantLanding';
 import { PendingBills } from './pages/PendingBills';
 import { ApprovedBills } from './pages/ApprovedBills';
 import { PlatformExpenses } from './pages/PlatformExpenses';
 import { GlobalReports } from './pages/GlobalReports';
-import { Role, OrderStatus } from './types';
-import { LayoutDashboard, UtensilsCrossed, ChefHat, Receipt, Package, LogOut, Settings, Users as UsersIcon, History, Wallet, PieChart, Menu as MenuIcon, User as UserCircle, ShieldCheck, PowerOff, FileText, CheckCircle, Menu, X, Utensils, ShoppingBag, Timer, AlertTriangle, Globe, MoreVertical } from 'lucide-react';
+import { Role, OrderStatus, Promotion } from './types';
+import { LayoutDashboard, UtensilsCrossed, ChefHat, Receipt, Package, LogOut, Settings, Users as UsersIcon, History, Wallet, PieChart, Menu as MenuIcon, User as UserCircle, ShieldCheck, PowerOff, FileText, CheckCircle, Menu, X, Utensils, ShoppingBag, Timer, AlertTriangle, Globe, MoreVertical, Ticket, Percent, Clock } from 'lucide-react';
 
 import { collection, addDoc } from "firebase/firestore";
 import { RestaurantSwitcher } from './components/RestaurantSwitcher';
@@ -251,6 +254,13 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
                   </NavLink>
                 )}
 
+                {(currentUser.role === Role.OWNER || currentUser.role === Role.MANAGER) && (
+                  <NavLink to={`/${tId}/promotions`} onClick={() => onClose()} className={navItemClass('/promotions')} title="Promotions">
+                    <Ticket size={22} className="shrink-0" />
+                    <NavLabel>Offers</NavLabel>
+                  </NavLink>
+                )}
+
                 {currentUser.role === Role.OWNER && currentUser.tenantIds && currentUser.tenantIds.length > 1 && (
                   <NavLink to="/global-reports" onClick={() => onClose()} className={navItemClass('/global-reports')} title="Global Reports">
                     <Globe size={22} className="shrink-0" />
@@ -262,6 +272,20 @@ const Sidebar = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) 
                   <NavLink to={`/${tId}/users`} onClick={() => onClose()} className={navItemClass('/users')} title="Users">
                     <UsersIcon size={22} className="shrink-0" />
                     <NavLabel>Staff List</NavLabel>
+                  </NavLink>
+                )}
+
+                {currentUser.role !== Role.SUPER_ADMIN && currentUser.role !== Role.CUSTOMER && (
+                  <NavLink to={`/${tId}/attendance`} onClick={() => onClose()} className={navItemClass('/attendance')} title="Attendance">
+                    <Clock size={22} className="shrink-0" />
+                    <NavLabel>Attendance</NavLabel>
+                  </NavLink>
+                )}
+
+                {(currentUser.role === Role.OWNER || currentUser.role === Role.MANAGER) && (
+                  <NavLink to={`/${tId}/payroll`} onClick={() => onClose()} className={navItemClass('/payroll')} title="Payroll">
+                    <Wallet size={22} className="shrink-0" />
+                    <NavLabel>Payroll</NavLabel>
                   </NavLink>
                 )}
 
@@ -809,6 +833,9 @@ const AppContent = () => {
       <Route path="/:tenantId/transactions" element={<ProtectedLayout><Transactions /></ProtectedLayout>} />
       <Route path="/:tenantId/expenses" element={<ProtectedLayout><Expenses /></ProtectedLayout>} />
       <Route path="/:tenantId/reports" element={<ProtectedLayout><Reports /></ProtectedLayout>} />
+      <Route path="/:tenantId/promotions" element={<ProtectedLayout><Promotions /></ProtectedLayout>} />
+      <Route path="/:tenantId/attendance" element={<ProtectedLayout><AttendancePage /></ProtectedLayout>} />
+      <Route path="/:tenantId/payroll" element={<ProtectedLayout><PayrollPage /></ProtectedLayout>} />
             <Route path="/:tenantId/users" element={<ProtectedLayout><UsersPage /></ProtectedLayout>} />
       {/* <Route path="/:tenantId/subscription" element={<ProtectedLayout><Subscription /></ProtectedLayout>} /> */}
       <Route path="/:tenantId/settings" element={<ProtectedLayout><SettingsPage /></ProtectedLayout>} />

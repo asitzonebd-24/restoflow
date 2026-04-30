@@ -82,11 +82,11 @@ service cloud.firestore {
     match /tenants/{tenantId} {
       // Anyone authenticated can read tenants (needed for login and routing)
       allow read: if isAuthenticated();
-      // Only super admins or owners can update their own subscription
+      // Only super admins, owners or managers can update their own settings
       allow write: if isSuperAdmin() || (
         isAuthenticated() && 
         getUserData() != null && 
-        getUserData().role == 'OWNER' && 
+        (getUserData().role == 'OWNER' || getUserData().role == 'MANAGER') && 
         (getUserData().tenantId == tenantId || ('tenantIds' in getUserData() && tenantId in getUserData().tenantIds))
       );
     }

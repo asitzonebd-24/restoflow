@@ -1,5 +1,5 @@
 {
   "name": "RestoKeep",
-  "description": "A multi-tenant restaurant management platform with role-based workflows, kitchen display systems, and AI-powered insights.",
+  "description": "A multi-tenant restaurant management platform with role-based workflows, kitchen display systems, push notifications, and AI-powered insights.",
   "requestFramePermissions": ["bluetooth"]
 }

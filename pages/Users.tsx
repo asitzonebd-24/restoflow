@@ -3,16 +3,18 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '../context/AppContext';
 import { Role, User } from '../types';
-import { UserPlus, Users as UsersIcon, Shield, Trash2, Mail, Phone, Lock, CheckSquare, Square, Edit2, X, ChevronRight, Search, AlertTriangle, User as UserCircle } from 'lucide-react';
+import { UserPlus, Users as UsersIcon, Shield, Trash2, Mail, Phone, Lock, CheckSquare, Square, Edit2, X, ChevronRight, Search, AlertTriangle, User as UserCircle, FileDown } from 'lucide-react';
 import { Pagination } from '../components/Pagination';
+import { toast } from 'sonner';
 
 const AVAILABLE_MODULES = ['Dashboard', 'POS', 'Kitchen', 'Menu', 'Billing', 'Transactions', 'Expenses', 'Reports', 'Inventory', 'Users', 'Settings'];
 
 export const Users = () => {
-    const { users, allUsers, currentTenant, addUser, updateUser, deleteUser, currentUser } = useApp();
+    const { users, allUsers, currentTenant, addUser, updateUser, deleteUser, currentUser, business } = useApp();
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editingUserId, setEditingUserId] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [activeTab, setActiveTab] = useState<'staff' | 'customers'>('staff');
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 20;
     const [error, setError] = useState<string | null>(null);
@@ -149,11 +151,46 @@ export const Users = () => {
         }
     };
 
-    const filteredUsers = users.filter(u => 
-        (u.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-         u.role.toLowerCase().includes(searchTerm.toLowerCase())) &&
-        u.role !== Role.SUPER_ADMIN
-    );
+    const filteredUsers = users.filter(u => {
+        const matchesSearch = (
+            u.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+            u.role.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            u.mobile.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+
+        if (activeTab === 'staff') {
+            return matchesSearch && u.role !== Role.SUPER_ADMIN && u.role !== Role.CUSTOMER;
+        } else {
+            return matchesSearch && u.role === Role.CUSTOMER;
+        }
+    });
+
+    const exportToCSV = () => {
+        const headers = ['Name', 'Email', 'Mobile', 'Role', 'Created At'];
+        const dataRows = filteredUsers.map(u => [
+            u.name,
+            u.email,
+            u.mobile,
+            u.role,
+            u.createdAt || 'N/A'
+        ]);
+
+        const csvContent = [
+            headers.join(','),
+            ...dataRows.map(row => row.map(cell => `"${cell}"`).join(','))
+        ].join('\n');
+
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', `${business.name || 'RestoKeep'}_${activeTab}_${new Date().toISOString().split('T')[0]}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast.success(`${activeTab === 'staff' ? 'Staff' : 'Customer'} list downloaded successfully!`);
+    };
 
     const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
     const paginatedUsers = useMemo(() => {
@@ -171,33 +208,63 @@ export const Users = () => {
             <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6">
                 <div>
                     <h1 className="text-3xl md:text-4xl font-black text-slate-900 tracking-tighter flex items-center gap-3 uppercase">
-                        <UsersIcon className="text-indigo-600" size={36} /> Team Roster
+                        <UsersIcon className="text-indigo-600" size={36} /> {activeTab === 'staff' ? 'Team Roster' : 'Customer Base'}
                     </h1>
-                    <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.3em] mt-1">Access control & Staffing</p>
+                    <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.3em] mt-1">
+                        {activeTab === 'staff' ? 'Access control & Staffing' : 'Managing your loyal customers'}
+                    </p>
                 </div>
                 
                 <div className="flex flex-col sm:flex-row gap-4 w-full xl:w-auto">
-                    <div className="relative flex-1 sm:w-64 group">
+                    <div className="flex bg-white p-1 rounded-2xl border-2 border-slate-100 shadow-sm">
+                        <button 
+                            onClick={() => setActiveTab('staff')}
+                            className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'staff' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-indigo-600'}`}
+                        >
+                            Staff
+                        </button>
+                        <button 
+                            onClick={() => setActiveTab('customers')}
+                            className={`px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'customers' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-400 hover:text-indigo-600'}`}
+                        >
+                            Customers
+                        </button>
+                    </div>
+
+                    <div className="relative flex-1 group">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-indigo-500 transition-colors" size={18} />
                         <input 
                             type="text" 
-                            placeholder="Find member..."
+                            placeholder={activeTab === 'staff' ? "Find member..." : "Search customers..."}
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                             className="w-full pl-12 pr-4 py-3 bg-white border-2 border-indigo-500 rounded-2xl outline-none focus:ring-4 focus:ring-indigo-50 font-black text-[10px] uppercase transition-all shadow-lg shadow-indigo-100"
                         />
                     </div>
-                    <button 
-                        type="button"
-                        onClick={() => {
-                            resetForm();
-                            setIsFormOpen(true);
-                            handleRoleChange(Role.WAITER);
-                        }}
-                        className="bg-indigo-600 text-white px-8 py-3 rounded-2xl font-black uppercase tracking-widest shadow-xl hover:bg-indigo-700 transition border-2 border-indigo-400 flex items-center justify-center gap-3 shadow-indigo-200"
-                    >
-                        <UserPlus size={20} strokeWidth={3} /> Add <span className="hidden sm:inline">Member</span>
-                    </button>
+
+                    <div className="flex gap-2">
+                        <button 
+                            type="button"
+                            onClick={exportToCSV}
+                            className="bg-white text-slate-900 px-6 py-3 rounded-2xl font-black uppercase tracking-widest shadow-xl hover:bg-slate-50 transition border-2 border-slate-900 flex items-center justify-center gap-3 shadow-indigo-50"
+                        >
+                            <FileDown size={20} strokeWidth={3} /> <span className="hidden sm:inline">Export</span>
+                        </button>
+                        
+                        {activeTab === 'staff' && (
+                            <button 
+                                type="button"
+                                onClick={() => {
+                                    resetForm();
+                                    setIsFormOpen(true);
+                                    handleRoleChange(Role.WAITER);
+                                }}
+                                className="bg-indigo-600 text-white px-8 py-3 rounded-2xl font-black uppercase tracking-widest shadow-xl hover:bg-indigo-700 transition border-2 border-indigo-400 flex items-center justify-center gap-3 shadow-indigo-200"
+                            >
+                                <UserPlus size={20} strokeWidth={3} /> Add <span className="hidden sm:inline">Member</span>
+                            </button>
+                        )}
+                    </div>
                 </div>
             </div>
 
@@ -330,9 +397,9 @@ export const Users = () => {
                     <table className="w-full text-left border-collapse min-w-[900px] border-2 border-black">
                         <thead className="bg-slate-50 text-slate-500 text-[10px] font-black uppercase tracking-widest border-b-2 border-black">
                             <tr>
-                                <th className="p-6 border-r border-black">Staff Details</th>
-                                <th className="p-6 border-r border-black">Position</th>
-                                <th className="p-6 border-r border-black">Module Access</th>
+                                <th className="p-6 border-r border-black">{activeTab === 'staff' ? 'Staff Details' : 'Customer Profile'}</th>
+                                <th className="p-6 border-r border-black">{activeTab === 'staff' ? 'Position' : 'Type'}</th>
+                                {activeTab === 'staff' && <th className="p-6 border-r border-black">Module Access</th>}
                                 <th className="p-6 border-r border-black">Contact info</th>
                                 <th className="p-6 text-right">Actions</th>
                             </tr>
@@ -363,28 +430,31 @@ export const Users = () => {
                                             ${user.role === Role.SUPER_ADMIN ? 'bg-rose-50 border-rose-200 text-rose-600' : 
                                               user.role === Role.OWNER ? 'bg-indigo-50 border-indigo-200 text-indigo-600' : 
                                               user.role === Role.MANAGER ? 'bg-amber-50 border-amber-200 text-amber-600' : 
+                                              user.role === Role.CUSTOMER ? 'bg-emerald-50 border-emerald-200 text-emerald-600' :
                                               'bg-slate-50 border-slate-200 text-slate-600'}`}>
                                             <Shield size={10} /> {user.role}
                                         </span>
                                     </td>
-                                    <td className="p-6 border-r border-black">
-                                        <div className="flex flex-wrap gap-1 max-w-[240px]">
-                                            {(user.permissions || []).map((p, index) => (
-                                                <span key={`${p}-${index}`} className="text-[8px] px-1.5 py-0.5 bg-white border border-slate-200 rounded-lg text-slate-400 font-black uppercase tracking-tighter">
-                                                    {p}
-                                                </span>
-                                            ))}
-                                        </div>
-                                        {user.role === Role.KITCHEN && user.assignedCategories && user.assignedCategories.length > 0 && (
-                                            <div className="mt-2 flex flex-wrap gap-1 max-w-[240px]">
-                                                {user.assignedCategories.map((c, index) => (
-                                                    <span key={`${c}-${index}`} className="text-[8px] px-1.5 py-0.5 bg-orange-50 border border-orange-100 rounded-lg text-orange-600 font-black uppercase tracking-tighter">
-                                                        {c}
+                                    {activeTab === 'staff' && (
+                                        <td className="p-6 border-r border-black">
+                                            <div className="flex flex-wrap gap-1 max-w-[240px]">
+                                                {(user.permissions || []).map((p, index) => (
+                                                    <span key={`${p}-${index}`} className="text-[8px] px-1.5 py-0.5 bg-white border border-slate-200 rounded-lg text-slate-400 font-black uppercase tracking-tighter">
+                                                        {p}
                                                     </span>
                                                 ))}
                                             </div>
-                                        )}
-                                    </td>
+                                            {user.role === Role.KITCHEN && user.assignedCategories && user.assignedCategories.length > 0 && (
+                                                <div className="mt-2 flex flex-wrap gap-1 max-w-[240px]">
+                                                    {user.assignedCategories.map((c, index) => (
+                                                        <span key={`${c}-${index}`} className="text-[8px] px-1.5 py-0.5 bg-orange-50 border border-orange-100 rounded-lg text-orange-600 font-black uppercase tracking-tighter">
+                                                            {c}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </td>
+                                    )}
                                     <td className="p-6 border-r border-black">
                                         <span className="text-[10px] font-black text-slate-900 tracking-widest">{user.mobile}</span>
                                     </td>
@@ -438,21 +508,24 @@ export const Users = () => {
                                         ${user.role === Role.SUPER_ADMIN ? 'bg-rose-50 border-rose-200 text-rose-600' : 
                                           user.role === Role.OWNER ? 'bg-indigo-50 border-indigo-200 text-indigo-600' : 
                                           user.role === Role.MANAGER ? 'bg-amber-50 border-amber-200 text-amber-600' : 
+                                          user.role === Role.CUSTOMER ? 'bg-emerald-50 border-emerald-200 text-emerald-600' :
                                           'bg-slate-50 border-slate-200 text-slate-600'}`}>
                                         <Shield size={10} /> {user.role}
                                     </span>
                                 </div>
 
-                                <div className="flex justify-between items-start">
-                                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Access</span>
-                                    <div className="flex flex-wrap justify-end gap-1 max-w-[200px]">
-                                        {(user.permissions || []).map((p, index) => (
-                                            <span key={`${p}-${index}`} className="text-[8px] px-1.5 py-0.5 bg-white border border-slate-200 rounded-lg text-slate-400 font-black uppercase tracking-tighter">
-                                                {p}
-                                            </span>
-                                        ))}
+                                {activeTab === 'staff' && (
+                                    <div className="flex justify-between items-start">
+                                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Access</span>
+                                        <div className="flex flex-wrap justify-end gap-1 max-w-[200px]">
+                                            {(user.permissions || []).map((p, index) => (
+                                                <span key={`${p}-${index}`} className="text-[8px] px-1.5 py-0.5 bg-white border border-slate-200 rounded-lg text-slate-400 font-black uppercase tracking-tighter">
+                                                    {p}
+                                                </span>
+                                            ))}
+                                        </div>
                                     </div>
-                                </div>
+                                )}
 
                                 <div className="flex justify-between items-center">
                                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Mobile</span>

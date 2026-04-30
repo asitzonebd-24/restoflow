@@ -1,7 +1,8 @@
 
 import React, { createContext, useContext, useState, ReactNode, useMemo, useEffect, useCallback } from 'react';
-import { Role, Business, User, Order, InventoryItem, MenuItem, OrderStatus, ItemStatus, Transaction, Expense, OrderItem, MonthlyBill, BillStatus, Recipe, Table, InventoryMode, SubscriptionPackage } from '../types';
+import { Role, Business, User, Order, InventoryItem, MenuItem, OrderStatus, ItemStatus, Transaction, Expense, OrderItem, MonthlyBill, BillStatus, Recipe, Table, InventoryMode, SubscriptionPackage, Promotion, Attendance, Payroll } from '../types';
 import { BUSINESS_DETAILS, MOCK_USERS, INITIAL_ORDERS, MOCK_INVENTORY, MOCK_MENU, MOCK_EXPENSES, DEFAULT_MENU_IMAGE, DEFAULT_AVATAR, DEFAULT_BUSINESS_LOGO, APP_MODULES } from '../constants';
+import { NotificationService } from '../src/services/notificationService';
 import { auth, secondaryAuth, db, googleProvider } from '../src/firebase';
 import { 
   signOut,
@@ -157,6 +158,19 @@ interface AppContextType {
   updateSubscriptionPackage: (id: string, pkg: Partial<SubscriptionPackage>) => Promise<void>;
   deleteSubscriptionPackage: (id: string) => Promise<void>;
   subscribeBusinessToPackage: (tenantId: string, packageId: string) => Promise<void>;
+  promotions: Promotion[];
+  addPromotion: (promo: Omit<Promotion, 'id' | 'createdAt' | 'tenantId'>) => Promise<void>;
+  updatePromotion: (id: string, updates: Partial<Promotion>) => Promise<void>;
+  deletePromotion: (id: string) => Promise<void>;
+  trackOrder: (orderId: string) => void;
+  untrackOrder: (orderId: string) => void;
+  trackedOrderIds: string[];
+  attendance: Attendance[];
+  clockIn: (note?: string) => Promise<void>;
+  clockOut: (attendanceId: string) => Promise<void>;
+  payroll: Payroll[];
+  generatePayroll: (month: string, bonusMap?: Record<string, number>, deductionMap?: Record<string, number>) => Promise<void>;
+  markPayrollPaid: (id: string) => Promise<void>;
   allUsers: User[];
   isLoading: boolean;
   isAuthReady: boolean;
@@ -220,6 +234,17 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
   const [allTables, setAllTables] = useState<Table[]>([]);
   const [monthlyBills, setMonthlyBills] = useState<MonthlyBill[]>([]);
   const [subscriptionPackages, setSubscriptionPackages] = useState<SubscriptionPackage[]>([]);
+  const [allPromotions, setAllPromotions] = useState<Promotion[]>([]);
+  const [allAttendance, setAllAttendance] = useState<Attendance[]>([]);
+  const [allPayroll, setAllPayroll] = useState<Payroll[]>([]);
+  const [trackedOrderIds, setTrackedOrderIds] = useState<string[]>(() => {
+    const saved = localStorage.getItem('tracked_orders');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('tracked_orders', JSON.stringify(trackedOrderIds));
+  }, [trackedOrderIds]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthReady, setIsAuthReady] = useState(false);
 
@@ -513,7 +538,10 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     const collections: { name: string, setter: (data: any) => void }[] = [
       { name: 'users', setter: setAllUsers },
       { name: 'monthly_bills', setter: setMonthlyBills },
-      { name: 'subscription_packages', setter: setSubscriptionPackages }
+      { name: 'subscription_packages', setter: setSubscriptionPackages },
+      { name: 'promotions', setter: setAllPromotions },
+      { name: 'attendance', setter: setAllAttendance },
+      { name: 'payroll', setter: setAllPayroll }
     ];
 
     if (!isSuperAdmin || currentTenantId) {
@@ -531,15 +559,19 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     collections.forEach(({ name, setter }) => {
       let q;
       // If we have a selected tenant (or if non-admin), always filter by tenantId to prevent massive data fetch
-      if (effectiveTenantId && !['subscription_packages', 'tenants', 'users'].includes(name)) {
+      if (effectiveTenantId && !['subscription_packages', 'tenants', 'users', 'promotions'].includes(name)) {
         q = query(collection(db, name), where('tenantId', '==', String(effectiveTenantId)));
-      } else if (isSuperAdmin || name === 'users') {
+      } else if (isSuperAdmin || name === 'users' || name === 'promotions') {
         // Super Admin fetches latest data with a strict limit
         // Users fetch all users to allow filtering by tenant in the computed 'users' property
         q = query(collection(db, name), limit(1000));
       } else {
         // Fallback or empty query to avoid fetching world data
         q = query(collection(db, name), limit(1));
+      }
+
+      if (name === 'promotions' && effectiveTenantId) {
+        q = query(collection(db, 'promotions'), where('tenantId', '==', effectiveTenantId), where('isActive', '==', true));
       }
 
       if (name === 'orders') {
@@ -1894,8 +1926,11 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
 
   const updateUser = async (userId: string, updates: Partial<User>) => {
     try {
+      // Find the user to get current values for comparison
+      const existingUser = allUsers.find(u => u.id === userId);
+
       // If mobile or email is being updated, check for uniqueness across the system
-      if (updates.mobile) {
+      if (updates.mobile && updates.mobile !== existingUser?.mobile) {
         const mobileQuery = query(collection(db, 'users'), where('mobile', '==', updates.mobile), limit(1));
         const mobileSnapshot = await getDocs(mobileQuery);
         if (!mobileSnapshot.empty && mobileSnapshot.docs[0].id !== userId) {
@@ -1904,7 +1939,7 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
         }
       }
 
-      if (updates.email) {
+      if (updates.email && updates.email.toLowerCase() !== existingUser?.email.toLowerCase()) {
         const emailQuery = query(collection(db, 'users'), where('email', '==', updates.email.toLowerCase()), limit(1));
         const emailSnapshot = await getDocs(emailQuery);
         if (!emailSnapshot.empty && emailSnapshot.docs[0].id !== userId) {
@@ -2348,6 +2383,183 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
     return prefix ? `${prefix}-${formattedToken}` : formattedToken;
   }, [orders, business]);
 
+  // Notification Logic
+  const trackOrder = (orderId: string) => {
+    setTrackedOrderIds(prev => Array.from(new Set([...prev, orderId])));
+  };
+
+  const untrackOrder = (orderId: string) => {
+    setTrackedOrderIds(prev => prev.filter(id => id !== orderId));
+  };
+
+  const prevOrderStatuses = React.useRef<Record<string, OrderStatus>>({});
+  const prevPromoIds = React.useRef<Set<string>>(new Set());
+  const isFirstLoad = React.useRef(true);
+
+  useEffect(() => {
+    if (orders.length > 0) {
+      orders.forEach(order => {
+        const prevStatus = prevOrderStatuses.current[order.id];
+        if (!isFirstLoad.current && trackedOrderIds.includes(order.id) && order.status === OrderStatus.READY && prevStatus !== OrderStatus.READY) {
+          NotificationService.notifyOrderReady(order.tokenNumber);
+        }
+        prevOrderStatuses.current[order.id] = order.status;
+      });
+      if (isFirstLoad.current) isFirstLoad.current = false;
+    }
+  }, [orders, trackedOrderIds]);
+
+  useEffect(() => {
+    if (allPromotions.length > 0) {
+      allPromotions.forEach(promo => {
+        if (!prevPromoIds.current.has(promo.id) && promo.isActive) {
+          NotificationService.notifyPromotion(promo.title, promo.message);
+        }
+        prevPromoIds.current.add(promo.id);
+      });
+    }
+  }, [allPromotions]);
+
+  const addPromotion = async (promo: Omit<Promotion, 'id' | 'createdAt' | 'tenantId'>) => {
+    const tenantId = resolvedTenantId || '';
+    const id = `promo-${Date.now()}`;
+    const newPromo = { 
+      ...promo, 
+      id, 
+      tenantId, 
+      createdAt: new Date().toISOString() 
+    } as Promotion;
+
+    try {
+      await setDoc(doc(db, 'promotions', id), cleanObject(newPromo));
+      setAllPromotions(prev => [newPromo, ...prev]);
+      toast.success('Promotion added successfully!');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'promotions');
+    }
+  };
+
+  const updatePromotion = async (id: string, updates: Partial<Promotion>) => {
+    try {
+      await updateDoc(doc(db, 'promotions', id), cleanObject(updates));
+      setAllPromotions(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
+      toast.success('Promotion updated!');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `promotions/${id}`);
+    }
+  };
+
+  const deletePromotion = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'promotions', id));
+      setAllPromotions(prev => prev.filter(p => p.id !== id));
+      toast.success('Promotion deleted!');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `promotions/${id}`);
+    }
+  };
+
+  const clockIn = async (note?: string) => {
+    if (!currentUser || !resolvedTenantId) return;
+    
+    const timezone = business?.timezone || 'UTC';
+    const now = new Date();
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
+    
+    // Check if already clocked in today
+    const existing = allAttendance.find(a => a.userId === currentUser.id && a.date === today);
+    if (existing) {
+      toast.error('You already clocked in today!');
+      return;
+    }
+
+    const id = `att-${currentUser.id}-${Date.now()}`;
+    const newAttendance: Attendance = {
+      id,
+      tenantId: resolvedTenantId,
+      userId: currentUser.id,
+      userName: currentUser.name,
+      date: today,
+      checkIn: now.toISOString(),
+      status: 'present',
+      note
+    };
+
+    try {
+      await setDoc(doc(db, 'attendance', id), cleanObject(newAttendance));
+      toast.success('Clocked in successfully!');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'attendance');
+    }
+  };
+
+  const clockOut = async (attendanceId: string) => {
+    try {
+      await updateDoc(doc(db, 'attendance', attendanceId), {
+        checkOut: new Date().toISOString()
+      });
+      toast.success('Clocked out successfully!');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `attendance/${attendanceId}`);
+    }
+  };
+
+  const generatePayroll = async (month: string, bonusMap: Record<string, number> = {}, deductionMap: Record<string, number> = {}) => {
+    if (!resolvedTenantId) return;
+    
+    const tenantUsers = users.filter(u => u.role !== Role.SUPER_ADMIN && u.role !== Role.CUSTOMER);
+    const batch = writeBatch(db);
+    
+    for (const user of tenantUsers) {
+      const userAttendance = allAttendance.filter(a => a.userId === user.id && a.date.startsWith(month));
+      const baseSalary = 10000; // This should ideally come from user profile, but using 10k as default
+      const bonus = bonusMap[user.id] || 0;
+      const deductions = deductionMap[user.id] || 0;
+      
+      const attendanceCount = userAttendance.length;
+      // Simple calculation: (Base / 30) * days + bonus - deductions
+      const dailyRate = baseSalary / 30;
+      const netSalary = Math.round((dailyRate * attendanceCount) + bonus - deductions);
+
+      const id = `pay-${user.id}-${month}`;
+      const newPayroll: Payroll = {
+        id,
+        tenantId: resolvedTenantId,
+        userId: user.id,
+        userName: user.name,
+        month,
+        baseSalary,
+        bonus,
+        deductions,
+        netSalary,
+        status: 'pending',
+        attendanceCount,
+        createdAt: new Date().toISOString()
+      };
+
+      batch.set(doc(db, 'payroll', id), cleanObject(newPayroll));
+    }
+
+    try {
+      await batch.commit();
+      toast.success(`Payroll generated for ${month}`);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, 'payroll');
+    }
+  };
+
+  const markPayrollPaid = async (id: string) => {
+    try {
+      await updateDoc(doc(db, 'payroll', id), {
+        status: 'paid',
+        paidAt: new Date().toISOString()
+      });
+      toast.success('Salary marked as paid!');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `payroll/${id}`);
+    }
+  };
+
   return (
     <AppContext.Provider value={{
       currentUser,
@@ -2412,6 +2624,19 @@ export const AppProvider = ({ children }: { children?: ReactNode }) => {
       updateSubscriptionPackage,
       deleteSubscriptionPackage,
       subscribeBusinessToPackage,
+      promotions: allPromotions,
+      addPromotion,
+      updatePromotion,
+      deletePromotion,
+      trackOrder,
+      untrackOrder,
+      trackedOrderIds,
+      attendance: allAttendance,
+      clockIn,
+      clockOut,
+      payroll: allPayroll,
+      generatePayroll,
+      markPayrollPaid,
       allUsers,
       isLoading,
       isAuthReady,

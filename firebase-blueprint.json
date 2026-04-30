@@ -11,6 +11,7 @@
         "address": { "type": "string" },
         "mobile": { "type": "string" },
         "email": { "type": "string" },
+        "menuCardImages": { "type": "array", "items": { "type": "string" } },
         "isActive": { "type": "boolean" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
@@ -60,12 +61,72 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "name", "price", "durationMonths", "allowedPages"]
+    },
+    "Promotion": {
+      "title": "Promotion",
+      "description": "Marketing offers and discounts",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "tenantId": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "discountPercentage": { "type": "number" },
+        "promoCode": { "type": "string" },
+        "isActive": { "type": "boolean" },
+        "expiryDate": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "tenantId", "title", "message"]
+    },
+    "Attendance": {
+      "title": "Attendance",
+      "description": "Daily staff clock-in/out records",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "tenantId": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "date": { "type": "string" },
+        "checkIn": { "type": "string", "format": "date-time" },
+        "checkOut": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["present", "absent", "late"] }
+      },
+      "required": ["id", "tenantId", "userId", "date", "checkIn"]
+    },
+    "Payroll": {
+      "title": "Payroll",
+      "description": "Monthly staff salary records",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "tenantId": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "month": { "type": "string" },
+        "baseSalary": { "type": "number" },
+        "netSalary": { "type": "number" },
+        "status": { "type": "string", "enum": ["pending", "paid"] }
+      },
+      "required": ["id", "tenantId", "userId", "month", "netSalary"]
     }
   },
   "firestore": {
+    "/attendance/{attendanceId}": {
+      "schema": "Attendance",
+      "description": "Staff attendance records"
+    },
+    "/payroll/{payrollId}": {
+      "schema": "Payroll",
+      "description": "Staff salary and payment records"
+    },
     "/subscription_packages/{packageId}": {
       "schema": "SubscriptionPackage",
       "description": "System-wide subscription plans"
+    },
+    "/promotions/{promoId}": {
+      "schema": "Promotion",
+      "description": "Discount codes and marketing messages"
     },
     "/tenants/{tenantId}": {
       "schema": "Business",

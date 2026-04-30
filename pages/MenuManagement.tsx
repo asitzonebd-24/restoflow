@@ -5,9 +5,11 @@ import { Plus, Edit2, Trash2, X, Save, Utensils, Sparkles, Search, ImageOff, Lis
 import { generateMenuDescription } from '../services/geminiService';
 
 export const MenuManagement = () => {
-  const { menu, business, addMenuItem, updateMenuItem, deleteMenuItem, addMenuCategory, renameMenuCategory, deleteMenuCategory, updateMenuCategories } = useApp();
+  const { menu, business, addMenuItem, updateMenuItem, deleteMenuItem, addMenuCategory, renameMenuCategory, deleteMenuCategory, updateMenuCategories, updateBusiness } = useApp();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [isMenuCardModalOpen, setIsMenuCardModalOpen] = useState(false);
+  const [menuCardUrl, setMenuCardUrl] = useState('');
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -143,6 +145,12 @@ export const MenuManagement = () => {
           <p className="text-slate-400 text-xs font-medium uppercase tracking-widest mt-2 opacity-80">Curate your offerings and manage categories</p>
         </div>
         <div className="flex gap-3">
+           <button 
+             onClick={() => setIsMenuCardModalOpen(true)}
+             className="bg-white border border-slate-100 px-6 py-3 rounded-2xl text-xs font-bold uppercase tracking-widest text-slate-600 shadow-sm hover:bg-slate-50 transition-all flex items-center gap-2 active:scale-95"
+           >
+             <ImageOff size={16} /> Menu Card
+           </button>
            <button 
              onClick={() => setIsCategoryModalOpen(true)}
              className="bg-white border border-slate-100 px-6 py-3 rounded-2xl text-xs font-bold uppercase tracking-widest text-slate-600 shadow-sm hover:bg-slate-50 transition-all flex items-center gap-2 active:scale-95"
@@ -542,6 +550,79 @@ export const MenuManagement = () => {
             <div className="p-8 bg-slate-50 border-t border-slate-100 shrink-0">
                 <button 
                     onClick={() => setIsCategoryModalOpen(false)}
+                    className="w-full py-4 rounded-2xl font-bold text-white uppercase tracking-widest text-[10px] bg-slate-900 hover:bg-slate-800 transition-all shadow-lg"
+                >
+                    Done
+                </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Menu Card Modal */}
+      {isMenuCardModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setIsMenuCardModalOpen(false)}></div>
+          <div className="relative bg-white w-full max-w-lg md:rounded-[2.5rem] rounded-t-[2rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 border-4 border-black shadow-slate-200 self-end md:self-center max-h-[90vh] flex flex-col">
+            <div className="p-8 md:p-10 overflow-y-auto no-scrollbar flex-1">
+              <div className="flex justify-between items-center mb-8 shrink-0">
+                <div>
+                  <h2 className="text-2xl font-bold text-slate-900">Digital Menu Card</h2>
+                  <p className="text-slate-400 text-sm mt-1">Upload images of your physical menu</p>
+                </div>
+                <button onClick={() => setIsMenuCardModalOpen(false)} className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400 hover:bg-slate-100 transition-all">
+                  <X size={24} />
+                </button>
+              </div>
+
+              <div className="space-y-8">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 ml-1">Add Menu Card Image URL</label>
+                  <div className="flex gap-3">
+                    <input 
+                        type="url" 
+                        placeholder="https://images.unsplash.com/..."
+                        value={menuCardUrl}
+                        onChange={(e) => setMenuCardUrl(e.target.value)}
+                        className="flex-1 px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                    />
+                    <button 
+                        onClick={() => {
+                          if (!menuCardUrl) return;
+                          const currentImages = business.menuCardImages || [];
+                          updateBusiness({
+                            menuCardImages: [...currentImages, menuCardUrl]
+                          });
+                          setMenuCardUrl('');
+                        }}
+                        className="w-14 h-14 bg-slate-900 text-white rounded-2xl flex items-center justify-center hover:bg-slate-800 transition-all shadow-lg active:scale-95"
+                    >
+                        <Plus size={24} />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  {(business.menuCardImages || []).map((img, index) => (
+                    <div key={`${img}-${index}`} className="relative aspect-[3/4] bg-slate-50 rounded-2xl border-2 border-black overflow-hidden group">
+                      <img src={img} alt={`Menu Page ${index + 1}`} className="w-full h-full object-cover" />
+                      <button 
+                        onClick={() => {
+                          const newImages = (business.menuCardImages || []).filter((_, i) => i !== index);
+                          updateBusiness({ menuCardImages: newImages });
+                        }}
+                        className="absolute top-2 right-2 w-8 h-8 bg-white border border-black rounded-lg flex items-center justify-center text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="p-8 bg-slate-50 border-t border-slate-100 shrink-0">
+                <button 
+                    onClick={() => setIsMenuCardModalOpen(false)}
                     className="w-full py-4 rounded-2xl font-bold text-white uppercase tracking-widest text-[10px] bg-slate-900 hover:bg-slate-800 transition-all shadow-lg"
                 >
                     Done

@@ -12,6 +12,7 @@ export const CustomerOrder = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [cart, setCart] = useState<OrderItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isMenuCardOpen, setIsMenuCardOpen] = useState(false);
   const [orderNote, setOrderNote] = useState('');
   
   const [useProfileAddress, setUseProfileAddress] = useState(!!currentUser?.address);
@@ -287,6 +288,14 @@ export const CustomerOrder = () => {
                     <option key={cat} value={cat}>{cat}</option>
                   ))}
                 </select>
+                {business.menuCardImages && business.menuCardImages.length > 0 && (
+                  <button 
+                    onClick={() => setIsMenuCardOpen(true)}
+                    className="bg-indigo-600 text-white px-4 py-2 rounded-xl font-black uppercase text-[10px] outline-none shadow-lg shadow-indigo-100 flex items-center gap-2 hover:bg-slate-900 transition active:scale-95 whitespace-nowrap"
+                  >
+                    <FileText size={16} /> Full Menu
+                  </button>
+                )}
               </div>
             </div>
             <div className="text-right flex items-center gap-4 shrink-0">
@@ -389,6 +398,58 @@ export const CustomerOrder = () => {
                 className="absolute right-0 top-0 bottom-0 w-[85%] max-w-md"
               >
                 <CartContent onClose={() => setIsCartOpen(false)} />
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Menu Card Preview Modal */}
+        <AnimatePresence>
+          {isMenuCardOpen && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[300] bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 md:p-10"
+              onClick={() => setIsMenuCardOpen(false)}
+            >
+              <motion.div 
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                className="relative bg-white w-full max-w-5xl rounded-[3rem] border-4 border-black overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
+                onClick={e => e.stopPropagation()}
+              >
+                <div className="p-6 md:p-8 flex justify-between items-center bg-slate-50 border-b-4 border-slate-100 shrink-0">
+                  <div>
+                    <h2 className="text-2xl font-black uppercase tracking-tighter">Restaurant Menu Card</h2>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Scroll to view all pages</p>
+                  </div>
+                  <button 
+                    onClick={() => setIsMenuCardOpen(false)}
+                    className="w-12 h-12 flex items-center justify-center rounded-2xl bg-white border-2 border-slate-100 text-slate-500 hover:text-rose-500 hover:border-rose-500 transition-all"
+                  >
+                    <X size={24} />
+                  </button>
+                </div>
+                <div className="flex-1 overflow-y-auto p-4 md:p-10 space-y-8 no-scrollbar bg-slate-50/50">
+                  {(business.menuCardImages || []).map((img, index) => (
+                    <img 
+                      key={index} 
+                      src={img} 
+                      alt={`Menu Page ${index + 1}`} 
+                      className="w-full max-w-2xl mx-auto rounded-3xl shadow-2xl border-2 border-black"
+                    />
+                  ))}
+                </div>
+                <div className="p-6 bg-white border-t-4 border-slate-100 flex justify-center shrink-0">
+                   <button 
+                    onClick={() => setIsMenuCardOpen(false)}
+                    className="bg-black text-white px-10 py-4 rounded-[2rem] font-black uppercase text-xs tracking-widest hover:scale-105 active:scale-95 transition-all"
+                   >
+                     Continue Ordering
+                   </button>
+                </div>
               </motion.div>
             </motion.div>
           )}
