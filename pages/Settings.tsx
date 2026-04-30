@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { Settings as SettingsIcon, Save, Store, Globe, Percent, Upload, Image as ImageIcon, User as UserIcon, Lock, Mail, Phone, Printer, QrCode, Check } from 'lucide-react';
+import { Settings as SettingsIcon, Save, Store, Globe, Percent, Upload, Image as ImageIcon, User as UserIcon, Lock, Mail, Phone, Printer, QrCode, Check, X } from 'lucide-react';
 import { Role, InventoryMode } from '../types';
 import { BluetoothPrinterService } from '../services/printerService';
 import { QRCodeModal } from '../components/QRCodeModal';
@@ -23,6 +23,8 @@ export const Settings = () => {
     const [nextCustomerToken, setNextCustomerToken] = useState(1);
     const [inventoryMode, setInventoryMode] = useState<InventoryMode>(InventoryMode.SIMPLE);
     const [isQRModalOpen, setIsQRModalOpen] = useState(false);
+    const [isBluetoothWizardOpen, setIsBluetoothWizardOpen] = useState(false);
+    const [wizardContext, setWizardContext] = useState<'business' | 'personal'>('business');
 
     // Printer Settings state
     const [receiptHeader, setReceiptHeader] = useState('');
@@ -180,22 +182,8 @@ export const Settings = () => {
     };
 
     const handleUserPrinterPairing = async () => {
-        setIsUserPrinterSearching(true);
-        try {
-            const result = await BluetoothPrinterService.connect();
-            if (result.success && result.device) {
-                setUserPrinterName(result.device.name || 'Unknown Printer');
-                setUserPrinterId(result.device.id);
-                alert(`Personal printer "${result.device.name || 'Unknown Printer'}" paired! Click "Update Profile" to save.`);
-            } else {
-                alert('Connection failed. Please ensure Bluetooth is on and printer is in range.');
-            }
-        } catch (error) {
-            console.error('User printer pairing error:', error);
-            alert('An error occurred during pairing.');
-        } finally {
-            setIsUserPrinterSearching(false);
-        }
+        setWizardContext('personal');
+        setIsBluetoothWizardOpen(true);
     };
 
     const handleTestUserPrint = async () => {
@@ -227,34 +215,8 @@ export const Settings = () => {
     };
 
     const handleAddBluetoothPrinter = async () => {
-        setIsBluetoothSearching(true);
-        const result = await BluetoothPrinterService.connect();
-        if (result.success && result.device) {
-            const newName = result.device.name || 'Unknown Printer';
-            const newId = result.device.id;
-            setPairedPrinterName(newName);
-            setPairedPrinterId(newId);
-            
-            // Automatically save to business settings
-            if (business) {
-                updateBusiness({
-                    printerSettings: {
-                        receiptHeader,
-                        receiptFooter,
-                        paperWidth,
-                        autoPrintKOT,
-                        autoPrintInvoice,
-                        showLogo,
-                        pairedPrinterName: newName,
-                        pairedPrinterId: newId
-                    }
-                });
-            }
-            alert(`Printer "${newName}" paired and saved successfully!`);
-        } else {
-            alert('Failed to connect to printer. Please ensure it is turned on and in range.');
-        }
-        setIsBluetoothSearching(false);
+        setWizardContext('business');
+        setIsBluetoothWizardOpen(true);
     };
 
     const handleTestPrint = async () => {
@@ -601,6 +563,106 @@ export const Settings = () => {
                 address={business?.address}
                 phone={business?.phone}
             />
+
+            {/* Bluetooth Setup Wizard Modal */}
+            {isBluetoothWizardOpen && (
+                <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 md:p-10">
+                    <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setIsBluetoothWizardOpen(false)}></div>
+                    <div className="relative bg-white w-full max-w-xl rounded-[2.5rem] shadow-2xl border-4 border-black overflow-hidden flex flex-col max-h-[90vh]">
+                        <div className="p-8 md:p-10 overflow-y-auto no-scrollbar">
+                            <div className="flex justify-between items-center mb-8">
+                                <div>
+                                    <h2 className="text-2xl font-black uppercase tracking-tighter">Bluetooth Setup Guide</h2>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Paired as: {wizardContext === 'business' ? 'Business Main Printer' : 'Your Personal Printer'}</p>
+                                </div>
+                                <button onClick={() => setIsBluetoothWizardOpen(false)} className="w-12 h-12 bg-slate-50 text-slate-400 rounded-2xl flex items-center justify-center hover:bg-slate-100 transition-all">
+                                    <X size={24} />
+                                </button>
+                            </div>
+
+                            <div className="space-y-6">
+                                <div className="space-y-4">
+                                    <div className="flex gap-4">
+                                        <div className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0">1</div>
+                                        <div>
+                                            <p className="text-sm font-bold text-slate-900">Ensure Printer is ON</p>
+                                            <p className="text-[11px] text-slate-500 mt-0.5">Turn on your Bluetooth thermal printer and make sure it has paper.</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-4">
+                                        <div className="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0">2</div>
+                                        <div>
+                                            <p className="text-sm font-bold text-slate-900">Chrome & Android Tips</p>
+                                            <p className="text-[11px] text-slate-500 mt-0.5">Android users **MUST** turn on both Bluetooth & Location (GPS). When the browser popup appears, select your printer.</p>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-4">
+                                        <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-xs shrink-0">3</div>
+                                        <div>
+                                            <p className="text-sm font-bold text-slate-900">Pairing & Connection</p>
+                                            <p className="text-[11px] text-slate-500 mt-0.5">Click the button below to start searching. Chrome will show its own small window for selection.</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="p-6 bg-amber-50 border-2 border-amber-100 rounded-3xl">
+                                    <div className="flex items-center gap-2 text-amber-700 mb-2">
+                                        <Lock size={16} />
+                                        <span className="text-[10px] font-black uppercase tracking-widest">Chrome Tip</span>
+                                    </div>
+                                    <p className="text-[11px] text-amber-700/80 leading-relaxed font-medium">
+                                        To avoid pairing every time, make sure your computer's OS (Windows/Mac) has already paired with the printer. Chrome will then remember it for this website.
+                                    </p>
+                                </div>
+
+                                <button 
+                                    onClick={async () => {
+                                        if (wizardContext === 'business') {
+                                            setIsBluetoothSearching(true);
+                                        } else {
+                                            setIsUserPrinterSearching(true);
+                                        }
+
+                                        const result = await BluetoothPrinterService.connect();
+                                        
+                                        if (result.success && result.device) {
+                                            const newName = result.device.name || 'Unknown Printer';
+                                            const newId = result.device.id;
+                                            
+                                            if (wizardContext === 'business') {
+                                                setPairedPrinterName(newName);
+                                                setPairedPrinterId(newId);
+                                                updateBusiness({
+                                                    printerSettings: {
+                                                        ...business.printerSettings,
+                                                        pairedPrinterName: newName,
+                                                        pairedPrinterId: newId
+                                                    }
+                                                });
+                                            } else {
+                                                setUserPrinterName(newName);
+                                                setUserPrinterId(newId);
+                                            }
+                                            
+                                            alert(`Printer "${newName}" Paired Successfully!`);
+                                            setIsBluetoothWizardOpen(false);
+                                        } else {
+                                            alert('Failed to find printer. Please try again.');
+                                        }
+
+                                        setIsBluetoothSearching(false);
+                                        setIsUserPrinterSearching(false);
+                                    }}
+                                    disabled={isBluetoothSearching || isUserPrinterSearching}
+                                    className="w-full bg-slate-900 text-white py-5 rounded-[2rem] font-black uppercase text-xs tracking-[0.2em] shadow-xl hover:scale-[1.02] active:scale-95 transition-all disabled:opacity-50"
+                                >
+                                    {isBluetoothSearching || isUserPrinterSearching ? 'Searching Devices...' : 'Search & Pair Printer'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
